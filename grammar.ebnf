@@ -1,0 +1,10 @@
+START = block END
+
+block = (expr SEP). expr
+expr  = op
+      | literal
+
+op = SYMBOL ASSIGN expr
+
+literal = SYMBOL
+        | BOOLEAN
