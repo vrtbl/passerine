@@ -79,7 +79,6 @@ impl Token {
     }
 
     fn assign(source: &str) -> Consume {
-        // TODO: literal ain't found in this scope for some reason...
         return Token::literal(source, "=", Token::Assign);
     }
 
@@ -87,6 +86,7 @@ impl Token {
     // but I'm not going to abstract it out, yet
 
     fn boolean(source: &str) -> Consume {
+        // possible duplication of knowledge, see parser.
         match Token::literal(source, "true",  Token::Boolean) {
             Some(x) => return Some(x),
             None => ()
@@ -106,7 +106,8 @@ impl Token {
     }
 }
 
-// TODO: #[cfg(test)]
+// cfg ain't working
+#[cfg(test)]
 mod test {
     use super::*;
 

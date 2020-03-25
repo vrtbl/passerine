@@ -7,6 +7,8 @@ use crate::pipeline::token::{Token};
 // so all we need is a rule-set
 // ok, so rule-set has been defined in pipeline::token.rs
 
+// TODO: error handling, rather than just returning 'None'
+
 struct Lexer {
     source: &'static str,
     offset: usize,

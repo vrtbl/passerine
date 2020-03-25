@@ -10,13 +10,13 @@ type Branch<'a> = Option<(AST, Tokens<'a>)>;
 pub fn parse(tokens: Vec<(Token, Annotation)>) -> Option<AST> {
     // slices are easier to work with
     // consume all preceeding seperators
-    let mut remaining = consume(&tokens[..], Token::Sep);
+    let stripped = consume(&tokens[..], Token::Sep);
 
     // parse the file
-    if let Some((n, r)) = block(remaining) {
+    if let Some((node, parsed)) = block(stripped) {
         // consume all extra seperators
-        if consume(r, Token::Sep).len() == 0 {
-            return Some(n);
+        if consume(parsed, Token::Sep).len() == 0 {
+            return Some(node);
         }
     }
 
@@ -123,15 +123,12 @@ fn op(tokens: Tokens) -> Branch {
 }
 
 fn literal(tokens: Tokens) -> Branch {
-    let (t, a) = tokens.iter().next()?;
+    let rules: Vec<Box<dyn Fn(Tokens) -> Branch>> = vec![
+        Box::new(|s| symbol(s)),
+        Box::new(|s| boolean(s)),
+    ];
 
-    return Some((
-        AST::leaf(
-            Data::Symbol(a.contents().to_string()),
-            a.clone(),
-        ),
-        &tokens[1..],
-    ));
+    return longest(tokens, rules);
 }
 
 fn symbol(tokens: Tokens) -> Branch {
@@ -144,12 +141,29 @@ fn symbol(tokens: Tokens) -> Branch {
     }
 }
 
+fn boolean(tokens: Tokens) -> Branch {
+    match tokens.iter().next() {
+        Some((Token::Boolean, a)) => Some((
+            AST::leaf(
+                match a.contents() {
+                    "true"  => Data::Boolean(true),
+                    "false" => Data::Boolean(false),
+                    _ => panic!("Lexer classified token as boolean, boolean not found!")
+                },
+                a.clone(),
+            ),
+            &tokens[1..],
+        )),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::pipes::lex::lex;
     use super::*;
 
-    // #[test]
+    #[test]
     fn assignment() {
         // who knew so little could mean so much?
         // forget verbose, we should all write ast
@@ -165,7 +179,7 @@ mod test {
                     Annotation::new(source, 0, 12),
                     vec![
                         AST::leaf(Data::Symbol("heck".to_string()),  Annotation::new(source, 0, 4)),
-                        AST::leaf(Data::Symbol("false".to_string()), Annotation::new(source, 7, 5)),
+                        AST::leaf(Data::Boolean(false), Annotation::new(source, 7, 5)),
                     ],
                 ),
                 AST::node(
@@ -180,5 +194,12 @@ mod test {
         );
 
         assert_eq!(parse(lex(source).unwrap()), Some(result));
+    }
+
+    #[test]
+    fn failure() {
+        let source = "\n hello9 \n \n = true; ";
+
+        assert_eq!(parse(lex(source).unwrap()), None);
     }
 }
