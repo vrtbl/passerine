@@ -8,7 +8,7 @@ pub type Constants = Vec<Data>;
 
 pub enum Opcode {
 //  Opcode // operands, top of stack first
-    Const, // index as a chain of bytes -> pushes value from constant table onto stack
+    Con,   // index as a chain of bytes -> pushes value from constant table onto stack
     Save,  // Data, Symbol -> Stores Data in Symbol
     Load,  // Symbol -> replaces symbol on top of stack with its value
     Clear, // clears stack to last frame
@@ -18,14 +18,26 @@ pub enum Opcode {
 
 impl Opcode {
     // to_byte and from_byte are opposites...
+    // avoid duplication of knowledge...
     // macro time?
 
     pub fn to_byte(&self) -> u8 {
         match self {
-            Opcode::Const => 0,
+            Opcode::Con   => 0,
             Opcode::Save  => 1,
             Opcode::Load  => 2,
             Opcode::Clear => 3,
+        }
+    }
+
+    // TODO: just use macro to inverse match?
+    pub fn to_op(byte: u8) -> Opcode {
+        match byte {
+            0 => Opcode::Con,
+            1 => Opcode::Save,
+            2 => Opcode::Load,
+            3 => Opcode::Clear,
+            _ => panic!("Unknown opcode"),
         }
     }
 

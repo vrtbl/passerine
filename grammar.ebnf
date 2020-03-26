@@ -1,3 +1,4 @@
+# not turing complete (yet!)
 START = block END
 
 block = (expr SEP). expr

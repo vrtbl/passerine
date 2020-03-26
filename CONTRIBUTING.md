@@ -1,6 +1,6 @@
 # Contributing to P
-If you're reading this, congrats - thanks for taking a look!
-If you enjoy P and would like to contribute, we have some simple rules to follow.
+If you're reading this, thanks for taking a look!
+If you would like to contribute to P, we have some simple rules to follow.
 Contributions are made through pull requests, unless you are given write access to the repository.\*
 
 ## General Guidelines
@@ -18,12 +18,13 @@ Don't get discouraged if your fist solution doesn't solve the problem, try again
 Third, we encourage an open, friendly, and supportive environment around the development of P.
 If you disagree with someone for any reason, discuss the issue and express you opinions, don't attack the person.
 Discrimination of any kind against any person is not permitted.
-If you detract from this project's collaborative environment, you'll be disallowed from participating in the future development of this project until you prove you can behave yourself adequately.
-Additionally, supporting your arguments on the basis of age, supposed skill, or title is not permitted.
-Please provide anecdotes and reasoning to support your suggestions.
+If you detract from this project's collaborative environment, you'll be prevented from participating in the future development of this project until you prove you can behave yourself adequately.
+Please provide arguments based on anecdotes and reasoning to support your suggestions - don't rely on arguments based on 'years of experience,' supposed skill, job title, etc. your points across.
 
-## P-Specific Guidelines.
+## P-Specific Guidelines for Getting Started
 > Note: this project is in the rapid initial stages of development, and as such, breaking changes or radical changes in project structure may occur. After the 1.0.0 release, this behavior will stabilize.
+
+> TODO: integrate idea that readable code that works is better than unreadable code that's only a bit faster
 
 P strives to implement a modern compiler pipeline. P is currently broken up into three small projects, namely, the core compiler, the command line interface, and the package repository.
 
@@ -35,17 +36,16 @@ The pipes themselves (i.e., the lexer, the parser, and the bytecode generator), 
 The datastructures associated with these pipes can be found in `src/pipeline`.
 
 Note that pipes can only reference datastructures in pipeline - the pipeline should never reference anything found in pipes.
-Additionally, pipes should not rely on other pipes to get their job done.
-We follow the philosophy of \*nix: Each pipe should do one thing, and do it well.
-(However, we do not believe everything is a file.)
+Additionally, pipes should *not* rely on other pipes to get their job done.
+We follow the philosophy of Unix\*\*: Each pipe should do one thing, and do it well.
 
 Pipes can, however, rely on datastructures in `src/utils` and `src/vm`.
 For instance, all datastructures are annotated with `Annotations`, which point to which part of the source file each each structure represents.
 
 `src/utils` contains utilities that can be used throughout the entire compiler.
-This includes printing errors, building the P standard library, annotating source files, and passing data through multiple pipes at a time.
+This includes utilities for printing errors, building the P standard library, annotating source files, and passing data through multiple pipes sequentially.
 
-The powerhouse of this operation, the VM and its associated datastructures, can be found in `src/VM`. The VM is expected to only rely on bytecode and a constants table, and pipes are expected not to rely on the VM, unless producing one of the VMs datastructures.
+The powerhouse of this operation, the VM and its associated datastructures, can be found in `src/VM`. The VM is expected to only rely on bytecode and a constants table. Pipes should not to rely on the VM, unless they are producing a VM-specific datastructure.
 
 As for testing, each non-trivial file is expected to have unit tests at the bottom of it.
 As a rule of thumb, at least a third of a file should be dedicated to testing.
@@ -56,7 +56,7 @@ The VM should be manipulated solely through the utilities provided by core compi
 > NOTE: this phase of the project has not started yet.
 
 ### Package Repository
-P supports modules (local un-versioned packages) and packages. All packages and their versions to be used by a P project are defined in a `packages.icn` (Isaac's Configuration Notation) file in the project's root.
+P supports modules (local, un-versioned packages) and packages. All packages and their versions to be used by a P project are defined in a `packages.icn` (Isaac's Configuration Notation) file in the project's root.
 
 > NOTE: this phase of the project has not started yet.
 
@@ -80,3 +80,5 @@ dependencies:
 
 ## Footnotes
 > \* This is a great responsibility. Even if you have write access, it is suggested you always open a pull request. If you're patching an urgent non-breaking-change, pushing to master is acceptable.
+
+> \*\* However, we do not believe everything is a file.

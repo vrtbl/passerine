@@ -1,3 +1,3 @@
-// pub mod vm;
+pub mod vm;
 pub mod data;
-// pub mod stack;
+pub mod stack;

@@ -1,7 +1,7 @@
 # P
 Welcome to P!
 P is a small, concise, extensible programming language, powered by a VM written in Rust.
-It was inspired Scheme and OCaml.
+Inspired by Scheme, OCaml, and Wren.
 P supports (syntactically safe) macros, coroutines, anonymous functions, and the like.
 Here's a sample:
 

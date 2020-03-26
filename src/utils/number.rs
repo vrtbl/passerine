@@ -22,12 +22,14 @@ pub fn split_number(n: usize) -> Vec<u8> {
     return bytes;
 }
 
-pub fn build_number(bytes: Vec<u8>) -> usize {
+pub fn build_number(bytes: Vec<u8>) -> (usize, usize) /* (index, eaten) */ {
     let mut i: usize = 0;
+    let mut e        = 0;
     let chunk        = 0b10000000;
 
     for byte in bytes {
         // shift left by 7
+        e += 1;
         i *= chunk as usize;
 
         // check if this byte is the last byte in the sequence
@@ -38,7 +40,7 @@ pub fn build_number(bytes: Vec<u8>) -> usize {
         }
     }
 
-    return i;
+    return (i, e);
 }
 
 #[cfg(test)]
@@ -49,7 +51,7 @@ mod test {
     fn encode_decode() {
         // big number
         let x = 7289529732981739357;
-        assert_eq!(build_number(split_number(x)), x);
+        assert_eq!(build_number(split_number(x)), (x, 9));
     }
 
     #[test]
@@ -63,19 +65,20 @@ mod test {
         // encode number
         let x     = 42069;
         let bytes = split_number(x);
+        let eat   = bytes.len();
 
         // add junk data to end
         let mut extra = bytes.clone();
         extra.append(&mut vec![0xBA, 0xDA, 0x55]);
 
-        assert_eq!(x, build_number(bytes));
-        assert_eq!(x, build_number(extra));
+        assert_eq!((x, eat), build_number(bytes));
+        assert_eq!((x, eat), build_number(extra));
     }
 
     #[test]
     fn zero() {
         let mut zero = split_number(0);
         zero.push(2); // will most likely be 2 if split/build_number doesn't work
-        assert_eq!(build_number(zero), 0);
+        assert_eq!(build_number(zero), (0, 1));
     }
 }

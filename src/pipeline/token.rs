@@ -111,6 +111,8 @@ impl Token {
 mod test {
     use super::*;
 
+    // each case tests the detection of a specific token type
+
     #[test]
     fn boolean() {
         assert_eq!(

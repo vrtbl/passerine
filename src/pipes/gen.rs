@@ -31,10 +31,13 @@ fn assign(children: &Vec<AST>, constants: &mut Constants, bytecode: &mut Bytecod
     // load the const symbol
     // TODO: is it redundant? check that left arm is symbol
     match symbol {
-        AST::Leaf { data: Data::Symbol(_), ann: _ } => (),
+        AST::Leaf { data: d, ann: _ } => {
+            // manually push to not load symbol value
+            bytecode.push(Opcode::Con.to_byte());
+            bytecode.append(&mut split_number(find(&d, constants)));
+        },
         _ => panic!("Symbol expected, found something else")
     }
-    walk(&symbol, constants, bytecode);
 
     // eval the expression
     walk(&expr, constants, bytecode);
@@ -54,8 +57,13 @@ fn walk(ast: &AST, constants: &mut Constants, bytecode: &mut Bytecode) {
     // push left, push right, push center
     match ast {
         AST::Leaf { data, ann: _ } => {
-            bytecode.push(Opcode::Const.to_byte());
+            bytecode.push(Opcode::Con.to_byte());
             bytecode.append(&mut split_number(find(&data, constants)));
+
+            // variables should be loaded!
+            if let Data::Symbol(_) = data {
+                bytecode.push(Opcode::Load.to_byte());
+            }
         },
         AST::Node { kind, ann: _, children } => match kind {
                 Operation::Block  => block(&children, constants, bytecode),
@@ -64,8 +72,7 @@ fn walk(ast: &AST, constants: &mut Constants, bytecode: &mut Bytecode) {
     }
 }
 
-
-pub fn parse(ast: AST) -> (Bytecode, Constants) {
+pub fn gen(ast: AST) -> (Bytecode, Constants) {
     let mut constants = vec![];
     let mut bytecode = vec![];
 
@@ -103,14 +110,12 @@ mod test {
         let source = "heck = true; lol = heck; lmao = false";
         let ast    = parse(lex(source).unwrap()).unwrap();
 
-        let mut constants = vec![];
-        let mut bytecode = vec![];
-        walk(&ast, &mut constants, &mut bytecode);
+        let (bytecode, constants) = gen(ast);
+        let result = vec![0, 128, 0, 129, 1, 3, 0, 130, 0, 128, 2, 1, 3, 0, 131, 0, 132, 1];
+        // con heck, con true, save, clear |                          |                  |
+        // con lol, con heck, load heck, save, clear                  |                  |
+        // load lmao, load false, save, clear                                            |
 
-        // TODO: add assert
-        println!("{:#?}", ast);
-        println!("{:?}", constants);
-        println!("{:?}", bytecode);
-        panic!();
+        assert_eq!(result, bytecode);
     }
 }
