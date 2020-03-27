@@ -1,49 +1,62 @@
-use crate::utils::annotation::Annotation;
 use crate::vm::data::Data;
+use crate::vm::local::Local;
 
-// the bytecode needs to contain annotation information as well
-
-pub type Bytecode = Vec<u8>;
-pub type Constants = Vec<Data>;
-
+#[repr(u8)]
 pub enum Opcode {
-//  Opcode // operands, top of stack first
-    Con,   // index as a chain of bytes -> pushes value from constant table onto stack
-    Save,  // Data, Symbol -> Stores Data in Symbol
-    Load,  // Symbol -> replaces symbol on top of stack with its value
-    Clear, // clears stack to last frame
+// § indicates location of op
+// note: all args are before op, byte-stream args after
+//  Opcode // operands (stack top first) § byte-streams -> Does
+    Con,   // § byte-stream -> pushes value from constant table onto stack
+    Save,  // Data § byte-stream -> Stores Data in Symbol
+    Load,  // Symbol § -> replaces symbol on top of stack with its value
+    Clear, // § -> clears stack to last frame
 }
-
-// TODO: debug bytecode display function... utils, perhaps?
 
 impl Opcode {
-    // to_byte and from_byte are opposites...
-    // avoid duplication of knowledge...
-    // macro time?
-
-    pub fn to_byte(&self) -> u8 {
-        match self {
-            Opcode::Con   => 0,
-            Opcode::Save  => 1,
-            Opcode::Load  => 2,
-            Opcode::Clear => 3,
-        }
+    // This function was hard to write
+    // after reading a bunch of rust specs,
+    // I decided to just use some unsafe code instead of a huge if-else trees
+    // gaurded match statements, or procedural macros
+    // this is *very* unsafe, though
+    pub fn from_byte(byte: u8) -> Opcode {
+        let e: Opcode = unsafe { std::mem::transmute(byte) }; // *chuckles in undefined behavior*
+        return e; // "I'm in danger"
     }
-
-    // TODO: just use macro to inverse match?
-    pub fn to_op(byte: u8) -> Opcode {
-        match byte {
-            0 => Opcode::Con,
-            1 => Opcode::Save,
-            2 => Opcode::Load,
-            3 => Opcode::Clear,
-            _ => panic!("Unknown opcode"),
-        }
-    }
-
-    pub fn same(&self, byte: u8) -> bool {
-        byte == self.to_byte()
-    }
+    // No, but it's just an enum
+    // And this function should never fail
+    // if it does, there's an obvious error with the bytecode generator or the vm
+    // that needs to be addressed
+    // If you have a better solution, or Rust changes so such a solution is more idiomatic
+    // open an issue, fast!
 }
 
-// No tests for now, they're just type aliases
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub struct Chunk {
+    pub code:      Vec<u8>,    // each byte is an opcode or a number-stream
+    pub offsets:   Vec<usize>, // each usize indexes the bytecode op that begins each line
+    pub constants: Vec<Data>,  // number-stream indexed, used to load constants
+    pub locals:    Vec<Local>, // ''                                  variables
+}
+
+impl Chunk {
+    pub fn empty() -> Chunk {
+        Chunk {
+            code:      vec![],
+            offsets:   vec![],
+            constants: vec![],
+            locals:    vec![],
+        }
+    }
+
+    pub fn index_constant(&self, data: &Data) -> usize {
+        match self.constants.iter().position(|d| d == data) {
+            Some(d) => d,
+            None    => {
+                self.constants.push(data.clone());
+                self.constants.len() - 1
+            },
+        }
+    }
+
+    // TODO: bytecode chunk dissambler
+}

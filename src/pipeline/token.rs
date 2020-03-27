@@ -1,4 +1,6 @@
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+use crate::utils::annotation::Ann;
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Token {
     // Whitespace
     Sep,
@@ -12,9 +14,6 @@ pub enum Token {
 }
 
 type Consume = Option<(Token, usize)>;
-
-// TODO: make moar unicode friendly
-// let rust's stdlib deal with it
 
 impl Token {
     pub fn from(source: &str) -> Consume {
@@ -102,6 +101,21 @@ impl Token {
         match source.chars().next()? {
             '\n' | ';' => Some((Token::Sep, 1)),
             _          => None
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct AnnotatedToken {
+    pub kind: Token,
+    pub ann:  Ann,
+}
+
+impl AnnotatedToken {
+    pub fn new(kind: Token, ann: Ann) -> AnnotatedToken {
+        AnnotatedToken {
+            kind: kind,
+            ann:  ann,
         }
     }
 }

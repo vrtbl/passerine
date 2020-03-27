@@ -8,54 +8,55 @@
 // and then be used during error reporting
 
 // TODO: remove unnesary clones
+// TODO: remove depencancy on source code, i.e. 'source: &'static str'
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Annotation {
+pub struct Ann {
     source: &'static str,
     offset: usize,
     length: usize,
 }
 
-impl Annotation {
-    pub fn new(source: &'static str, offset: usize, length: usize) -> Annotation {
+impl Ann {
+    pub fn new(source: &'static str, offset: usize, length: usize) -> Ann {
         if source.len() < (offset + length) {
             panic!("Can't annotate past end of source!")
         }
 
-        Annotation {
+        Ann {
             source: source,
             offset: offset,
             length: length,
         }
     }
 
-    pub fn combine(a: &Annotation, b: &Annotation) -> Annotation {
+    pub fn combine(a: &Ann, b: &Ann) -> Ann {
         // creates a new annotation which spans the space of the previous two
         // example:
         // hello this is cool
-        // ^^^^^              | Annotation a
-        //            ^^      | Annotation b
+        // ^^^^^              | Ann a
+        //            ^^      | Ann b
         // ^^^^^^^^^^^^^      | combined
 
         // To compare pointers,
         // or to not compare...
         if a.source.as_ptr() != b.source.as_ptr() {
-            panic!("Tried to merge two Annotations of different sources");
+            panic!("Tried to merge two Anns of different sources");
         }
 
         let offset = a.offset.min(b.offset);
         let end    = (a.offset + a.length).max(b.offset + b.length);
         let length = end - offset;
 
-        return Annotation::new(a.source, offset, length);
+        return Ann::new(a.source, offset, length);
     }
 
-    pub fn span(annotations: Vec<Annotation>) -> Annotation {
+    pub fn span(annotations: Vec<Ann>) -> Ann {
         // gee, reduce or an accumulator would be really useful here
         let mut combined = annotations[0].clone();
 
         for annotation in &annotations[1..] {
-            combined = Annotation::combine(&combined, annotation);
+            combined = Ann::combine(&combined, annotation);
         }
 
         return combined;
@@ -73,10 +74,10 @@ mod test {
     #[test]
     fn combination() {
         let source = "hello this is cool";
-        let a = Annotation::new(source, 0, 5);
-        let b = Annotation::new(source, 11, 2);
+        let a = Ann::new(source, 0, 5);
+        let b = Ann::new(source, 11, 2);
 
-        assert_eq!(Annotation::combine(&a, &b), Annotation::new(source, 0, 13));
+        assert_eq!(Ann::combine(&a, &b), Ann::new(source, 0, 13));
     }
 
     #[test]
@@ -85,8 +86,8 @@ mod test {
         let moms_iq = "holy cow, it's over 9000";
 
         assert_ne!(
-            Annotation::new(your_iq, 0, 1),
-            Annotation::new(moms_iq, 0, 1)
+            Ann::new(your_iq, 0, 1),
+            Ann::new(moms_iq, 0, 1)
         );
 
         // less trivial
@@ -96,8 +97,8 @@ mod test {
         // which means your_iq is the same as an_idiots
         let an_idiots = "heck";
         assert_eq!(
-            Annotation::new(your_iq, 0, 4),
-            Annotation::new(an_idiots, 0, 4)
+            Ann::new(your_iq, 0, 4),
+            Ann::new(an_idiots, 0, 4)
         );
     }
 
@@ -105,13 +106,13 @@ mod test {
     fn span() {
         let source = "hello, this is some text!";
         let anns   = vec![
-            Annotation::new(source, 0,  19),
-            Annotation::new(source, 7,  18),
-            Annotation::new(source, 0,  5),
-            Annotation::new(source, 12, 4),
+            Ann::new(source, 0,  19),
+            Ann::new(source, 7,  18),
+            Ann::new(source, 0,  5),
+            Ann::new(source, 12, 4),
         ];
-        let result = Annotation::new(source, 0, 25);
+        let result = Ann::new(source, 0, 25);
 
-        assert_eq!(Annotation::span(anns), result);
+        assert_eq!(Ann::span(anns), result);
     }
 }

@@ -57,3 +57,32 @@ If you'd like to contribute:
 > Fun Note: I didn't have access to wifi when I wrote the compiler until version 0.5.0.
 As such, this compiler was developed completely from memory, without access to the internet for any sort of anything - no Stack Overflow, no Rust documentation, etc.
 If you see any obvious errata in the compiler design, open an issue or create a pull request.
+
+# Roadmap
+Version, ∆ Done, Milestone, -- Date
+0. ∆ Start project
+    1. ∆ Lexer
+    2. ∆ Parser
+    3. ∆ Bytecode generator
+    4. ∆ VM
+        1. Local Variables -- Today
+    5. Unary datatypes
+        1. Numbers
+        2. Strings -- This weekend (28M)
+    6. Functions
+        1. Closures
+        2. Tail Recursion
+    7. Algebraic Datatypes (Tuple, Union, Struct, Map)
+        1. Pattern Matching -- Next weekend (4A)
+    7. Fibers
+        1. Error Handling -- Weekend after (11A)
+    8. CLI
+    9. Standard Library
+        1. Numeric Tower
+    10. Clean up and optimize
+1. First Stable Release -- Before May (2M)
+    1. Macros?
+    2. Tests
+    3. Documentation Generation
+    4. Package Manager
+    5. TBD ...

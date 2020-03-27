@@ -1,13 +1,13 @@
-use crate::utils::annotation::Annotation;
-use crate::pipeline::token::Token;
-use crate::pipeline::ast::{AST, Operation};
+use crate::utils::annotation::Ann;
+use crate::pipeline::token::{Token, AnnotatedToken};
+use crate::pipeline::ast::{AST, Construct};
 use crate::vm::data::Data;
 
 // some sort of recursive descent parser, I guess
-type Tokens<'a> = &'a [(Token, Annotation)];
+type Tokens<'a> = &'a [AnnotatedToken];
 type Branch<'a> = Option<(AST, Tokens<'a>)>;
 
-pub fn parse(tokens: Vec<(Token, Annotation)>) -> Option<AST> {
+pub fn parse(tokens: Vec<AnnotatedToken>) -> Option<AST> {
     // slices are easier to work with
     // consume all preceeding seperators
     let stripped = consume(&tokens[..], Token::Sep);
@@ -31,7 +31,7 @@ fn consume(tokens: Tokens, token: Token) -> Tokens {
     let mut remaining = tokens;
 
     while remaining.len() > 0 {
-        let (t, _) = remaining[0];
+        let t = remaining[0].kind;
 
         if t != token {
             break;
@@ -83,8 +83,8 @@ fn block(tokens: Tokens) -> Branch {
     }
 
     let node = AST::node(
-        Operation::Block,
-        Annotation::span(annotations), // a parent node spans all it's children's nodes
+        Construct::Block,
+        Ann::span(annotations), // a parent node spans all it's children's nodes
         expressions,
     );
 
@@ -107,15 +107,15 @@ fn op(tokens: Tokens) -> Branch {
 
     // eat the = sign
     // TODO: make like a consume_single function
-    let (t, _) = remaining.iter().next()?;
-    if t != &Token::Assign { return None; }
+    let t = remaining.iter().next()?.kind;
+    if t != Token::Assign { return None; }
     remaining = &remaining[1..];
 
     let (e, remaining) = expr(remaining)?;
     return Some((
         AST::node(
-            Operation::Assign,
-            Annotation::combine(&s.ann(), &e.ann()),
+            Construct::Assign,
+            Ann::combine(&s.ann(), &e.ann()),
             vec![s, e],
         ),
         remaining,
@@ -133,8 +133,8 @@ fn literal(tokens: Tokens) -> Branch {
 
 fn symbol(tokens: Tokens) -> Branch {
     match tokens.iter().next() {
-        Some((Token::Symbol, a)) => Some((
-            AST::leaf(Data::Symbol(a.contents().to_string()), a.clone()),
+        Some(AnnotatedToken { kind: Token::Symbol, ann }) => Some((
+            AST::node(Construct::Symbol, ann.clone(), vec![]),
             &tokens[1..],
         )),
         _ => None,
@@ -143,14 +143,14 @@ fn symbol(tokens: Tokens) -> Branch {
 
 fn boolean(tokens: Tokens) -> Branch {
     match tokens.iter().next() {
-        Some((Token::Boolean, a)) => Some((
+        Some(AnnotatedToken { kind: Token::Boolean, ann }) => Some((
             AST::leaf(
-                match a.contents() {
+                match ann.contents() {
                     "true"  => Data::Boolean(true),
                     "false" => Data::Boolean(false),
                     _ => panic!("Lexer classified token as boolean, boolean not found!")
                 },
-                a.clone(),
+                ann.clone(),
             ),
             &tokens[1..],
         )),
@@ -171,23 +171,23 @@ mod test {
 
         // oof, I wrote this out by hand
         let result = AST::node(
-            Operation::Block,
-            Annotation::new(source, 0, 24),
+            Construct::Block,
+            Ann::new(source, 0, 24),
             vec![
                 AST::node(
-                    Operation::Assign,
-                    Annotation::new(source, 0, 12),
+                    Construct::Assign,
+                    Ann::new(source, 0, 12),
                     vec![
-                        AST::leaf(Data::Symbol("heck".to_string()),  Annotation::new(source, 0, 4)),
-                        AST::leaf(Data::Boolean(false), Annotation::new(source, 7, 5)),
+                        AST::leaf(Data::Symbol("heck".to_string()),  Ann::new(source, 0, 4)),
+                        AST::leaf(Data::Boolean(false), Ann::new(source, 7, 5)),
                     ],
                 ),
                 AST::node(
-                    Operation::Assign,
-                    Annotation::new(source, 14, 10),
+                    Construct::Assign,
+                    Ann::new(source, 14, 10),
                     vec![
-                        AST::leaf(Data::Symbol("naw".to_string()),  Annotation::new(source, 14, 3)),
-                        AST::leaf(Data::Symbol("heck".to_string()), Annotation::new(source, 20, 4)),
+                        AST::leaf(Data::Symbol("naw".to_string()),  Ann::new(source, 14, 3)),
+                        AST::leaf(Data::Symbol("heck".to_string()), Ann::new(source, 20, 4)),
                     ],
                 ),
             ],

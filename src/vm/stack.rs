@@ -11,17 +11,7 @@ pub type Stack = Vec<Item>;
 // if data needs to be cloned, clone the data and put it into a new Item
 #[derive(Debug, Eq, PartialEq)]
 pub enum Item {
-    Frame(Box<HashMap<String, Data>>),
+    Frame,
     // Lambda(Box<Bytecode>),
     Data(Data),
-}
-
-impl Item {
-    pub fn frame() -> Item {
-        Item::Frame(Box::new(HashMap::new()))
-    }
-
-    pub fn data(data: Data) -> Item {
-        Item::Data(data)
-    }
 }

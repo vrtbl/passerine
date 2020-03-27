@@ -1,5 +1,5 @@
-use crate::pipeline::ast::{AST, Operation};
-use crate::pipeline::bytecode::{Bytecode, Constants, Opcode};
+use crate::pipeline::ast::{AST, Construct};
+use crate::pipeline::bytecode::{Opcode, Chunk};
 use crate::vm::data::Data;
 use crate::utils::number::split_number;
 
@@ -9,76 +9,72 @@ use crate::utils::number::split_number;
 // TODO: consts and bytecode in single pass.
 // TODO: annotations in bytecode
 
-fn block(children: &Vec<AST>, constants: &mut Constants, bytecode: &mut Bytecode) {
-    for child in children {
-        walk(&child, constants, bytecode);
-        bytecode.push(Opcode::Clear.to_byte());
-    }
-
-    // remove the last clear instruction
-    bytecode.pop();
+struct Gen {
+    chunk: Chunk,
 }
 
-fn assign(children: &Vec<AST>, constants: &mut Constants, bytecode: &mut Bytecode) {
-    if children.len() != 2 {
-        panic!("Assignment expects 2 children")
-    }
-
-    // TODO: this if-let feels... cheap. avoid?
-    let symbol = &children[0];
-    let expr   = &children[1];
-
-    // load the const symbol
-    // TODO: is it redundant? check that left arm is symbol
-    match symbol {
-        AST::Leaf { data: d, ann: _ } => {
-            // manually push to not load symbol value
-            bytecode.push(Opcode::Con.to_byte());
-            bytecode.append(&mut split_number(find(&d, constants)));
-        },
-        _ => panic!("Symbol expected, found something else")
-    }
-
-    // eval the expression
-    walk(&expr, constants, bytecode);
-
-    // save the binding
-    bytecode.push(Opcode::Save.to_byte());
-}
-
-fn find(c: &Data, cs: &mut Constants) -> usize {
-    match cs.iter().position(|d| d == c) {
-        Some(d) => d,
-        None    => { cs.push(c.clone()); cs.len() - 1 },
-    }
-}
-
-fn walk(ast: &AST, constants: &mut Constants, bytecode: &mut Bytecode) {
-    // push left, push right, push center
-    match ast {
-        AST::Leaf { data, ann: _ } => {
-            bytecode.push(Opcode::Con.to_byte());
-            bytecode.append(&mut split_number(find(&data, constants)));
-
-            // variables should be loaded!
-            if let Data::Symbol(_) = data {
-                bytecode.push(Opcode::Load.to_byte());
-            }
-        },
-        AST::Node { kind, ann: _, children } => match kind {
-                Operation::Block  => block(&children, constants, bytecode),
-                Operation::Assign => assign(&children, constants, bytecode),
+impl Gen {
+    pub fn new() -> Gen {
+        Gen {
+            chunk: Chunk::empty(),
         }
     }
+
+    fn walk(&mut self, ast: &AST) {
+        // push left, push right, push center
+        match ast {
+            AST::Leaf { data, ann: _ } => {
+                self.chunk.code.push(Opcode::Con as u8);
+                self.chunk.code.append(&mut split_number(self.chunk.index_constant(&data)));
+            },
+            AST::Node { kind, ann: _, children } => match kind {
+                    Construct::Block  => self.block(&children),
+                    Construct::Assign => self.assign(&children),
+            },
+        }
+    }
+
+    fn block(&mut self, children: &Vec<AST>) {
+        for child in children {
+            self.walk(&child);
+            self.chunk.code.push(Opcode::Clear as u8);
+        }
+
+        // remove the last clear instruction
+        self.chunk.code.pop();
+    }
+
+    fn assign(&mut self, children: &Vec<AST>) {
+        if children.len() != 2 {
+            panic!("Assignment expects 2 children")
+        }
+
+        let symbol = &children[0];
+        let expr   = &children[1];
+
+        // load the const symbol
+        // TODO: is it redundant? check that left arm is symbol
+        if let AST::Leaf { data: _, ann: _ } = symbol {
+            self.walk(symbol);
+        } else {
+            panic!("Symbol expected, found something else")
+        }
+
+        // eval the expression
+        self.walk(&expr);
+
+        // save the binding
+        self.chunk.code.push(Opcode::Save as u8);
+    }
 }
 
-pub fn gen(ast: AST) -> (Bytecode, Constants) {
-    let mut constants = vec![];
-    let mut bytecode = vec![];
-
-    walk(&ast, &mut constants, &mut bytecode);
-    return (bytecode, constants);
+pub fn gen(ast: AST) -> Chunk {
+    let mut generator = Gen::new();
+    generator.walk(&ast);
+    return generator.chunk;
 }
+
+// TODO: rewrite tests
 
 #[cfg(test)]
 mod test {
@@ -91,18 +87,14 @@ mod test {
         // TODO: flesh out as more datatypes are added
         let source = "heck = true; lol = heck; lmao = false";
         let ast    = parse(lex(source).unwrap()).unwrap();
+        let chunk = gen(ast);
+
         let result = vec![
-            Data::Symbol("heck".to_string()), // NOTE: 'heck' appears twice in source but once here
             Data::Boolean(true),
-            Data::Symbol("lol".to_string()),
-            Data::Symbol("lmao".to_string()),
             Data::Boolean(false),
         ];
 
-        let mut constants = vec![];
-        walk(&ast, &mut constants, &mut vec![]);
-
-        assert_eq!(constants, result);
+        assert_eq!(chunk.constants, result);
     }
 
     #[test]
@@ -110,12 +102,12 @@ mod test {
         let source = "heck = true; lol = heck; lmao = false";
         let ast    = parse(lex(source).unwrap()).unwrap();
 
-        let (bytecode, constants) = gen(ast);
+        let chunk = gen(ast);
         let result = vec![0, 128, 0, 129, 1, 3, 0, 130, 0, 128, 2, 1, 3, 0, 131, 0, 132, 1];
         // con heck, con true, save, clear |                          |                  |
         // con lol, con heck, load heck, save, clear                  |                  |
         // load lmao, load false, save, clear                                            |
 
-        assert_eq!(result, bytecode);
+        assert_eq!(result, chunk.code);
     }
 }

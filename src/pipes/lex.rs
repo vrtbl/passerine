@@ -1,5 +1,5 @@
-use crate::utils::annotation::Annotation;
-use crate::pipeline::token::{Token};
+use crate::utils::annotation::Ann;
+use crate::pipeline::token::{Token, AnnotatedToken};
 
 // idk, maybe make some sort of pratt parser? - nah
 // a lexer is really just a set of rules to turn a string into a token
@@ -8,11 +8,12 @@ use crate::pipeline::token::{Token};
 // ok, so rule-set has been defined in pipeline::token.rs
 
 // TODO: error handling, rather than just returning 'None'
+// TODO: I feel like there could be some more elegant separation
 
 struct Lexer {
     source: &'static str,
     offset: usize,
-    tokens: Vec<(Token, Annotation)>,
+    tokens: Vec<AnnotatedToken>,
 }
 
 impl Lexer {
@@ -41,7 +42,7 @@ impl Lexer {
     fn step(&mut self) -> Option<()> {
         // strip preceeding whitespace, get next token kind, build token
         let (kind, consumed) = Token::from(self.remaining())?;
-        let token = (kind, Annotation::new(&self.source, self.offset, consumed));
+        let token = AnnotatedToken::new(kind, Ann::new(&self.source, self.offset, consumed));
 
         self.offset += consumed;
         self.tokens.push(token);
@@ -65,7 +66,7 @@ impl Lexer {
     }
 }
 
-pub fn lex(source: &'static str) -> Option<Vec<(Token, Annotation)>> {
+pub fn lex(source: &'static str) -> Option<Vec<AnnotatedToken>> {
     let mut lexer = Lexer::new(&source);
 
     // It's pretty self-explanatory
@@ -93,9 +94,9 @@ mod test {
         let source = "heck = true";
 
         let result = vec![
-            (Token::Symbol,  Annotation::new(source, 0, 4)),
-            (Token::Assign,  Annotation::new(source, 5, 1)),
-            (Token::Boolean, Annotation::new(source, 7, 4)),
+            (Token::Symbol,  Ann::new(source, 0, 4)),
+            (Token::Assign,  Ann::new(source, 5, 1)),
+            (Token::Boolean, Ann::new(source, 7, 4)),
         ];
 
         assert_eq!(lex(source), Some(result));
@@ -106,8 +107,8 @@ mod test {
         let source = "  true  ;  ";
 
         let result = vec![
-            (Token::Boolean, Annotation::new(source, 2, 4)),
-            (Token::Sep,     Annotation::new(source, 8, 1)),
+            (Token::Boolean, Ann::new(source, 2, 4)),
+            (Token::Sep,     Ann::new(source, 8, 1)),
         ];
 
         assert_eq!(lex(source), Some(result));

@@ -3,7 +3,7 @@ use std::mem;
 
 use crate::vm::data::Data;
 use crate::vm::stack::{Stack, Item};
-use crate::pipeline::bytecode::{Bytecode, Constants, Opcode};
+use crate::pipeline::bytecode::{Chunk, Opcode};
 
 // I'm not sure if a garbage collector is necessary
 // Rust makes sure there are no memory leaks
@@ -13,10 +13,9 @@ use crate::pipeline::bytecode::{Bytecode, Constants, Opcode};
 // or get my act together and do pass by object reference or something
 
 pub struct VM {
-    constants: Constants,
-    bytecode:  Bytecode,
-    stack:     Stack,
-    ip:        usize,
+    chunk: Chunk,
+    stack: Stack,
+    ip:    usize,
 }
 
 type RunResult = Option<()>;
@@ -27,38 +26,23 @@ type RunResult = Option<()>;
 // this impl contains initialization, helper functions, and the core interpreter loop
 // the below impl contains opcode implementations
 impl VM {
-    pub fn init(constants: Constants) -> VM {
+    pub fn init() -> VM {
         VM {
-            constants: constants, // just initialize constants here?
-            bytecode:  vec![],
-            stack:     vec![Item::frame()],
-            ip:        0,
+            chunk: Chunk::empty(),
+            stack: vec![Item::Frame],
+            ip:    0,
         }
     }
 
     fn next(&mut self)                   { self.ip += 1; }
     fn done(&mut self)      -> RunResult { self.next(); Some(()) }
-    fn peek_byte(&mut self) -> u8        { self.bytecode[self.ip] }
+    fn peek_byte(&mut self) -> u8        { self.chunk.code[self.ip] }
     fn next_byte(&mut self) -> u8        { self.done(); self.peek_byte() }
-
-    fn frame_indicies(&self) -> Vec<usize> {
-        let mut indices = vec![];
-
-        for (index, item) in self.stack.iter().enumerate() {
-            if let Item::Frame(_) = item {
-                indices.push(index);
-            }
-        }
-
-        // flip from global -> local to local -> global
-        indices.reverse();
-        return indices;
-    }
 
     // core interpreter loop
 
     fn step(&mut self) -> RunResult {
-        let op_code = Opcode::to_op(self.peek_byte());
+        let op_code = Opcode::from_byte(self.peek_byte());
 
         match op_code {
             Opcode::Con   => self.con(),
@@ -68,22 +52,20 @@ impl VM {
         }
     }
 
-    fn run(&mut self, bytecode: Bytecode) -> RunResult {
+    fn run(&mut self, chunk: Chunk) -> RunResult {
         // cache current state, load new bytecode
-        let old_ip = mem::replace(&mut self.ip,       0);
-        let old_bc = mem::replace(&mut self.bytecode, bytecode);
+        let old_chunk = mem::replace(&mut self.chunk, chunk);
 
         use std::time::Instant;
         let now = Instant::now();
-        while self.ip < self.bytecode.len() {
+        while self.ip < self.chunk.code.len() {
             self.step();
         }
         let elapsed = now.elapsed();
         println!("Elapsed: {:?}", elapsed);
 
         // return current state
-        mem::drop(mem::replace(&mut self.ip,       old_ip));
-        mem::drop(mem::replace(&mut self.bytecode, old_bc));
+        mem::drop(mem::replace(&mut self.chunk, old_chunk));
 
         // nothing went wrong!
         return Some(());
@@ -99,41 +81,41 @@ impl VM {
 impl VM {
     fn con(&mut self) -> RunResult {
         // get the constant index
-        let remaining      = self.bytecode[self.ip..].to_vec();
+        let remaining      = self.chunk.code[self.ip..].to_vec();
         let (index, eaten) = build_number(remaining);
 
         // push constant onto stack
         self.ip += eaten - 1;
-        self.stack.push(Item::data(self.constants[index].clone()));
+        self.stack.push(Item::Data(self.chunk.constants[index].clone()));
         self.done()
     }
 
     fn save(&mut self) -> RunResult {
-        let data   = match self.stack.pop()? { Item::Data(d)               => d, _ => panic!("Expected data")   };
-        let symbol = match self.stack.pop()? { Item::Data(Data::Symbol(s)) => s, _ => panic!("Expected symbol") };
-
+        let data = match self.stack.pop()? { Item::Data(d) => d, _ => panic!("Expected data") };
         let mut declared = false;
 
-        // we go back through frames until we find the variable
-        // if the vairable doesn't exist, we declare it in the current frame
-        for index in self.frame_indicies() {
-            if let Item::Frame(frame) = &mut self.stack[index] {
-                if frame.contains_key(&symbol) {
-                    frame.insert(symbol.clone(), data.clone());
-                    declared = true;
-                    break;
-                }
-            }
-        }
+        unimplemented!();
 
-        if !declared {
-            let index = *self.frame_indicies().last()?;
-            if let Item::Frame(frame) = &mut self.stack[index] {
-                frame.insert(symbol, data);
-            } else {
-                panic!("No stack frames present")
-            }
-        }
+        // // we go back through frames until we find the variable
+        // // if the vairable doesn't exist, we declare it in the current frame
+        // for index in self.frame_indicies() {
+        //     if let Item::Frame(frame) = &mut self.stack[index] {
+        //         if frame.contains_key(&symbol) {
+        //             frame.insert(symbol.clone(), data.clone());
+        //             declared = true;
+        //             break;
+        //         }
+        //     }
+        // }
+        //
+        // if !declared {
+        //     let index = *self.frame_indicies().last()?;
+        //     if let Item::Frame(frame) = &mut self.stack[index] {
+        //         frame.insert(symbol, data);
+        //     } else {
+        //         panic!("No stack frames present")
+        //     }
+        // }
 
         self.done()
     }
@@ -141,18 +123,7 @@ impl VM {
     fn load(&mut self) -> RunResult {
         let mut value = None;
 
-        if let Item::Data(Data::Symbol(symbol)) = self.stack.pop()? {
-            for index in self.frame_indicies() {
-                if let Item::Frame(frame) = &self.stack[index] {
-                    match frame.get(&symbol) {
-                        None    => (),
-                        Some(v) => { value = Some(v.clone()); break; },
-                    }
-                }
-            }
-        } else {
-            panic!("Expected symbol; symbol wasn't on stack")
-        }
+        unimplemented!();
 
         match value {
             Some(v) => self.stack.push(Item::data(v)),
@@ -164,8 +135,8 @@ impl VM {
 
     fn clear(&mut self) -> RunResult {
         loop {
-            if let Item::Frame(frame) = self.stack.pop()? {
-                self.stack.push(Item::Frame(frame));
+            if let Item::Frame = self.stack.pop()? {
+                self.stack.push(Item::Frame);
                 break;
             }
         }
@@ -186,15 +157,15 @@ mod test {
     #[test]
     fn init_run() {
         // TODO: check @ each step, write more tests
-        let (bytecode, constants) = gen(parse(lex(
+        let chunk = gen(parse(lex(
             "boop = true; true; dhuiew = true; boop"
         ).unwrap()).unwrap());
 
-        println!("{:?}\n{:?}", bytecode, constants);
+        println!("{:?}", chunk);
 
-        let mut vm = VM::init(constants);
+        let mut vm = VM::init();
 
-        match vm.run(bytecode) {
+        match vm.run(chunk) {
             Some(_) => (),
             None    => panic!("VM threw error"),
         }
