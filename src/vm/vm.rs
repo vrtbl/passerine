@@ -1,6 +1,7 @@
 use crate::utils::number::build_number;
 use std::mem;
 
+use crate::vm::local::Local;
 use crate::vm::data::Data;
 use crate::vm::stack::{Stack, Item};
 use crate::pipeline::bytecode::{Chunk, Opcode};
@@ -39,6 +40,34 @@ impl VM {
     fn peek_byte(&mut self) -> u8        { self.chunk.code[self.ip] }
     fn next_byte(&mut self) -> u8        { self.done(); self.peek_byte() }
 
+    fn next_number(&mut self) -> usize {
+        self.next();
+        let remaining      = self.chunk.code[self.ip..].to_vec();
+        let (index, eaten) = build_number(remaining);
+        self.ip += eaten - 1; // ip left on next op
+        return index;
+    }
+
+    fn find_local(&mut self, local: &Local) -> Option<usize> {
+        for (index, item) in self.stack.iter().rev().enumerate() {
+            if let Item::Local { local: l, data: _ } = item {
+                if local == l {
+                    return Some(index);
+                }
+            }
+        }
+
+        return None;
+    }
+
+    fn local_index(&mut self) -> (Local, Option<usize>) {
+        let local_index = self.next_number();
+        let local       = self.chunk.locals[local_index].clone();
+        let index       = self.find_local(&local);
+
+        return (local, index);
+    }
+
     // core interpreter loop
 
     fn step(&mut self) -> RunResult {
@@ -56,13 +85,10 @@ impl VM {
         // cache current state, load new bytecode
         let old_chunk = mem::replace(&mut self.chunk, chunk);
 
-        use std::time::Instant;
-        let now = Instant::now();
         while self.ip < self.chunk.code.len() {
             self.step();
+            println!("{:?}", self.stack);
         }
-        let elapsed = now.elapsed();
-        println!("Elapsed: {:?}", elapsed);
 
         // return current state
         mem::drop(mem::replace(&mut self.chunk, old_chunk));
@@ -81,53 +107,37 @@ impl VM {
 impl VM {
     fn con(&mut self) -> RunResult {
         // get the constant index
-        let remaining      = self.chunk.code[self.ip..].to_vec();
-        let (index, eaten) = build_number(remaining);
+        let index = self.next_number();
 
-        // push constant onto stack
-        self.ip += eaten - 1;
         self.stack.push(Item::Data(self.chunk.constants[index].clone()));
         self.done()
     }
 
     fn save(&mut self) -> RunResult {
         let data = match self.stack.pop()? { Item::Data(d) => d, _ => panic!("Expected data") };
-        let mut declared = false;
+        let (local, index) = self.local_index();
 
-        unimplemented!();
-
-        // // we go back through frames until we find the variable
-        // // if the vairable doesn't exist, we declare it in the current frame
-        // for index in self.frame_indicies() {
-        //     if let Item::Frame(frame) = &mut self.stack[index] {
-        //         if frame.contains_key(&symbol) {
-        //             frame.insert(symbol.clone(), data.clone());
-        //             declared = true;
-        //             break;
-        //         }
-        //     }
-        // }
-        //
-        // if !declared {
-        //     let index = *self.frame_indicies().last()?;
-        //     if let Item::Frame(frame) = &mut self.stack[index] {
-        //         frame.insert(symbol, data);
-        //     } else {
-        //         panic!("No stack frames present")
-        //     }
-        // }
+        match index {
+            // It's been declared
+            Some(i) => mem::drop(mem::replace(&mut self.stack[i], Item::Data(data))),
+            // It hasn't been declared
+            None => self.stack.push(Item::Local { local, data }),
+        }
 
         self.done()
     }
 
     fn load(&mut self) -> RunResult {
-        let mut value = None;
+        let (_, index) = self.local_index();
 
-        unimplemented!();
-
-        match value {
-            Some(v) => self.stack.push(Item::Data(v)),
-            None    => return None, // symbol not found in scope
+        match index {
+            Some(i) => {
+                if let Item::Local { local: _, data: d } = &self.stack[i] {
+                    let data = Item::Data(d.clone());
+                    self.stack.push(data);
+                }
+            },
+            None => panic!("Local not found on stack!"), // TODO: make it a P error
         }
 
         self.done()
@@ -135,9 +145,9 @@ impl VM {
 
     fn clear(&mut self) -> RunResult {
         loop {
-            if let Item::Frame = self.stack.pop()? {
-                self.stack.push(Item::Frame);
-                break;
+            match self.stack.pop()? {
+                Item::Data(_) => (),
+                l             => { self.stack.push(l); break; },
             }
         }
 
@@ -160,6 +170,8 @@ mod test {
         let chunk = gen(parse(lex(
             "boop = true; true; dhuiew = true; boop"
         ).unwrap()).unwrap());
+
+        print!("{:#?}", chunk);
 
         let mut vm = VM::init();
 

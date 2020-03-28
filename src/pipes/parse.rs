@@ -59,9 +59,8 @@ fn longest(tokens: Tokens, rules: Vec<Box<dyn Fn(Tokens) -> Branch>>) -> Branch 
             match best {
                 // r and g are remaining. less remaining = more parsed
                 // items first should be preferred
-                Err((s, a))                     => best = Ok((ast, r)),
+                Err(_)                     => best = Ok((ast, r)),
                 Ok((_, g)) if r.len() < g.len() => best = Ok((ast, r)),
-                Err((s, a))                     => best = Err((s, a)),
                 Ok(_)                           => (),
             }
         }
@@ -84,7 +83,7 @@ fn block(tokens: Tokens) -> Branch {
                 expressions.push(e);
                 remaining = r;
             },
-            Err((s, a)) => break,
+            Err(_) => break,
         }
 
         remaining = vaccum(remaining, Token::Sep);

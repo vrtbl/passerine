@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use crate::vm::data::Data;
+use crate::vm::local::Local;
 
 pub type Stack = Vec<Item>;
 
@@ -13,5 +14,6 @@ pub type Stack = Vec<Item>;
 pub enum Item {
     Frame,
     // Lambda(Box<Bytecode>),
+    Local { local: Local, data: Data },
     Data(Data),
 }

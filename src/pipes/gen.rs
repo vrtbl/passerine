@@ -26,7 +26,7 @@ impl Gen {
     fn walk(&mut self, ast: &AST) {
         // push left, push right, push center
         match ast {
-            AST::Leaf { data, ann } => {
+            AST::Leaf { data, ann: _ } => {
                 self.chunk.code.push(Opcode::Con as u8);
                 let mut split = split_number(self.chunk.index_constant(data.clone()));
                 self.chunk.code.append(&mut split);

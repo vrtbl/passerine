@@ -81,8 +81,9 @@ Version, ∆ Done, Milestone, -- Date
         1. Numeric Tower
     10. Clean up and optimize
 1. First Stable Release -- Before May (2M)
-    1. Macros?
-    2. Tests
-    3. Documentation Generation
-    4. Package Manager
-    5. TBD ...
+    1. Tests
+    2. Documentation Generation
+    3. Package Manager
+2. Macros + Backwards-Compatibility Breaking-Changes (BCBC)
+3. Parallelism
+4. TBD
