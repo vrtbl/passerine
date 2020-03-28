@@ -6,10 +6,10 @@ pub enum Opcode {
 // § indicates location of op
 // note: all args are before op, byte-stream args after
 //  Opcode // operands (stack top first) § byte-streams -> Does
-    Con,   // § byte-stream -> pushes value from constant table onto stack
-    Save,  // Data § byte-stream -> Stores Data in Symbol
-    Load,  // Symbol § -> replaces symbol on top of stack with its value
-    Clear, // § -> clears stack to last frame
+    Con   = 0,   // § byte-stream -> pushes value from constant table onto stack
+    Save  = 1,  // Data § byte-stream -> Stores Data in Symbol
+    Load  = 2,  // Symbol § -> replaces symbol on top of stack with its value
+    Clear = 3, // § -> clears stack to last frame
 }
 
 impl Opcode {
@@ -48,12 +48,22 @@ impl Chunk {
         }
     }
 
-    pub fn index_constant(&self, data: &Data) -> usize {
-        match self.constants.iter().position(|d| d == data) {
+    pub fn index_constant(&mut self, data: Data) -> usize {
+        match self.constants.iter().position(|d| d == &data) {
             Some(d) => d,
             None    => {
                 self.constants.push(data.clone());
                 self.constants.len() - 1
+            },
+        }
+    }
+
+    pub fn index_local(&mut self, local: Local) -> usize {
+        match self.locals.iter().position(|l| l == &local) {
+            Some(l) => l,
+            None    => {
+                self.locals.push(local);
+                self.locals.len() - 1
             },
         }
     }

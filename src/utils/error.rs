@@ -2,14 +2,17 @@
 
 use crate::vm::data::Data;
 
-pub struct Error {
-    source: &'static str,
-    offset: usize,
-    data:   Data,
+pub enum PResult {
+    Ok,
+    Error {
+        source: &'static str,
+        offset: usize,
+        data:   Data,
+    }
 }
 
-impl Error {
-    fn display(&self) {
-        unimplemented!();
+impl Display for Error {
+    fn display(&self) -> String {
+
     }
 }

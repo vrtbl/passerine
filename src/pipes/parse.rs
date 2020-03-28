@@ -1,60 +1,68 @@
 use crate::utils::annotation::Ann;
-use crate::pipeline::token::{Token, AnnotatedToken};
+use crate::pipeline::token::{Token, AnnToken};
 use crate::pipeline::ast::{AST, Construct};
 use crate::vm::data::Data;
 
 // some sort of recursive descent parser, I guess
-type Tokens<'a> = &'a [AnnotatedToken];
-type Branch<'a> = Option<(AST, Tokens<'a>)>;
+type Tokens<'a> = &'a [AnnToken];
+type Branch<'a> = Result<(AST, Tokens<'a>), (String, Ann)>;
 
-pub fn parse(tokens: Vec<AnnotatedToken>) -> Option<AST> {
+// TODO: better error reporting
+
+pub fn parse(tokens: Vec<AnnToken>) -> Option<AST> {
     // slices are easier to work with
-    // consume all preceeding seperators
-    let stripped = consume(&tokens[..], Token::Sep);
+    // vaccum all preceeding seperators
+    let stripped = vaccum(&tokens[..], Token::Sep);
 
     // parse the file
-    if let Some((node, parsed)) = block(stripped) {
-        // consume all extra seperators
-        if consume(parsed, Token::Sep).len() == 0 {
-            return Some(node);
-        }
+    return match block(stripped) {
+        // vaccum all extra seperators
+        Ok((node, parsed)) => if vaccum(parsed, Token::Sep).len() == 0 {
+            Some(node)
+        } else {
+            None
+        },
+        // if there are still tokens left, something's gone wrong.
+        // TODO: print the error with utils
+        Err((s, a)) => panic!(format!("{}: {:?}", s, a)),
     }
 
-    // if there are still tokens left, something's gone wrong.
-    return None;
 }
 
 // cookie-monster's helper functions
 
-fn consume(tokens: Tokens, token: Token) -> Tokens {
+fn vaccum(tokens: Tokens, token: Token) -> Tokens {
     // vaccums all leading tokens that match token
     let mut remaining = tokens;
 
     while remaining.len() > 0 {
-        let t = remaining[0].kind;
-
-        if t != token {
-            break;
-        }
-
+        let t = &remaining[0].kind;
+        if t != &token { break; }
         remaining = &remaining[1..];
     }
 
     return remaining;
 }
 
+fn consume(tokens: Tokens, token: Token) -> Result<Tokens, (String, Ann)> {
+    let t = match tokens.iter().next() { Some(t) => t, None => return Err(("Unexpected EOF".to_string(), Ann::new("", 0, 0))) };
+    if t.kind != token { return Err((format!("Expected {:?}, found {:?}", token, t.kind), t.ann)); }
+    return Ok(&tokens[1..]);
+}
+
 fn longest(tokens: Tokens, rules: Vec<Box<dyn Fn(Tokens) -> Branch>>) -> Branch {
-    let mut best = None;
+    let mut best = Err(("S".to_string(), Ann::new("", 0, 0)));
 
     // I've done this twice, might move to utils bc ro3.
     for rule in rules {
-        if let Some((ast, r)) = rule(tokens) {
+        if let Ok((ast, r)) = rule(tokens) {
             match best {
                 // r and g are remaining. less remaining = more parsed
                 // items first should be preferred
-                None                              => best = Some((ast, r)),
-                Some((_, g)) if r.len() < g.len() => best = Some((ast, r)),
-                Some(_)                           => (),
+                Err((s, a))                     => best = Ok((ast, r)),
+                Ok((_, g)) if r.len() < g.len() => best = Ok((ast, r)),
+                Err((s, a))                     => best = Err((s, a)),
+                Ok(_)                           => (),
             }
         }
     }
@@ -71,15 +79,15 @@ fn block(tokens: Tokens) -> Branch {
 
     while remaining.len() > 0 {
         match expr(remaining) {
-            Some((e, r)) => {
+            Ok((e, r)) => {
                 annotations.push(e.ann());
                 expressions.push(e);
                 remaining = r;
             },
-            None => break,
+            Err((s, a)) => break,
         }
 
-        remaining = consume(remaining, Token::Sep);
+        remaining = vaccum(remaining, Token::Sep);
     }
 
     let node = AST::node(
@@ -88,7 +96,7 @@ fn block(tokens: Tokens) -> Branch {
         expressions,
     );
 
-    return Some((node, remaining));
+    return Ok((node, remaining));
 }
 
 fn expr(tokens: Tokens) -> Branch {
@@ -106,13 +114,10 @@ fn op(tokens: Tokens) -> Branch {
     let (s, mut remaining) = symbol(tokens)?;
 
     // eat the = sign
-    // TODO: make like a consume_single function
-    let t = remaining.iter().next()?.kind;
-    if t != Token::Assign { return None; }
-    remaining = &remaining[1..];
+    remaining = consume(remaining, Token::Assign)?;
 
     let (e, remaining) = expr(remaining)?;
-    return Some((
+    return Ok((
         AST::node(
             Construct::Assign,
             Ann::combine(&s.ann(), &e.ann()),
@@ -133,17 +138,18 @@ fn literal(tokens: Tokens) -> Branch {
 
 fn symbol(tokens: Tokens) -> Branch {
     match tokens.iter().next() {
-        Some(AnnotatedToken { kind: Token::Symbol, ann }) => Some((
+        Some(AnnToken { kind: Token::Symbol, ann }) => Ok((
             AST::node(Construct::Symbol, ann.clone(), vec![]),
             &tokens[1..],
         )),
-        _ => None,
+        Some(_) => Err(("Expected a variable".to_string(), tokens.iter().next().unwrap().ann)),
+        None    => Err(("Unexpected EOF while parsing".to_string(), Ann::new("", 0, 0)))
     }
 }
 
 fn boolean(tokens: Tokens) -> Branch {
     match tokens.iter().next() {
-        Some(AnnotatedToken { kind: Token::Boolean, ann }) => Some((
+        Some(AnnToken { kind: Token::Boolean, ann }) => Ok((
             AST::leaf(
                 match ann.contents() {
                     "true"  => Data::Boolean(true),
@@ -154,7 +160,8 @@ fn boolean(tokens: Tokens) -> Branch {
             ),
             &tokens[1..],
         )),
-        _ => None,
+        Some(_) => Err(("Expected a boolean value".to_string(), tokens.iter().next().unwrap().ann)),
+        None    => Err(("Unexpected EOF while parsing".to_string(), Ann::new("", 0, 0)))
     }
 }
 
@@ -178,7 +185,7 @@ mod test {
                     Construct::Assign,
                     Ann::new(source, 0, 12),
                     vec![
-                        AST::leaf(Data::Symbol("heck".to_string()),  Ann::new(source, 0, 4)),
+                        AST::node(Construct::Symbol, Ann::new(source, 0, 4), vec![]),
                         AST::leaf(Data::Boolean(false), Ann::new(source, 7, 5)),
                     ],
                 ),
@@ -186,8 +193,8 @@ mod test {
                     Construct::Assign,
                     Ann::new(source, 14, 10),
                     vec![
-                        AST::leaf(Data::Symbol("naw".to_string()),  Ann::new(source, 14, 3)),
-                        AST::leaf(Data::Symbol("heck".to_string()), Ann::new(source, 20, 4)),
+                        AST::node(Construct::Symbol,  Ann::new(source, 14, 3), vec![]),
+                        AST::node(Construct::Symbol,  Ann::new(source, 20, 4), vec![]),
                     ],
                 ),
             ],

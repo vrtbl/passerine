@@ -126,7 +126,7 @@ impl VM {
         unimplemented!();
 
         match value {
-            Some(v) => self.stack.push(Item::data(v)),
+            Some(v) => self.stack.push(Item::Data(v)),
             None    => return None, // symbol not found in scope
         }
 
@@ -160,8 +160,6 @@ mod test {
         let chunk = gen(parse(lex(
             "boop = true; true; dhuiew = true; boop"
         ).unwrap()).unwrap());
-
-        println!("{:?}", chunk);
 
         let mut vm = VM::init();
 

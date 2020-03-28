@@ -1,5 +1,5 @@
 use crate::utils::annotation::Ann;
-use crate::pipeline::token::{Token, AnnotatedToken};
+use crate::pipeline::token::{Token, AnnToken};
 
 // idk, maybe make some sort of pratt parser? - nah
 // a lexer is really just a set of rules to turn a string into a token
@@ -13,7 +13,7 @@ use crate::pipeline::token::{Token, AnnotatedToken};
 struct Lexer {
     source: &'static str,
     offset: usize,
-    tokens: Vec<AnnotatedToken>,
+    tokens: Vec<AnnToken>,
 }
 
 impl Lexer {
@@ -42,7 +42,7 @@ impl Lexer {
     fn step(&mut self) -> Option<()> {
         // strip preceeding whitespace, get next token kind, build token
         let (kind, consumed) = Token::from(self.remaining())?;
-        let token = AnnotatedToken::new(kind, Ann::new(&self.source, self.offset, consumed));
+        let token = AnnToken::new(kind, Ann::new(&self.source, self.offset, consumed));
 
         self.offset += consumed;
         self.tokens.push(token);
@@ -66,7 +66,7 @@ impl Lexer {
     }
 }
 
-pub fn lex(source: &'static str) -> Option<Vec<AnnotatedToken>> {
+pub fn lex(source: &'static str) -> Option<Vec<AnnToken>> {
     let mut lexer = Lexer::new(&source);
 
     // It's pretty self-explanatory
@@ -94,9 +94,9 @@ mod test {
         let source = "heck = true";
 
         let result = vec![
-            (Token::Symbol,  Ann::new(source, 0, 4)),
-            (Token::Assign,  Ann::new(source, 5, 1)),
-            (Token::Boolean, Ann::new(source, 7, 4)),
+            AnnToken::new(Token::Symbol,  Ann::new(source, 0, 4)),
+            AnnToken::new(Token::Assign,  Ann::new(source, 5, 1)),
+            AnnToken::new(Token::Boolean, Ann::new(source, 7, 4)),
         ];
 
         assert_eq!(lex(source), Some(result));
@@ -107,8 +107,8 @@ mod test {
         let source = "  true  ;  ";
 
         let result = vec![
-            (Token::Boolean, Ann::new(source, 2, 4)),
-            (Token::Sep,     Ann::new(source, 8, 1)),
+            AnnToken::new(Token::Boolean, Ann::new(source, 2, 4)),
+            AnnToken::new(Token::Sep,     Ann::new(source, 8, 1)),
         ];
 
         assert_eq!(lex(source), Some(result));

@@ -106,14 +106,14 @@ impl Token {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct AnnotatedToken {
+pub struct AnnToken {
     pub kind: Token,
     pub ann:  Ann,
 }
 
-impl AnnotatedToken {
-    pub fn new(kind: Token, ann: Ann) -> AnnotatedToken {
-        AnnotatedToken {
+impl AnnToken {
+    pub fn new(kind: Token, ann: Ann) -> AnnToken {
+        AnnToken {
             kind: kind,
             ann:  ann,
         }

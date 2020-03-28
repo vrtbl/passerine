@@ -50,6 +50,9 @@ The powerhouse of this operation, the VM and its associated datastructures, can 
 As for testing, each non-trivial file is expected to have unit tests at the bottom of it.
 As a rule of thumb, at least a third of a file should be dedicated to testing.
 
+The easiest way to contribute is to find errors and report them.
+If you run into an error, it would be appreciated if you could go the extra mile and write some test cases that show the error.
+
 ### CLI
 The VM should be manipulated solely through the utilities provided by core compiler.
 

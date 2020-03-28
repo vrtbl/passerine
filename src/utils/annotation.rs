@@ -10,7 +10,7 @@
 // TODO: remove unnesary clones
 // TODO: remove depencancy on source code, i.e. 'source: &'static str'
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ann {
     source: &'static str,
     offset: usize,

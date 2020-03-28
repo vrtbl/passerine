@@ -1,40 +1,46 @@
 use crate::pipeline::ast::{AST, Construct};
 use crate::pipeline::bytecode::{Opcode, Chunk};
 use crate::vm::data::Data;
+use crate::vm::local::Local;
+use crate::utils::annotation::Ann;
 use crate::utils::number::split_number;
 
 // so, constanst table is made by walking the tree and sweeping for values
 // then, a second pass walks the tree and builds the bytecode
 // then, a third pass walks the tree and optimizes the bytecode
-// TODO: consts and bytecode in single pass.
 // TODO: annotations in bytecode
 
 struct Gen {
     chunk: Chunk,
+    depth: usize,
 }
 
 impl Gen {
     pub fn new() -> Gen {
         Gen {
             chunk: Chunk::empty(),
+            depth: 0,
         }
     }
 
     fn walk(&mut self, ast: &AST) {
         // push left, push right, push center
         match ast {
-            AST::Leaf { data, ann: _ } => {
+            AST::Leaf { data, ann } => {
                 self.chunk.code.push(Opcode::Con as u8);
-                self.chunk.code.append(&mut split_number(self.chunk.index_constant(&data)));
+                let mut split = split_number(self.chunk.index_constant(data.clone()));
+                self.chunk.code.append(&mut split);
             },
-            AST::Node { kind, ann: _, children } => match kind {
+            AST::Node { kind, ann, children } => match kind {
                     Construct::Block  => self.block(&children),
                     Construct::Assign => self.assign(&children),
+                    Construct::Symbol => self.symbol(&ann),
             },
         }
     }
 
     fn block(&mut self, children: &Vec<AST>) {
+        self.depth += 1;
         for child in children {
             self.walk(&child);
             self.chunk.code.push(Opcode::Clear as u8);
@@ -42,6 +48,7 @@ impl Gen {
 
         // remove the last clear instruction
         self.chunk.code.pop();
+        self.depth -= 1;
     }
 
     fn assign(&mut self, children: &Vec<AST>) {
@@ -52,19 +59,28 @@ impl Gen {
         let symbol = &children[0];
         let expr   = &children[1];
 
-        // load the const symbol
-        // TODO: is it redundant? check that left arm is symbol
-        if let AST::Leaf { data: _, ann: _ } = symbol {
-            self.walk(symbol);
-        } else {
-            panic!("Symbol expected, found something else")
-        }
-
         // eval the expression
         self.walk(&expr);
 
-        // save the binding
+        // load the following symbol..
         self.chunk.code.push(Opcode::Save as u8);
+
+        // ... the symbol to be loaded
+        match symbol {
+            AST::Node { kind: Construct::Symbol, ann, children: _ } =>
+                self.index_symbol(ann),
+            _ => panic!("Assignment expects symbol"),
+        }
+    }
+
+    fn index_symbol(&mut self, ann: &Ann) {
+        let index = self.chunk.index_local(Local::new(ann.contents().to_string(), self.depth));
+        self.chunk.code.append(&mut split_number(index));
+    }
+
+    fn symbol(&mut self, ann: &Ann) {
+        self.chunk.code.push(Opcode::Load as u8);
+        self.index_symbol(ann);
     }
 }
 
@@ -86,7 +102,9 @@ mod test {
     fn constants() {
         // TODO: flesh out as more datatypes are added
         let source = "heck = true; lol = heck; lmao = false";
-        let ast    = parse(lex(source).unwrap()).unwrap();
+        let ast    = parse(
+            lex(source).unwrap()
+        ).unwrap();
         let chunk = gen(ast);
 
         let result = vec![
@@ -103,10 +121,14 @@ mod test {
         let ast    = parse(lex(source).unwrap()).unwrap();
 
         let chunk = gen(ast);
-        let result = vec![0, 128, 0, 129, 1, 3, 0, 130, 0, 128, 2, 1, 3, 0, 131, 0, 132, 1];
-        // con heck, con true, save, clear |                          |                  |
-        // con lol, con heck, load heck, save, clear                  |                  |
-        // load lmao, load false, save, clear                                            |
+        let result = vec![
+            // con true, save to heck, clear
+            (Opcode::Con as u8), 128, (Opcode::Save as u8), 128, (Opcode::Clear as u8),
+            // load heck, save to lol, clear
+            (Opcode::Load as u8), 128, (Opcode::Save as u8), 129, (Opcode::Clear as u8),
+            // con false, save to lmao
+            (Opcode::Con as u8), 129, (Opcode::Save as u8), 130,
+        ];
 
         assert_eq!(result, chunk.code);
     }
