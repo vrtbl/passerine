@@ -66,6 +66,7 @@ Version, ∆ Done, Milestone, -- Date
     3. ∆ Bytecode generator
     4. ∆ VM
         1. Local Variables -- Today
+        2. Block Statements
     5. Unary datatypes
         1. Numbers
         2. Strings -- This weekend (28M)
