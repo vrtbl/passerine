@@ -35,7 +35,13 @@ Once the codebase is stable, new features should be:
 5. If everything looks good, it will then be merged.
 
 After a while, we plan to implement some sort of RFC process.
-But, given the small toy-ish status of Passerine, this is unlikely to happen without support.
+But, given the small toy-ish status of Passerine, this is unlikely to happen without much support.
+
+Each feature will be given a minor release, which should be tagged.
+If Passerine garners more popularity, we'll move towards a nightly + rolling release beta.
+We're also about at the stage where we're looking for core team members.
+If you're interested, please contribute.
+When you write well-written long-lasting code (read: lines of code in current release ✕ how long each line has been there), and demonstrate an open, can-do attitude, we'll reach out to you.
 
 ## Passerine-Specific Guidelines for Getting Started
 > Note: this project is in the rapid initial stages of development, and as such, breaking changes or radical changes in project structure may occur. After the 1.0.0 release, this behavior will stabilize.
