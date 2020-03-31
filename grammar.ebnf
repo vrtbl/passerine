@@ -2,7 +2,8 @@
 START = block END
 
 block = (expr SEP). expr
-expr  = op
+expr  = '{' + block + '}'
+      | op
       | literal
 
 op = SYMBOL ASSIGN expr

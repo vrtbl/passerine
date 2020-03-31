@@ -50,7 +50,7 @@ impl VM {
 
     fn find_local(&mut self, local: &Local) -> Option<usize> {
         for (index, item) in self.stack.iter().rev().enumerate() {
-            if let Item::Local { local: l, data: _ } = item {
+            if let Item::Local { local: l, .. } = item {
                 if local == l {
                     return Some(index);
                 }
@@ -132,7 +132,7 @@ impl VM {
 
         match index {
             Some(i) => {
-                if let Item::Local { local: _, data: d } = &self.stack[i] {
+                if let Item::Local { data: d, .. } = &self.stack[i] {
                     let data = Item::Data(d.clone());
                     self.stack.push(data);
                 }

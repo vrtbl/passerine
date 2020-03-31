@@ -52,7 +52,7 @@ impl Chunk {
         match self.constants.iter().position(|d| d == &data) {
             Some(d) => d,
             None    => {
-                self.constants.push(data.clone());
+                self.constants.push(data);
                 self.constants.len() - 1
             },
         }

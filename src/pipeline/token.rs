@@ -2,7 +2,9 @@ use crate::utils::annotation::Ann;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Token {
-    // Whitespace
+    // Delimiterss
+    OpenBracket,
+    CloseBracket,
     Sep,
 
     // Lambda
@@ -25,8 +27,13 @@ impl Token {
         let rules: Vec<Box<dyn Fn(&str) -> Consume>> = vec![
             // higher up in order = higher precedence
             // think 'or' as symbol or 'or' as operator
+            // static
+            Box::new(|s| Token::open_bracket(s) ),
+            Box::new(|s| Token::close_bracket(s)),
+            Box::new(|s| Token::assign(s)       ),
+
+            // option
             Box::new(|s| Token::sep(s)    ),
-            Box::new(|s| Token::assign(s) ),
             Box::new(|s| Token::boolean(s)),
 
             // keep this @ the bottom, lmao
@@ -50,6 +57,8 @@ impl Token {
         return best;
     }
 
+    // helpers
+
     fn literal(source: &str, literal: &str, kind: Token) -> Consume {
         if literal.len() > source.len() { return None }
 
@@ -59,6 +68,8 @@ impl Token {
 
         return None;
     }
+
+    // token classifiers
 
     fn symbol(source: &str) -> Consume {
         // for now, a symbol is one or more ascii alphanumerics
@@ -77,6 +88,17 @@ impl Token {
         };
     }
 
+    fn open_bracket(source: &str) -> Consume {
+        return Token::literal(source, "{", Token::OpenBracket);
+    }
+
+    fn close_bracket(source: &str) -> Consume {
+        return Token::literal(source, "}", Token::CloseBracket);
+
+    }
+
+    // NEXT: parse
+
     fn assign(source: &str) -> Consume {
         return Token::literal(source, "=", Token::Assign);
     }
@@ -86,14 +108,11 @@ impl Token {
 
     fn boolean(source: &str) -> Consume {
         // possible duplication of knowledge, see parser.
-        match Token::literal(source, "true",  Token::Boolean) {
-            Some(x) => return Some(x),
-            None => ()
-        }
+        if let Some(x) = Token::literal(source, "true",  Token::Boolean) { return Some(x) }
 
-        match Token::literal(source, "false", Token::Boolean) {
-            Some(x) => return Some(x),
-            None => return None
+        return match Token::literal(source, "false", Token::Boolean) {
+            Some(x) => Some(x),
+            None => None
         }
     }
 
@@ -113,10 +132,7 @@ pub struct AnnToken {
 
 impl AnnToken {
     pub fn new(kind: Token, ann: Ann) -> AnnToken {
-        AnnToken {
-            kind: kind,
-            ann:  ann,
-        }
+        AnnToken { kind, ann }
     }
 }
 

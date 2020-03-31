@@ -26,7 +26,7 @@ impl Gen {
     fn walk(&mut self, ast: &AST) {
         // push left, push right, push center
         match ast {
-            AST::Leaf { data, ann: _ } => {
+            AST::Leaf { data, .. } => {
                 self.chunk.code.push(Opcode::Con as u8);
                 let mut split = split_number(self.chunk.index_constant(data.clone()));
                 self.chunk.code.append(&mut split);
@@ -39,7 +39,7 @@ impl Gen {
         }
     }
 
-    fn block(&mut self, children: &Vec<AST>) {
+    fn block(&mut self, children: &[AST]) {
         self.depth += 1;
         for child in children {
             self.walk(&child);
@@ -51,7 +51,7 @@ impl Gen {
         self.depth -= 1;
     }
 
-    fn assign(&mut self, children: &Vec<AST>) {
+    fn assign(&mut self, children: &[AST]) {
         if children.len() != 2 {
             panic!("Assignment expects 2 children")
         }
@@ -67,7 +67,7 @@ impl Gen {
 
         // ... the symbol to be loaded
         match symbol {
-            AST::Node { kind: Construct::Symbol, ann, children: _ } =>
+            AST::Node { kind: Construct::Symbol, ann, .. } =>
                 self.index_symbol(ann),
             _ => panic!("Assignment expects symbol"),
         }

@@ -3,14 +3,14 @@ pub fn split_number(n: usize) -> Vec<u8> {
     // low bits = binary representation
     let mut bytes = vec![];
     let mut i     = n;
-    let chunk     = 0b10000000;
+    let chunk     = 0b1000_0000;
 
     loop {
         let low = i % chunk; // get next 7 bits in usize
-        i       = i / chunk; // shift right by 7
+        i /= chunk; // shift right by 7
 
         // set high bit & append to chain
-        bytes.push(if bytes.len() == 0 { chunk + low } else { low } as u8);
+        bytes.push(if bytes.is_empty() { chunk + low } else { low } as u8);
 
         // like a do-while
         // makes sure a number is always pushed
@@ -25,7 +25,7 @@ pub fn split_number(n: usize) -> Vec<u8> {
 pub fn build_number(bytes: Vec<u8>) -> (usize, usize) /* (index, eaten) */ {
     let mut i: usize = 0;
     let mut e        = 0;
-    let chunk        = 0b10000000;
+    let chunk        = 0b1000_0000;
 
     for byte in bytes {
         // shift left by 7
@@ -34,10 +34,12 @@ pub fn build_number(bytes: Vec<u8>) -> (usize, usize) /* (index, eaten) */ {
 
         // check if this byte is the last byte in the sequence
         // you pass remaining bytecode, so early breaking is important
-        match byte >= chunk {
-            true  => { i += (byte - chunk) as usize; break; },
-            false => { i += byte as usize; },
-        }
+        if byte >= chunk {
+            i += (byte - chunk) as usize;
+            break;
+         } else {
+             i += byte as usize;
+         }
     }
 
     return (i, e);
@@ -57,7 +59,7 @@ mod test {
     #[test]
     fn rollover() {
         let x = 256;
-        assert_eq!(split_number(x), vec![0b00000010, 0b10000000])
+        assert_eq!(split_number(x), vec![0b0000_0010, 0b1000_0000])
     }
 
     #[test]

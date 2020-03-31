@@ -23,25 +23,18 @@ pub enum AST {
 
 impl AST {
     pub fn node(kind: Construct, ann: Ann, children: Vec<AST>) -> AST {
-        AST::Node {
-            kind:     kind,
-            ann:      ann,
-            children: children,
-        }
+        AST::Node { kind, ann, children }
     }
 
     pub fn leaf(data: Data, ann: Ann) -> AST {
-        AST::Leaf {
-            data: data,
-            ann:  ann,
-        }
+        AST::Leaf { data, ann }
     }
 
     pub fn ann(&self) -> Ann {
         // get the annotation for both nodes and leafs.
         match self {
-            AST::Node { kind: _, ann: a, children: _ } => a.clone(),
-            AST::Leaf { data: _, ann: a }              => a.clone(),
+            AST::Node { ann: a, ..} => *a,
+            AST::Leaf { ann: a, ..} => *a,
         }
     }
 }

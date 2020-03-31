@@ -17,7 +17,7 @@ pub fn parse(tokens: Vec<AnnToken>) -> Option<AST> {
     // parse the file
     return match block(stripped) {
         // vaccum all extra seperators
-        Ok((node, parsed)) => if vaccum(parsed, Token::Sep).len() == 0 {
+        Ok((node, parsed)) => if vaccum(parsed, Token::Sep).is_empty() {
             Some(node)
         } else {
             None
@@ -35,7 +35,7 @@ fn vaccum(tokens: Tokens, token: Token) -> Tokens {
     // vaccums all leading tokens that match token
     let mut remaining = tokens;
 
-    while remaining.len() > 0 {
+    while !remaining.is_empty() {
         let t = &remaining[0].kind;
         if t != &token { break; }
         remaining = &remaining[1..];
@@ -76,7 +76,7 @@ fn block(tokens: Tokens) -> Branch {
     let mut annotations = vec![];
     let mut remaining   = tokens;
 
-    while remaining.len() > 0 {
+    while !remaining.is_empty() {
         match expr(remaining) {
             Ok((e, r)) => {
                 annotations.push(e.ann());
@@ -138,7 +138,7 @@ fn literal(tokens: Tokens) -> Branch {
 fn symbol(tokens: Tokens) -> Branch {
     match tokens.iter().next() {
         Some(AnnToken { kind: Token::Symbol, ann }) => Ok((
-            AST::node(Construct::Symbol, ann.clone(), vec![]),
+            AST::node(Construct::Symbol, *ann, vec![]),
             &tokens[1..],
         )),
         Some(_) => Err(("Expected a variable".to_string(), tokens.iter().next().unwrap().ann)),
@@ -155,7 +155,7 @@ fn boolean(tokens: Tokens) -> Branch {
                     "false" => Data::Boolean(false),
                     _ => panic!("Lexer classified token as boolean, boolean not found!")
                 },
-                ann.clone(),
+                *ann,
             ),
             &tokens[1..],
         )),

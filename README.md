@@ -65,7 +65,7 @@ Version, ∆ Done, Milestone, -- Date
     2. ∆ Parser
     3. ∆ Bytecode generator
     4. ∆ VM
-        1. Local Variables -- Today
+        1. ∆ Local Variables -- Today
         2. Block Statements
     5. Unary datatypes
         1. Numbers

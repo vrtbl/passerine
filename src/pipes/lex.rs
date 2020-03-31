@@ -113,4 +113,23 @@ mod test {
 
         assert_eq!(lex(source), Some(result));
     }
+
+    #[test]
+    fn block() {
+        let source = "{\n\thello = true\n\thello\n}";
+
+        // TODO: finish test
+
+        let result = vec![
+            AnnToken::new(Token::OpenBracket,  Ann::new(source, 0, 1)),
+            AnnToken::new(Token::Sep,          Ann::new(source, 1, 1)),
+            AnnToken::new(Token::Symbol,       Ann::new(source, 3, 5)),
+            AnnToken::new(Token::Assign,       Ann::new(source, 9, 1)),
+            AnnToken::new(Token::Boolean,      Ann::new(source, 11, 4)),
+            AnnToken::new(Token::Sep,          Ann::new(source, 15, 1)),
+            AnnToken::new(Token::CloseBracket, Ann::new(source, 0, 1)),
+        ];
+
+        assert_eq!(lex(source), Some(result));
+    }
 }

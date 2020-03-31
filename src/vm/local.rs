@@ -15,9 +15,6 @@ pub struct Local {
 
 impl Local {
     pub fn new(name: String, depth: usize) -> Local {
-        Local {
-            name:  name,
-            depth: depth,
-        }
+        Local { name, depth }
     }
 }

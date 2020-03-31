@@ -23,11 +23,7 @@ impl Ann {
             panic!("Can't annotate past end of source!")
         }
 
-        Ann {
-            source: source,
-            offset: offset,
-            length: length,
-        }
+        return Ann { source, offset, length };
     }
 
     pub fn combine(a: &Ann, b: &Ann) -> Ann {
@@ -53,7 +49,7 @@ impl Ann {
 
     pub fn span(annotations: Vec<Ann>) -> Ann {
         // gee, reduce or an accumulator would be really useful here
-        let mut combined = annotations[0].clone();
+        let mut combined = annotations[0];
 
         for annotation in &annotations[1..] {
             combined = Ann::combine(&combined, annotation);

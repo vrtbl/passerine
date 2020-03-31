@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::vm::data::Data;
 use crate::vm::local::Local;
 
