@@ -3,8 +3,7 @@ If you're reading this, thanks for taking a look!
 If you would like to contribute to Passerine, we have some simple rules to follow.
 Contributions are made through pull requests, unless you are given write access to the repository.\*
 
-## General Guidelines
-
+## Code of Conduct
 First, if you find any bugs or would like to request any features, please open an issue.
 Once the issue is open, feel free to put in a pull request to fix the issue.
 Small corrections, like fixing spelling errors, or updating broken urls are appreciated.
@@ -21,10 +20,25 @@ Discrimination of any kind against any person is not permitted.
 If you detract from this project's collaborative environment, you'll be prevented from participating in the future development of this project until you prove you can behave yourself adequately.
 Please provide arguments based on anecdotes and reasoning to support your suggestions - don't rely on arguments based on 'years of experience,' supposed skill, job title, etc. your points across.
 
+# General Guidelines
+Readable code with clear behavior works better than illegible optimized code.
+For things that are very performance-oriented, annotations describing what, how, and why are essential.
+
+Each commit should denote exactly one thing, whether it be a bug fix, or a feature addition.
+Try not to do both at the same time - it makes code harder to review.
+Once the codebase is stable, new features should be:
+
+1. First opened as an issue and discussed.
+2. Forked and developed in a new branch.
+3. Put in as a pull request.
+4. Tested and reviewed for bugs, which are fixed.
+5. If everything looks good, it will then be merged.
+
+After a while, we plan to implement some sort of RFC process.
+But, given the small toy-ish status of Passerine, this is unlikely to happen without support.
+
 ## Passerine-Specific Guidelines for Getting Started
 > Note: this project is in the rapid initial stages of development, and as such, breaking changes or radical changes in project structure may occur. After the 1.0.0 release, this behavior will stabilize.
-
-> TODO: integrate idea that readable code that works is better than unreadable code that's only a bit faster
 
 Passerine strives to implement a modern compiler pipeline. Passerine is currently broken up into three small projects, namely, the core compiler, the command line interface, and the package repository.
 
