@@ -1,8 +1,8 @@
 # P
-Welcome to P!
-P is a small, concise, extensible programming language, powered by a VM written in Rust.
+Welcome to Passerine!
+Passerine is a small, concise, extensible programming language, powered by a VM written in Rust.
 Inspired by Scheme, OCaml, and Wren.
-P supports (syntactically safe) macros, coroutines, anonymous functions, and the like.
+Passerine supports (syntactically safe) macros, coroutines, anonymous functions, and the like.
 Here's a sample:
 
 ```
@@ -39,10 +39,9 @@ fib = memoized (
 ```
 
 ## Getting Started
-If you just want to see what P can do:
+If you just want to see what Passerine can do:
 
-> NOTE: P is in an early stage of development.
-Soon, we pla
+> NOTE: Passerine is in an early stage of development.
 
 1. Clone this git repository.
 2. Build p using cargo.
@@ -51,7 +50,7 @@ Soon, we pla
 If you'd like to contribute:
 
 1. Read `CONTRIBUTING.md`.
-2. Get up P using the above instructions
+2. Get up Passerine using the above instructions
 3. Open issues and pull requests disclosing bugs or implementing improvements
 
 > Fun Note: I didn't have access to wifi when I wrote the compiler until version 0.5.0.
@@ -60,6 +59,7 @@ If you see any obvious errata in the compiler design, open an issue or create a 
 
 # Roadmap
 Version, ∆ Done, Milestone, -- Date
+
 0. ∆ Start project
     1. ∆ Lexer
     2. ∆ Parser
