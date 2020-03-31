@@ -1,4 +1,4 @@
-# P
+# Passerine
 Welcome to Passerine!
 Passerine is a small, concise, extensible programming language, powered by a VM written in Rust.
 Inspired by Scheme, OCaml, and Wren.
@@ -44,7 +44,7 @@ If you just want to see what Passerine can do:
 > NOTE: Passerine is in an early stage of development.
 
 1. Clone this git repository.
-2. Build p using cargo.
+2. Build Passerine with cargo.
 3. Run the CLI on one of the examples: `cargo run -- examples/hello_world.p`.
 
 If you'd like to contribute:

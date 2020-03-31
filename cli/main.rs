@@ -12,7 +12,7 @@ fn main() {
     };
 
     let mut vm = vm::VM::init();   // initialize vm
-    // utils::pipes::std(&mut vm);    // import pp standard library
+    // utils::pipes::std(&mut vm);    // import passerine standard library
     let result = vm.run(bytecode); // run bytecode
 
     // if there was an error, display it.

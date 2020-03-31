@@ -137,7 +137,7 @@ impl VM {
                     self.stack.push(data);
                 }
             },
-            None => panic!("Local not found on stack!"), // TODO: make it a P error
+            None => panic!("Local not found on stack!"), // TODO: make it a Passerine error
         }
 
         self.done()
