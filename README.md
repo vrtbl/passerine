@@ -13,7 +13,7 @@ Passerine has just about five concepts:
 Here's an annotated, yet otherwise index-card-sized subset:
 
 ```
--- 
+-- NOTE: not finalized
 -- Assignment (=), Macro (~>)
 for = var sequence do ~> {
     -- Function (->)
