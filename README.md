@@ -1,47 +1,47 @@
 # Passerine
 Welcome to Passerine!
 Passerine is a small, concise, extensible programming language, powered by a VM written in Rust.
-Inspired by Scheme, OCaml, and Wren.
-Passerine supports (syntactically safe) macros, coroutines, anonymous functions, and the like.
-Here's a sample:
+It was inspired by Scheme, OCaml, and Wren.
+Passerine has just about five concepts:
+
+- Patterns
+- Assignment
+- Functions
+- Macros
+- Fibers
+
+Here's an annotated, yet otherwise index-card-sized subset:
 
 ```
--- Recursive Fibonacci in linear time (memoization)
+-- 
+-- Assignment (=), Macro (~>)
+for = var sequence do ~> {
+    -- Function (->)
+    block = var -> do
 
--- All functions are anonymous
--- They just happen to have a name
-memoized = f -> {
-    -- Dictionary
-    seen = {:}
+    -- Fiber (|>)
+    loop = s |> {
+        -- Function call (f x ...)
+        block (next s)
 
-    -- Implied return
-    a -> {
-        -- Pattern Matching
-        match seen[a] {
-            -- No null types
-            (Some a) -> a
-            None     -> {
-                result = (f a)
-                seen[a] = result
-                result
-            }
-        }
+        -- Run fiber (!)
+        when (not (done s)) (loop s)!
     }
+
+    loop (iter sequence)
 }
 
-fib = memoized (
-    n -> match n {
-        -- Pattern guards
-        s | s < 2 -> s
-        e         -> (fib n - 2) + (fib n - 1)
-    }
-)
+-- Macro usage (f a b c ...)
+for x 1..5 {
+    print x
+}
 ```
 
 ## Getting Started
 If you just want to see what Passerine can do:
 
 > NOTE: Passerine is in an early stage of development.
+It is not even near turing-complete at this stage, so don't @ me (yet).
 
 1. Clone this git repository.
 2. Build Passerine with cargo.
