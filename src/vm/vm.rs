@@ -87,7 +87,6 @@ impl VM {
 
         while self.ip < self.chunk.code.len() {
             self.step();
-            println!("{:?}", self.stack);
         }
 
         // return current state
@@ -170,8 +169,6 @@ mod test {
         let chunk = gen(parse(lex(
             "boop = true; true; dhuiew = true; boop"
         ).unwrap()).unwrap());
-
-        print!("{:#?}", chunk);
 
         let mut vm = VM::init();
 

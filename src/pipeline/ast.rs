@@ -1,11 +1,29 @@
 use crate::utils::annotation::Ann;
 use crate::vm::data::Data;
 
+// TODO: it might make sense to have the AST enum extend the Construct one
+// for example, instead of:
+// AST::Node {
+//     kind:     Construct::Assign,
+//     ann:      <whatever>,
+//     children: [<symbol>, <expression>],
+// }
+// just have different variants:
+// AST::Assign {
+//     // no kind
+//     ann: <whatever>,
+//     // now, we can be more specific about the children
+//     // which prevents some redundant checks during bytecode emmision
+//     symbol:     <symbol>,
+//     expression: <expression>,
+// }
+
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Construct {
     Block,
     Assign,
-    Symbol, // Variables are weird - are they values, or lanugage constructs?
+    Symbol, // Variables are weird - are they values, or language constructs?
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]

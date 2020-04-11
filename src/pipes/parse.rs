@@ -10,12 +10,9 @@ type Branch<'a> = Result<(AST, Tokens<'a>), (String, Ann)>;
 // TODO: better error reporting
 
 pub fn parse(tokens: Vec<AnnToken>) -> Option<AST> {
-    // slices are easier to work with
-    // vaccum all preceeding seperators
-    let stripped = vaccum(&tokens[..], Token::Sep);
-
     // parse the file
-    return match block(stripped) {
+    // slices are easier to work with
+    return match block(&tokens[..]) {
         // vaccum all extra seperators
         Ok((node, parsed)) => if vaccum(parsed, Token::Sep).is_empty() {
             Some(node)
@@ -31,6 +28,7 @@ pub fn parse(tokens: Vec<AnnToken>) -> Option<AST> {
 
 // cookie-monster's helper functions
 
+// each function is responsible for vaccuming its input
 fn vaccum(tokens: Tokens, token: Token) -> Tokens {
     // vaccums all leading tokens that match token
     let mut remaining = tokens;
@@ -59,7 +57,7 @@ fn longest(tokens: Tokens, rules: Vec<Box<dyn Fn(Tokens) -> Branch>>) -> Branch 
             match best {
                 // r and g are remaining. less remaining = more parsed
                 // items first should be preferred
-                Err(_)                     => best = Ok((ast, r)),
+                Err(_)                          => best = Ok((ast, r)),
                 Ok((_, g)) if r.len() < g.len() => best = Ok((ast, r)),
                 Ok(_)                           => (),
             }
@@ -74,7 +72,7 @@ fn longest(tokens: Tokens, rules: Vec<Box<dyn Fn(Tokens) -> Branch>>) -> Branch 
 fn block(tokens: Tokens) -> Branch {
     let mut expressions = vec![];
     let mut annotations = vec![];
-    let mut remaining   = tokens;
+    let mut remaining   = vaccum(tokens, Token::Sep);
 
     while !remaining.is_empty() {
         match expr(remaining) {
@@ -100,11 +98,22 @@ fn block(tokens: Tokens) -> Branch {
 
 fn expr(tokens: Tokens) -> Branch {
     let rules: Vec<Box<dyn Fn(Tokens) -> Branch>> = vec![
+        Box::new(|s| scope(s)),
         Box::new(|s| op(s)),
         Box::new(|s| literal(s)),
     ];
 
     return longest(tokens, rules);
+}
+
+fn scope(tokens: Tokens) -> Branch {
+    // TODO: bug here, panics on parsing block.
+
+    let start      = consume(tokens, Token::OpenBracket)?;
+    let (ast, end) = block(start)?;
+    let remaining  = consume(end, Token::CloseBracket)?;
+
+    return Ok((ast, remaining));
 }
 
 fn op(tokens: Tokens) -> Branch {
@@ -207,5 +216,14 @@ mod test {
         let source = "\n hello9 \n \n = true; ";
 
         assert_eq!(parse(lex(source).unwrap()), None);
+    }
+
+    #[test]
+    fn block() {
+        let source = "x = true\n{\n\ty = {x; true; false}\n\tz = false\n}";
+        let result = parse(lex(source).unwrap());
+        println!("{:#?}", result);
+        // todo, check correct result
+        panic!();
     }
 }

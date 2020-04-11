@@ -10,31 +10,23 @@ Passerine has just about five concepts:
 - Macros
 - Fibers
 
-Here's an annotated, yet otherwise index-card-sized subset:
+Here's a taste:
 
 ```
--- NOTE: not finalized
--- Assignment (=), Macro (~>)
-for = var sequence do ~> {
-    -- Function (->)
-    block = var -> do
-
-    -- Fiber (|>)
-    loop = s |> {
-        -- Function call (f x ...)
-        block (next s)
-
-        -- Run fiber (!)
-        when (not (done s)) (loop s)!
-    }
-
-    loop (iter sequence)
+->> = data functions... -> {
+    match functions [
+        []    -> data
+        [h|t] -> (->> (h data) t...)
+    ]
 }
 
--- Macro usage (f a b c ...)
-for x 1..5 {
-    print x
-}
+numbers = 0..5
+->> (filter even?) (map square) sum (x -> x / 2)
+
+-- [0 2 4]
+-- [0 4 16]
+-- 20
+-- 10
 ```
 
 ## Getting Started
@@ -58,14 +50,14 @@ As such, this compiler was developed completely from memory, without access to t
 If you see any obvious errata in the compiler design, open an issue or create a pull request.
 
 # Roadmap
-Version, ∆ Done, Milestone, -- Date
+Version, ∆ Done, Milestone, -- Target (DateMonth)
 
 0. ∆ Start project
     1. ∆ Lexer
     2. ∆ Parser
     3. ∆ Bytecode generator
     4. ∆ VM
-        1. ∆ Local Variables -- Today
+        1. ∆ Local Variables
         2. Block Statements
     5. Unary datatypes
         1. Numbers

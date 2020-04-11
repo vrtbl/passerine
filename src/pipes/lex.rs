@@ -127,7 +127,9 @@ mod test {
             AnnToken::new(Token::Assign,       Ann::new(source, 9, 1)),
             AnnToken::new(Token::Boolean,      Ann::new(source, 11, 4)),
             AnnToken::new(Token::Sep,          Ann::new(source, 15, 1)),
-            AnnToken::new(Token::CloseBracket, Ann::new(source, 0, 1)),
+            AnnToken::new(Token::Symbol,       Ann::new(source, 17, 5)),
+            AnnToken::new(Token::Sep,          Ann::new(source, 22, 1)),
+            AnnToken::new(Token::CloseBracket, Ann::new(source, 23, 1)),
         ];
 
         assert_eq!(lex(source), Some(result));

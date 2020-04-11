@@ -48,6 +48,8 @@ impl Ann {
     }
 
     pub fn span(annotations: Vec<Ann>) -> Ann {
+        if annotations.is_empty() { panic!("Expected at least one annotation to span"); }
+
         // gee, reduce or an accumulator would be really useful here
         let mut combined = annotations[0];
 
