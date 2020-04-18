@@ -2,57 +2,52 @@ use crate::utils::annotation::Ann;
 use crate::vm::data::Data;
 
 // TODO: it might make sense to have the AST enum extend the Construct one
-// for example, instead of:
-// AST::Node {
-//     kind:     Construct::Assign,
-//     ann:      <whatever>,
-//     children: [<symbol>, <expression>],
-// }
-// just have different variants:
-// AST::Assign {
-//     // no kind
-//     ann: <whatever>,
-//     // now, we can be more specific about the children
-//     // which prevents some redundant checks during bytecode emmision
-//     symbol:     <symbol>,
-//     expression: <expression>,
-// }
-
+// NOTE: above TODO is in progress
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Construct {
-    Block,
-    Assign,
-    Symbol, // Variables are weird - are they values, or language constructs?
+pub enum Node {
+    Data(Data),
+    Symbol(Symbol),
+    Block(Vec<AST>),
+    Assign {
+        pattern:    Box<AST>, // Note - should be pattern
+        expression: Box<AST>,
+    },
+    // TODO: support following constructs as they are implemented
+    // Lambda {
+    //     pattern:    Box<Node>, // Note - should be pattern
+    //     expression: Box<Node>,
+    // },
+    // Macro {
+    //     pattern:    Box<Node>,
+    //     expression: Box<Node>,
+    // }
+    // Form(Vec<Node>) // function call -> (fun a1 a2 .. an)
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum AST {
-    Node {
-        kind:     Construct,
-        ann:      Ann,
-        children: Vec<AST>,
-    },
-    Leaf {
-        data: Data,
-        ann:  Ann,
-    },
+struct AST {
+    pub node: Node,
+    pub ann:  Ann,
+}
+
+impl Node {
+    // Leafs; terminals
+    pub fn data(data: Data)       -> Node { Node::Data(data)     }
+    pub fn symbol(symbol: Symbol) -> Node { Node::Symbol(symbol) }
+
+    // Recursive
+    pub fn block(exprs: Vec<AST>)                -> Node { Node::Block(exprs) }
+    pub fn Assign(pattern: AST, expression: AST) -> Node {
+        Node::Assign {
+            pattern: Box::new(pattern),
+            expression: Box::new(expression)
+        }
+    }
 }
 
 impl AST {
-    pub fn node(kind: Construct, ann: Ann, children: Vec<AST>) -> AST {
-        AST::Node { kind, ann, children }
-    }
-
-    pub fn leaf(data: Data, ann: Ann) -> AST {
-        AST::Leaf { data, ann }
-    }
-
-    pub fn ann(&self) -> Ann {
-        // get the annotation for both nodes and leafs.
-        match self {
-            AST::Node { ann: a, ..} => *a,
-            AST::Leaf { ann: a, ..} => *a,
-        }
+    pub fn new(node: Node, ann: Ann) -> AST {
+        AST { node, ann }
     }
 }

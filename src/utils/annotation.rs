@@ -1,29 +1,26 @@
-// I need to make sure that this points to a source,
-// but doesn't clone it or make a copy of something...
-// I don't need a bazillion copies of the same thing floating around
-
 // an annotation refers to a section of a source,
 // much like &str, but a bit different at the same time
+// but independant from the source itself
 // they're meant to be paired with datastructures,
 // and then be used during error reporting
 
 // TODO: remove unnesary clones
-// TODO: remove depencancy on source code, i.e. 'source: &'static str'
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ann {
-    source: &'static str,
     offset: usize,
     length: usize,
 }
 
 impl Ann {
-    pub fn new(source: &'static str, offset: usize, length: usize) -> Ann {
-        if source.len() < (offset + length) {
-            panic!("Can't annotate past end of source!")
-        }
+    pub fn new(offset: usize, length: usize) -> Ann {
+        // TODO: this checks for in-bounds annotations,
+        // but is this even nessesary?
+        // if source.len() < (offset + length) {
+        //     panic!("Can't annotate past end of source!")
+        // }
 
-        return Ann { source, offset, length };
+        return Ann { offset, length };
     }
 
     pub fn combine(a: &Ann, b: &Ann) -> Ann {
@@ -34,17 +31,11 @@ impl Ann {
         //            ^^      | Ann b
         // ^^^^^^^^^^^^^      | combined
 
-        // To compare pointers,
-        // or to not compare...
-        if a.source.as_ptr() != b.source.as_ptr() {
-            panic!("Tried to merge two Anns of different sources");
-        }
-
         let offset = a.offset.min(b.offset);
         let end    = (a.offset + a.length).max(b.offset + b.length);
         let length = end - offset;
 
-        return Ann::new(a.source, offset, length);
+        return Ann::new(offset, length);
     }
 
     pub fn span(annotations: Vec<Ann>) -> Ann {
@@ -53,15 +44,13 @@ impl Ann {
         // gee, reduce or an accumulator would be really useful here
         let mut combined = annotations[0];
 
+        // Note: does [1..] throw error with length 1 array,
+        // Or does it produce a [] array as I expect?
         for annotation in &annotations[1..] {
             combined = Ann::combine(&combined, annotation);
         }
 
         return combined;
-    }
-
-    pub fn contents(&self) -> &str {
-        &self.source[self.offset..(self.offset + self.length)]
     }
 }
 
