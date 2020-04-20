@@ -9,7 +9,7 @@ pub type Stack = Vec<Item>;
 // TODO: remove redundant boxes
 // No clone!
 // if data needs to be cloned, clone the data and put it into a new Item
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Item {
     Frame,
     // Lambda(Box<Bytecode>),

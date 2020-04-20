@@ -61,44 +61,22 @@ mod test {
     #[test]
     fn combination() {
         let source = "hello this is cool";
-        let a = Ann::new(source, 0, 5);
-        let b = Ann::new(source, 11, 2);
+        let a = Ann::new(0, 5);
+        let b = Ann::new(11, 2);
 
-        assert_eq!(Ann::combine(&a, &b), Ann::new(source, 0, 13));
-    }
-
-    #[test]
-    fn different() {
-        let your_iq = "heck";
-        let moms_iq = "holy cow, it's over 9000";
-
-        assert_ne!(
-            Ann::new(your_iq, 0, 1),
-            Ann::new(moms_iq, 0, 1)
-        );
-
-        // less trivial
-        // at first glance, they should be different
-        // however, static &strs are used
-        // which means the rust compiler reuses the same memory
-        // which means your_iq is the same as an_idiots
-        let an_idiots = "heck";
-        assert_eq!(
-            Ann::new(your_iq, 0, 4),
-            Ann::new(an_idiots, 0, 4)
-        );
+        assert_eq!(Ann::combine(&a, &b), Ann::new(0, 13));
     }
 
     #[test]
     fn span() {
         let source = "hello, this is some text!";
         let anns   = vec![
-            Ann::new(source, 0,  19),
-            Ann::new(source, 7,  18),
-            Ann::new(source, 0,  5),
-            Ann::new(source, 12, 4),
+            Ann::new(0,  19),
+            Ann::new(7,  18),
+            Ann::new(0,  5),
+            Ann::new(12, 4),
         ];
-        let result = Ann::new(source, 0, 25);
+        let result = Ann::new(0, 25);
 
         assert_eq!(Ann::span(anns), result);
     }

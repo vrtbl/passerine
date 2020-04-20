@@ -1,4 +1,6 @@
 use crate::utils::annotation::Ann;
+use crate::vm::data::Data;
+use crate::vm::local::Local;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Token {
@@ -11,8 +13,8 @@ pub enum Token {
     Assign,
 
     // Datatypes
-    Symbol,
-    Boolean,
+    Symbol(Local),
+    Boolean(Data),
 }
 
 type Consume = Option<(Token, usize)>;
@@ -84,7 +86,8 @@ impl Token {
 
         return match len {
             0 => None,
-            l => Some((Token::Symbol, l)),
+            // TODO: make sure that symbol name is correct
+            l => Some((Token::Symbol(Local::new(source[..l].to_string())), l)),
         };
     }
 
@@ -107,13 +110,15 @@ impl Token {
     // but I'm not going to abstract it out, yet
 
     fn boolean(source: &str) -> Consume {
-        // possible duplication of knowledge, see parser.
-        if let Some(x) = Token::literal(source, "true",  Token::Boolean) { return Some(x) }
-
-        return match Token::literal(source, "false", Token::Boolean) {
-            Some(x) => Some(x),
-            None => None
+        if let Some(x) = Token::literal(source, "true", Token::Boolean(Data::Boolean(true))) {
+            return Some(x);
         }
+
+        if let Some(x) = Token::literal(source, "false", Token::Boolean(Data::Boolean(false))) {
+            return Some(x);
+        }
+
+        return None;
     }
 
     fn sep(source: &str) -> Consume {
@@ -147,12 +152,12 @@ mod test {
     fn boolean() {
         assert_eq!(
             Token::from("true"),
-            Some((Token::Boolean, 4)),
+            Some((Token::Boolean(Data::Boolean(true)), 4)),
         );
 
         assert_eq!(
             Token::from("false"),
-            Some((Token::Boolean, 5)),
+            Some((Token::Boolean(Data::Boolean(false)), 5)),
         );
     }
 
@@ -173,7 +178,7 @@ mod test {
 
         assert_eq!(
             Token::from("heck"),
-            Some((Token::Symbol, 4))
+            Some((Token::Symbol(Local::new("heck".to_string())), 4))
         );
     }
 

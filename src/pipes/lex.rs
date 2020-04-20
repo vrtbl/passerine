@@ -8,7 +8,8 @@ use crate::pipeline::token::{Token, AnnToken};
 // ok, so rule-set has been defined in pipeline::token.rs
 
 // TODO: error handling, rather than just returning 'None'
-// TODO: I feel like there could be some more elegant separation
+// TODO: I feel like there could be some more elegant separation between token.rs and this
+// TODO: convert values to the appropriate type during the lexing phase rather than while parsing
 
 struct Lexer {
     source: &'static str,
@@ -42,7 +43,7 @@ impl Lexer {
     fn step(&mut self) -> Option<()> {
         // strip preceeding whitespace, get next token kind, build token
         let (kind, consumed) = Token::from(self.remaining())?;
-        let token = AnnToken::new(kind, Ann::new(&self.source, self.offset, consumed));
+        let token = AnnToken::new(kind, Ann::new(self.offset, consumed));
 
         self.offset += consumed;
         self.tokens.push(token);
@@ -94,9 +95,9 @@ mod test {
         let source = "heck = true";
 
         let result = vec![
-            AnnToken::new(Token::Symbol,  Ann::new(source, 0, 4)),
-            AnnToken::new(Token::Assign,  Ann::new(source, 5, 1)),
-            AnnToken::new(Token::Boolean, Ann::new(source, 7, 4)),
+            AnnToken::new(Token::Symbol,  Ann::new(0, 4)),
+            AnnToken::new(Token::Assign,  Ann::new(5, 1)),
+            AnnToken::new(Token::Boolean, Ann::new(7, 4)),
         ];
 
         assert_eq!(lex(source), Some(result));
@@ -107,8 +108,8 @@ mod test {
         let source = "  true  ;  ";
 
         let result = vec![
-            AnnToken::new(Token::Boolean, Ann::new(source, 2, 4)),
-            AnnToken::new(Token::Sep,     Ann::new(source, 8, 1)),
+            AnnToken::new(Token::Boolean(Data::Boolean(true)), Ann::new(2, 4)),
+            AnnToken::new(Token::Sep, Ann::new(8, 1)),
         ];
 
         assert_eq!(lex(source), Some(result));
@@ -121,15 +122,15 @@ mod test {
         // TODO: finish test
 
         let result = vec![
-            AnnToken::new(Token::OpenBracket,  Ann::new(source, 0, 1)),
-            AnnToken::new(Token::Sep,          Ann::new(source, 1, 1)),
-            AnnToken::new(Token::Symbol,       Ann::new(source, 3, 5)),
-            AnnToken::new(Token::Assign,       Ann::new(source, 9, 1)),
-            AnnToken::new(Token::Boolean,      Ann::new(source, 11, 4)),
-            AnnToken::new(Token::Sep,          Ann::new(source, 15, 1)),
-            AnnToken::new(Token::Symbol,       Ann::new(source, 17, 5)),
-            AnnToken::new(Token::Sep,          Ann::new(source, 22, 1)),
-            AnnToken::new(Token::CloseBracket, Ann::new(source, 23, 1)),
+            AnnToken::new(Token::OpenBracket,  Ann::new(0, 1)),
+            AnnToken::new(Token::Sep,          Ann::new(1, 1)),
+            AnnToken::new(Token::Symbol,       Ann::new(3, 5)),
+            AnnToken::new(Token::Assign,       Ann::new(9, 1)),
+            AnnToken::new(Token::Boolean,      Ann::new(11, 4)),
+            AnnToken::new(Token::Sep,          Ann::new(15, 1)),
+            AnnToken::new(Token::Symbol,       Ann::new(17, 5)),
+            AnnToken::new(Token::Sep,          Ann::new(22, 1)),
+            AnnToken::new(Token::CloseBracket, Ann::new(23, 1)),
         ];
 
         assert_eq!(lex(source), Some(result));
