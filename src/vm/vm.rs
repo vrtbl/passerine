@@ -2,7 +2,7 @@ use crate::utils::number::build_number;
 use std::mem;
 
 use crate::vm::local::Local;
-use crate::vm::data::Data;
+use crate::vm::data::{Data, Tagged};
 use crate::vm::stack::{Stack, Item};
 use crate::pipeline::bytecode::{Chunk, Opcode};
 
@@ -108,17 +108,24 @@ impl VM {
         // get the constant index
         let index = self.next_number();
 
-        self.stack.push(Item::Data(self.chunk.constants[index].clone()));
+        self.stack.push(Item::Data(Tagged::from(self.chunk.constants[index].clone())));
         self.done()
     }
 
     fn save(&mut self) -> RunResult {
-        let data = match self.stack.pop()? { Item::Data(d) => d, _ => panic!("Expected data") };
+        let data = match self.stack.pop()? { Item::Data(d) => d.deref(), _ => panic!("Expected data") };
         let (local, index) = self.local_index();
 
+        // NOTE: Does it make a copy or does it make a reference?
+        // It makes a copy of the data
         match index {
             // It's been declared
-            Some(i) => mem::drop(mem::replace(&mut self.stack[i], Item::Data(data))),
+            Some(i) => mem::drop(
+                mem::replace(
+                    &mut self.stack[i],
+                    Item::Local { local, data },
+                )
+            ),
             // It hasn't been declared
             None => self.stack.push(Item::Local { local, data }),
         }
@@ -131,8 +138,8 @@ impl VM {
 
         match index {
             Some(i) => {
-                if let Item::Local { data: d, .. } = &self.stack[i] {
-                    let data = Item::Data(d.clone());
+                if let Item::Local { data, .. } = &self.stack[i] {
+                    let data = Item::Data(Tagged::from(data.clone()));
                     self.stack.push(data);
                 }
             },

@@ -23,7 +23,7 @@ impl Opcode {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Chunk {
     pub code:      Vec<u8>,    // each byte is an opcode or a number-stream
     pub offsets:   Vec<usize>, // each usize indexes the bytecode op that begins each line

@@ -11,7 +11,7 @@ pub enum Node {
     Symbol(Local),
     Block(Vec<AST>),
     Assign {
-        pattern:    Box<Local>, // Note - should be pattern
+        pattern:    Box<AST>, // Note - should be pattern
         expression: Box<AST>,
     },
     // TODO: support following constructs as they are implemented
@@ -41,7 +41,7 @@ impl Node {
     pub fn block(exprs: Vec<AST>)                -> Node { Node::Block(exprs) }
     pub fn assign(pattern: AST, expression: AST) -> Node {
         Node::Assign {
-            pattern: Box::new(pattern),
+            pattern:    Box::new(pattern),
             expression: Box::new(expression)
         }
     }

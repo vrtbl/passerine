@@ -81,6 +81,8 @@ pub fn lex(source: &'static str) -> Option<Vec<AnnToken>> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::vm::data::Data;
+    use crate::vm::local::Local;
 
     // lexing individual tokens is tested in pipeline::token
 
@@ -95,9 +97,9 @@ mod test {
         let source = "heck = true";
 
         let result = vec![
-            AnnToken::new(Token::Symbol,  Ann::new(0, 4)),
-            AnnToken::new(Token::Assign,  Ann::new(5, 1)),
-            AnnToken::new(Token::Boolean, Ann::new(7, 4)),
+            AnnToken::new(Token::Symbol(Local::new("heck".to_string())), Ann::new(0, 4)),
+            AnnToken::new(Token::Assign,                                 Ann::new(5, 1)),
+            AnnToken::new(Token::Boolean(Data::Boolean(true)),           Ann::new(7, 4)),
         ];
 
         assert_eq!(lex(source), Some(result));
@@ -109,7 +111,7 @@ mod test {
 
         let result = vec![
             AnnToken::new(Token::Boolean(Data::Boolean(true)), Ann::new(2, 4)),
-            AnnToken::new(Token::Sep, Ann::new(8, 1)),
+            AnnToken::new(Token::Sep,                          Ann::new(8, 1)),
         ];
 
         assert_eq!(lex(source), Some(result));
@@ -122,15 +124,15 @@ mod test {
         // TODO: finish test
 
         let result = vec![
-            AnnToken::new(Token::OpenBracket,  Ann::new(0, 1)),
-            AnnToken::new(Token::Sep,          Ann::new(1, 1)),
-            AnnToken::new(Token::Symbol,       Ann::new(3, 5)),
-            AnnToken::new(Token::Assign,       Ann::new(9, 1)),
-            AnnToken::new(Token::Boolean,      Ann::new(11, 4)),
-            AnnToken::new(Token::Sep,          Ann::new(15, 1)),
-            AnnToken::new(Token::Symbol,       Ann::new(17, 5)),
-            AnnToken::new(Token::Sep,          Ann::new(22, 1)),
-            AnnToken::new(Token::CloseBracket, Ann::new(23, 1)),
+            AnnToken::new(Token::OpenBracket,                             Ann::new(0, 1)),
+            AnnToken::new(Token::Sep,                                     Ann::new(1, 1)),
+            AnnToken::new(Token::Symbol(Local::new("hello".to_string())), Ann::new(3, 5)),
+            AnnToken::new(Token::Assign,                                  Ann::new(9, 1)),
+            AnnToken::new(Token::Boolean(Data::Boolean(true)),            Ann::new(11, 4)),
+            AnnToken::new(Token::Sep,                                     Ann::new(15, 1)),
+            AnnToken::new(Token::Symbol(Local::new("hello".to_string())), Ann::new(17, 5)),
+            AnnToken::new(Token::Sep,                                     Ann::new(22, 1)),
+            AnnToken::new(Token::CloseBracket,                            Ann::new(23, 1)),
         ];
 
         assert_eq!(lex(source), Some(result));

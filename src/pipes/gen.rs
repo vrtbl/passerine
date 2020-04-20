@@ -25,11 +25,13 @@ impl Gen {
 
     fn walk(&mut self, ast: &AST) {
         // push left, push right, push center
-        match ast.node {
-            Node::Data(data) => self.data(data),
-            Node::Symbol(symbol) => self.symbol(symbol),
+        // NOTE: borrowing here introduces some complexity and cloning...
+        // AST should be immutable and not behind shared reference so does not make sense to clone
+        match &ast.node {
+            Node::Data(data) => self.data(data.clone()),
+            Node::Symbol(symbol) => self.symbol(symbol.clone()),
             Node::Block(block) => self.block(&block),
-            Node::Assign { pattern, expression } => self.assign(*pattern, *expression),
+            Node::Assign { pattern, expression } => self.assign(*pattern.clone(), *expression.clone()),
         }
     }
 
@@ -51,13 +53,16 @@ impl Gen {
         self.depth -= 1;
     }
 
-    fn assign(&mut self, symbol: Local, expression: AST) {
+    fn assign(&mut self, symbol: AST, expression: AST) {
         // eval the expression
         self.walk(&expression);
         // load the following symbol ...
         self.chunk.code.push(Opcode::Save as u8);
         // ... the symbol to be loaded
-        self.index_symbol(symbol);
+        match symbol.node {
+            Node::Symbol(l) => self.index_symbol(l),
+            _               => unreachable!(),
+        };
     }
 
     fn index_symbol(&mut self, symbol: Local) {

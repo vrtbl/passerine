@@ -126,13 +126,15 @@ fn op(tokens: Tokens) -> Branch {
     remaining = consume(remaining, Token::Assign)?;
 
     let (e, remaining) = expr(remaining)?;
-    return Ok((
+    let combined       = Ann::combine(&s.ann, &e.ann);
+
+    Ok((
         AST::new(
             Node::assign(s, e),
-            Ann::combine(&s.ann, &e.ann),
+            combined,
         ),
         remaining,
-    ));
+    ))
 }
 
 fn literal(tokens: Tokens) -> Branch {
@@ -147,7 +149,7 @@ fn literal(tokens: Tokens) -> Branch {
 fn symbol(tokens: Tokens) -> Branch {
     match tokens.iter().next() {
         Some(AnnToken { kind: Token::Symbol(l), ann }) => Ok((
-            AST::new(Node::Symbol(*l), *ann),
+            AST::new(Node::Symbol(l.clone()), *ann),
             &tokens[1..],
         )),
         Some(_) => Err(("Expected a variable".to_string(), tokens.iter().next().unwrap().ann)),
@@ -158,7 +160,7 @@ fn symbol(tokens: Tokens) -> Branch {
 
 fn boolean(tokens: Tokens) -> Branch {
     if let Some(AnnToken { kind: Token::Boolean(b), ann }) = tokens.iter().next() {
-        Ok((AST::new(Node::data(*b), *ann), &tokens[1..]))
+        Ok((AST::new(Node::data(b.clone()), *ann), &tokens[1..]))
     } else {
         Err(("Unexpected EOF while parsing".to_string(), Ann::new(0, 0)))
     }
