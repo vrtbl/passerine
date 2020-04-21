@@ -87,8 +87,8 @@ pub fn gen(ast: AST) -> Chunk {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::pipes::lex::lex;
-    use crate::pipes::parse::parse;
+    use crate::compiler::lex::lex;
+    use crate::compiler::parse::parse;
 
     #[test]
     fn constants() {

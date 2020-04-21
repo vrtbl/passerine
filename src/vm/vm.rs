@@ -13,6 +13,7 @@ use crate::pipeline::bytecode::{Chunk, Opcode};
 // I need to either implement resiliant-whatever datastructures (like FP)
 // or get my act together and do pass by object reference or something
 
+#[derive(Debug)]
 pub struct VM {
     chunk: Chunk,
     stack: Stack,
@@ -49,11 +50,11 @@ impl VM {
     }
 
     fn find_local(&mut self, local: &Local) -> Option<usize> {
-        for (index, item) in self.stack.iter().rev().enumerate() {
-            if let Item::Local { local: l, .. } = item {
-                if local == l {
-                    return Some(index);
-                }
+        for (index, item) in self.stack.iter().enumerate().rev() {
+            match item {
+                Item::Local { local: l, .. } => if local == l { return Some(index); },
+                Item::Frame                  => break,
+                Item::Data(_)                => (),
             }
         }
 
@@ -87,6 +88,7 @@ impl VM {
 
         while self.ip < self.chunk.code.len() {
             self.step();
+            println!("{:?}", self.stack);
         }
 
         // return current state
@@ -164,7 +166,7 @@ impl VM {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::pipes::{
+    use crate::compiler::{
         parse::parse,
         lex::lex,
         gen::gen,
@@ -182,6 +184,31 @@ mod test {
         match vm.run(chunk) {
             Some(_) => (),
             None    => panic!("VM threw error"),
+        }
+    }
+
+    #[test]
+    fn block_expression() {
+        let chunk = gen(parse(lex(
+            "boop = true; heck = { x = boop; x }; heck"
+        ).unwrap()).unwrap());
+
+        println!("{:#?}", chunk);
+
+        let mut vm = VM::init();
+
+        match vm.run(chunk) {
+            Some(_) => (),
+            None    => panic!("VM threw error"),
+        }
+
+        if let Some(Item::Data(t)) = vm.stack.pop() {
+            match t.deref() {
+                Data::Boolean(true) => (),
+                _                   => panic!("Expected true value")
+            }
+        } else {
+            panic!("Expected data on top of stack")
         }
     }
 }

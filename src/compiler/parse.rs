@@ -166,9 +166,11 @@ fn boolean(tokens: Tokens) -> Branch {
     }
 }
 
+// TODO: ASTs can get really big, really fast
+// have tests in external file?
 #[cfg(test)]
 mod test {
-    use crate::pipes::lex::lex;
+    use crate::compiler::lex::lex;
     use super::*;
 
     #[test]
@@ -211,9 +213,49 @@ mod test {
     #[test]
     fn block() {
         let source = "x = true\n{\n\ty = {x; true; false}\n\tz = false\n}";
-        let result = parse(lex(source).unwrap());
-        println!("{:#?}", result);
-        // todo, check correct result
-        panic!();
+        let parsed = parse(lex(source).unwrap());
+        let result = Some(
+            AST::new(
+                Node::block(
+                    vec![
+                        AST::new(
+                            Node::assign(
+                                AST::new(Node::symbol(Local::new("x".to_string())), Ann::new(0, 1)),
+                                AST::new(Node::data(Data::Boolean(true)),           Ann::new(4, 4)),
+                            ),
+                            Ann::new(0, 8)
+                        ),
+                        AST::new(Node::block(
+                            vec![
+                                AST::new(
+                                    Node::assign(
+                                        AST::new(Node::symbol(Local::new("y".to_string())), Ann::new(12, 1)),
+                                        AST::new(Node::block(
+                                            vec![
+                                                AST::new(Node::symbol(Local::new("x".to_string())), Ann::new(17, 1)),
+                                                AST::new(Node::data(Data::Boolean(true)),           Ann::new(20, 4)),
+                                                AST::new(Node::data(Data::Boolean(false)),          Ann::new(26, 5)),
+                                            ]),
+                                            Ann::new(17, 14),
+                                        )
+                                    ),
+                                    Ann::new(12, 19),
+                                ),
+                                AST::new(
+                                    Node::assign(
+                                        AST::new(Node::symbol(Local::new("z".to_string())),Ann::new(34, 1)),
+                                        AST::new(Node::data(Data::Boolean(false)), Ann::new(38, 5)),
+                                    ),
+                                    Ann::new(34, 9),
+                                ),
+                            ]),
+                            Ann::new(12, 31),
+                        ),
+                    ],
+                ),
+                Ann::new(0, 43),
+            ),
+        );
+        assert_eq!(parsed, result);
     }
 }

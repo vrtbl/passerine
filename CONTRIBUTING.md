@@ -52,7 +52,7 @@ Passerine strives to implement a modern compiler pipeline. Passerine is currentl
 The core compiler is made of a series of 'pipes,' which transform one type of data into another.
 Programs start as source files, after which they are then lexed into tokens, parsed into ASTs, compiled to bytecode, then run on the VM.
 
-The pipes themselves (i.e., the lexer, the parser, and the bytecode generator), can be found in `src/pipes`.
+The pipes themselves (i.e., the lexer, the parser, and the bytecode generator), can be found in `src/compiler`.
 The datastructures associated with these pipes can be found in `src/pipeline`.
 
 Note that pipes can only reference datastructures in pipeline - the pipeline should never reference anything found in pipes.

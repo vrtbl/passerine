@@ -52,6 +52,10 @@ impl Ann {
 
         return combined;
     }
+
+    pub fn contents(&self, source: &str) -> String {
+        source[self.offset..(self.offset + self.length)].to_string()
+    }
 }
 
 #[cfg(test)]
@@ -60,7 +64,6 @@ mod test {
 
     #[test]
     fn combination() {
-        let source = "hello this is cool";
         let a = Ann::new(0, 5);
         let b = Ann::new(11, 2);
 
@@ -68,16 +71,15 @@ mod test {
     }
 
     #[test]
-    fn span() {
+    fn span_and_contents() {
         let source = "hello, this is some text!";
         let anns   = vec![
-            Ann::new(0,  19),
-            Ann::new(7,  18),
-            Ann::new(0,  5),
+            Ann::new(0,  8),
+            Ann::new(7,  5),
             Ann::new(12, 4),
         ];
-        let result = Ann::new(0, 25);
+        let result = Ann::new(0, 16);
 
-        assert_eq!(Ann::span(anns), result);
+        assert_eq!(Ann::span(anns).contents(source), result.contents(source));
     }
 }

@@ -48,7 +48,7 @@ impl Tagged {
     pub fn from(data: Data) -> Tagged {
         match data {
             // Real
-            Data::Real(f) => Tagged(unsafe { f.to_bits() }),
+            Data::Real(f) => Tagged(f.to_bits()),
             // True and false
             Data::Boolean(false) => Tagged(QNAN | F_FLAG),
             Data::Boolean(true)  => Tagged(QNAN | T_FLAG),

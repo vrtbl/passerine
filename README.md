@@ -38,17 +38,13 @@ It is not even near turing-complete at this stage, so don't @ me (yet).
 
 1. Clone this git repository.
 2. Build Passerine with cargo.
-3. Run the CLI on one of the examples: `cargo run -- examples/hello_world.p`.
+3. Run the tests.
 
 If you'd like to contribute:
 
 1. Read `CONTRIBUTING.md`.
-2. Get up Passerine using the above instructions
-3. Open issues and pull requests disclosing bugs or implementing improvements
-
-> Fun Note: I didn't have access to wifi when I wrote the compiler until version 0.5.0.
-As such, this compiler was developed completely from memory, without access to the internet for any sort of anything - no Stack Overflow, no Rust documentation, etc.
-If you see any obvious errata in the compiler design, open an issue or create a pull request.
+2. Get Passerine.
+3. If you find anything, open an issue / pull request.
 
 # Roadmap
 | Version  | Milestone                   | Status (Planning, WIP, Stable) | Goal        |
@@ -57,15 +53,16 @@ If you see any obvious errata in the compiler design, open an issue or create a 
 | **0.1**  | Lexer                       | Stable                         |             |
 | **0.2**  | Parser                      | Stable                         |             |
 | **0.3**  | Bytecode Generator          | Stable                         |             |
-| **0.4**  | VM                          |                                | 2020-04-25  |
+| **0.4**  | VM                          | Stable                         | 2020-04-25  |
 | 0.4.1    | Local Variables             | Stable                         |             |
-| 0.4.2    | Block Statements            | WIP                            |             |
+| 0.4.2    | Block Expressions           | Stable                         |             |
 | 0.5      | Unary Datatypes             |                                | 2020-05-02  |
-| 0.5.1    | Nan Tagging                 | WIP                            |             |
+| 0.5.1    | Nan Tagging                 | Stable                            |             |
 | 0.5.2    | Numbers                     | WIP                            |             |
 | 0.5.3    | Strings                     | Planning                       |             |
 | 0.6      | Functions                   |                                | 2020-05-09  |
-| 0.6.1    | Closures                    | Planning                       |             |
+| 0.6.1    | Block Scope                 |                                |             |
+| 0.6.2    | Closures                    | Planning                       |             |
 | 0.7      | Alg. Structs.               |                                | 2020-05-16  |
 | 0.7.1    | Tuple                       |                                |             |
 | 0.7.2    | Union                       |                                |             |
