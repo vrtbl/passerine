@@ -1,3 +1,6 @@
+use std::str::FromStr;
+use std::f64;
+
 use crate::utils::annotation::Ann;
 use crate::vm::data::Data;
 use crate::vm::local::Local;
@@ -14,6 +17,7 @@ pub enum Token {
 
     // Datatypes
     Symbol(Local),
+    Number(Data),
     Boolean(Data),
 }
 
@@ -34,9 +38,13 @@ impl Token {
             Box::new(|s| Token::close_bracket(s)),
             Box::new(|s| Token::assign(s)       ),
 
-            // option
+            // variants
             Box::new(|s| Token::sep(s)    ),
             Box::new(|s| Token::boolean(s)),
+
+            // dynamic
+            Box::new(|s| Token::real(s)),
+            // Box::new(|s| Token::int(s)),
 
             // keep this @ the bottom, lmao
             Box::new(|s| Token::symbol(s) ),
@@ -71,10 +79,24 @@ impl Token {
         return None;
     }
 
+    fn eat_digits(source: &str) -> Option<usize> {
+        let mut len = 0;
+
+        for char in source.chars() {
+            match char {
+                n if n.is_digit(10) => len += 1,
+                _                   => break,
+            }
+        }
+
+        return if len == 0 { None } else { Some(len) };
+    }
+
     // token classifiers
 
     fn symbol(source: &str) -> Consume {
         // for now, a symbol is one or more ascii alphanumerics
+        // TODO: extend to full unicode
         let mut len = 0;
 
         for char in source.chars() {
@@ -97,13 +119,37 @@ impl Token {
 
     fn close_bracket(source: &str) -> Consume {
         return Token::literal(source, "}", Token::CloseBracket);
-
     }
 
     // NEXT: parse
 
     fn assign(source: &str) -> Consume {
         return Token::literal(source, "=", Token::Assign);
+    }
+
+    fn real(source: &str) -> Consume {
+        // TODO: NaNs, Infinity, the whole shebang
+        // look at how f64::from_str is implemented, maybe?
+
+        let mut len: usize = 0;
+
+        // one or more digits followed by a '.' followed by 1 or more digits
+        // TODO: make more general
+        len += Token::eat_digits(source)?;
+
+        match source[len..].chars().next() {
+            Some('.') => len += 1,
+            _         => return None,
+        }
+
+        len += Token::eat_digits(&source[len..])?;
+
+        let number = match f64::from_str(&source[..len]) {
+            Ok(n)  => n,
+            Err(_) => panic!("Could not convert source to supposed real")
+        };
+
+        return Some((Token::Number(Data::Real(number)), len));
     }
 
     // the below pattern is pretty common...
@@ -192,6 +238,19 @@ mod test {
         assert_eq!(
             Token::from("; heck"),
             Some((Token::Sep, 1)),
+        );
+    }
+
+    #[test]
+    fn real() {
+        assert_eq!(
+            Token::from("2.0"),
+            Some((Token::Number(Data::Real(2.0)), 3)),
+        );
+
+        assert_eq!(
+            Token::from("210938.2221"),
+            Some((Token::Number(Data::Real(210938.2221)), 11)),
         );
     }
 }

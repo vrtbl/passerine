@@ -1,3 +1,5 @@
+use std::usize;
+
 // an annotation refers to a section of a source,
 // much like &str, but a bit different at the same time
 // but independant from the source itself
@@ -14,13 +16,16 @@ pub struct Ann {
 
 impl Ann {
     pub fn new(offset: usize, length: usize) -> Ann {
-        // TODO: this checks for in-bounds annotations,
-        // but is this even nessesary?
-        // if source.len() < (offset + length) {
-        //     panic!("Can't annotate past end of source!")
-        // }
-
         return Ann { offset, length };
+    }
+
+    pub fn empty() -> Ann {
+        // this should trigger an error
+        Ann { offset: 0, length: usize::MAX }
+    }
+
+    pub fn is_empty(self) -> bool {
+        self == Ann::empty()
     }
 
     pub fn combine(a: &Ann, b: &Ann) -> Ann {

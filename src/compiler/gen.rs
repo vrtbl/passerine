@@ -37,7 +37,7 @@ impl Gen {
 
     fn data(&mut self, data: Data) {
         self.chunk.code.push(Opcode::Con as u8);
-        let mut split = split_number(self.chunk.index_constant(data.clone()));
+        let mut split = split_number(self.chunk.index_constant(data));
         self.chunk.code.append(&mut split);
     }
 
@@ -93,7 +93,7 @@ mod test {
     #[test]
     fn constants() {
         // TODO: flesh out as more datatypes are added
-        let source = "heck = true; lol = heck; lmao = false";
+        let source = "heck = true; lol = 0.0; lmao = false";
         let ast    = parse(
             lex(source).unwrap()
         ).unwrap();
@@ -101,6 +101,7 @@ mod test {
 
         let result = vec![
             Data::Boolean(true),
+            Data::Real(0.0),
             Data::Boolean(false),
         ];
 

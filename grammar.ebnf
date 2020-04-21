@@ -9,4 +9,7 @@ expr  = '{' + block + '}'
 op = SYMBOL ASSIGN expr
 
 literal = SYMBOL
+        | number
         | BOOLEAN
+
+number = REAL

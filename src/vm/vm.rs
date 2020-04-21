@@ -176,7 +176,7 @@ mod test {
     fn init_run() {
         // TODO: check @ each step, write more tests
         let chunk = gen(parse(lex(
-            "boop = true; true; dhuiew = true; boop"
+            "boop = 37.201; true; dhuiew = true; boop"
         ).unwrap()).unwrap());
 
         let mut vm = VM::init();

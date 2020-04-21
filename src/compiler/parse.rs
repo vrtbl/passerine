@@ -44,14 +44,14 @@ fn vaccum(tokens: Tokens, token: Token) -> Tokens {
 }
 
 fn consume(tokens: Tokens, token: Token) -> Result<Tokens, (String, Ann)> {
-    let t = match tokens.iter().next() { Some(t) => t, None => return Err(("Unexpected EOF".to_string(), Ann::new(0, 0))) };
+    let t = match tokens.iter().next() { Some(t) => t, None => return Err(("Unexpected EOF".to_string(), Ann::empty())) };
     if t.kind != token { return Err((format!("Expected {:?}, found {:?}", token, t.kind), t.ann)); }
     return Ok(&tokens[1..]);
 }
 
 fn longest(tokens: Tokens, rules: Vec<Box<dyn Fn(Tokens) -> Branch>>) -> Branch {
     // Need to figure out how to annotate right part of string
-    let mut best = Err(("S".to_string(), Ann::new(0, 0)));
+    let mut best = Err(("S".to_string(), Ann::empty()));
 
     // I've done this twice, might move to utils bc ro3.
     for rule in rules {
@@ -140,6 +140,7 @@ fn op(tokens: Tokens) -> Branch {
 fn literal(tokens: Tokens) -> Branch {
     let rules: Vec<Box<dyn Fn(Tokens) -> Branch>> = vec![
         Box::new(|s| symbol(s)),
+        Box::new(|s| number(s)),
         Box::new(|s| boolean(s)),
     ];
 
@@ -154,7 +155,18 @@ fn symbol(tokens: Tokens) -> Branch {
         )),
         Some(_) => Err(("Expected a variable".to_string(), tokens.iter().next().unwrap().ann)),
         // TODO: make Ann:new(0, 0) an Ann::empty() constructor
-        None    => Err(("Unexpected EOF while parsing".to_string(), Ann::new(0, 0)))
+        None    => Err(("Unexpected EOF while parsing".to_string(), Ann::empty()))
+    }
+}
+
+// TODO: for number and boolean, should compiler check for unreachable (i.e. lexer) errors?
+// TODO: this pattern for literals is similar, abstractify?
+
+fn number(tokens: Tokens) -> Branch {
+    if let Some(AnnToken { kind: Token::Number(n), ann }) = tokens.iter().next() {
+        Ok((AST::new(Node::Data(n.clone()), *ann), &tokens[1..]))
+    } else {
+        Err(("Unexpected EOF while parsing".to_string(), Ann::empty()))
     }
 }
 
@@ -162,7 +174,7 @@ fn boolean(tokens: Tokens) -> Branch {
     if let Some(AnnToken { kind: Token::Boolean(b), ann }) = tokens.iter().next() {
         Ok((AST::new(Node::data(b.clone()), *ann), &tokens[1..]))
     } else {
-        Err(("Unexpected EOF while parsing".to_string(), Ann::new(0, 0)))
+        Err(("Unexpected EOF while parsing".to_string(), Ann::empty()))
     }
 }
 
@@ -176,7 +188,7 @@ mod test {
     #[test]
     fn assignment() {
         // who knew so little could mean so much?
-        // forget verbose, we should all write ast
+        // forget verbose, we should all write ~~lisp~~ ast
         let source = "heck = false; naw = heck";
 
         // oof, I wrote this out by hand
@@ -212,50 +224,78 @@ mod test {
 
     #[test]
     fn block() {
+        // TODO: Put this bad-boy somewhere else.
+        // maybe just have one test file and a huge hand-verified ast
         let source = "x = true\n{\n\ty = {x; true; false}\n\tz = false\n}";
         let parsed = parse(lex(source).unwrap());
         let result = Some(
             AST::new(
-                Node::block(
-                    vec![
-                        AST::new(
-                            Node::assign(
-                                AST::new(Node::symbol(Local::new("x".to_string())), Ann::new(0, 1)),
-                                AST::new(Node::data(Data::Boolean(true)),           Ann::new(4, 4)),
+                Node::block(vec![
+                    AST::new(
+                        Node::assign(
+                            AST::new(Node::symbol(Local::new("x".to_string())), Ann::new(0, 1)),
+                            AST::new(Node::data(Data::Boolean(true)),           Ann::new(4, 4)),
+                        ),
+                        Ann::new(0, 8)
+                    ),
+                    AST::new(Node::block(
+                        vec![
+                            AST::new(
+                                Node::assign(
+                                    AST::new(Node::symbol(Local::new("y".to_string())), Ann::new(12, 1)),
+                                    AST::new(
+                                        Node::block(vec![
+                                            AST::new(Node::symbol(Local::new("x".to_string())), Ann::new(17, 1)),
+                                            AST::new(Node::data(Data::Boolean(true)),           Ann::new(20, 4)),
+                                            AST::new(Node::data(Data::Boolean(false)),          Ann::new(26, 5)),
+                                        ]),
+                                        Ann::new(17, 14),
+                                    )
+                                ),
+                                Ann::new(12, 19),
                             ),
-                            Ann::new(0, 8)
-                        ),
-                        AST::new(Node::block(
-                            vec![
-                                AST::new(
-                                    Node::assign(
-                                        AST::new(Node::symbol(Local::new("y".to_string())), Ann::new(12, 1)),
-                                        AST::new(Node::block(
-                                            vec![
-                                                AST::new(Node::symbol(Local::new("x".to_string())), Ann::new(17, 1)),
-                                                AST::new(Node::data(Data::Boolean(true)),           Ann::new(20, 4)),
-                                                AST::new(Node::data(Data::Boolean(false)),          Ann::new(26, 5)),
-                                            ]),
-                                            Ann::new(17, 14),
-                                        )
-                                    ),
-                                    Ann::new(12, 19),
+                            AST::new(
+                                Node::assign(
+                                    AST::new(Node::symbol(Local::new("z".to_string())),Ann::new(34, 1)),
+                                    AST::new(Node::data(Data::Boolean(false)), Ann::new(38, 5)),
                                 ),
-                                AST::new(
-                                    Node::assign(
-                                        AST::new(Node::symbol(Local::new("z".to_string())),Ann::new(34, 1)),
-                                        AST::new(Node::data(Data::Boolean(false)), Ann::new(38, 5)),
-                                    ),
-                                    Ann::new(34, 9),
-                                ),
-                            ]),
-                            Ann::new(12, 31),
-                        ),
-                    ],
-                ),
+                                Ann::new(34, 9),
+                            ),
+                        ]),
+                        Ann::new(12, 31),
+                    ),
+                ]),
                 Ann::new(0, 43),
             ),
         );
+        assert_eq!(parsed, result);
+    }
+
+    #[test]
+    fn number() {
+        let source = "number = { true; 0.0 }";
+        let parsed = parse(lex(source).unwrap());
+        let result = Some(
+            AST::new(
+                Node::block(vec![
+                    AST::new(
+                        Node::assign(
+                            AST::new(Node::symbol(Local::new("number".to_string())), Ann::new(0, 6)),
+                            AST::new(
+                                Node::block(vec![
+                                    AST::new(Node::data(Data::Boolean(true)), Ann::new(11, 4)),
+                                    AST::new(Node::data(Data::Real(0.0)), Ann::new(17, 3)),
+                                ]),
+                                Ann::new(11, 9),
+                            ),
+                        ),
+                        Ann::new(0, 20),
+                    )
+                ]),
+                Ann::new(0, 20),
+            ),
+        );
+
         assert_eq!(parsed, result);
     }
 }

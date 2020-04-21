@@ -59,10 +59,12 @@ If you'd like to contribute:
 | 0.5       | Unary Datatypes             |                                | 2020-05-02  |
 | 0.5.1     | Nan Tagging                 | Stable                         |             |
 | 0.5.2     | Numbers                     | WIP                            |             |
-| 0.5.3     | Strings                     | Planning                       |             |
+| 0.5.4     | Strings                     | Planning                       |             |
+| 0.5.3     | Operators                   | Planning                       |             |
 | 0.6       | Functions                   |                                | 2020-05-09  |
 | 0.6.1     | Block Scope                 |                                |             |
 | 0.6.2     | Closures                    | Planning                       |             |
+| 0.6.3     | Custom Operators            |                                |             |
 | 0.7       | Alg. Structs.               |                                | 2020-05-16  |
 | 0.7.1     | Tuple                       |                                |             |
 | 0.7.2     | Union                       |                                |             |
