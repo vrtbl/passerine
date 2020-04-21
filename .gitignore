@@ -1,2 +1,8 @@
+# Build folders
 /target
-Cargo.lock
+
+# Backups, rustfmt
+**/*.rs.bk
+
+# Mac folder display files
+**/.DS_Store

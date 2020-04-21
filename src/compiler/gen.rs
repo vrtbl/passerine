@@ -1,4 +1,4 @@
-use crate::pipeline::ast::{AST, Construct};
+use crate::pipeline::ast::{AST, Node};
 use crate::pipeline::bytecode::{Opcode, Chunk};
 use crate::vm::data::Data;
 use crate::vm::local::Local;
@@ -25,18 +25,20 @@ impl Gen {
 
     fn walk(&mut self, ast: &AST) {
         // push left, push right, push center
-        match ast {
-            AST::Leaf { data, .. } => {
-                self.chunk.code.push(Opcode::Con as u8);
-                let mut split = split_number(self.chunk.index_constant(data.clone()));
-                self.chunk.code.append(&mut split);
-            },
-            AST::Node { kind, ann, children } => match kind {
-                    Construct::Block  => self.block(&children),
-                    Construct::Assign => self.assign(&children),
-                    Construct::Symbol => self.symbol(&ann),
-            },
+        // NOTE: borrowing here introduces some complexity and cloning...
+        // AST should be immutable and not behind shared reference so does not make sense to clone
+        match &ast.node {
+            Node::Data(data) => self.data(data.clone()),
+            Node::Symbol(symbol) => self.symbol(symbol.clone()),
+            Node::Block(block) => self.block(&block),
+            Node::Assign { pattern, expression } => self.assign(*pattern.clone(), *expression.clone()),
         }
+    }
+
+    fn data(&mut self, data: Data) {
+        self.chunk.code.push(Opcode::Con as u8);
+        let mut split = split_number(self.chunk.index_constant(data.clone()));
+        self.chunk.code.append(&mut split);
     }
 
     fn block(&mut self, children: &[AST]) {
@@ -51,36 +53,26 @@ impl Gen {
         self.depth -= 1;
     }
 
-    fn assign(&mut self, children: &[AST]) {
-        if children.len() != 2 {
-            panic!("Assignment expects 2 children")
-        }
-
-        let symbol = &children[0];
-        let expr   = &children[1];
-
+    fn assign(&mut self, symbol: AST, expression: AST) {
         // eval the expression
-        self.walk(&expr);
-
-        // load the following symbol..
+        self.walk(&expression);
+        // load the following symbol ...
         self.chunk.code.push(Opcode::Save as u8);
-
         // ... the symbol to be loaded
-        match symbol {
-            AST::Node { kind: Construct::Symbol, ann, .. } =>
-                self.index_symbol(ann),
-            _ => panic!("Assignment expects symbol"),
-        }
+        match symbol.node {
+            Node::Symbol(l) => self.index_symbol(l),
+            _               => unreachable!(),
+        };
     }
 
-    fn index_symbol(&mut self, ann: &Ann) {
-        let index = self.chunk.index_local(Local::new(ann.contents().to_string(), self.depth));
+    fn index_symbol(&mut self, symbol: Local) {
+        let index = self.chunk.index_local(symbol);
         self.chunk.code.append(&mut split_number(index));
     }
 
-    fn symbol(&mut self, ann: &Ann) {
+    fn symbol(&mut self, symbol: Local) {
         self.chunk.code.push(Opcode::Load as u8);
-        self.index_symbol(ann);
+        self.index_symbol(symbol);
     }
 }
 
@@ -95,8 +87,8 @@ pub fn gen(ast: AST) -> Chunk {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::pipes::lex::lex;
-    use crate::pipes::parse::parse;
+    use crate::compiler::lex::lex;
+    use crate::compiler::parse::parse;
 
     #[test]
     fn constants() {

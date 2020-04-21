@@ -2,7 +2,7 @@ use crate::utils::number::build_number;
 use std::mem;
 
 use crate::vm::local::Local;
-use crate::vm::data::Data;
+use crate::vm::data::{Data, Tagged};
 use crate::vm::stack::{Stack, Item};
 use crate::pipeline::bytecode::{Chunk, Opcode};
 
@@ -13,6 +13,7 @@ use crate::pipeline::bytecode::{Chunk, Opcode};
 // I need to either implement resiliant-whatever datastructures (like FP)
 // or get my act together and do pass by object reference or something
 
+#[derive(Debug)]
 pub struct VM {
     chunk: Chunk,
     stack: Stack,
@@ -49,11 +50,11 @@ impl VM {
     }
 
     fn find_local(&mut self, local: &Local) -> Option<usize> {
-        for (index, item) in self.stack.iter().rev().enumerate() {
-            if let Item::Local { local: l, .. } = item {
-                if local == l {
-                    return Some(index);
-                }
+        for (index, item) in self.stack.iter().enumerate().rev() {
+            match item {
+                Item::Local { local: l, .. } => if local == l { return Some(index); },
+                Item::Frame                  => break,
+                Item::Data(_)                => (),
             }
         }
 
@@ -109,17 +110,24 @@ impl VM {
         // get the constant index
         let index = self.next_number();
 
-        self.stack.push(Item::Data(self.chunk.constants[index].clone()));
+        self.stack.push(Item::Data(Tagged::from(self.chunk.constants[index].clone())));
         self.done()
     }
 
     fn save(&mut self) -> RunResult {
-        let data = match self.stack.pop()? { Item::Data(d) => d, _ => panic!("Expected data") };
+        let data = match self.stack.pop()? { Item::Data(d) => d.deref(), _ => panic!("Expected data") };
         let (local, index) = self.local_index();
 
+        // NOTE: Does it make a copy or does it make a reference?
+        // It makes a copy of the data
         match index {
             // It's been declared
-            Some(i) => mem::drop(mem::replace(&mut self.stack[i], Item::Data(data))),
+            Some(i) => mem::drop(
+                mem::replace(
+                    &mut self.stack[i],
+                    Item::Local { local, data },
+                )
+            ),
             // It hasn't been declared
             None => self.stack.push(Item::Local { local, data }),
         }
@@ -132,8 +140,8 @@ impl VM {
 
         match index {
             Some(i) => {
-                if let Item::Local { data: d, .. } = &self.stack[i] {
-                    let data = Item::Data(d.clone());
+                if let Item::Local { data, .. } = &self.stack[i] {
+                    let data = Item::Data(Tagged::from(data.clone()));
                     self.stack.push(data);
                 }
             },
@@ -158,7 +166,7 @@ impl VM {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::pipes::{
+    use crate::compiler::{
         parse::parse,
         lex::lex,
         gen::gen,
@@ -171,13 +179,36 @@ mod test {
             "boop = true; true; dhuiew = true; boop"
         ).unwrap()).unwrap());
 
-        print!("{:#?}", chunk);
+        let mut vm = VM::init();
+
+        match vm.run(chunk) {
+            Some(_) => (),
+            None    => panic!("VM threw error"),
+        }
+    }
+
+    #[test]
+    fn block_expression() {
+        let chunk = gen(parse(lex(
+            "boop = true; heck = { x = boop; x }; heck"
+        ).unwrap()).unwrap());
+
+        println!("{:#?}", chunk);
 
         let mut vm = VM::init();
 
         match vm.run(chunk) {
             Some(_) => (),
             None    => panic!("VM threw error"),
+        }
+
+        if let Some(Item::Data(t)) = vm.stack.pop() {
+            match t.deref() {
+                Data::Boolean(true) => (),
+                _                   => panic!("Expected true value")
+            }
+        } else {
+            panic!("Expected data on top of stack")
         }
     }
 }

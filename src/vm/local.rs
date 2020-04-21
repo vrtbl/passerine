@@ -1,7 +1,6 @@
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Local {
     name:  String, // TODO: better type
-    depth: usize,
 }
 
 // For when Pattern matching is implemented
@@ -14,7 +13,7 @@ pub struct Local {
 // }
 
 impl Local {
-    pub fn new(name: String, depth: usize) -> Local {
-        Local { name, depth }
+    pub fn new(name: String) -> Local {
+        Local { name }
     }
 }
