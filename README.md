@@ -47,38 +47,38 @@ If you'd like to contribute:
 3. If you find anything, open an issue / pull request.
 
 # Roadmap
-| Version  | Milestone                   | Status (Planning, WIP, Stable) | Goal        |
-|----------|-----------------------------|--------------------------------|-------------|
-| **0**    | Start Project               |                                |             |
-| **0.1**  | Lexer                       | Stable                         |             |
-| **0.2**  | Parser                      | Stable                         |             |
-| **0.3**  | Bytecode Generator          | Stable                         |             |
-| **0.4**  | VM                          | Stable                         | 2020-04-25  |
-| 0.4.1    | Local Variables             | Stable                         |             |
-| 0.4.2    | Block Expressions           | Stable                         |             |
-| 0.5      | Unary Datatypes             |                                | 2020-05-02  |
-| 0.5.1    | Nan Tagging                 | Stable                            |             |
-| 0.5.2    | Numbers                     | WIP                            |             |
-| 0.5.3    | Strings                     | Planning                       |             |
-| 0.6      | Functions                   |                                | 2020-05-09  |
-| 0.6.1    | Block Scope                 |                                |             |
-| 0.6.2    | Closures                    | Planning                       |             |
-| 0.7      | Alg. Structs.               |                                | 2020-05-16  |
-| 0.7.1    | Tuple                       |                                |             |
-| 0.7.2    | Union                       |                                |             |
-| 0.7.3    | Record                      |                                |             |
-| 0.7.4    | Map                         |                                |             |
-| 0.7.5    | Pattern Matching            |                                |             |
-| 0.8      | Fibers                      |                                | 2020-05-23  |
-| 0.8.1    | Error Handling              |                                |             |
-| 0.9      | CLI                         |                                |             |
-| 0.10     | Standard Library            |                                |             |
-| 0.11     | Clean up for Stable Release |                                |             |
-| 0.11.1   | Website                     |                                |             |
-| 1        | First Stable Release        |                                | 2020-06-09? |
-| 1.1      | Automated Tests             |                                |             |
-| 1.2      | Documentation Generation    |                                |             |
-| 1.3      | Package Manager             |                                |             |
-| 2        | Macros & (BCBC)             |                                |             |
-| 3        | Parallelism                 |                                |             |
-| 4.       | TBD                         |                                |             |
+| Version   | Milestone                   | Status (Planning, WIP, Stable) | Goal        |
+|-----------|-----------------------------|--------------------------------|-------------|
+| **0**     | Start Project               |                                |             |
+| **0.1**   | Lexer                       | Stable                         |             |
+| **0.2**   | Parser                      | Stable                         |             |
+| **0.3**   | Bytecode Generator          | Stable                         |             |
+| **0.4**   | VM                          | Stable                         | 2020-04-25  |
+| **0.4.1** | Local Variables             | Stable                         |             |
+| **0.4.2** | Block Expressions           | Stable                         |             |
+| 0.5       | Unary Datatypes             |                                | 2020-05-02  |
+| 0.5.1     | Nan Tagging                 | Stable                         |             |
+| 0.5.2     | Numbers                     | WIP                            |             |
+| 0.5.3     | Strings                     | Planning                       |             |
+| 0.6       | Functions                   |                                | 2020-05-09  |
+| 0.6.1     | Block Scope                 |                                |             |
+| 0.6.2     | Closures                    | Planning                       |             |
+| 0.7       | Alg. Structs.               |                                | 2020-05-16  |
+| 0.7.1     | Tuple                       |                                |             |
+| 0.7.2     | Union                       |                                |             |
+| 0.7.3     | Record                      |                                |             |
+| 0.7.4     | Map                         |                                |             |
+| 0.7.5     | Pattern Matching            |                                |             |
+| 0.8       | Fibers                      |                                | 2020-05-23  |
+| 0.8.1     | Error Handling              |                                |             |
+| 0.9       | CLI                         |                                |             |
+| 0.10      | Standard Library            |                                |             |
+| 0.11      | Clean up for Stable Release |                                |             |
+| 0.11.1    | Website                     |                                |             |
+| 1         | First Stable Release        |                                | 2020-06-09? |
+| 1.1       | Automated Tests             |                                |             |
+| 1.2       | Documentation Generation    |                                |             |
+| 1.3       | Package Manager             |                                |             |
+| 2         | Macros & (BCBC)             |                                |             |
+| 3         | Parallelism                 |                                |             |
+| 4.        | TBD                         |                                |             |
