@@ -67,7 +67,7 @@ If you'd like to contribute:
 | **0.5.0** | Unary Datatypes             | WIP                            | 2020-04-25  |
 | **0.5.1** | Nan Tagging                 | Stable                         |             |
 | 0.5.2     | Numbers                     | WIP                            |             |
-| 0.5.4     | Strings                     | Planning                       |             |
+| 0.5.4     | Strings                     | WIP                            |             |
 | 0.5.3     | Operators                   | Planning                       |             |
 | 0.6.0     | Functions                   | Planning                       | 2020-05-02  |
 | 0.6.1     | Block Scope                 |                                |             |
