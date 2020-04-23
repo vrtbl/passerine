@@ -5,11 +5,14 @@ use crate::vm::local::Local;
 use crate::utils::annotation::Ann;
 use crate::utils::number::split_number;
 
-// so, constanst table is made by walking the tree and sweeping for values
-// then, a second pass walks the tree and builds the bytecode
-// then, a third pass walks the tree and optimizes the bytecode
+// The bytecode generator (emitter) walks the AST and produces (unoptimized) Bytecode
+// There are plans to add a bytecode optimizer in the future.
+// The bytecode generator
 // TODO: annotations in bytecode
 
+// TODO: locals are no longer pre-allocated
+// either rewrite pre-allocation code,
+// remove depth
 struct Gen {
     chunk: Chunk,
     depth: usize,
@@ -81,8 +84,6 @@ pub fn gen(ast: AST) -> Chunk {
     generator.walk(&ast);
     return generator.chunk;
 }
-
-// TODO: rewrite tests
 
 #[cfg(test)]
 mod test {
