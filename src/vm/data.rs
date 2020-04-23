@@ -9,6 +9,7 @@ pub enum Data {
     Real(f64),
     Boolean(bool),
     String(String),
+    Unit, // an empty typle
     // Tuple(Vec<Data>),
     // // TODO: Hashmap?
     // // I mean, it's overkill for small things
@@ -33,25 +34,30 @@ pub struct Tagged(u64);
 
 // Double-precision floating-point format & tagged equiv.
 // SExponent---QIMantissa------------------------------------------
-// PNaN--------11---Payload---------------------------------------T
-// 1111111111111100011111111100111011000110011100000100000010100000
-// S is sign, P is pointer flag, Q is quiet flag, I is Intel-whatever, T is Tag
-// We have 1 tag bits, 2 values: 0 is false, 1 is true
+// PNaN--------11D-Payload---------------------------------------TT
+// S is sign, Q is quiet flag, I is Intel’s “QNan Floating-Point Indefinite”,
+// P is pointer flag, D is Data Tag (should always be 1), T is Tag.
+// We have 2 tag bits, 4 values: 00 is unit '()', 10 is false, 11 is true,
 // but this might change if I figure out what to do with them
-const QNAN:   u64 = 0x7ffc_0000_0000_0000;
+// NOTE: maybe add tag bit for 'unit'
+const QNAN:   u64 = 0x7ffe_0000_0000_0000;
 const P_FLAG: u64 = 0x8000_0000_0000_0000;
 const P_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
-const F_FLAG: u64 = 0x0000_0000_0000_0000;
-const T_FLAG: u64 = 0x0000_0000_0000_0001;
+const U_FLAG: u64 = 0x0000_0000_0000_0000;
+const F_FLAG: u64 = 0x0000_0000_0000_0010;
+const T_FLAG: u64 = 0x0000_0000_0000_0011;
 
 impl Tagged {
     pub fn from(data: Data) -> Tagged {
         match data {
             // Real
             Data::Real(f) => Tagged(f.to_bits()),
+            // Unit
+            Data::Unit => Tagged(QNAN | U_FLAG),
             // True and false
             Data::Boolean(false) => Tagged(QNAN | F_FLAG),
             Data::Boolean(true)  => Tagged(QNAN | T_FLAG),
+
             // on the heap
             // TODO: layout to make sure pointer is the right size when boxing
             other => Tagged(P_FLAG | QNAN | (P_MASK & (Box::into_raw(Box::new(other))) as u64)),
@@ -65,6 +71,7 @@ impl Tagged {
 
         match *bits {
             n if (n & QNAN) != QNAN   => Data::Real(f64::from_bits(n)),
+            u if u == (QNAN | U_FLAG) => Data::Unit,
             f if f == (QNAN | F_FLAG) => Data::Boolean(false),
             t if t == (QNAN | T_FLAG) => Data::Boolean(true),
             p if (p & P_FLAG) == P_FLAG => {
@@ -75,6 +82,13 @@ impl Tagged {
             },
             _ => unreachable!("Corrupted tagged data"),
         }
+    }
+}
+
+impl Drop for Tagged {
+    fn drop(&mut self) {
+        // this should drop the data the tag points to as well
+        self.deref();
     }
 }
 
@@ -95,14 +109,16 @@ mod test {
 
     #[test]
     fn reals_eq() {
-        let positive = 478329 as f64;
-        let negative = -231   as f64;
+        let positive = 478329.0;
+        let negative = -231.0;
+        let nan      = f64::NAN;
         let neg_inf  = f64::NEG_INFINITY;
 
-        for n in &[positive, negative, neg_inf] {
+        for n in &[positive, negative, nan, neg_inf] {
             let data    = Data::Real(*n);
             let wrapped = Tagged::from(data);
             match wrapped.deref() {
+                Data::Real(f) if f.is_nan() => assert!(n.is_nan()),
                 Data::Real(f) => assert_eq!(*n, f),
                 _             => panic!("Didn't unwrap to a real"),
             }
@@ -113,6 +129,22 @@ mod test {
     fn bool_and_back() {
         assert_eq!(Data::Boolean(true),  Tagged::from(Data::Boolean(true) ).deref());
         assert_eq!(Data::Boolean(false), Tagged::from(Data::Boolean(false)).deref());
+    }
+
+    #[test]
+    fn unit() {
+        assert_eq!(Data::Unit, Tagged::from(Data::Unit).deref());
+    }
+
+    #[test]
+    fn size() {
+        let data_size = mem::size_of::<Data>();
+        let tag_size  = mem::size_of::<Tagged>();
+
+        // Tag == u64 == f64 == 64
+        // If the tag is larger than the data, we're doing something wrong
+        assert_eq!(tag_size, mem::size_of::<f64>());
+        assert!(tag_size < data_size);
     }
 
     #[test]
@@ -132,6 +164,44 @@ mod test {
                     println!("{:#b}", u64::from(wrapped));
                     panic!("Didn't unwrap to a string");
                 },
+            }
+        }
+    }
+
+    #[test]
+    fn other_tests_eq() {
+        let tests = vec![
+            Data::Real(f64::consts::PI),
+            Data::Real(-2.12),
+            Data::Real(2.5E10),
+            Data::Real(2.5e10),
+            Data::Real(2.5E-10),
+            Data::Real(0.5),
+            Data::Real(f64::INFINITY),
+            Data::Real(f64::NEG_INFINITY),
+            Data::Real(f64::NAN),
+            Data::String("Hello, World!".to_string()),
+            Data::String("".to_string()),
+            Data::String("Whoop 😋".to_string()),
+            Data::Boolean(true),
+            Data::Boolean(false),
+        ];
+
+        for test in tests {
+            let data     = test;
+            let tagged   = Tagged::from(data.clone());
+            let untagged = tagged.deref();
+
+            if let Data::Real(f) = untagged {
+                if let Data::Real(n) = data {
+                    if n.is_nan() {
+                        assert!(f.is_nan())
+                    } else {
+                        assert_eq!(f, n);
+                    }
+                }
+            } else {
+                assert_eq!(data, untagged);
             }
         }
     }
