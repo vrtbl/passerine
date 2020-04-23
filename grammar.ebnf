@@ -2,18 +2,19 @@
 START = block END
 
 block = (call SEP). call
-call  = (call expr) | expr
+call  = call expr | expr
 
 expr  = '{' + block + '}'
       | '(' + call  + ')'
       | op
+      | literal
 
 op = assignment
 
 assignment = SYMBOL '=' call
-           | function
+           | lambda
 
-function = SYMBOL '->' expr
+lambda = SYMBOL '->' expr
 
 literal = SYMBOL
         | number
@@ -21,3 +22,4 @@ literal = SYMBOL
         | BOOLEAN
 
 number = REAL
+#      | INT

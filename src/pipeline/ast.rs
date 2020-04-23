@@ -46,11 +46,26 @@ impl Node {
     pub fn symbol(symbol: Local) -> Node { Node::Symbol(symbol) }
 
     // Recursive
-    pub fn block(exprs: Vec<AST>)                -> Node { Node::Block(exprs) }
+    pub fn block(exprs: Vec<AST>) -> Node { Node::Block(exprs) }
+
     pub fn assign(pattern: AST, expression: AST) -> Node {
         Node::Assign {
             pattern:    Box::new(pattern),
             expression: Box::new(expression)
+        }
+    }
+
+    pub fn lambda(pattern: AST, expression: AST) -> Node {
+        Node::Lambda {
+            pattern:    Box::new(pattern),
+            expression: Box::new(expression)
+        }
+    }
+
+    pub fn call(fun: AST, arg: AST) -> Node {
+        Node::Call {
+            fun: Box::new(fun),
+            arg: Box::new(arg)
         }
     }
 }

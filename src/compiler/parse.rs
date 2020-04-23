@@ -10,13 +10,14 @@ use crate::vm::local::Local;
 // some sort of recursive descent parser, I guess
 type Tokens<'a> = &'a [AnnToken];
 type Branch<'a> = Result<(AST, Tokens<'a>), (String, Ann)>;
+type Rule       = Box<dyn Fn(Tokens) -> Branch>;
 
 // TODO: better error reporting
 
 pub fn parse(tokens: Vec<AnnToken>) -> Option<AST> {
     // parse the file
     // slices are easier to work with
-    return match block(&tokens[..]) {
+    match block(&tokens[..]) {
         // vaccum all extra seperators
         Ok((node, parsed)) => if vaccum(parsed, Token::Sep).is_empty() {
             Some(node)
@@ -52,7 +53,9 @@ fn consume(tokens: Tokens, token: Token) -> Result<Tokens, (String, Ann)> {
     return Ok(&tokens[1..]);
 }
 
-fn longest(tokens: Tokens, rules: Vec<Box<dyn Fn(Tokens) -> Branch>>) -> Branch {
+// TODO: replace longest with first?
+
+fn longest(tokens: Tokens, rules: Vec<Rule>) -> Branch {
     // Need to figure out how to annotate right part of string
     let mut best = Err(("S".to_string(), Ann::empty()));
 
@@ -72,7 +75,7 @@ fn longest(tokens: Tokens, rules: Vec<Box<dyn Fn(Tokens) -> Branch>>) -> Branch 
     return best;
 }
 
-fn first(tokens: Tokens, rules: Vec<Box<dyn Fn(Tokens) -> Branch>>) -> Branch {
+fn first(tokens: Tokens, rules: Vec<Rule>) -> Branch {
     for rule in rules {
         if let Ok((ast, r)) = rule(tokens) {
             return Ok((ast, r))
@@ -84,6 +87,10 @@ fn first(tokens: Tokens, rules: Vec<Box<dyn Fn(Tokens) -> Branch>>) -> Branch {
         None    => Err(("Unexpected EOF while parsing".to_string(), Ann::empty())),
     }
 }
+
+// fn parse_op(tokens: Tokens, left: Rule, op: Token, right:Rule) -> Branch {
+//     unimplemented!()
+// }
 
 // Tokens -> Branch
 
@@ -113,9 +120,27 @@ fn block(tokens: Tokens) -> Branch {
     return Ok((ast, remaining));
 }
 
+
+fn call(tokens: Tokens) -> Branch {
+    let rules: Vec<Rule> = vec![
+        // nested call, i.e. currying
+        Box::new(|s| -> Branch {
+            let (c, remaining) = call(s)?;
+            let (e, r) = expr(remaining)?;
+            let ann    = Ann::combine(&c.ann, &e.ann);
+            Ok((AST::new(Node::call(c, e), ann), r))
+        }),
+        // argument
+        Box::new(|s| expr(s)),
+    ];
+
+    return first(tokens, rules);
+}
+
 fn expr(tokens: Tokens) -> Branch {
-    let rules: Vec<Box<dyn Fn(Tokens) -> Branch>> = vec![
-        Box::new(|s| block_expr(s)),
+    let rules: Vec<Rule> = vec![
+        Box::new(|s| expr_block(s)),
+        Box::new(|s| call(s)),
         Box::new(|s| op(s)),
         Box::new(|s| literal(s)),
     ];
@@ -123,12 +148,18 @@ fn expr(tokens: Tokens) -> Branch {
     return longest(tokens, rules);
 }
 
-fn block_expr(tokens: Tokens) -> Branch {
-    // TODO: bug here, panics on parsing block.
-
+fn expr_block(tokens: Tokens) -> Branch {
     let start      = consume(tokens, Token::OpenBracket)?;
     let (ast, end) = block(start)?;
     let remaining  = consume(end, Token::CloseBracket)?;
+
+    return Ok((ast, remaining));
+}
+
+fn expr_call(tokens: Tokens) -> Branch {
+    let start      = consume(tokens, Token::OpenParen)?;
+    let (ast, end) = call(start)?;
+    let remaining  = consume(end, Token::CloseParen)?;
 
     return Ok((ast, remaining));
 }
@@ -137,27 +168,47 @@ fn op(tokens: Tokens) -> Branch {
     assign(tokens)
 }
 
-fn assign_op(tokens: Tokens) -> Branch {
+fn assign(tokens: Tokens) -> Branch {
+    let rules: Vec<Rule> = vec![
+        Box::new(|s| assign_assign(s)),
+        Box::new(|s| lambda(s)),
+    ];
+
+    return first(tokens, rules);
+}
+
+// TODO: implement parse_op and rewrite lambda / assign
+
+fn assign_assign(tokens: Tokens) -> Branch {
     // TODO: pattern matching support!
     // get symbol being assigned too
     let (next, mut remaining) = literal(tokens)?;
     let s = match next {
-        // Destructure restu
+        // Destructure restucture
         AST { node: Node::Symbol(l), ann} => AST::new(Node::Symbol(l), ann),
-        other => return Err(("Expected symbol".to_string(), other.ann)),
+        other => return Err(("Expected symbol for assignment".to_string(), other.ann)),
     };
 
     // eat the = sign
     remaining = consume(remaining, Token::Assign)?;
-
     let (e, remaining) = expr(remaining)?;
     let combined       = Ann::combine(&s.ann, &e.ann);
-
     Ok((AST::new(Node::assign(s, e), combined), remaining))
 }
 
-fn assign(tokens: Tokens) -> Branch {
+fn lambda(tokens: Tokens) -> Branch {
+    // get symbol acting as arg to function
+    let (next, mut remaining) = literal(tokens)?;
+    let s = match next {
+        AST { node: Node::Symbol(l), ann} => AST::new(Node::Symbol(l), ann),
+        other => return Err(("Expected symbol for function paramater".to_string(), other.ann)),
+    };
 
+    // eat the '->'
+    remaining = consume(remaining, Token::Lambda)?;
+    let (e, remaining) = expr(remaining)?;
+    let combined       = Ann::combine(&s.ann, &e.ann);
+    Ok((AST::new(Node::lambda(s, e), combined), remaining))
 }
 
 fn literal(tokens: Tokens) -> Branch {
