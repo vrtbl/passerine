@@ -1,15 +1,16 @@
 # not turing complete (yet!)
 START = block END
 
-block = (expr SEP). expr
+block = (call SEP). call
+call  = (call expr) | expr
+
 expr  = '{' + block + '}'
-      | '(' + expr. + ')'
+      | '(' + call  + ')'
       | op
-      | literal
 
 op = assignment
 
-assignment = SYMBOL '=' expr
+assignment = SYMBOL '=' call
            | function
 
 function = SYMBOL '->' expr

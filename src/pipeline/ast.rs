@@ -14,6 +14,14 @@ pub enum Node {
         pattern:    Box<AST>, // Note - should be pattern
         expression: Box<AST>,
     },
+    Lambda {
+        pattern: Box<AST>,
+        expression: Box<AST>,
+    },
+    Call {
+        fun: Box<AST>,
+        arg: Box<AST>,
+    }
     // TODO: support following constructs as they are implemented
     // Lambda {
     //     pattern:    Box<Node>, // Note - should be pattern

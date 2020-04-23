@@ -72,6 +72,19 @@ fn longest(tokens: Tokens, rules: Vec<Box<dyn Fn(Tokens) -> Branch>>) -> Branch 
     return best;
 }
 
+fn first(tokens: Tokens, rules: Vec<Box<dyn Fn(Tokens) -> Branch>>) -> Branch {
+    for rule in rules {
+        if let Ok((ast, r)) = rule(tokens) {
+            return Ok((ast, r))
+        }
+    }
+
+    match tokens.iter().next() {
+        Some(t) => Err(("Unexpected construct".to_string(), t.ann)),
+        None    => Err(("Unexpected EOF while parsing".to_string(), Ann::empty())),
+    }
+}
+
 // Tokens -> Branch
 
 fn block(tokens: Tokens) -> Branch {
@@ -121,6 +134,10 @@ fn block_expr(tokens: Tokens) -> Branch {
 }
 
 fn op(tokens: Tokens) -> Branch {
+    assign(tokens)
+}
+
+fn assign_op(tokens: Tokens) -> Branch {
     // TODO: pattern matching support!
     // get symbol being assigned too
     let (next, mut remaining) = literal(tokens)?;
@@ -137,6 +154,10 @@ fn op(tokens: Tokens) -> Branch {
     let combined       = Ann::combine(&s.ann, &e.ann);
 
     Ok((AST::new(Node::assign(s, e), combined), remaining))
+}
+
+fn assign(tokens: Tokens) -> Branch {
+
 }
 
 fn literal(tokens: Tokens) -> Branch {
