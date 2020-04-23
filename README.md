@@ -49,22 +49,22 @@ If you'd like to contribute:
 # Roadmap
 | Version   | Milestone                   | Status (Planning, WIP, Stable) | Goal        |
 |-----------|-----------------------------|--------------------------------|-------------|
-| **0**     | Start Project               |                                |             |
+| **0**     | Start Project               | WIP                            |             |
 | **0.1**   | Lexer                       | Stable                         |             |
 | **0.2**   | Parser                      | Stable                         |             |
 | **0.3**   | Bytecode Generator          | Stable                         |             |
-| **0.4**   | VM                          | Stable                         | 2020-04-25  |
+| **0.4**   | VM                          | Stable                         | 2020-04-25✓ |
 | **0.4.1** | Local Variables             | Stable                         |             |
 | **0.4.2** | Block Expressions           | Stable                         |             |
-| 0.5       | Unary Datatypes             |                                | 2020-05-02  |
-| 0.5.1     | Nan Tagging                 | Stable                         |             |
-| 0.5.2     | Numbers                     | WIP                            |             |
-| 0.5.4     | Strings                     | Planning                       |             |
-| 0.5.3     | Operators                   | Planning                       |             |
-| 0.6       | Functions                   |                                | 2020-05-09  |
-| 0.6.1     | Block Scope                 |                                |             |
+| **0.5**   | Unary Datatypes             | Stable                         | 2020-05-02✓ |
+| **0.5.1** | Nan Tagging                 | Stable                         |             |
+| **0.5.2** | Numbers                     | Stable                         |             |
+| **0.5.3** | Strings                     | Stable                         |             |
+| 0.6       | Functions                   | WIP                            | 2020-05-09  |
+| 0.6.1     | Block Scope                 | Planning                       |             |
 | 0.6.2     | Closures                    | Planning                       |             |
-| 0.6.3     | Custom Operators            |                                |             |
+| 0.6.3     | Operators                   | Planning                       |             |
+| 0.6.4     | Custom Operators            |                                |             |
 | 0.7       | Alg. Structs.               |                                | 2020-05-16  |
 | 0.7.1     | Tuple                       |                                |             |
 | 0.7.2     | Union                       |                                |             |
@@ -75,6 +75,12 @@ If you'd like to contribute:
 | 0.8.1     | Error Handling              |                                |             |
 | 0.9       | CLI                         |                                |             |
 | 0.10      | Standard Library            |                                |             |
+| 0.10.1    | FFI                         |                                |             |
+| 0.10.1    | I/O                         |                                |             |
+| 0.10.2    | Math & Numeric Tower        |                                |             |
+| 0.10.3    | Random                      |                                |             |
+| 0.10.4    | Time                        |                                |             |
+| 0.10.5    | Networking                  |                                |             |
 | 0.11      | Clean up for Stable Release |                                |             |
 | 0.11.1    | Website                     |                                |             |
 | 1         | First Stable Release        |                                | 2020-06-09? |
