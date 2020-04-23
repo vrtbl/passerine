@@ -73,6 +73,22 @@ As a rule of thumb, at least a third of a file should be dedicated to testing.
 The easiest way to contribute is to find errors and report them.
 If you run into an error, it would be appreciated if you could go the extra mile and write some test cases that show the error.
 
+#### Adding Features
+Due to the structure of this project, it's fairly easy to implement new features.
+If you've got a new feature in mind, roughly follow these steps:
+
+1. Fork the repo, start a new branch.
+2. If the feature requires a syntactic change to the language, edit `grammar.ebnf`.
+3. Implement lexing for any new tokens introduced.
+4. Implement parsing to lex those tokens into the correct AST.
+5. Determine the behavior of the feature - if it requires a new opcode, implement said opcode.
+6. Implement bytecode generation.
+7. Run all tests - if passing, bump version, submit a PR.
+
+Remember to write adequate tests during each step where applicable.
+A brilliant feature with 0 tests is like a Saturn V built from duct-tape.
+Impressive, but bound to explode.
+
 ### CLI
 The VM should be manipulated solely through the utilities provided by core compiler.
 

@@ -133,4 +133,24 @@ mod test {
 
         assert_eq!(lex(source), Some(result));
     }
+
+    #[test]
+    fn function() {
+        let source = "identity = x -> x\nidentity (identity \"heck\")";
+        let result = vec![
+            AnnToken::new(Token::Symbol(Local::new("identity".to_string())), Ann::new(0, 8)),
+            AnnToken::new(Token::Assign,                                     Ann::new(9, 1)),
+            AnnToken::new(Token::Symbol(Local::new("x".to_string())),        Ann::new(11, 1)),
+            AnnToken::new(Token::Lambda,                                     Ann::new(13, 2)),
+            AnnToken::new(Token::Symbol(Local::new("x".to_string())),        Ann::new(16, 1)),
+            AnnToken::new(Token::Sep,                                        Ann::new(17, 1)),
+            AnnToken::new(Token::Symbol(Local::new("identity".to_string())), Ann::new(18, 8)),
+            AnnToken::new(Token::OpenParen,                                  Ann::new(27, 1)),
+            AnnToken::new(Token::Symbol(Local::new("identity".to_string())), Ann::new(28, 8)),
+            AnnToken::new(Token::String(Data::String("heck".to_string())),   Ann::new(37, 6)),
+            AnnToken::new(Token::CloseParen,                                 Ann::new(43, 1)),
+        ];
+
+        assert_eq!(lex(source), Some(result));
+    }
 }

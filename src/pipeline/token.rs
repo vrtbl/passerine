@@ -7,13 +7,15 @@ use crate::vm::local::Local;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Token {
-    // Delimiterss
+    // Delimiters
     OpenBracket,
     CloseBracket,
+    OpenParen,
+    CloseParen,
     Sep,
 
-    // Lambda
     Assign,
+    Lambda,
 
     // Datatypes
     Symbol(Local),
@@ -37,7 +39,10 @@ impl Token {
             // static
             Box::new(|s| Token::open_bracket(s) ),
             Box::new(|s| Token::close_bracket(s)),
+            Box::new(|s| Token::open_paren(s) ),
+            Box::new(|s| Token::close_paren(s)),
             Box::new(|s| Token::assign(s)       ),
+            Box::new(|s| Token::lambda(s)       ),
 
             // variants
             Box::new(|s| Token::sep(s)    ),
@@ -118,17 +123,27 @@ impl Token {
     }
 
     fn open_bracket(source: &str) -> Consume {
-        return Token::literal(source, "{", Token::OpenBracket);
+        Token::literal(source, "{", Token::OpenBracket)
     }
 
     fn close_bracket(source: &str) -> Consume {
-        return Token::literal(source, "}", Token::CloseBracket);
+        Token::literal(source, "}", Token::CloseBracket)
     }
 
-    // NEXT: parse
+    fn open_paren(source: &str) -> Consume {
+        Token::literal(source, "(", Token::OpenParen)
+    }
+
+    fn close_paren(source: &str) -> Consume {
+        Token::literal(source, ")", Token::CloseParen)
+    }
 
     fn assign(source: &str) -> Consume {
-        return Token::literal(source, "=", Token::Assign);
+        Token::literal(source, "=", Token::Assign)
+    }
+
+    fn lambda(source: &str) -> Consume {
+        Token::literal(source, "->", Token::Lambda)
     }
 
     fn real(source: &str) -> Consume {
