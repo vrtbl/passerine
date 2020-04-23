@@ -4,6 +4,9 @@ use crate::pipeline::ast::{AST, Node};
 use crate::vm::data::Data;
 use crate::vm::local::Local;
 
+// This is a recursive descent parser that builds the AST
+// TODO: the 'vacuum' seems kind of cheap.
+
 // some sort of recursive descent parser, I guess
 type Tokens<'a> = &'a [AnnToken];
 type Branch<'a> = Result<(AST, Tokens<'a>), (String, Ann)>;
@@ -99,7 +102,7 @@ fn block(tokens: Tokens) -> Branch {
 
 fn expr(tokens: Tokens) -> Branch {
     let rules: Vec<Box<dyn Fn(Tokens) -> Branch>> = vec![
-        Box::new(|s| scope(s)),
+        Box::new(|s| block_expr(s)),
         Box::new(|s| op(s)),
         Box::new(|s| literal(s)),
     ];
@@ -107,7 +110,7 @@ fn expr(tokens: Tokens) -> Branch {
     return longest(tokens, rules);
 }
 
-fn scope(tokens: Tokens) -> Branch {
+fn block_expr(tokens: Tokens) -> Branch {
     // TODO: bug here, panics on parsing block.
 
     let start      = consume(tokens, Token::OpenBracket)?;
@@ -120,7 +123,12 @@ fn scope(tokens: Tokens) -> Branch {
 fn op(tokens: Tokens) -> Branch {
     // TODO: pattern matching support!
     // get symbol being assigned too
-    let (s, mut remaining) = symbol(tokens)?;
+    let (next, mut remaining) = literal(tokens)?;
+    let s = match next {
+        // Destructure restu
+        AST { node: Node::Symbol(l), ann} => AST::new(Node::Symbol(l), ann),
+        other => return Err(("Expected symbol".to_string(), other.ann)),
+    };
 
     // eat the = sign
     remaining = consume(remaining, Token::Assign)?;
@@ -128,51 +136,21 @@ fn op(tokens: Tokens) -> Branch {
     let (e, remaining) = expr(remaining)?;
     let combined       = Ann::combine(&s.ann, &e.ann);
 
-    Ok((
-        AST::new(
-            Node::assign(s, e),
-            combined,
-        ),
-        remaining,
-    ))
+    Ok((AST::new(Node::assign(s, e), combined), remaining))
 }
 
 fn literal(tokens: Tokens) -> Branch {
-    let rules: Vec<Box<dyn Fn(Tokens) -> Branch>> = vec![
-        Box::new(|s| symbol(s)),
-        Box::new(|s| number(s)),
-        Box::new(|s| boolean(s)),
-    ];
-
-    return longest(tokens, rules);
-}
-
-fn symbol(tokens: Tokens) -> Branch {
-    match tokens.iter().next() {
-        Some(AnnToken { kind: Token::Symbol(l), ann }) => Ok((
-            AST::new(Node::Symbol(l.clone()), *ann),
-            &tokens[1..],
-        )),
-        Some(_) => Err(("Expected a variable".to_string(), tokens.iter().next().unwrap().ann)),
-        // TODO: make Ann:new(0, 0) an Ann::empty() constructor
-        None    => Err(("Unexpected EOF while parsing".to_string(), Ann::empty()))
-    }
-}
-
-// TODO: for number and boolean, should compiler check for unreachable (i.e. lexer) errors?
-// TODO: this pattern for literals is similar, abstractify?
-
-fn number(tokens: Tokens) -> Branch {
-    if let Some(AnnToken { kind: Token::Number(n), ann }) = tokens.iter().next() {
-        Ok((AST::new(Node::Data(n.clone()), *ann), &tokens[1..]))
-    } else {
-        Err(("Unexpected EOF while parsing".to_string(), Ann::empty()))
-    }
-}
-
-fn boolean(tokens: Tokens) -> Branch {
-    if let Some(AnnToken { kind: Token::Boolean(b), ann }) = tokens.iter().next() {
-        Ok((AST::new(Node::data(b.clone()), *ann), &tokens[1..]))
+    if let Some(AnnToken { kind, ann }) = tokens.iter().next() {
+        Ok((AST::new(
+            match kind {
+                Token::Symbol(l)  => Node::Symbol(l.clone()),
+                Token::Number(n)  => Node::Data(n.clone()),
+                Token::String(s)  => Node::Data(s.clone()),
+                Token::Boolean(b) => Node::Data(b.clone()),
+                _ => return Err(("Unexpected token".to_string(), *ann)),
+            },
+            *ann
+        ), &tokens[1..]))
     } else {
         Err(("Unexpected EOF while parsing".to_string(), Ann::empty()))
     }

@@ -159,3 +159,10 @@ perms = seq -> {
 
 # Macros
 # Fibers
+
+Fibers can be:
+- called: `<standard>`
+- run: `!`
+- tried: `?`
+- yielded: `yield`
+- aborted: `error`

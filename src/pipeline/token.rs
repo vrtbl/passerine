@@ -18,6 +18,7 @@ pub enum Token {
     // Datatypes
     Symbol(Local),
     Number(Data),
+    String(Data),
     Boolean(Data),
 }
 
@@ -44,6 +45,7 @@ impl Token {
 
             // dynamic
             Box::new(|s| Token::real(s)),
+            Box::new(|s| Token::string(s)),
             // Box::new(|s| Token::int(s)),
 
             // keep this @ the bottom, lmao
@@ -68,15 +70,13 @@ impl Token {
     }
 
     // helpers
+    fn expect(source: &str, literal: &str) -> Option<usize> {
+        if literal.len() > source.len() { return None; }
 
-    fn literal(source: &str, literal: &str, kind: Token) -> Consume {
-        if literal.len() > source.len() { return None }
-
-        if &source[..literal.len()] == literal {
-            return Some((kind, literal.len()));
+        match &source[..literal.len()] {
+            s if s == literal => Some(literal.len()),
+            _                 => None,
         }
-
-        return None;
     }
 
     fn eat_digits(source: &str) -> Option<usize> {
@@ -90,6 +90,10 @@ impl Token {
         }
 
         return if len == 0 { None } else { Some(len) };
+    }
+
+    fn literal(source: &str, literal: &str, kind: Token) -> Consume {
+        Some((kind, Token::expect(source, literal)?))
     }
 
     // token classifiers
@@ -130,18 +134,11 @@ impl Token {
     fn real(source: &str) -> Consume {
         // TODO: NaNs, Infinity, the whole shebang
         // look at how f64::from_str is implemented, maybe?
-
-        let mut len: usize = 0;
+        let mut len = 0;
 
         // one or more digits followed by a '.' followed by 1 or more digits
-        // TODO: make more general
         len += Token::eat_digits(source)?;
-
-        match source[len..].chars().next() {
-            Some('.') => len += 1,
-            _         => return None,
-        }
-
+        len += Token::expect(&source[len..], ".")?;
         len += Token::eat_digits(&source[len..])?;
 
         let number = match f64::from_str(&source[..len]) {
@@ -154,6 +151,42 @@ impl Token {
 
     // the below pattern is pretty common...
     // but I'm not going to abstract it out, yet
+
+    fn string(source: &str) -> Consume {
+        // TODO: read through the rust compiler and figure our how they do this
+        // look into parse_str_lit
+
+        let mut len    = 0;
+        let mut escape = false;
+        let mut string = "".to_string();
+
+        len += Token::expect(source, "\"")?;
+
+        for char in source[len..].chars() {
+            len += 1;
+            if escape {
+                escape = false;
+                // TODO: add more escape codes
+                string.push(match char {
+                    '\"' => '\"',
+                    '\\' => '\\',
+                    'n'  => '\n',
+                    't'  => '\t',
+                    // TODO: unknown escape code error
+                    _    => return None,
+                })
+            } else {
+                match char {
+                    '\\' => escape = true,
+                    '\"' => return Some((Token::String(Data::String(string)), len)),
+                    c    => string.push(c),
+                }
+            }
+        }
+
+        // TODO: return an 'unexpected EOF while parsing string' error
+        return None;
+    }
 
     fn boolean(source: &str) -> Consume {
         if let Some(x) = Token::literal(source, "true", Token::Boolean(Data::Boolean(true))) {
@@ -252,5 +285,25 @@ mod test {
             Token::from("210938.2221"),
             Some((Token::Number(Data::Real(210938.2221)), 11)),
         );
+    }
+
+    #[test]
+    fn string() {
+        let source = "\"heck\"";
+        assert_eq!(
+            Token::from(&source),
+            Some((Token::String(Data::String("heck".to_string())), source.len())),
+        );
+
+        let escape = "\"I said, \\\"Hello, world!\\\" didn't I?\"";
+        assert_eq!(
+            Token::from(&escape),
+            Some((
+                Token::String(Data::String("I said, \"Hello, world!\" didn't I?".to_string())),
+                escape.len()
+            )),
+        );
+
+        // TODO: unicode support
     }
 }

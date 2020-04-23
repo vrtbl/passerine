@@ -1,15 +1,11 @@
 use crate::utils::annotation::Ann;
 use crate::pipeline::token::{Token, AnnToken};
 
-// idk, maybe make some sort of pratt parser? - nah
-// a lexer is really just a set of rules to turn a string into a token
-// it chooses the longest string
-// so all we need is a rule-set
-// ok, so rule-set has been defined in pipeline::token.rs
+// A lexer parses a source (string) into a stream of tokens
+// The Lexer struct essentially sanitizes the source,
+// then asks the tokenizer to identify the next token.
 
 // TODO: error handling, rather than just returning 'None'
-// TODO: I feel like there could be some more elegant separation between token.rs and this
-// TODO: convert values to the appropriate type during the lexing phase rather than while parsing
 
 struct Lexer {
     source: &'static str,
@@ -84,7 +80,7 @@ mod test {
     use crate::vm::data::Data;
     use crate::vm::local::Local;
 
-    // lexing individual tokens is tested in pipeline::token
+    // NOTE: lexing individual tokens is tested in pipeline::token
 
     #[test]
     fn lex_empty() {
