@@ -35,6 +35,9 @@ impl Ann {
         // ^^^^^              | Ann a
         //            ^^      | Ann b
         // ^^^^^^^^^^^^^      | combined
+        // ignore empty annotations
+        if a.is_empty() { return *b; }
+        if b.is_empty() { return *a; }
 
         let offset = a.offset.min(b.offset);
         let end    = (a.offset + a.length).max(b.offset + b.length);
@@ -44,7 +47,7 @@ impl Ann {
     }
 
     pub fn span(annotations: Vec<Ann>) -> Ann {
-        if annotations.is_empty() { panic!("Expected at least one annotation to span"); }
+        if annotations.is_empty() { return Ann::empty() }
 
         // gee, reduce or an accumulator would be really useful here
         let mut combined = annotations[0];
@@ -59,6 +62,7 @@ impl Ann {
     }
 
     pub fn contents(&self, source: &str) -> String {
+        if self.is_empty() { panic!("An empty annotation does not have any contents") }
         source[self.offset..(self.offset + self.length)].to_string()
     }
 }

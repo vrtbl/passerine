@@ -53,28 +53,6 @@ fn consume(tokens: Tokens, token: Token) -> Result<Tokens, (String, Ann)> {
     return Ok(&tokens[1..]);
 }
 
-// TODO: replace longest with first?
-
-fn longest(tokens: Tokens, rules: Vec<Rule>) -> Branch {
-    // Need to figure out how to annotate right part of string
-    let mut best = Err(("S".to_string(), Ann::empty()));
-
-    // I've done this twice, might move to utils bc ro3.
-    for rule in rules {
-        if let Ok((ast, r)) = rule(tokens) {
-            match best {
-                // r and g are remaining. less remaining = more parsed
-                // items first should be preferred
-                Err(_)                          => best = Ok((ast, r)),
-                Ok((_, g)) if r.len() < g.len() => best = Ok((ast, r)),
-                Ok(_)                           => (),
-            }
-        }
-    }
-
-    return best;
-}
-
 fn first(tokens: Tokens, rules: Vec<Rule>) -> Branch {
     for rule in rules {
         if let Ok((ast, r)) = rule(tokens) {
@@ -112,6 +90,13 @@ fn block(tokens: Tokens) -> Branch {
         remaining = vaccum(remaining, Token::Sep);
     }
 
+    // TODO: is this true? an empty program is should be valid
+    // what does it make sense for an empty block to return?
+    // empty blocks don't make any sense - use unit
+    if annotations.is_empty() {
+        return Err(("Block can't be empty, use Unit '()' instead".to_string(), Ann::empty()))
+    }
+
     let ast = AST::new(
         Node::block(expressions),
         Ann::span(annotations), // a parent node spans all it's children's nodes
@@ -120,32 +105,38 @@ fn block(tokens: Tokens) -> Branch {
     return Ok((ast, remaining));
 }
 
-
 fn call(tokens: Tokens) -> Branch {
-    let rules: Vec<Rule> = vec![
-        // nested call, i.e. currying
-        Box::new(|s| -> Branch {
-            let (c, remaining) = call(s)?;
-            let (e, r) = expr(remaining)?;
-            let ann    = Ann::combine(&c.ann, &e.ann);
-            Ok((AST::new(Node::call(c, e), ann), r))
-        }),
-        // argument
-        Box::new(|s| expr(s)),
-    ];
+    // try to eat an new expression
+    // if it's successfull, nest like so:
+    // previous = Call(previous, new)
+    // empty    => error
+    // single   => expression
+    // multiple => call
+    let (mut previous, mut remaining) = expr(vaccum(tokens, Token::Sep))?;
 
-    return first(tokens, rules);
+    while !remaining.is_empty() {
+        match expr(remaining) {
+            Ok((arg, r)) => {
+                remaining = r;
+                let ann = Ann::combine(&previous.ann, &arg.ann);
+                previous = AST::new(Node::call(previous, arg), ann);
+            },
+            Err(_) => break,
+        }
+    }
+
+    return Ok((previous, remaining));
 }
 
 fn expr(tokens: Tokens) -> Branch {
     let rules: Vec<Rule> = vec![
         Box::new(|s| expr_block(s)),
-        Box::new(|s| call(s)),
+        Box::new(|s| expr_call(s)),
         Box::new(|s| op(s)),
         Box::new(|s| literal(s)),
     ];
 
-    return longest(tokens, rules);
+    return first(tokens, rules);
 }
 
 fn expr_block(tokens: Tokens) -> Branch {
@@ -206,7 +197,7 @@ fn lambda(tokens: Tokens) -> Branch {
 
     // eat the '->'
     remaining = consume(remaining, Token::Lambda)?;
-    let (e, remaining) = expr(remaining)?;
+    let (e, remaining) = call(remaining)?;
     let combined       = Ann::combine(&s.ann, &e.ann);
     Ok((AST::new(Node::lambda(s, e), combined), remaining))
 }
@@ -267,7 +258,7 @@ mod test {
 
     #[test]
     fn failure() {
-        let source = "\n hello9 \n \n = true; ";
+        let source = "\n hello9 = (); ";
 
         assert_eq!(parse(lex(source).unwrap()), None);
     }

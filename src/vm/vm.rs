@@ -1,10 +1,11 @@
-use crate::utils::number::build_number;
 use std::mem;
 
+use crate::utils::number::build_number;
 use crate::vm::local::Local;
 use crate::vm::data::{Data, Tagged};
 use crate::vm::stack::{Stack, Item};
-use crate::pipeline::bytecode::{Chunk, Opcode};
+use crate::pipeline::bytecode::Opcode;
+use crate::compiler::gen::Chunk; // Move chunk to a better spot?
 
 // I'm not sure if a garbage collector is necessary
 // Rust makes sure there are no memory leaks
@@ -37,6 +38,7 @@ impl VM {
     }
 
     fn next(&mut self)                   { self.ip += 1; }
+    fn terminate(&mut self) -> RunResult { self.ip = self.chunk.code.len(); Some(()) }
     fn done(&mut self)      -> RunResult { self.next(); Some(()) }
     fn peek_byte(&mut self) -> u8        { self.chunk.code[self.ip] }
     fn next_byte(&mut self) -> u8        { self.done(); self.peek_byte() }
@@ -75,10 +77,12 @@ impl VM {
         let op_code = Opcode::from_byte(self.peek_byte());
 
         match op_code {
-            Opcode::Con   => self.con(),
-            Opcode::Save  => self.save(),
-            Opcode::Load  => self.load(),
-            Opcode::Clear => self.clear(),
+            Opcode::Con    => self.con(),
+            Opcode::Save   => self.save(),
+            Opcode::Load   => self.load(),
+            Opcode::Clear  => self.clear(),
+            Opcode::Call   => self.call(),
+            Opcode::Return => self.return_val(),
         }
     }
 
@@ -100,7 +104,7 @@ impl VM {
 }
 
 // TODO: there are a lot of optimizations that can be made
-// i'll list a few here:
+// I'll list a few here:
 // - searching the stack for variables
 //   A global Hash-table has significantly less overhead for function calls
 // - cloning the heck out of everything - useless copies
@@ -160,6 +164,43 @@ impl VM {
         }
 
         self.done()
+    }
+
+    fn call(&mut self) -> RunResult {
+        let arg = match self.stack.pop()? {
+            Item::Data(d) => d,
+            _             => unreachable!(),
+        };
+        let fun = match self.stack.pop()? {
+            Item::Data(d) => match d.deref() {
+                Data::Lambda(l) => l,
+                _               => unreachable!(),
+            }
+            _ => unreachable!(),
+        };
+
+        self.stack.push(Item::Frame);
+        self.stack.push(Item::Data(arg));
+        self.run(fun);
+
+        self.done()
+    }
+
+    fn return_val(&mut self) -> RunResult {
+        let val = match self.stack.pop()? {
+            Item::Data(d) => d,
+            _             => unreachable!(),
+        };
+
+        loop {
+            // TODO: panic if no frames on stack?
+            if let Item::Frame = self.stack.pop()? {
+                break;
+            }
+        }
+
+        self.stack.push(Item::Data(val));
+        self.terminate()
     }
 }
 

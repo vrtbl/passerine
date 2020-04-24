@@ -4,11 +4,14 @@ use std::ops::Deref;
 use std::mem;
 use std::f64;
 
+use crate::compiler::gen::Chunk;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     Real(f64),
     Boolean(bool),
     String(String),
+    Lambda(Chunk),
     Unit, // an empty typle
     // Tuple(Vec<Data>),
     // // TODO: Hashmap?

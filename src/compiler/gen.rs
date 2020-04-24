@@ -1,5 +1,5 @@
 use crate::pipeline::ast::{AST, Node};
-use crate::pipeline::bytecode::{Opcode, Chunk};
+use crate::pipeline::bytecode::Opcode;
 use crate::vm::data::Data;
 use crate::vm::local::Local;
 use crate::utils::annotation::Ann;
@@ -10,21 +10,25 @@ use crate::utils::number::split_number;
 // The bytecode generator
 // TODO: annotations in bytecode
 
-// TODO: locals are no longer pre-allocated
-// either rewrite pre-allocation code,
-// remove depth
-struct Gen {
-    chunk: Chunk,
-    depth: usize,
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Chunk {
+    pub code:      Vec<u8>,    // each byte is an opcode or a number-stream
+    pub offsets:   Vec<usize>, // each usize indexes the bytecode op that begins each line
+    pub constants: Vec<Data>,  // number-stream indexed, used to load constants
+    pub locals:    Vec<Local>, // ''                                  variables
 }
 
-impl Gen {
-    pub fn new() -> Gen {
-        Gen {
-            chunk: Chunk::empty(),
-            depth: 0,
+impl Chunk {
+    pub fn empty() -> Chunk {
+        Chunk {
+            code:      vec![],
+            offsets:   vec![],
+            constants: vec![],
+            locals:    vec![],
         }
     }
+
+    // TODO: bytecode chunk dissambler
 
     fn walk(&mut self, ast: &AST) {
         // push left, push right, push center
@@ -35,54 +39,102 @@ impl Gen {
             Node::Symbol(symbol) => self.symbol(symbol.clone()),
             Node::Block(block) => self.block(&block),
             Node::Assign { pattern, expression } => self.assign(*pattern.clone(), *expression.clone()),
+            Node::Lambda { pattern, expression } => self.lambda(*pattern.clone(), *expression.clone()),
+            Node::Call   { fun,     arg        } => self.call(*fun.clone(), *arg.clone()),
+        }
+    }
+
+    pub fn index_constant(&mut self, data: Data) -> usize {
+        match self.constants.iter().position(|d| d == &data) {
+            Some(d) => d,
+            None    => {
+                self.constants.push(data);
+                self.constants.len() - 1
+            },
         }
     }
 
     fn data(&mut self, data: Data) {
-        self.chunk.code.push(Opcode::Con as u8);
-        let mut split = split_number(self.chunk.index_constant(data));
-        self.chunk.code.append(&mut split);
+        self.code.push(Opcode::Con as u8);
+        let mut split = split_number(self.index_constant(data));
+        self.code.append(&mut split);
     }
 
     fn block(&mut self, children: &[AST]) {
-        self.depth += 1;
         for child in children {
             self.walk(&child);
-            self.chunk.code.push(Opcode::Clear as u8);
+            self.code.push(Opcode::Clear as u8);
         }
 
         // remove the last clear instruction
-        self.chunk.code.pop();
-        self.depth -= 1;
+        self.code.pop();
     }
 
     fn assign(&mut self, symbol: AST, expression: AST) {
         // eval the expression
         self.walk(&expression);
         // load the following symbol ...
-        self.chunk.code.push(Opcode::Save as u8);
+        self.code.push(Opcode::Save as u8);
         // ... the symbol to be loaded
         match symbol.node {
             Node::Symbol(l) => self.index_symbol(l),
             _               => unreachable!(),
         };
+        // TODO: load Unit
+    }
+
+    fn lambda(&mut self, symbol: AST, expression: AST) {
+        // TODO: closures
+        let mut fun = Chunk::empty();
+
+        // save the argument into the given variable
+        fun.code.push(Opcode::Save as u8);
+        fun.index_symbol(match symbol.node {
+            Node::Symbol(l) => l,
+            _               => unreachable!(),
+        });
+
+        // clear the stack
+        fun.code.push(Opcode::Clear as u8);
+
+        // run the function
+        fun.walk(&expression);
+
+        // return the result
+        fun.code.push(Opcode::Return as u8);
+        self.data(Data::Lambda(fun));
+    }
+
+    fn call(&mut self, fun: AST, arg: AST) {
+        // TODO: gaurantee that this is a fun
+        self.walk(&fun);
+        self.walk(&arg);
+        self.code.push(Opcode::Call as u8);
     }
 
     fn index_symbol(&mut self, symbol: Local) {
-        let index = self.chunk.index_local(symbol);
-        self.chunk.code.append(&mut split_number(index));
+        let index = match self.locals.iter().position(|l| l == &symbol) {
+            Some(l) => l,
+            None    => {
+                self.locals.push(symbol);
+                self.locals.len() - 1
+            },
+        };
+
+        self.code.append(&mut split_number(index));
     }
 
     fn symbol(&mut self, symbol: Local) {
-        self.chunk.code.push(Opcode::Load as u8);
+        self.code.push(Opcode::Load as u8);
         self.index_symbol(symbol);
     }
 }
 
+// Just a wrapper, really
 pub fn gen(ast: AST) -> Chunk {
-    let mut generator = Gen::new();
+    let mut generator = Chunk::empty();
     generator.walk(&ast);
-    return generator.chunk;
+    generator
 }
 
 #[cfg(test)]

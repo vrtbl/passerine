@@ -2,7 +2,8 @@
 START = block END
 
 block = (call SEP). call
-call  = call expr | expr
+call  = call expr
+      | expr
 
 expr  = '{' + block + '}'
       | '(' + call  + ')'
@@ -14,7 +15,7 @@ op = assignment
 assignment = SYMBOL '=' call
            | lambda
 
-lambda = SYMBOL '->' expr
+lambda = SYMBOL '->' call
 
 literal = SYMBOL
         | number
