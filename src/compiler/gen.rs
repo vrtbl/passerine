@@ -146,7 +146,7 @@ mod test {
     #[test]
     fn constants() {
         // TODO: flesh out as more datatypes are added
-        let source = "heck = true; lol = 0.0; lmao = false";
+        let source = "heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"";
         let ast    = parse(
             lex(source).unwrap()
         ).unwrap();
@@ -156,6 +156,7 @@ mod test {
             Data::Boolean(true),
             Data::Real(0.0),
             Data::Boolean(false),
+            Data::String("GOod MoRNiNg, SiR".to_string()),
         ];
 
         assert_eq!(chunk.constants, result);

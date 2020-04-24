@@ -97,8 +97,10 @@ impl Drop for Tagged {
 
 impl Debug for Tagged {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> Result<(), Error> {
-        let data: Data = (*self).deref();
-        return Debug::fmt(&data, formatter);
+        return Debug::fmt("hidden", formatter);
+        // TODO: causes double-free
+        // let data: Data = (*self).deref();
+        // return Debug::fmt(&data, formatter);
     }
 }
 

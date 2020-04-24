@@ -76,6 +76,7 @@ impl VM {
     fn step(&mut self) -> RunResult {
         let op_code = Opcode::from_byte(self.peek_byte());
 
+        // println!("op_code: {}", self.peek_byte());
         match op_code {
             Opcode::Con    => self.con(),
             Opcode::Save   => self.save(),
@@ -89,14 +90,17 @@ impl VM {
     fn run(&mut self, chunk: Chunk) -> RunResult {
         // cache current state, load new bytecode
         let old_chunk = mem::replace(&mut self.chunk, chunk);
+        let old_ip    = mem::replace(&mut self.ip,    0);
+        // TODO: should chunks store their own ip?
 
         while self.ip < self.chunk.code.len() {
+            // println!("before: {:?}", self.stack);
             self.step();
-            println!("{:?}", self.stack);
         }
 
         // return current state
         mem::drop(mem::replace(&mut self.chunk, old_chunk));
+        self.ip = old_ip;
 
         // nothing went wrong!
         return Some(());
@@ -181,7 +185,9 @@ impl VM {
 
         self.stack.push(Item::Frame);
         self.stack.push(Item::Data(arg));
+        // println!("entering...");
         self.run(fun);
+        // println!("exiting...");
 
         self.done()
     }
@@ -234,8 +240,6 @@ mod test {
             "boop = true; heck = { x = boop; x }; heck"
         ).unwrap()).unwrap());
 
-        println!("{:#?}", chunk);
-
         let mut vm = VM::init();
 
         match vm.run(chunk) {
@@ -246,10 +250,26 @@ mod test {
         if let Some(Item::Data(t)) = vm.stack.pop() {
             match t.deref() {
                 Data::Boolean(true) => (),
-                _                   => panic!("Expected true value")
+                _                   => panic!("Expected true value"),
             }
         } else {
-            panic!("Expected data on top of stack")
+            panic!("Expected data on top of stack");
+        }
+    }
+
+    #[test]
+    fn functions() {
+        let chunk = gen(parse(lex(
+            "iden = x -> x; y = true; iden ((iden iden) (iden y))"
+        ).unwrap()).unwrap());
+
+        let mut vm = VM::init();
+        vm.run(chunk);
+
+        if let Some(Item::Data(t)) = vm.stack.pop() {
+            assert_eq!(t.deref(), Data::Boolean(true));
+        } else {
+            panic!("Expected float on top of stack");
         }
     }
 }

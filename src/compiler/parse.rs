@@ -78,7 +78,7 @@ fn block(tokens: Tokens) -> Branch {
     let mut remaining   = vaccum(tokens, Token::Sep);
 
     while !remaining.is_empty() {
-        match expr(remaining) {
+        match call(remaining) {
             Ok((e, r)) => {
                 annotations.push(e.ann);
                 expressions.push(e);
@@ -87,7 +87,11 @@ fn block(tokens: Tokens) -> Branch {
             Err(_) => break,
         }
 
+        // TODO: implement one-or-more, rename vaccum (which is really just a special case of zero or more)
+        // expect at least one separator between statements
+        // remaining = match consume(tokens, Token::Sep) { Ok(r) => r, Err(_) => break };
         remaining = vaccum(remaining, Token::Sep);
+        // println!("{:?}", remaining);
     }
 
     // TODO: is this true? an empty program is should be valid
@@ -182,7 +186,7 @@ fn assign_assign(tokens: Tokens) -> Branch {
 
     // eat the = sign
     remaining = consume(remaining, Token::Assign)?;
-    let (e, remaining) = expr(remaining)?;
+    let (e, remaining) = call(remaining)?;
     let combined       = Ann::combine(&s.ann, &e.ann);
     Ok((AST::new(Node::assign(s, e), combined), remaining))
 }
@@ -258,7 +262,7 @@ mod test {
 
     #[test]
     fn failure() {
-        let source = "\n hello9 = (); ";
+        let source = "\n hello9 = {; ";
 
         assert_eq!(parse(lex(source).unwrap()), None);
     }
@@ -338,5 +342,77 @@ mod test {
         );
 
         assert_eq!(parsed, result);
+    }
+
+    #[test]
+    fn functions() {
+        let source = "applyzero = fun -> arg -> fun arg 0.0";
+        let parsed = parse(lex(source).unwrap());
+        let result = Some(
+            AST::new(
+                Node::block(vec![
+                    AST::new(
+                        Node::assign(
+                            AST::new(Node::symbol(Local::new("applyzero".to_string())), Ann::new(0, 9)),
+                            AST::new(
+                                Node::lambda(
+                                    AST::new(Node::symbol(Local::new("fun".to_string())), Ann::new(12, 3)),
+                                    AST::new(Node::lambda(
+                                        AST::new(Node::symbol(Local::new("arg".to_string())),  Ann::new(19, 3)),
+                                        AST::new(
+                                            Node::call(
+                                                AST::new(
+                                                    Node::call(
+                                                        AST::new(Node::symbol(Local::new("fun".to_string())), Ann::new(26, 3)),
+                                                        AST::new(Node::symbol(Local::new("arg".to_string())), Ann::new(30, 3)),
+                                                    ),
+                                                    Ann::new(26, 7),
+                                                ),
+                                                AST::new(Node::data(Data::Real(0.0)), Ann::new(34, 3)),
+                                            ),
+                                            Ann::new(26, 11)
+                                        )
+                                    ),
+                                    Ann::new(19, 18),
+                                ),
+                            ),
+                            Ann::new(12, 25),
+                        ),
+                    ),
+                    Ann::new(0, 37),
+                )]),
+                Ann::new(0, 37),
+            ),
+        );
+
+        assert_eq!(parsed, result);
+    }
+
+    #[test]
+    fn calling() {
+        let source = "bink (bonk 0.0)";
+        let parsed = parse(lex(source).unwrap());
+        // TODO: finish test
+        // let result = Some(
+        //     AST::new(
+        //         Node::block(vec![
+        //             AST::new(
+        //                 Node::call (
+        //                     AST::new(Node::symbol(Local::new("bink")), Ann::new(0, 4)),
+        //                     AST::new(
+        //                         Node::call(
+        //                             AST::new(Node::symbol(Local::new("bonk")), Ann::new(6, 4)),
+        //                             AST::new(Node::number(Data::Real(0.0)), Ann::new(11, 3)),
+        //                         ),
+        //                         Ann::new(6, 8),
+        //                     ),
+        //                 ),
+        //                 Ann::new(0, 14)
+        //             ),
+        //         ]),
+        //         Ann::new(0, 14),
+        //     ),
+        // );
+        panic!();
     }
 }

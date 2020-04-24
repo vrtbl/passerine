@@ -1,7 +1,7 @@
 # not turing complete (yet!)
 START = block END
 
-block = (call SEP). call
+block = (call SEP)+ call
 call  = call expr
       | expr
 
