@@ -392,27 +392,27 @@ mod test {
     fn calling() {
         let source = "bink (bonk 0.0)";
         let parsed = parse(lex(source).unwrap());
-        // TODO: finish test
-        // let result = Some(
-        //     AST::new(
-        //         Node::block(vec![
-        //             AST::new(
-        //                 Node::call (
-        //                     AST::new(Node::symbol(Local::new("bink")), Ann::new(0, 4)),
-        //                     AST::new(
-        //                         Node::call(
-        //                             AST::new(Node::symbol(Local::new("bonk")), Ann::new(6, 4)),
-        //                             AST::new(Node::number(Data::Real(0.0)), Ann::new(11, 3)),
-        //                         ),
-        //                         Ann::new(6, 8),
-        //                     ),
-        //                 ),
-        //                 Ann::new(0, 14)
-        //             ),
-        //         ]),
-        //         Ann::new(0, 14),
-        //     ),
-        // );
-        panic!();
+
+        let result = Some(
+            AST::new(
+                Node::block(vec![
+                    AST::new(
+                        Node::call (
+                            AST::new(Node::symbol(Local::new("bink".to_string())), Ann::new(0, 4)),
+                            AST::new(
+                                Node::call(
+                                    AST::new(Node::symbol(Local::new("bonk".to_string())), Ann::new(6, 4)),
+                                    AST::new(Node::data(Data::Real(0.0)), Ann::new(11, 3)),
+                                ),
+                                Ann::new(6, 8),
+                            ),
+                        ),
+                        Ann::new(0, 14)
+                    ),
+                ]),
+                Ann::new(0, 14),
+            ),
+        );
+        assert_eq!(parsed, result);
     }
 }
