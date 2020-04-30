@@ -123,7 +123,7 @@ impl VM {
     }
 
     fn save(&mut self) -> RunResult {
-        let data = match self.stack.pop()? { Item::Data(d) => d.deref(), _ => panic!("Expected data") };
+        let data = match self.stack.pop()? { Item::Data(d) => d.data(), _ => panic!("Expected data") };
         let (local, index) = self.local_index();
 
         // NOTE: Does it make a copy or does it make a reference?
@@ -139,6 +139,9 @@ impl VM {
             // It hasn't been declared
             None => self.stack.push(Item::Local { local, data }),
         }
+
+        // TODO: make separate byte code op?
+        self.stack.push(Item::Data(Tagged::from(Data::Unit)));
 
         self.done()
     }
@@ -176,7 +179,7 @@ impl VM {
             _             => unreachable!(),
         };
         let fun = match self.stack.pop()? {
-            Item::Data(d) => match d.deref() {
+            Item::Data(d) => match d.data() {
                 Data::Lambda(l) => l,
                 _               => unreachable!(),
             }
@@ -248,7 +251,7 @@ mod test {
         }
 
         if let Some(Item::Data(t)) = vm.stack.pop() {
-            match t.deref() {
+            match t.data() {
                 Data::Boolean(true) => (),
                 _                   => panic!("Expected true value"),
             }
@@ -267,9 +270,15 @@ mod test {
         vm.run(chunk);
 
         if let Some(Item::Data(t)) = vm.stack.pop() {
-            assert_eq!(t.deref(), Data::Boolean(true));
+            assert_eq!(t.data(), Data::Boolean(true));
         } else {
             panic!("Expected float on top of stack");
         }
+    }
+
+    fn fun_scope() {
+        let chunk = gen(parse(lex(
+            "iden = x -> x; y = true; iden ((iden iden) (iden y))"
+        ).unwrap()).unwrap());
     }
 }

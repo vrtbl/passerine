@@ -10,8 +10,8 @@ use std::usize;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ann {
-    offset: usize,
-    length: usize,
+    pub offset: usize,
+    pub length: usize,
 }
 
 impl Ann {

@@ -1,3 +1,5 @@
+// TODO: move to vm?
+
 pub fn split_number(n: usize) -> Vec<u8> {
     // high bit = last byte in chain?
     // low bits = binary representation
