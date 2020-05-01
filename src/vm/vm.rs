@@ -202,9 +202,10 @@ impl VM {
         };
 
         loop {
-            // TODO: panic if no frames on stack?
-            if let Item::Frame = self.stack.pop()? {
-                break;
+            match self.stack.pop() {
+                Some(Item::Frame) => break,
+                None              => unreachable!("There should never not be a frame on the stack"),
+                _                 => (),
             }
         }
 
@@ -226,7 +227,7 @@ mod test {
     fn init_run() {
         // TODO: check @ each step, write more tests
         let chunk = gen(parse(lex(
-            "boop = 37.201; true; dhuiew = true; boop"
+            "boop = 37.201; true; dhuiew = true; boop".to_string()
         ).unwrap()).unwrap());
 
         let mut vm = VM::init();
@@ -240,7 +241,7 @@ mod test {
     #[test]
     fn block_expression() {
         let chunk = gen(parse(lex(
-            "boop = true; heck = { x = boop; x }; heck"
+            "boop = true; heck = { x = boop; x }; heck".to_string()
         ).unwrap()).unwrap());
 
         let mut vm = VM::init();
@@ -263,7 +264,7 @@ mod test {
     #[test]
     fn functions() {
         let chunk = gen(parse(lex(
-            "iden = x -> x; y = true; iden ((iden iden) (iden y))"
+            "iden = x -> x; y = true; iden ((iden iden) (iden y))".to_string()
         ).unwrap()).unwrap());
 
         let mut vm = VM::init();
@@ -276,9 +277,25 @@ mod test {
         }
     }
 
+    #[test]
     fn fun_scope() {
         let chunk = gen(parse(lex(
-            "iden = x -> x; y = true; iden ((iden iden) (iden y))"
+            "y = (x -> { z = x; z }) 7.0; y".to_string()
         ).unwrap()).unwrap());
+
+        let out_of_scope = Local::new("z".to_string());
+
+        let mut vm = VM::init();
+        vm.run(chunk);
+
+        // check that z has been dealloced
+        assert_eq!(vm.find_local(&out_of_scope), None);
+
+        // check that y is in fact 7
+        if let Some(Item::Data(t)) = vm.stack.pop() {
+            assert_eq!(t.data(), Data::Real(7.0));
+        } else {
+            panic!("Expected 7.0 on top of stack");
+        }
     }
 }

@@ -1,3 +1,4 @@
+use crate::pipeline::source::Source;
 use crate::utils::annotation::Ann;
 use crate::pipeline::token::{Token, AnnToken};
 
@@ -8,15 +9,15 @@ use crate::pipeline::token::{Token, AnnToken};
 // TODO: error handling, rather than just returning 'None'
 
 struct Lexer {
-    source: &'static str,
+    source: Source,
     offset: usize,
     tokens: Vec<AnnToken>,
 }
 
 impl Lexer {
-    pub fn new(source: &'static str) -> Lexer {
+    pub fn new(source: Source) -> Lexer {
         Lexer {
-            source: source,
+            source,
             offset: 0,
             tokens: vec![],
         }
@@ -25,7 +26,7 @@ impl Lexer {
     fn all(&mut self) -> Option<()> {
         self.strip();
 
-        while self.source.len() > self.offset {
+        while self.source.contents.len() > self.offset {
             self.step()?;
         }
 
@@ -33,7 +34,7 @@ impl Lexer {
     }
 
     fn remaining(&self) -> &str {
-        &self.source[self.offset..]
+        &self.source.contents[self.offset..]
     }
 
     fn step(&mut self) -> Option<()> {
@@ -63,8 +64,8 @@ impl Lexer {
     }
 }
 
-pub fn lex(source: &'static str) -> Option<Vec<AnnToken>> {
-    let mut lexer = Lexer::new(&source);
+pub fn lex(source: String) -> Option<Vec<AnnToken>> {
+    let mut lexer = Lexer::new(Source::source(&source));
 
     // It's pretty self-explanatory
     // lex the whole source
@@ -85,12 +86,12 @@ mod test {
     #[test]
     fn lex_empty() {
         // no source code? no tokens!
-        assert_eq!(lex(""), Some(vec![]));
+        assert_eq!(lex("".to_string()), Some(vec![]));
     }
 
     #[test]
     fn lex_assignment() {
-        let source = "heck = true";
+        let source = "heck = true".to_string();
 
         let result = vec![
             AnnToken::new(Token::Symbol(Local::new("heck".to_string())), Ann::new(0, 4)),
@@ -103,7 +104,7 @@ mod test {
 
     #[test]
     fn whitespace() {
-        let source = "  true  ;  ";
+        let source = "  true  ;  ".to_string();
 
         let result = vec![
             AnnToken::new(Token::Boolean(Data::Boolean(true)), Ann::new(2, 4)),
@@ -115,7 +116,7 @@ mod test {
 
     #[test]
     fn block() {
-        let source = "{\n\thello = true\n\thello\n}";
+        let source = "{\n\thello = true\n\thello\n}".to_string();
 
         // TODO: finish test
 
@@ -136,7 +137,7 @@ mod test {
 
     #[test]
     fn function() {
-        let source = "identity = x -> x\nidentity (identity \"heck\")";
+        let source = "identity = x -> x\nidentity (identity \"heck\")".to_string();
         let result = vec![
             AnnToken::new(Token::Symbol(Local::new("identity".to_string())), Ann::new(0, 8)),
             AnnToken::new(Token::Assign,                                     Ann::new(9, 1)),

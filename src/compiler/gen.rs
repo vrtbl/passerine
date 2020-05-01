@@ -106,7 +106,6 @@ impl Chunk {
     }
 
     fn call(&mut self, fun: AST, arg: AST) {
-        // TODO: gaurantee that this is a fun
         self.walk(&fun);
         self.walk(&arg);
         self.code.push(Opcode::Call as u8);
@@ -146,7 +145,7 @@ mod test {
     #[test]
     fn constants() {
         // TODO: flesh out as more datatypes are added
-        let source = "heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"";
+        let source = "heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"".to_string();
         let ast    = parse(
             lex(source).unwrap()
         ).unwrap();
@@ -164,7 +163,7 @@ mod test {
 
     #[test]
     fn bytecode() {
-        let source = "heck = true; lol = heck; lmao = false";
+        let source = "heck = true; lol = heck; lmao = false".to_string();
         let ast    = parse(lex(source).unwrap()).unwrap();
 
         let chunk = gen(ast);

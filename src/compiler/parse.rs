@@ -223,8 +223,7 @@ fn literal(tokens: Tokens) -> Branch {
     }
 }
 
-// TODO: ASTs can get really big, really fast
-// have tests in external file?
+// TODO: ASTs can get really big, really fast - have tests in external file?
 #[cfg(test)]
 mod test {
     use crate::compiler::lex::lex;
@@ -234,7 +233,7 @@ mod test {
     fn assignment() {
         // who knew so little could mean so much?
         // forget verbose, we should all write ~~lisp~~ ast
-        let source = "heck = false; naw = heck";
+        let source = "heck = false; naw = heck".to_string();
 
         // oof, I wrote this out by hand
         let result = AST::new(
@@ -262,7 +261,7 @@ mod test {
 
     #[test]
     fn failure() {
-        let source = "\n hello9 = {; ";
+        let source = "\n hello9 = {; ".to_string();
 
         assert_eq!(parse(lex(source).unwrap()), None);
     }
@@ -271,7 +270,7 @@ mod test {
     fn block() {
         // TODO: Put this bad-boy somewhere else.
         // maybe just have one test file and a huge hand-verified ast
-        let source = "x = true\n{\n\ty = {x; true; false}\n\tz = false\n}";
+        let source = "x = true\n{\n\ty = {x; true; false}\n\tz = false\n}".to_string();
         let parsed = parse(lex(source).unwrap());
         let result = Some(
             AST::new(
@@ -318,7 +317,7 @@ mod test {
 
     #[test]
     fn number() {
-        let source = "number = { true; 0.0 }";
+        let source = "number = { true; 0.0 }".to_string();
         let parsed = parse(lex(source).unwrap());
         let result = Some(
             AST::new(
@@ -346,7 +345,7 @@ mod test {
 
     #[test]
     fn functions() {
-        let source = "applyzero = fun -> arg -> fun arg 0.0";
+        let source = "applyzero = fun -> arg -> fun arg 0.0".to_string();
         let parsed = parse(lex(source).unwrap());
         let result = Some(
             AST::new(
@@ -390,7 +389,7 @@ mod test {
 
     #[test]
     fn calling() {
-        let source = "bink (bonk 0.0)";
+        let source = "bink (bonk 0.0)".to_string();
         let parsed = parse(lex(source).unwrap());
 
         let result = Some(
