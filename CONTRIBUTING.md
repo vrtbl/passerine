@@ -18,7 +18,7 @@ Third, we encourage an open, friendly, and supportive environment around the dev
 If you disagree with someone for any reason, discuss the issue and express you opinions, don't attack the person.
 Discrimination of any kind against any person is not permitted.
 If you detract from this project's collaborative environment, you'll be prevented from participating in the future development of this project until you prove you can behave yourself adequately.
-Please provide arguments based on anecdotes and reasoning to support your suggestions - don't rely on arguments based on 'years of experience,' supposed skill, job title, etc. your points across.
+Please provide arguments based on anecdotes and reasoning to support your suggestions - don't rely on arguments based on 'years of experience,' supposed skill, job title, etc. to get your points across.
 
 # General Guidelines
 Readable code with clear behavior works better than illegible optimized code.

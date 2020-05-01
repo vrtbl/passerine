@@ -5,6 +5,7 @@ use crate::utils::annotation::Ann;
 
 pub enum PResult<'a, T> {
     Ok(T),
+    // Kind, Message, Source, Annotation
     Error(String, String, &'a str, Ann),
     Trace(String, String, Vec<(&'a str, Ann)>),
 }
