@@ -54,7 +54,7 @@ mod test {
     #[test]
     fn encode_decode() {
         // big number
-        let x = 7289529732981739357;
+        let x = 7_289_529_732_981_739_357;
         assert_eq!(build_number(split_number(x)), (x, 9));
     }
 

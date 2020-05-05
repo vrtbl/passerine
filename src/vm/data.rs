@@ -2,7 +2,6 @@ use std::hash::{Hash, Hasher};
 use std::fmt::{Debug, Error, Formatter};
 use std::ops::Deref;
 use std::mem;
-use std::rc::Rc;
 use std::f64;
 
 use crate::compiler::gen::Chunk;
@@ -72,6 +71,7 @@ impl Tagged {
     // TODO: use deref trait
     // Can't for not because of E0515 caused by &Data result
     pub fn data(self) -> Data {
+        // This function drops the data upon unpack, resulting in a double-free
         let Tagged(bits) = self;
 
         match bits {
@@ -97,8 +97,20 @@ impl Tagged {
 
 impl Drop for Tagged {
     fn drop(&mut self) {
-        // this should drop the data the tag points to as well
-        self.deref();
+        println!("Dropping!");
+        let Tagged(bits) = &self;
+        let pointer = P_FLAG | QNAN;
+
+        match *bits {
+            p if (pointer & p) == pointer => unsafe {
+                // this should drop the data the tag points to as well
+                println!("yeet");
+                mem::drop(*Box::from_raw((bits & P_MASK) as *mut Data));
+                println!("yote");
+            },
+            _ => (),
+        }
+        println!("done Dropping!");
     }
 }
 
@@ -121,7 +133,7 @@ mod test {
 
     #[test]
     fn reals_eq() {
-        let positive = 478329.0;
+        let positive = 478_329.0;
         let negative = -231.0;
         let nan      = f64::NAN;
         let neg_inf  = f64::NEG_INFINITY;
@@ -200,12 +212,15 @@ mod test {
         ];
 
         for test in tests {
-            let data     = test;
-            let tagged   = Tagged::from(data.clone());
+            println!("{:?}", test);
+            println!("starting pack");
+            let tagged = Tagged::from(test.clone());
+            println!("starting unpack");
             let untagged = tagged.data();
+            println!("finished unpack");
 
             if let Data::Real(f) = untagged {
-                if let Data::Real(n) = data {
+                if let Data::Real(n) = test {
                     if n.is_nan() {
                         assert!(f.is_nan())
                     } else {
@@ -213,7 +228,7 @@ mod test {
                     }
                 }
             } else {
-                assert_eq!(data, untagged);
+                assert_eq!(test, untagged);
             }
         }
     }

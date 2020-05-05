@@ -1,3 +1,4 @@
+use crate::utils::error::CompilerError;
 use crate::utils::annotation::Ann;
 use crate::pipeline::token::{Token, AnnToken};
 use crate::pipeline::ast::{AST, Node};
@@ -8,27 +9,24 @@ use crate::vm::local::Local;
 // TODO: the 'vacuum' seems kind of cheap.
 
 // some sort of recursive descent parser, I guess
-type Tokens<'a> = &'a [AnnToken];
-type Branch<'a> = Result<(AST, Tokens<'a>), (String, Ann)>;
-type Rule       = Box<dyn Fn(Tokens) -> Branch>;
+type Tokens<'a>      = &'a [AnnToken<'a>];
+type Branch<'a>      = Result<(AST<'a>, Tokens<'a>), (String, Ann<'a>)>;
+type ParseResult<'a> = Result<AST<'a>, CompilerError<'a>>;
+type Rule            = Box<dyn Fn(Tokens) -> Branch>;
 
-// TODO: better error reporting
-
-pub fn parse(tokens: Vec<AnnToken>) -> Option<AST> {
+pub fn parse<'a>(tokens: Vec<AnnToken<'a>>) -> ParseResult<'a> {
     // parse the file
     // slices are easier to work with
     match block(&tokens[..]) {
         // vaccum all extra seperators
-        Ok((node, parsed)) => if vaccum(parsed, Token::Sep).is_empty() {
-            Some(node)
-        } else {
-            None
-        },
+        Ok((node, parsed)) => if vaccum(parsed, Token::Sep).is_empty()
+            { Ok(node) } else { unreachable!() },
         // if there are still tokens left, something's gone wrong.
         // TODO: print the error with utils
-        Err((s, a)) => panic!(format!("{}: {:?}", s, a)),
+        Err((m, a)) => Err(
+            CompilerError::Syntax(&m, a),
+        ),
     }
-
 }
 
 // cookie-monster's helper functions
@@ -226,6 +224,7 @@ fn literal(tokens: Tokens) -> Branch {
 // TODO: ASTs can get really big, really fast - have tests in external file?
 #[cfg(test)]
 mod test {
+    use crate::pipeline::source::Source;
     use crate::compiler::lex::lex;
     use super::*;
 
@@ -233,35 +232,35 @@ mod test {
     fn assignment() {
         // who knew so little could mean so much?
         // forget verbose, we should all write ~~lisp~~ ast
-        let source = "heck = false; naw = heck".to_string();
+        let source = Source::source("heck = false; naw = heck");
 
         // oof, I wrote this out by hand
         let result = AST::new(
             Node::block(vec![
                 AST::new(
                     Node::assign(
-                        AST::new(Node::symbol(Local::new("heck".to_string())), Ann::new(0, 4)),
-                        AST::new(Node::data(Data::Boolean(false)), Ann::new(7, 5)),
+                        AST::new(Node::symbol(Local::new("heck".to_string())), Ann::new(&source, 0, 4)),
+                        AST::new(Node::data(Data::Boolean(false)), Ann::new(&source, 7, 5)),
                     ),
-                    Ann::new(0, 12),
+                    Ann::new(&source, 0, 12),
                 ),
                 AST::new(
                     Node::assign(
-                        AST::new(Node::Symbol(Local::new("naw".to_string())), Ann::new(14, 3)),
-                        AST::new(Node::Symbol(Local::new("heck".to_string())), Ann::new(20, 4)),
+                        AST::new(Node::Symbol(Local::new("naw".to_string())), Ann::new(&source, 14, 3)),
+                        AST::new(Node::Symbol(Local::new("heck".to_string())), Ann::new(&source, 20, 4)),
                     ),
-                    Ann::new(14, 10),
+                    Ann::new(&source, 14, 10),
                 ),
             ]),
-            Ann::new(0, 24),
+            Ann::new(&source, 0, 24),
         );
 
-        assert_eq!(parse(lex(source).unwrap()), Some(result));
+        assert_eq!(parse(lex(source).unwrap()), Ok(result));
     }
 
     #[test]
     fn failure() {
-        let source = "\n hello9 = {; ".to_string();
+        let source = Source::source("\n hello9 = {; ");
 
         assert_eq!(parse(lex(source).unwrap()), None);
     }
@@ -270,46 +269,46 @@ mod test {
     fn block() {
         // TODO: Put this bad-boy somewhere else.
         // maybe just have one test file and a huge hand-verified ast
-        let source = "x = true\n{\n\ty = {x; true; false}\n\tz = false\n}".to_string();
+        let source = Source::source("x = true\n{\n\ty = {x; true; false}\n\tz = false\n}");
         let parsed = parse(lex(source).unwrap());
         let result = Some(
             AST::new(
                 Node::block(vec![
                     AST::new(
                         Node::assign(
-                            AST::new(Node::symbol(Local::new("x".to_string())), Ann::new(0, 1)),
-                            AST::new(Node::data(Data::Boolean(true)),           Ann::new(4, 4)),
+                            AST::new(Node::symbol(Local::new("x".to_string())), Ann::new(&source, 0, 1)),
+                            AST::new(Node::data(Data::Boolean(true)),           Ann::new(&source, 4, 4)),
                         ),
-                        Ann::new(0, 8)
+                        Ann::new(&source, 0, 8)
                     ),
                     AST::new(Node::block(
                         vec![
                             AST::new(
                                 Node::assign(
-                                    AST::new(Node::symbol(Local::new("y".to_string())), Ann::new(12, 1)),
+                                    AST::new(Node::symbol(Local::new("y".to_string())), Ann::new(&source, 12, 1)),
                                     AST::new(
                                         Node::block(vec![
-                                            AST::new(Node::symbol(Local::new("x".to_string())), Ann::new(17, 1)),
-                                            AST::new(Node::data(Data::Boolean(true)),           Ann::new(20, 4)),
-                                            AST::new(Node::data(Data::Boolean(false)),          Ann::new(26, 5)),
+                                            AST::new(Node::symbol(Local::new("x".to_string())), Ann::new(&source, 17, 1)),
+                                            AST::new(Node::data(Data::Boolean(true)),           Ann::new(&source, 20, 4)),
+                                            AST::new(Node::data(Data::Boolean(false)),          Ann::new(&source, 26, 5)),
                                         ]),
-                                        Ann::new(17, 14),
+                                        Ann::new(&source, 17, 14),
                                     )
                                 ),
-                                Ann::new(12, 19),
+                                Ann::new(&source, 12, 19),
                             ),
                             AST::new(
                                 Node::assign(
-                                    AST::new(Node::symbol(Local::new("z".to_string())),Ann::new(34, 1)),
-                                    AST::new(Node::data(Data::Boolean(false)), Ann::new(38, 5)),
+                                    AST::new(Node::symbol(Local::new("z".to_string())),Ann::new(&source, 34, 1)),
+                                    AST::new(Node::data(Data::Boolean(false)), Ann::new(&source, 38, 5)),
                                 ),
-                                Ann::new(34, 9),
+                                Ann::new(&source, 34, 9),
                             ),
                         ]),
-                        Ann::new(12, 31),
+                        Ann::new(&source, 12, 31),
                     ),
                 ]),
-                Ann::new(0, 43),
+                Ann::new(&source, 0, 43),
             ),
         );
         assert_eq!(parsed, result);
@@ -317,26 +316,26 @@ mod test {
 
     #[test]
     fn number() {
-        let source = "number = { true; 0.0 }".to_string();
+        let source = Source::source("number = { true; 0.0 }");
         let parsed = parse(lex(source).unwrap());
         let result = Some(
             AST::new(
                 Node::block(vec![
                     AST::new(
                         Node::assign(
-                            AST::new(Node::symbol(Local::new("number".to_string())), Ann::new(0, 6)),
+                            AST::new(Node::symbol(Local::new("number".to_string())), Ann::new(&source, 0, 6)),
                             AST::new(
                                 Node::block(vec![
-                                    AST::new(Node::data(Data::Boolean(true)), Ann::new(11, 4)),
-                                    AST::new(Node::data(Data::Real(0.0)), Ann::new(17, 3)),
+                                    AST::new(Node::data(Data::Boolean(true)), Ann::new(&source, 11, 4)),
+                                    AST::new(Node::data(Data::Real(0.0)), Ann::new(&source, 17, 3)),
                                 ]),
-                                Ann::new(11, 9),
+                                Ann::new(&source, 11, 9),
                             ),
                         ),
-                        Ann::new(0, 20),
+                        Ann::new(&source, 0, 20),
                     )
                 ]),
-                Ann::new(0, 20),
+                Ann::new(&source, 0, 20),
             ),
         );
 
@@ -345,42 +344,42 @@ mod test {
 
     #[test]
     fn functions() {
-        let source = "applyzero = fun -> arg -> fun arg 0.0".to_string();
+        let source = Source::source("applyzero = fun -> arg -> fun arg 0.0");
         let parsed = parse(lex(source).unwrap());
         let result = Some(
             AST::new(
                 Node::block(vec![
                     AST::new(
                         Node::assign(
-                            AST::new(Node::symbol(Local::new("applyzero".to_string())), Ann::new(0, 9)),
+                            AST::new(Node::symbol(Local::new("applyzero".to_string())), Ann::new(&source, 0, 9)),
                             AST::new(
                                 Node::lambda(
-                                    AST::new(Node::symbol(Local::new("fun".to_string())), Ann::new(12, 3)),
+                                    AST::new(Node::symbol(Local::new("fun".to_string())), Ann::new(&source, 12, 3)),
                                     AST::new(Node::lambda(
-                                        AST::new(Node::symbol(Local::new("arg".to_string())),  Ann::new(19, 3)),
+                                        AST::new(Node::symbol(Local::new("arg".to_string())),  Ann::new(&source, 19, 3)),
                                         AST::new(
                                             Node::call(
                                                 AST::new(
                                                     Node::call(
-                                                        AST::new(Node::symbol(Local::new("fun".to_string())), Ann::new(26, 3)),
-                                                        AST::new(Node::symbol(Local::new("arg".to_string())), Ann::new(30, 3)),
+                                                        AST::new(Node::symbol(Local::new("fun".to_string())), Ann::new(&source, 26, 3)),
+                                                        AST::new(Node::symbol(Local::new("arg".to_string())), Ann::new(&source, 30, 3)),
                                                     ),
-                                                    Ann::new(26, 7),
+                                                    Ann::new(&source, 26, 7),
                                                 ),
-                                                AST::new(Node::data(Data::Real(0.0)), Ann::new(34, 3)),
+                                                AST::new(Node::data(Data::Real(0.0)), Ann::new(&source, 34, 3)),
                                             ),
-                                            Ann::new(26, 11)
+                                            Ann::new(&source, 26, 11)
                                         )
                                     ),
-                                    Ann::new(19, 18),
+                                    Ann::new(&source, 19, 18),
                                 ),
                             ),
-                            Ann::new(12, 25),
+                            Ann::new(&source, 12, 25),
                         ),
                     ),
-                    Ann::new(0, 37),
+                    Ann::new(&source, 0, 37),
                 )]),
-                Ann::new(0, 37),
+                Ann::new(&source, 0, 37),
             ),
         );
 
@@ -389,7 +388,7 @@ mod test {
 
     #[test]
     fn calling() {
-        let source = "bink (bonk 0.0)".to_string();
+        let source = Source::source("bink (bonk 0.0)");
         let parsed = parse(lex(source).unwrap());
 
         let result = Some(
@@ -397,19 +396,19 @@ mod test {
                 Node::block(vec![
                     AST::new(
                         Node::call (
-                            AST::new(Node::symbol(Local::new("bink".to_string())), Ann::new(0, 4)),
+                            AST::new(Node::symbol(Local::new("bink".to_string())), Ann::new(&source, 0, 4)),
                             AST::new(
                                 Node::call(
-                                    AST::new(Node::symbol(Local::new("bonk".to_string())), Ann::new(6, 4)),
-                                    AST::new(Node::data(Data::Real(0.0)), Ann::new(11, 3)),
+                                    AST::new(Node::symbol(Local::new("bonk".to_string())), Ann::new(&source, 6, 4)),
+                                    AST::new(Node::data(Data::Real(0.0)), Ann::new(&source, 11, 3)),
                                 ),
-                                Ann::new(6, 8),
+                                Ann::new(&source, 6, 8),
                             ),
                         ),
-                        Ann::new(0, 14)
+                        Ann::new(&source, 0, 14)
                     ),
                 ]),
-                Ann::new(0, 14),
+                Ann::new(&source, 0, 14),
             ),
         );
         assert_eq!(parsed, result);

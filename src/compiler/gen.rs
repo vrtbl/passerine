@@ -10,6 +10,12 @@ use crate::utils::number::split_number;
 // The bytecode generator
 // TODO: annotations in bytecode
 
+pub fn gen(ast: AST) -> Chunk {
+    let mut generator = Chunk::empty();
+    generator.walk(&ast);
+    generator
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Chunk {
     pub code:      Vec<u8>,    // each byte is an opcode or a number-stream
@@ -129,23 +135,17 @@ impl Chunk {
     }
 }
 
-// Just a wrapper, really
-pub fn gen(ast: AST) -> Chunk {
-    let mut generator = Chunk::empty();
-    generator.walk(&ast);
-    generator
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::compiler::lex::lex;
     use crate::compiler::parse::parse;
+    use crate::pipeline::source::Source;
 
     #[test]
     fn constants() {
         // TODO: flesh out as more datatypes are added
-        let source = "heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"".to_string();
+        let source = Source::source("heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"");
         let ast    = parse(
             lex(source).unwrap()
         ).unwrap();
@@ -163,7 +163,7 @@ mod test {
 
     #[test]
     fn bytecode() {
-        let source = "heck = true; lol = heck; lmao = false".to_string();
+        let source = Source::source("heck = true; lol = heck; lmao = false");
         let ast    = parse(lex(source).unwrap()).unwrap();
 
         let chunk = gen(ast);

@@ -24,7 +24,7 @@ pub enum Token {
     Boolean(Data),
 }
 
-type Consume = Option<(Token, usize)>;
+type Consume = Result<(Token, usize), String>;
 
 impl Token {
     pub fn from(source: &str) -> Consume {
@@ -39,8 +39,8 @@ impl Token {
             // static
             Box::new(|s| Token::open_bracket(s) ),
             Box::new(|s| Token::close_bracket(s)),
-            Box::new(|s| Token::open_paren(s) ),
-            Box::new(|s| Token::close_paren(s)),
+            Box::new(|s| Token::open_paren(s)   ),
+            Box::new(|s| Token::close_paren(s)  ),
             Box::new(|s| Token::assign(s)       ),
             Box::new(|s| Token::lambda(s)       ),
 
@@ -49,7 +49,7 @@ impl Token {
             Box::new(|s| Token::boolean(s)),
 
             // dynamic
-            Box::new(|s| Token::real(s)),
+            Box::new(|s| Token::real(s)  ),
             Box::new(|s| Token::string(s)),
             // Box::new(|s| Token::int(s)),
 
@@ -58,15 +58,15 @@ impl Token {
         ];
 
         // maybe some sort of map reduce?
-        let mut best = None;
+        let mut best = Consume::Err("Next token is not known in this context".to_string());
 
         // check longest
         for rule in &rules {
-            if let Some((k, c)) = rule(source) {
+            if let Ok((k, c)) = rule(source) {
                 match best {
-                    None                  => best = Some((k, c)),
-                    Some((_, o)) if c > o => best = Some((k, c)),
-                    Some(_)               => (),
+                    Err(_)              => best = Ok((k, c)),
+                    Ok((_, o)) if c > o => best = Ok((k, c)),
+                    Ok(_)               => (),
                 }
             }
         }
@@ -75,16 +75,18 @@ impl Token {
     }
 
     // helpers
-    fn expect(source: &str, literal: &str) -> Option<usize> {
-        if literal.len() > source.len() { return None; }
+    fn expect(source: &str, literal: &str) -> Result<usize, String> {
+        if literal.len() > source.len() {
+            return Err("Unexpected EOF while lexing".to_string());
+        }
 
         match &source[..literal.len()] {
-            s if s == literal => Some(literal.len()),
-            _                 => None,
+            s if s == literal => Ok(literal.len()),
+            _                 => Err(format!("Expected '{}'", source)),
         }
     }
 
-    fn eat_digits(source: &str) -> Option<usize> {
+    fn eat_digits(source: &str) -> Result<usize, String> {
         let mut len = 0;
 
         for char in source.chars() {
@@ -94,11 +96,11 @@ impl Token {
             }
         }
 
-        return if len == 0 { None } else { Some(len) };
+        return if len == 0 { Err("Expected digits".to_string()) } else { Ok(len) };
     }
 
     fn literal(source: &str, literal: &str, kind: Token) -> Consume {
-        Some((kind, Token::expect(source, literal)?))
+        Ok((kind, Token::expect(source, literal)?))
     }
 
     // token classifiers
@@ -116,9 +118,9 @@ impl Token {
         }
 
         return match len {
-            0 => None,
+            0 => Err("Expected a symbol".to_string()),
             // TODO: make sure that symbol name is correct
-            l => Some((Token::Symbol(Local::new(source[..l].to_string())), l)),
+            l => Ok((Token::Symbol(Local::new(source[..l].to_string())), l)),
         };
     }
 
@@ -161,7 +163,7 @@ impl Token {
             Err(_) => panic!("Could not convert source to supposed real")
         };
 
-        return Some((Token::Number(Data::Real(number)), len));
+        return Ok((Token::Number(Data::Real(number)), len));
     }
 
     // the below pattern is pretty common...
@@ -177,59 +179,58 @@ impl Token {
 
         len += Token::expect(source, "\"")?;
 
-        for char in source[len..].chars() {
+        for c in source[len..].chars() {
             len += 1;
             if escape {
                 escape = false;
                 // TODO: add more escape codes
-                string.push(match char {
+                string.push(match c {
                     '\"' => '\"',
                     '\\' => '\\',
                     'n'  => '\n',
                     't'  => '\t',
-                    // TODO: unknown escape code error
-                    _    => return None,
+                    o    => return Err(format!("Unknown escape code '\\{}'", o)),
                 })
             } else {
-                match char {
+                match c {
                     '\\' => escape = true,
-                    '\"' => return Some((Token::String(Data::String(string)), len)),
+                    '\"' => return Ok((Token::String(Data::String(string)), len)),
                     c    => string.push(c),
                 }
             }
         }
 
-        // TODO: return an 'unexpected EOF while parsing string' error
-        return None;
+        return Err("Unexpected EOF while parsing string literal".to_string());
     }
 
     fn boolean(source: &str) -> Consume {
-        if let Some(x) = Token::literal(source, "true", Token::Boolean(Data::Boolean(true))) {
-            return Some(x);
+        if let Ok(x) = Token::literal(source, "true", Token::Boolean(Data::Boolean(true))) {
+            return Ok(x);
         }
 
-        if let Some(x) = Token::literal(source, "false", Token::Boolean(Data::Boolean(false))) {
-            return Some(x);
+        if let Ok(x) = Token::literal(source, "false", Token::Boolean(Data::Boolean(false))) {
+            return Ok(x);
         }
 
-        return None;
+        return Err("Expected a boolean".to_string());
     }
 
     fn sep(source: &str) -> Consume {
-        match source.chars().next()? {
-            '\n' | ';' => Some((Token::Sep, 1)),
-            _          => None
+        match source.chars().next() {
+            Some('\n') | Some(';') => Ok((Token::Sep, 1)),
+            Some(_) => Err("Expected a separator, such as a newline".to_string()),
+            None    => Err("Unexpected EOF while lexing".to_string()),
         }
     }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct AnnToken {
+pub struct AnnToken<'a> {
     pub kind: Token,
-    pub ann:  Ann,
+    pub ann:  Ann<'a>,
 }
 
-impl AnnToken {
+impl AnnToken<'_> {
     pub fn new(kind: Token, ann: Ann) -> AnnToken {
         AnnToken { kind, ann }
     }
@@ -246,12 +247,12 @@ mod test {
     fn boolean() {
         assert_eq!(
             Token::from("true"),
-            Some((Token::Boolean(Data::Boolean(true)), 4)),
+            Ok((Token::Boolean(Data::Boolean(true)), 4)),
         );
 
         assert_eq!(
             Token::from("false"),
-            Some((Token::Boolean(Data::Boolean(false)), 5)),
+            Ok((Token::Boolean(Data::Boolean(false)), 5)),
         );
     }
 
@@ -259,20 +260,15 @@ mod test {
     fn assign() {
         assert_eq!(
             Token::from("="),
-            Some((Token::Assign, 1)),
+            Ok((Token::Assign, 1)),
         );
     }
 
     #[test]
     fn symbol() {
         assert_eq!(
-            Token::from(""),
-            None,
-        );
-
-        assert_eq!(
             Token::from("heck"),
-            Some((Token::Symbol(Local::new("heck".to_string())), 4))
+            Ok((Token::Symbol(Local::new("heck".to_string())), 4))
         );
     }
 
@@ -280,12 +276,12 @@ mod test {
     fn sep() {
         assert_eq!(
             Token::from("\nheck"),
-            Some((Token::Sep, 1)),
+            Ok((Token::Sep, 1)),
         );
 
         assert_eq!(
             Token::from("; heck"),
-            Some((Token::Sep, 1)),
+            Ok((Token::Sep, 1)),
         );
     }
 
@@ -293,12 +289,12 @@ mod test {
     fn real() {
         assert_eq!(
             Token::from("2.0"),
-            Some((Token::Number(Data::Real(2.0)), 3)),
+            Ok((Token::Number(Data::Real(2.0)), 3)),
         );
 
         assert_eq!(
             Token::from("210938.2221"),
-            Some((Token::Number(Data::Real(210938.2221)), 11)),
+            Ok((Token::Number(Data::Real(210938.2221)), 11)),
         );
     }
 
@@ -307,13 +303,13 @@ mod test {
         let source = "\"heck\"";
         assert_eq!(
             Token::from(&source),
-            Some((Token::String(Data::String("heck".to_string())), source.len())),
+            Ok((Token::String(Data::String("heck".to_string())), source.len())),
         );
 
         let escape = "\"I said, \\\"Hello, world!\\\" didn't I?\"";
         assert_eq!(
             Token::from(&escape),
-            Some((
+            Ok((
                 Token::String(Data::String("I said, \"Hello, world!\" didn't I?".to_string())),
                 escape.len()
             )),

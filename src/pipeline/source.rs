@@ -3,6 +3,7 @@ use std::io::Read;
 use std::fs::File;
 
 // represents some literal source code
+#[derive(Debug, PartialEq, Eq)]
 pub struct Source {
     pub contents: String,
     pub path:     PathBuf,

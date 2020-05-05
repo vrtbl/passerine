@@ -1,113 +1,29 @@
 use std::fmt::{Display, Formatter, Result};
 
-use crate::vm::data::Data;
 use crate::utils::annotation::Ann;
 
-pub enum PResult<'a, T> {
-    Ok(T),
-    // Kind, Message, Source, Annotation
-    Error(String, String, &'a str, Ann),
-    Trace(String, String, Vec<(&'a str, Ann)>),
+#[derive(Debug)]
+pub enum CompilerError<'a> {
+    Syntax(&'a str, Ann<'a>), // Message, Annotation
+    Trace(&'a str, &'a str, Vec<Ann<'a>>), // Kind, Message, Annotation
 }
 
-fn line_indicies(source: &str, ann: Ann) -> Option<((usize, usize), (usize, usize))> {
-    if ann.is_empty() {
-        return None;
-    }
-
-    let start = ann.offset;
-    let end   = ann.offset + ann.length;
-
-    let start_lines: Vec<&str> = source[..=start].lines().collect();
-    let end_lines:   Vec<&str> = source[..=end].lines().collect();
-
-    let start_line = start_lines.len() - 1;
-    let end_line   = end_lines.len() - 1;
-
-    let start_col = start_lines.last()?.len() - 1;
-    let end_col   = end_lines.last()?.len() - 1;
-
-    return Some(((start_line, start_col), (end_line, end_col)));
-}
-
-fn display_section(source: &str, ann: Ann) -> String {
-    // Does:
-    // 12 | x = blatant { error }
-    //    |     ^^^^^^^^^^^^^^^^^
-    // and:
-    // 12 | > x -> {
-    // 13 | >    y = x + 1
-    // 14 | >    another { error }
-    // 15 | > }
-
-    if ann.is_empty() {
-        panic!("Can't display the section corresponding with an empty annotation")
-    }
-
-    let lines: Vec<&str> = source.lines().collect();
-    let ((start_line, start_col), (end_line,   end_col)) = match line_indicies(source, ann) {
-        Some(((s, c), (e, l))) => ((s, c), (e, l)),
-        None                 => unreachable!(),
-    };
-
-    let readable_start_line = (start_line + 1).to_string();
-    let readable_end_line   = (end_line   + 1).to_string();
-    let readable_start_col  = (start_col  + 1).to_string();
-    let padding = readable_end_line.len();
-
-    let location  = format!("Line {}:{}", readable_start_line, readable_start_col);
-    let separator = format!("{} |", " ".repeat(padding));
-
-    if start_line == end_line {
-        // TODO: Error here:
-        let l = lines[end_line];
-
-        let line = format!("{} | {}", readable_end_line, l);
-        let span = format!(
-            "{} | {}{}",
-            " ".repeat(padding),
-            " ".repeat(start_col),
-            "^".repeat(ann.length),
-        );
-
-        return location + "\n" + &separator + "\n" + &line + "\n" + &span + "\n";
-    } else {
-        let formatted = lines[start_line..end_line]
-            .iter()
-            .enumerate()
-            .map(|(i, l)| {
-                let readable_line_no = (start_line + i + 1).to_string();
-                let partial_padding = " ".repeat(padding - readable_line_no.len());
-                format!("{}{} | > {}", partial_padding, readable_line_no, l)
-            })
-            .collect::<Vec<String>>()
-            .join("\n");
-
-        return location + "\n" + &separator + "\n" + &formatted + "\n";
-    }
-}
-
-// TODO: error and trace are really similar...
-// Combine?
-
-impl<T> Display for PResult<'_, T> {
+impl Display for CompilerError<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            PResult::Ok(_) => panic!("Can't display a non-error result!"),
-
-            PResult::Error(l, m, s, a) => {
-                write!(f, "{}", display_section(s, *a));
-                write!(f, "Encountered a {}: {}", l, m.to_string())
+            CompilerError::Syntax(m, a) => {
+                Display::fmt(a, f);
+                writeln!(f, "Encountered a Static Error: {}", m)
             },
 
-            PResult::Trace(l, m, v) => {
-                write!(f, "Traceback, most recent call last\n");
+            CompilerError::Trace(l, m, v) => {
+                writeln!(f, "Traceback, most recent call last");
 
-                for (s, a) in v.iter() {
-                    write!(f, "{}", display_section(s, *a));
+                for a in v.iter() {
+                    Display::fmt(a, f);
                 }
 
-                write!(f, "Runtime {}: {}", l, m.to_string())
+                writeln!(f, "Runtime {}: {}", l, m)
             },
         }
     }
@@ -116,16 +32,16 @@ impl<T> Display for PResult<'_, T> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::pipeline::source::Source;
 
     #[test]
     fn error() {
         // This is just a demo to check formatting
         // might not coincide with an actual Passerine error
-        let error: PResult<'_, ()> = PResult::Error(
-            "SyntaxError".to_string(),
-            "Unexpected token '\"Hello, world!\"'".to_string(),
-            "x = \"Hello, world\" -> y + 1",
-            Ann::new(4, 14),
+        let source = Source::source("x = \"Hello, world\" -> y + 1");
+        let error = CompilerError::Syntax(
+            "Unexpected token '\"Hello, world!\"'",
+            Ann::new(&source, 4, 14),
         );
 
         let target = "Line 1:5
@@ -142,11 +58,11 @@ Encountered a SyntaxError: Unexpected token '\"Hello, world!\"'";
     fn traceback() {
         // TODO: this method of checking source code is ugly
 
-        let source = "incr = x -> x + 1
+        let source = Source::source("incr = x -> x + 1
 dub_incr = z -> (incr x) + (incr x)
 forever = a -> a = a + (dub_incr a)
 forever RandomLabel
-";
+");
         let target = "Traceback, most recent call last
 Line 1:13
   |
@@ -166,14 +82,14 @@ Line 4:1
   | ^^^^^^^^^^^^^^^^^^^
 Runtime TypeError: Can't add Label to Label";
 
-        let traceback: PResult<'_, ()> = PResult::Trace(
-            "TypeError".to_string(),
-            "Can't add Label to Label".to_string(),
+        let traceback = CompilerError::Trace(
+            "TypeError",
+            "Can't add Label to Label",
             vec![
-                (source, Ann::new(12, 5)),
-                (source, Ann::new(34, 8)),
-                (source, Ann::new(77, 12)),
-                (source, Ann::new(90, 19)),
+                (Ann::new(&source, 12, 5)),
+                (Ann::new(&source, 34, 8)),
+                (Ann::new(&source, 77, 12)),
+                (Ann::new(&source, 90, 19)),
             ]
         );
 

@@ -222,12 +222,13 @@ mod test {
         lex::lex,
         gen::gen,
     };
+    use crate::pipeline::source::Source;
 
     #[test]
     fn init_run() {
         // TODO: check @ each step, write more tests
         let chunk = gen(parse(lex(
-            "boop = 37.201; true; dhuiew = true; boop".to_string()
+            Source::source("boop = 37.201; true; dhuiew = true; boop")
         ).unwrap()).unwrap());
 
         let mut vm = VM::init();
@@ -241,7 +242,7 @@ mod test {
     #[test]
     fn block_expression() {
         let chunk = gen(parse(lex(
-            "boop = true; heck = { x = boop; x }; heck".to_string()
+            Source::source("boop = true; heck = { x = boop; x }; heck")
         ).unwrap()).unwrap());
 
         let mut vm = VM::init();
@@ -264,7 +265,7 @@ mod test {
     #[test]
     fn functions() {
         let chunk = gen(parse(lex(
-            "iden = x -> x; y = true; iden ((iden iden) (iden y))".to_string()
+            Source::source("iden = x -> x; y = true; iden ((iden iden) (iden y))")
         ).unwrap()).unwrap());
 
         let mut vm = VM::init();
@@ -280,7 +281,7 @@ mod test {
     #[test]
     fn fun_scope() {
         let chunk = gen(parse(lex(
-            "y = (x -> { z = x; z }) 7.0; y".to_string()
+            Source::source("y = (x -> { z = x; z }) 7.0; y")
         ).unwrap()).unwrap());
 
         let out_of_scope = Local::new("z".to_string());
