@@ -1,19 +1,16 @@
 use std::mem;
 
 use crate::utils::number::build_number;
+use crate::utils::runtime::Result;
 use crate::vm::local::Local;
 use crate::vm::data::{Data, Tagged};
 use crate::vm::stack::{Stack, Item};
 use crate::pipeline::bytecode::Opcode;
-use crate::compiler::gen::Chunk; // Move chunk to a better spot?
+use crate::compiler::gen::Chunk; // TODO: Move chunk to a better spot?
 
-// I'm not sure if a garbage collector is necessary
-// Rust makes sure there are no memory leaks
-// and all non-returned values are freed when they go out of scope as per design
-// also, I'm cloning everything all over the place
-// I need to either implement resiliant-whatever datastructures (like FP)
-// or get my act together and do pass by object reference or something
-
+/// A `VM` executes bytecode chunks.
+/// Each VM's state is self-contained,
+/// So more than one can be spawned if needed.
 #[derive(Debug)]
 pub struct VM {
     chunk: Chunk,
@@ -21,14 +18,14 @@ pub struct VM {
     ip:    usize,
 }
 
-type RunResult = Option<()>;
-
 // NOTE: use Opcode::same and Opcode.to_byte() rather than actual bytes
 // Don't worry, the compiler *should* get rid of this overhead and just use bytes
 
 // this impl contains initialization, helper functions, and the core interpreter loop
-// the below impl contains opcode implementations
+// the next impl contains opcode implementations
 impl VM {
+    /// Initialize a new VM.
+    /// To run the VM, a chunk must be passed to it through `run`.
     pub fn init() -> VM {
         VM {
             chunk: Chunk::empty(),
@@ -37,12 +34,15 @@ impl VM {
         }
     }
 
-    fn next(&mut self)                   { self.ip += 1; }
-    fn terminate(&mut self) -> RunResult { self.ip = self.chunk.code.len(); Some(()) }
-    fn done(&mut self)      -> RunResult { self.next(); Some(()) }
-    fn peek_byte(&mut self) -> u8        { self.chunk.code[self.ip] }
-    fn next_byte(&mut self) -> u8        { self.done(); self.peek_byte() }
 
+    fn next(&mut self)                    { self.ip += 1; }
+    fn terminate(&mut self) -> Result<()> { self.ip = self.chunk.code.len(); Result::Ok(()) }
+    fn done(&mut self)      -> Result<()> { self.next(); Result::Ok(()) }
+    fn peek_byte(&mut self) -> u8         { self.chunk.code[self.ip] }
+    fn next_byte(&mut self) -> u8         { self.done(); self.peek_byte() }
+
+    /// Builds the next number in the bytecode stream.
+    /// See `utils::number` for more.
     fn next_number(&mut self) -> usize {
         self.next();
         let remaining      = self.chunk.code[self.ip..].to_vec();
@@ -51,6 +51,9 @@ impl VM {
         return index;
     }
 
+    /// Finds a local on stack.
+    /// Note that in the future, locals should be pre-indexed when the AST is walked
+    /// so this function won't be necessary then.
     fn find_local(&mut self, local: &Local) -> Option<usize> {
         for (index, item) in self.stack.iter().enumerate().rev() {
             match item {
@@ -63,6 +66,7 @@ impl VM {
         return None;
     }
 
+    /// finds the index of the local on the stack indicated by the bytecode.
     fn local_index(&mut self) -> (Local, Option<usize>) {
         let local_index = self.next_number();
         let local       = self.chunk.locals[local_index].clone();
@@ -73,7 +77,10 @@ impl VM {
 
     // core interpreter loop
 
-    fn step(&mut self) -> RunResult {
+    /// Dissasembles and interprets a single (potentially fallible) bytecode op.
+    /// The op definitions follow in the proceeding impl block.
+    /// To see what each op does, check `pipeline::bytecode.rs`
+    fn step(&mut self) -> Result<()> {
         let op_code = Opcode::from_byte(self.peek_byte());
 
         // println!("op_code: {}", self.peek_byte());
@@ -87,7 +94,12 @@ impl VM {
         }
     }
 
-    fn run(&mut self, chunk: Chunk) -> RunResult {
+    /// Suspends the current chunk and runs a new one on the VM.
+    /// Runs until either success, in which it restores the state of the previous chunk,
+    /// Or failure, in which it returns the runtime error.
+    /// In the future, fibers will allow for error handling -
+    /// right now, error in Passerine are practically panics.
+    fn run(&mut self, chunk: Chunk) -> Result<()> {
         // cache current state, load new bytecode
         let old_chunk = mem::replace(&mut self.chunk, chunk);
         let old_ip    = mem::replace(&mut self.ip,    0);
@@ -103,7 +115,7 @@ impl VM {
         self.ip = old_ip;
 
         // nothing went wrong!
-        return Some(());
+        return Result::Ok(());
     }
 }
 
@@ -112,9 +124,11 @@ impl VM {
 // - searching the stack for variables
 //   A global Hash-table has significantly less overhead for function calls
 // - cloning the heck out of everything - useless copies
-// - replace some panics with runresults
+//   instead, lifetime analysis during compilation
+// - replace some panics with Result<()>s
 impl VM {
-    fn con(&mut self) -> RunResult {
+    /// Load a constant and push it onto the stack.
+    fn con(&mut self) -> Result<()> {
         // get the constant index
         let index = self.next_number();
 
@@ -122,8 +136,9 @@ impl VM {
         self.done()
     }
 
-    fn save(&mut self) -> RunResult {
-        let data = match self.stack.pop()? { Item::Data(d) => d.data(), _ => panic!("Expected data") };
+    /// Save the topmost value on the stack into a variable.
+    fn save(&mut self) -> Result<()> {
+        let data = match self.stack.pop() { Some(Item::Data(d)) => d.data(), _ => panic!("Expected data") };
         let (local, index) = self.local_index();
 
         // NOTE: Does it make a copy or does it make a reference?
@@ -146,7 +161,8 @@ impl VM {
         self.done()
     }
 
-    fn load(&mut self) -> RunResult {
+    /// Push a copy of a variable's value onto the stack.
+    fn load(&mut self) -> Result<()> {
         let (_, index) = self.local_index();
 
         match index {
@@ -162,28 +178,31 @@ impl VM {
         self.done()
     }
 
-    fn clear(&mut self) -> RunResult {
+    /// Clear all data off the stack.
+    fn clear(&mut self) -> Result<()> {
         loop {
-            match self.stack.pop()? {
-                Item::Data(_) => (),
-                l             => { self.stack.push(l); break; },
+            match self.stack.pop() {
+                Some(Item::Data(_)) => (),
+                Some(l)             => { self.stack.push(l); break; },
+                None                => panic!("There wasn't a frame on the stack.")
             }
         }
 
         self.done()
     }
 
-    fn call(&mut self) -> RunResult {
-        let arg = match self.stack.pop()? {
-            Item::Data(d) => d,
-            _             => unreachable!(),
-        };
-        let fun = match self.stack.pop()? {
-            Item::Data(d) => match d.data() {
+    /// Call a function on the top of the stack, passing the next value as an argument.
+    fn call(&mut self) -> Result<()> {
+        let fun = match self.stack.pop() {
+            Some(Item::Data(d)) => match d.data() {
                 Data::Lambda(l) => l,
                 _               => unreachable!(),
             }
             _ => unreachable!(),
+        };
+        let arg = match self.stack.pop() {
+            Some(Item::Data(d)) => d,
+            _                   => unreachable!(),
         };
 
         self.stack.push(Item::Frame);
@@ -195,10 +214,13 @@ impl VM {
         self.done()
     }
 
-    fn return_val(&mut self) -> RunResult {
-        let val = match self.stack.pop()? {
-            Item::Data(d) => d,
-            _             => unreachable!(),
+    /// Return a value from a function.
+    /// End the execution of the current chunk.
+    /// Relpaces the last frame with the value on the top of the stack.
+    fn return_val(&mut self) -> Result<()> {
+        let val = match self.stack.pop() {
+            Some(Item::Data(d)) => d,
+            _                   => unreachable!(),
         };
 
         loop {
@@ -234,8 +256,9 @@ mod test {
         let mut vm = VM::init();
 
         match vm.run(chunk) {
-            Some(_) => (),
-            None    => panic!("VM threw error"),
+            Result::Ok(_)      => (),
+            Result::Trace(..)  => panic!("VM threw error."),
+            Result::Syntax(..) => unreachable!(),
         }
     }
 
@@ -248,8 +271,9 @@ mod test {
         let mut vm = VM::init();
 
         match vm.run(chunk) {
-            Some(_) => (),
-            None    => panic!("VM threw error"),
+            Result::Ok(_)      => (),
+            Result::Trace(..)  => panic!("VM threw error"),
+            Result::Syntax(..) => unreachable!(),
         }
 
         if let Some(Item::Data(t)) = vm.stack.pop() {

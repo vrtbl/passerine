@@ -1,79 +1,90 @@
-use crate::utils::annotation::Ann;
+use crate::utils::span::{Spanned};
 use crate::vm::data::Data;
 use crate::vm::local::Local;
 
-// TODO: it might make sense to have the AST enum extend the Construct one
-// NOTE: above TODO is in progress
+// NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)
+// Store class of item in AST, then delegate exact type to external enum?
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Node<'a> {
+/// Represents an item in an AST.
+/// Each language-level construct has it's own AST.
+/// note that this has two lifetimes:
+/// `'s` represents the lifetime of the span,
+/// `'i` represents the lifetime of the AST.
+/// Spans live through the whole program just about,
+/// Whereas the AST is discarded during the bytecode generation phase.
+/// Man, explicit lifetime renaming is annoying,
+/// and comes across as a code-smell.
+/// If you're reading this and think you know a better way.
+/// please, at the least, open an issue describing your more optimal methodology.
+#[derive(Debug, Clone)]
+pub enum AST<'s, 'i> {
     Data(Data),
     Symbol(Local),
-    Block(Vec<AST<'a>>),
+    Block(Vec<Spanned<'s, AST<'s, 'i>>>),
     Assign {
-        pattern:    Box<AST<'a>>, // Note - should be pattern
-        expression: Box<AST<'a>>,
+        pattern:    Box<Spanned<'s, AST<'s, 'i>>>, // Note - should be pattern
+        expression: Box<Spanned<'s, AST<'s, 'i>>>,
     },
     Lambda {
-        pattern:    Box<AST<'a>>,
-        expression: Box<AST<'a>>,
+        pattern:    Box<Spanned<'s, AST<'s, 'i>>>,
+        expression: Box<Spanned<'s, AST<'s, 'i>>>,
     },
     Call {
-        fun: Box<AST<'a>>,
-        arg: Box<AST<'a>>,
+        fun: Box<Spanned<'s, AST<'s, 'i>>>,
+        arg: Box<Spanned<'s, AST<'s, 'i>>>,
     }
     // TODO: support following constructs as they are implemented
     // Lambda {
-    //     pattern:    Box<Node>, // Note - should be pattern
-    //     expression: Box<Node>,
+    //     pattern:    Box<AST>, // Note - should be pattern
+    //     expression: Box<AST>,
     // },
     // Macro {
-    //     pattern:    Box<Node>,
-    //     expression: Box<Node>,
+    //     pattern:    Box<AST>,
+    //     expression: Box<AST>,
     // }
-    // Form(Vec<Node>) // function call -> (fun a1 a2 .. an)
+    // Form(Vec<AST>) // function call -> (fun a1 a2 .. an)
 }
 
 // TODO: Do annotations and nodes need separate lifetimes?
 // anns live past the generator, nodes shouldn't
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct AST<'a> {
-    pub node: Node<'a>,
-    pub ann:  Ann<'a>,
-}
+// Additionally, convert to Spanned<AST>?
 
-impl<'a> Node<'a> {
+// TODO: These are semi-reduntant
+impl<'s, 'i> AST<'s, 'i> {
     // Leafs; terminals
-    pub fn data(data: Data)      -> Node<'a> { Node::Data(data)     }
-    pub fn symbol(symbol: Local) -> Node<'a> { Node::Symbol(symbol) }
+    pub fn data(data: Data)      -> AST<'s, 'i> { AST::Data(data)     }
+    pub fn symbol(symbol: Local) -> AST<'s, 'i> { AST::Symbol(symbol) }
 
     // Recursive
-    pub fn block(exprs: Vec<AST>) -> Node { Node::Block(exprs) }
+    pub fn block(exprs: Vec<Spanned<'s, AST<'s, 'i>>>) -> AST<'s, 'i> { AST::Block(exprs) }
 
-    pub fn assign(pattern: AST<'a>, expression: AST<'a>) -> Node<'a> {
-        Node::Assign {
+    pub fn assign(
+        pattern:    Spanned<'s, AST<'s, 'i>>,
+        expression: Spanned<'s, AST<'s, 'i>>
+    ) -> AST<'s, 'i> {
+        AST::Assign {
             pattern:    Box::new(pattern),
             expression: Box::new(expression)
         }
     }
 
-    pub fn lambda(pattern: AST<'a>, expression: AST<'a>) -> Node<'a> {
-        Node::Lambda {
+    pub fn lambda(
+        pattern:    Spanned<'s, AST<'s, 'i>>,
+        expression: Spanned<'s, AST<'s, 'i>>
+    ) -> AST<'s, 'i> {
+        AST::Lambda {
             pattern:    Box::new(pattern),
             expression: Box::new(expression)
         }
     }
 
-    pub fn call(fun: AST<'a>, arg: AST<'a>) -> Node<'a> {
-        Node::Call {
+    pub fn call(
+        fun: Spanned<'s, AST<'s, 'i>>,
+        arg: Spanned<'s, AST<'s, 'i>>
+    ) -> AST<'s, 'i> {
+        AST::Call {
             fun: Box::new(fun),
             arg: Box::new(arg)
         }
-    }
-}
-
-impl<'a> AST<'a> {
-    pub fn new(node: Node<'a>, ann: Ann<'a>) -> AST<'a> {
-        AST { node, ann }
     }
 }

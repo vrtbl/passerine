@@ -1,7 +1,7 @@
-use crate::utils::error::CompilerError;
-use crate::utils::annotation::Ann;
-use crate::pipeline::token::{Token, AnnToken};
-use crate::pipeline::ast::{AST, Node};
+use crate::utils::runtime::Result;
+use crate::utils::span::{Span, Spanned};
+use crate::pipeline::token::Token;
+use crate::pipeline::ast::AST;
 use crate::vm::data::Data;
 use crate::vm::local::Local;
 
@@ -9,35 +9,35 @@ use crate::vm::local::Local;
 // TODO: the 'vacuum' seems kind of cheap.
 
 // some sort of recursive descent parser, I guess
-type Tokens<'a>      = &'a [AnnToken<'a>];
-type Branch<'a>      = Result<(AST<'a>, Tokens<'a>), (String, Ann<'a>)>;
-type ParseResult<'a> = Result<AST<'a>, CompilerError<'a>>;
-type Rule            = Box<dyn Fn(Tokens) -> Branch>;
+type Tokens<'a> = &'a [Spanned<'a, Token>];
+type Rule       = Box<dyn Fn(Tokens) -> Result<(Spanned<AST>, Tokens)>>;
 
-pub fn parse<'a>(tokens: Vec<AnnToken<'a>>) -> ParseResult<'a> {
+pub fn parse<'a>(tokens: Vec<Spanned<'a, Token>>) -> Result<'a, Spanned<AST>> {
     // parse the file
     // slices are easier to work with
     match block(&tokens[..]) {
         // vaccum all extra seperators
-        Ok((node, parsed)) => if vaccum(parsed, Token::Sep).is_empty()
-            { Ok(node) } else { unreachable!() },
+        Result::Ok((node, parsed)) => if vaccum(parsed, Token::Sep).is_empty()
+            { Result::Ok(node) } else { unreachable!() },
         // if there are still tokens left, something's gone wrong.
-        // TODO: print the error with utils
-        Err((m, a)) => Err(
-            CompilerError::Syntax(&m, a),
-        ),
+        // TODO: handle error
+        _ => unreachable!(),
     }
 }
 
 // cookie-monster's helper functions
 
-// each function is responsible for vaccuming its input
+/// Consumes all next tokens that match.
+/// For example, `[Sep, Sep, Sep, Number(...), Sep]`
+/// when passed to `vaccum(..., Sep)`
+/// would become `[Number(...), Sep]`.
+/// Each parser rule is responsible for vaccuming its input.
 fn vaccum(tokens: Tokens, token: Token) -> Tokens {
     // vaccums all leading tokens that match token
     let mut remaining = tokens;
 
     while !remaining.is_empty() {
-        let t = &remaining[0].kind;
+        let t = &remaining[0].item;
         if t != &token { break; }
         remaining = &remaining[1..];
     }
@@ -45,40 +45,52 @@ fn vaccum(tokens: Tokens, token: Token) -> Tokens {
     return remaining;
 }
 
-fn consume(tokens: Tokens, token: Token) -> Result<Tokens, (String, Ann)> {
-    let t = match tokens.iter().next() { Some(t) => t, None => return Err(("Unexpected EOF".to_string(), Ann::empty())) };
-    if t.kind != token { return Err((format!("Expected {:?}, found {:?}", token, t.kind), t.ann)); }
-    return Ok(&tokens[1..]);
+/// Expects an exact token to be next in a stream.
+/// For example, `consume(stream, Bracket)` expects the next item in stream to be a `Bracket`.
+fn consume(tokens: Tokens, token: Token) -> Result<Tokens> {
+    let t = match tokens.iter().next() {
+        Some(t) => t,
+        None => return Result::syntax("Unexpected EOF while parsing", Span::empty()),
+    };
+
+    if t.item != token {
+        return Result::syntax(&format!("Expected {:?}, found {:?}", token, t.item), t.span);
+    }
+
+    return Result::Ok(&tokens[1..]);
 }
 
-fn first(tokens: Tokens, rules: Vec<Rule>) -> Branch {
+/// Given a list of parsing rules and a token stream,
+/// This function returns the first rule result that successfully parses the token stream.
+/// Think of 'or' for parser-combinators.
+fn first<'e, 's, 'i>(tokens: Tokens, rules: Vec<Rule>) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
     for rule in rules {
-        if let Ok((ast, r)) = rule(tokens) {
-            return Ok((ast, r))
+        if let Result::Ok((ast, r)) = rule(tokens) {
+            return Result::Ok((ast, r))
         }
     }
 
     match tokens.iter().next() {
-        Some(t) => Err(("Unexpected construct".to_string(), t.ann)),
-        None    => Err(("Unexpected EOF while parsing".to_string(), Ann::empty())),
+        Some(t) => Result::syntax("Unexpected construct", t.span),
+        None    => Result::syntax("Unexpected EOF while parsing", Span::empty()),
     }
 }
 
-// fn parse_op(tokens: Tokens, left: Rule, op: Token, right:Rule) -> Branch {
+// fn parse_op(tokens: Tokens, left: Rule, op: Token, right:Rule) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
 //     unimplemented!()
 // }
 
-// Tokens -> Branch
-
-fn block(tokens: Tokens) -> Branch {
+/// Matches a literal block, i.e. a list of expressions seperated by separators.
+/// Note that block expressions `{ e 1, ..., e n }` are blocks surrounded by `{}`.
+fn block(tokens: Tokens) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
     let mut expressions = vec![];
     let mut annotations = vec![];
     let mut remaining   = vaccum(tokens, Token::Sep);
 
     while !remaining.is_empty() {
         match call(remaining) {
-            Ok((e, r)) => {
-                annotations.push(e.ann);
+            Result::Ok((e, r)) => {
+                annotations.push(e.span);
                 expressions.push(e);
                 remaining = r;
             },
@@ -87,7 +99,7 @@ fn block(tokens: Tokens) -> Branch {
 
         // TODO: implement one-or-more, rename vaccum (which is really just a special case of zero or more)
         // expect at least one separator between statements
-        // remaining = match consume(tokens, Token::Sep) { Ok(r) => r, Err(_) => break };
+        // remaining = match consume(tokens, Token::Sep) { Result::Ok(r) => r, Err(_) => break };
         remaining = vaccum(remaining, Token::Sep);
         // println!("{:?}", remaining);
     }
@@ -96,18 +108,20 @@ fn block(tokens: Tokens) -> Branch {
     // what does it make sense for an empty block to return?
     // empty blocks don't make any sense - use unit
     if annotations.is_empty() {
-        return Err(("Block can't be empty, use Unit '()' instead".to_string(), Ann::empty()))
+        return Err(("Block can't be empty, use Unit '()' instead".to_string(), Span::empty()))
     }
 
-    let ast = AST::new(
-        Node::block(expressions),
-        Ann::span(annotations), // a parent node spans all it's children's nodes
+    let ast = AST::block((expressions),
+        Span::join(annotations), // a parent node spans all it's children's nodes
     );
 
-    return Ok((ast, remaining));
+    return Result::Ok((ast, remaining));
 }
 
-fn call(tokens: Tokens) -> Branch {
+/// Matches a function call, i.e. `f x y z`.
+/// Function calls are left binding,
+/// so the above is parsed as `((f x) y) z`.
+fn call<'e, 's, 'i>(tokens: Tokens) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
     // try to eat an new expression
     // if it's successfull, nest like so:
     // previous = Call(previous, new)
@@ -118,19 +132,20 @@ fn call(tokens: Tokens) -> Branch {
 
     while !remaining.is_empty() {
         match expr(remaining) {
-            Ok((arg, r)) => {
+            Result::Ok((arg, r)) => {
                 remaining = r;
-                let ann = Ann::combine(&previous.ann, &arg.ann);
-                previous = AST::new(Node::call(previous, arg), ann);
+                let span = Span::combine(&previous.span, &arg.span);
+                previous = Spanned::over(AST::call(previous, arg), span);
             },
-            Err(_) => break,
+            _ => break,
         }
     }
 
-    return Ok((previous, remaining));
+    return Result::Ok((previous, remaining));
 }
 
-fn expr(tokens: Tokens) -> Branch {
+/// Matches an expression, or more tightly binding expressions.
+fn expr(tokens: Tokens) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
     let rules: Vec<Rule> = vec![
         Box::new(|s| expr_block(s)),
         Box::new(|s| expr_call(s)),
@@ -141,27 +156,29 @@ fn expr(tokens: Tokens) -> Branch {
     return first(tokens, rules);
 }
 
-fn expr_block(tokens: Tokens) -> Branch {
+/// Matches a literal block, `{ expression 1; ...; expression n }`.
+fn expr_block(tokens: Tokens) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
     let start      = consume(tokens, Token::OpenBracket)?;
     let (ast, end) = block(start)?;
     let remaining  = consume(end, Token::CloseBracket)?;
 
-    return Ok((ast, remaining));
+    return Result::Ok((ast, remaining));
 }
 
-fn expr_call(tokens: Tokens) -> Branch {
+fn expr_call(tokens: Tokens) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
     let start      = consume(tokens, Token::OpenParen)?;
     let (ast, end) = call(start)?;
     let remaining  = consume(end, Token::CloseParen)?;
 
-    return Ok((ast, remaining));
+    return Result::Ok((ast, remaining));
 }
 
-fn op(tokens: Tokens) -> Branch {
+fn op(tokens: Tokens) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
     assign(tokens)
 }
 
-fn assign(tokens: Tokens) -> Branch {
+/// Matches an assignment or more tightly binding expressions.
+fn assign(tokens: Tokens) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
     let rules: Vec<Rule> = vec![
         Box::new(|s| assign_assign(s)),
         Box::new(|s| lambda(s)),
@@ -172,41 +189,44 @@ fn assign(tokens: Tokens) -> Branch {
 
 // TODO: implement parse_op and rewrite lambda / assign
 
-fn assign_assign(tokens: Tokens) -> Branch {
+/// Matches an actual assignment, `pattern = expression`.
+fn assign_assign(tokens: Tokens) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
     // TODO: pattern matching support!
     // get symbol being assigned too
     let (next, mut remaining) = literal(tokens)?;
     let s = match next {
         // Destructure restucture
         AST { node: Node::Symbol(l), ann} => AST::new(Node::Symbol(l), ann),
-        other => return Err(("Expected symbol for assignment".to_string(), other.ann)),
+        other => return Err(("Expected symbol for assignment".to_string(), other.span)),
     };
 
     // eat the = sign
     remaining = consume(remaining, Token::Assign)?;
     let (e, remaining) = call(remaining)?;
-    let combined       = Ann::combine(&s.ann, &e.ann);
-    Ok((AST::new(Node::assign(s, e), combined), remaining))
+    let combined       = Span::combine(&s.span, &e.span);
+    Result::Ok((AST::new(Node::assign(s, e), combined), remaining))
 }
 
-fn lambda(tokens: Tokens) -> Branch {
+/// Matches a function, `pattern -> expression`.
+fn lambda(tokens: Tokens) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
     // get symbol acting as arg to function
     let (next, mut remaining) = literal(tokens)?;
     let s = match next {
         AST { node: Node::Symbol(l), ann} => AST::new(Node::Symbol(l), ann),
-        other => return Err(("Expected symbol for function paramater".to_string(), other.ann)),
+        other => return Err(("Expected symbol for function paramater".to_string(), other.span)),
     };
 
     // eat the '->'
     remaining = consume(remaining, Token::Lambda)?;
     let (e, remaining) = call(remaining)?;
-    let combined       = Ann::combine(&s.ann, &e.ann);
-    Ok((AST::new(Node::lambda(s, e), combined), remaining))
+    let combined       = Span::combine(&s.span, &e.span);
+    Result::Ok((AST::new(Node::lambda(s, e), combined), remaining))
 }
 
-fn literal(tokens: Tokens) -> Branch {
-    if let Some(AnnToken { kind, ann }) = tokens.iter().next() {
-        Ok((AST::new(
+/// Matches some literal data, such as a String or a Number.
+fn literal(tokens: Tokens) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
+    if let Some(SpanToken { kind, ann }) = tokens.iter().next() {
+        Result::Ok((AST::new(
             match kind {
                 Token::Symbol(l)  => Node::Symbol(l.clone()),
                 Token::Number(n)  => Node::Data(n.clone()),
@@ -217,7 +237,7 @@ fn literal(tokens: Tokens) -> Branch {
             *ann
         ), &tokens[1..]))
     } else {
-        Err(("Unexpected EOF while parsing".to_string(), Ann::empty()))
+        Err(("Unexpected EOF while parsing".to_string(), Span::empty()))
     }
 }
 
@@ -239,30 +259,32 @@ mod test {
             Node::block(vec![
                 AST::new(
                     Node::assign(
-                        AST::new(Node::symbol(Local::new("heck".to_string())), Ann::new(&source, 0, 4)),
-                        AST::new(Node::data(Data::Boolean(false)), Ann::new(&source, 7, 5)),
+                        AST::new(Node::symbol(Local::new("heck".to_string())), Span::new(&source, 0, 4)),
+                        AST::new(Node::data(Data::Boolean(false)), Span::new(&source, 7, 5)),
                     ),
-                    Ann::new(&source, 0, 12),
+                    Span::new(&source, 0, 12),
                 ),
                 AST::new(
                     Node::assign(
-                        AST::new(Node::Symbol(Local::new("naw".to_string())), Ann::new(&source, 14, 3)),
-                        AST::new(Node::Symbol(Local::new("heck".to_string())), Ann::new(&source, 20, 4)),
+                        AST::new(Node::Symbol(Local::new("naw".to_string())), Span::new(&source, 14, 3)),
+                        AST::new(Node::Symbol(Local::new("heck".to_string())), Span::new(&source, 20, 4)),
                     ),
-                    Ann::new(&source, 14, 10),
+                    Span::new(&source, 14, 10),
                 ),
             ]),
-            Ann::new(&source, 0, 24),
+            Span::new(&source, 0, 24),
         );
 
-        assert_eq!(parse(lex(source).unwrap()), Ok(result));
+        assert_eq!(parse(lex(source).unwrap()), Result::Ok(result));
     }
 
     #[test]
     fn failure() {
         let source = Source::source("\n hello9 = {; ");
 
-        assert_eq!(parse(lex(source).unwrap()), None);
+        // assert_eq!(parse(lex(source).unwrap()), Err(CompilerError()));
+        // TODO: determing exactly which error is thrown
+        panic!();
     }
 
     #[test]
@@ -271,44 +293,44 @@ mod test {
         // maybe just have one test file and a huge hand-verified ast
         let source = Source::source("x = true\n{\n\ty = {x; true; false}\n\tz = false\n}");
         let parsed = parse(lex(source).unwrap());
-        let result = Some(
+        let result = Result::Ok(
             AST::new(
                 Node::block(vec![
                     AST::new(
                         Node::assign(
-                            AST::new(Node::symbol(Local::new("x".to_string())), Ann::new(&source, 0, 1)),
-                            AST::new(Node::data(Data::Boolean(true)),           Ann::new(&source, 4, 4)),
+                            AST::new(Node::symbol(Local::new("x".to_string())), Span::new(&source, 0, 1)),
+                            AST::new(Node::data(Data::Boolean(true)),           Span::new(&source, 4, 4)),
                         ),
-                        Ann::new(&source, 0, 8)
+                        Span::new(&source, 0, 8)
                     ),
                     AST::new(Node::block(
                         vec![
                             AST::new(
                                 Node::assign(
-                                    AST::new(Node::symbol(Local::new("y".to_string())), Ann::new(&source, 12, 1)),
+                                    AST::new(Node::symbol(Local::new("y".to_string())), Span::new(&source, 12, 1)),
                                     AST::new(
                                         Node::block(vec![
-                                            AST::new(Node::symbol(Local::new("x".to_string())), Ann::new(&source, 17, 1)),
-                                            AST::new(Node::data(Data::Boolean(true)),           Ann::new(&source, 20, 4)),
-                                            AST::new(Node::data(Data::Boolean(false)),          Ann::new(&source, 26, 5)),
+                                            AST::new(Node::symbol(Local::new("x".to_string())), Span::new(&source, 17, 1)),
+                                            AST::new(Node::data(Data::Boolean(true)),           Span::new(&source, 20, 4)),
+                                            AST::new(Node::data(Data::Boolean(false)),          Span::new(&source, 26, 5)),
                                         ]),
-                                        Ann::new(&source, 17, 14),
+                                        Span::new(&source, 17, 14),
                                     )
                                 ),
-                                Ann::new(&source, 12, 19),
+                                Span::new(&source, 12, 19),
                             ),
                             AST::new(
                                 Node::assign(
-                                    AST::new(Node::symbol(Local::new("z".to_string())),Ann::new(&source, 34, 1)),
-                                    AST::new(Node::data(Data::Boolean(false)), Ann::new(&source, 38, 5)),
+                                    AST::new(Node::symbol(Local::new("z".to_string())),Span::new(&source, 34, 1)),
+                                    AST::new(Node::data(Data::Boolean(false)), Span::new(&source, 38, 5)),
                                 ),
-                                Ann::new(&source, 34, 9),
+                                Span::new(&source, 34, 9),
                             ),
                         ]),
-                        Ann::new(&source, 12, 31),
+                        Span::new(&source, 12, 31),
                     ),
                 ]),
-                Ann::new(&source, 0, 43),
+                Span::new(&source, 0, 43),
             ),
         );
         assert_eq!(parsed, result);
@@ -318,24 +340,24 @@ mod test {
     fn number() {
         let source = Source::source("number = { true; 0.0 }");
         let parsed = parse(lex(source).unwrap());
-        let result = Some(
+        let result = Result::Ok(
             AST::new(
                 Node::block(vec![
                     AST::new(
                         Node::assign(
-                            AST::new(Node::symbol(Local::new("number".to_string())), Ann::new(&source, 0, 6)),
+                            AST::new(Node::symbol(Local::new("number".to_string())), Span::new(&source, 0, 6)),
                             AST::new(
                                 Node::block(vec![
-                                    AST::new(Node::data(Data::Boolean(true)), Ann::new(&source, 11, 4)),
-                                    AST::new(Node::data(Data::Real(0.0)), Ann::new(&source, 17, 3)),
+                                    AST::new(Node::data(Data::Boolean(true)), Span::new(&source, 11, 4)),
+                                    AST::new(Node::data(Data::Real(0.0)), Span::new(&source, 17, 3)),
                                 ]),
-                                Ann::new(&source, 11, 9),
+                                Span::new(&source, 11, 9),
                             ),
                         ),
-                        Ann::new(&source, 0, 20),
+                        Span::new(&source, 0, 20),
                     )
                 ]),
-                Ann::new(&source, 0, 20),
+                Span::new(&source, 0, 20),
             ),
         );
 
@@ -346,40 +368,40 @@ mod test {
     fn functions() {
         let source = Source::source("applyzero = fun -> arg -> fun arg 0.0");
         let parsed = parse(lex(source).unwrap());
-        let result = Some(
+        let result = Result::Ok(
             AST::new(
                 Node::block(vec![
                     AST::new(
                         Node::assign(
-                            AST::new(Node::symbol(Local::new("applyzero".to_string())), Ann::new(&source, 0, 9)),
+                            AST::new(Node::symbol(Local::new("applyzero".to_string())), Span::new(&source, 0, 9)),
                             AST::new(
                                 Node::lambda(
-                                    AST::new(Node::symbol(Local::new("fun".to_string())), Ann::new(&source, 12, 3)),
+                                    AST::new(Node::symbol(Local::new("fun".to_string())), Span::new(&source, 12, 3)),
                                     AST::new(Node::lambda(
-                                        AST::new(Node::symbol(Local::new("arg".to_string())),  Ann::new(&source, 19, 3)),
+                                        AST::new(Node::symbol(Local::new("arg".to_string())),  Span::new(&source, 19, 3)),
                                         AST::new(
                                             Node::call(
                                                 AST::new(
                                                     Node::call(
-                                                        AST::new(Node::symbol(Local::new("fun".to_string())), Ann::new(&source, 26, 3)),
-                                                        AST::new(Node::symbol(Local::new("arg".to_string())), Ann::new(&source, 30, 3)),
+                                                        AST::new(Node::symbol(Local::new("fun".to_string())), Span::new(&source, 26, 3)),
+                                                        AST::new(Node::symbol(Local::new("arg".to_string())), Span::new(&source, 30, 3)),
                                                     ),
-                                                    Ann::new(&source, 26, 7),
+                                                    Span::new(&source, 26, 7),
                                                 ),
-                                                AST::new(Node::data(Data::Real(0.0)), Ann::new(&source, 34, 3)),
+                                                AST::new(Node::data(Data::Real(0.0)), Span::new(&source, 34, 3)),
                                             ),
-                                            Ann::new(&source, 26, 11)
+                                            Span::new(&source, 26, 11)
                                         )
                                     ),
-                                    Ann::new(&source, 19, 18),
+                                    Span::new(&source, 19, 18),
                                 ),
                             ),
-                            Ann::new(&source, 12, 25),
+                            Span::new(&source, 12, 25),
                         ),
                     ),
-                    Ann::new(&source, 0, 37),
+                    Span::new(&source, 0, 37),
                 )]),
-                Ann::new(&source, 0, 37),
+                Span::new(&source, 0, 37),
             ),
         );
 
@@ -391,24 +413,24 @@ mod test {
         let source = Source::source("bink (bonk 0.0)");
         let parsed = parse(lex(source).unwrap());
 
-        let result = Some(
+        let result = Result::Ok(
             AST::new(
                 Node::block(vec![
                     AST::new(
                         Node::call (
-                            AST::new(Node::symbol(Local::new("bink".to_string())), Ann::new(&source, 0, 4)),
+                            AST::new(Node::symbol(Local::new("bink".to_string())), Span::new(&source, 0, 4)),
                             AST::new(
                                 Node::call(
-                                    AST::new(Node::symbol(Local::new("bonk".to_string())), Ann::new(&source, 6, 4)),
-                                    AST::new(Node::data(Data::Real(0.0)), Ann::new(&source, 11, 3)),
+                                    AST::new(Node::symbol(Local::new("bonk".to_string())), Span::new(&source, 6, 4)),
+                                    AST::new(Node::data(Data::Real(0.0)), Span::new(&source, 11, 3)),
                                 ),
-                                Ann::new(&source, 6, 8),
+                                Span::new(&source, 6, 8),
                             ),
                         ),
-                        Ann::new(&source, 0, 14)
+                        Span::new(&source, 0, 14)
                     ),
                 ]),
-                Ann::new(&source, 0, 14),
+                Span::new(&source, 0, 14),
             ),
         );
         assert_eq!(parsed, result);

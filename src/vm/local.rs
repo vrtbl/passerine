@@ -1,3 +1,5 @@
+/// A local is a variable that can hold a value.
+/// Locals are stored on the stack, after each frame, and before temporary data.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Local {
     name:  String, // TODO: better type

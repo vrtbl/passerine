@@ -28,22 +28,27 @@ pub enum Data {
 
 impl Eq for Data {}
 
-// No Nan-tagging for now...
-// HAHA: it's nan-tagging time
-// NOTE: implementation modeled after:
-// https://github.com/rpjohnst/dejavu/blob/master/gml/src/vm/value.rs
-// and the Optimization chapter from Crafting Interpreters
-// Thank you!
+/// Tagged implements Nan-tagging around the `Data` enum.
+/// In essence, it's possible to exploit the representation of f64 NaNs
+/// to store pointers to other datatypes.
+/// When layed out, this is what the bit-level representation of a
+/// double-precision floating-point number looks like.
+/// Below is the bit-level layout of a tagged NaN.
+/// ```
+/// SExponent---QIMantissa------------------------------------------
+/// PNaN--------11D-Payload---------------------------------------TT
+/// ```
+/// Where `S` is sign, `Q` is quiet flag, `I` is Intel’s “QNan Floating-Point Indefinite”,
+/// `P` is pointer flag, `D` is Data Tag (should always be 1), `T` is Tag.
+/// We have 2 tag bits, 4 values: 00 is unit '()', 10 is false, 11 is true,
+/// but this might change if I figure out what to do with them
+/// NOTE: maybe add tag bit for 'unit'
+/// NOTE: implementation modeled after:
+/// https://github.com/rpjohnst/dejavu/blob/master/gml/src/vm/value.rs
+/// and the Optimization chapter from Crafting Interpreters
+/// Thank you!
 pub struct Tagged(u64);
 
-// Double-precision floating-point format & tagged equiv.
-// SExponent---QIMantissa------------------------------------------
-// PNaN--------11D-Payload---------------------------------------TT
-// S is sign, Q is quiet flag, I is Intel’s “QNan Floating-Point Indefinite”,
-// P is pointer flag, D is Data Tag (should always be 1), T is Tag.
-// We have 2 tag bits, 4 values: 00 is unit '()', 10 is false, 11 is true,
-// but this might change if I figure out what to do with them
-// NOTE: maybe add tag bit for 'unit'
 const QNAN:   u64 = 0x7ffe_0000_0000_0000;
 const P_FLAG: u64 = 0x8000_0000_0000_0000;
 const P_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
@@ -52,6 +57,7 @@ const F_FLAG: u64 = 0x0000_0000_0000_0010;
 const T_FLAG: u64 = 0x0000_0000_0000_0011;
 
 impl Tagged {
+    /// Wraps `Data` to create a new tagged pointer.
     pub fn from(data: Data) -> Tagged {
         match data {
             // Real
@@ -70,6 +76,7 @@ impl Tagged {
 
     // TODO: use deref trait
     // Can't for not because of E0515 caused by &Data result
+    /// Unwrapps a tagged number into the appropriate datatype.
     pub fn data(self) -> Data {
         // This function drops the data upon unpack, resulting in a double-free
         let Tagged(bits) = self;
@@ -95,6 +102,7 @@ impl Tagged {
     }
 }
 
+// TODO: verify this works as intended
 impl Drop for Tagged {
     fn drop(&mut self) {
         println!("Dropping!");
@@ -124,6 +132,7 @@ impl Debug for Tagged {
 }
 
 impl From<Tagged> for u64 {
+    /// Unwraps a tagged pointer into the literal representation for debugging.
     fn from(tagged: Tagged) -> Self { tagged.0 }
 }
 

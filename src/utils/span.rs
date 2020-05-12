@@ -2,46 +2,47 @@ use std::fmt::{Formatter, Display, Result};
 use std::usize;
 use crate::pipeline::source::Source;
 
-// an annotation refers to a section of a source,
-// much like &str, but a bit different at the same time
-// but independant from the source itself
-// they're meant to be paired with datastructures,
-// and then be used during error reporting
-
-// TODO: remove unnesary clones
-
+/// A `Span` refers to a section of a source,
+/// much like a `&str`, but with a reference to a `Source` rather than a `String`.
+/// A `Span` is  meant to be paired with other datastructures,
+/// to be used during error reporting.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct Ann<'a> {
+pub struct Span<'a> {
     pub source: &'a Source,
     pub offset: usize,
     pub length: usize,
 }
 
-impl<'a> Ann<'a> {
-    pub fn new(source: &'a Source, offset: usize, length: usize) -> Ann<'a> {
-        return Ann { source, offset, length };
+impl<'a> Span<'a> {
+    /// Create a new `Span` from an offset with a length.
+    /// All `Span`s have access to the `Source` from whence they came,
+    /// So they can't be misinterpreted or miscombined.
+    pub fn new(source: &'a Source, offset: usize, length: usize) -> Span<'a> {
+        return Span { source, offset, length };
     }
 
-    pub fn empty() -> Ann<'a> {
-        // this should trigger an error
-        Ann { source: &Source::source(""), offset: 0, length: usize::MAX }
+    /// Create a new empty `Span`.
+    /// An empty `Span` has only a source,
+    /// if combined with another `Span`, the resulting `Span` will just be the other.
+    pub fn empty() -> Span<'a> {
+        Span { source: &Source::source(""), offset: 0, length: usize::MAX }
     }
 
+    /// Checks if a `Span` is empty.
     pub fn is_empty(self) -> bool {
-        self == Ann::empty()
+        self == Span::empty()
     }
 
-    pub fn combine(a: &'a Ann, b: &'a Ann) -> Ann<'a> {
-        // creates a new annotation which spans the space of the previous two
-        // example:
-        // hello this is cool
-        // ^^^^^              | Ann a
-        //            ^^      | Ann b
-        // ^^^^^^^^^^^^^      | combined
-        // ignore empty annotations
-
+    /// Creates a new `Span` which spans the space of the previous two.
+    /// ```
+    /// hello this is cool
+    /// ^^^^^              | Span a
+    ///            ^^      | Span b
+    /// ^^^^^^^^^^^^^      | combined
+    /// ```
+    pub fn combine(a: &'a Span, b: &'a Span) -> Span<'a> {
         if a.source != b.source {
-            panic!("Can't combine two annotations with separate sources")
+            panic!("Can't combine two Spanotations with separate sources")
         }
 
         if a.is_empty() { return *b; }
@@ -51,29 +52,31 @@ impl<'a> Ann<'a> {
         let end    = (a.offset + a.length).max(b.offset + b.length);
         let length = end - offset;
 
-        return Ann::new(a.source, offset, length);
+        return Span::new(a.source, offset, length);
     }
 
-    pub fn span(annotations: Vec<Ann>) -> Ann {
-        if annotations.is_empty() { return Ann::empty() }
+    /// Combines a set of `Span`s (think fold-left over `Span::combine`).
+    pub fn join(spans: Vec<Span>) -> Span {
+        if spans.is_empty() { return Span::empty() }
+        let mut combined = spans[0];
 
-        // gee, reduce or an accumulator would be really useful here
-        let mut combined = annotations[0];
-
-        // Note: does [1..] throw error with length 1 array,
-        // Or does it produce a [] array as I expect?
-        for annotation in &annotations[1..] {
-            combined = Ann::combine(&combined, annotation);
+        for span in &spans[1..] {
+            combined = Span::combine(&combined, span);
         }
 
         return combined;
     }
 
+    /// Returns the contents of a `Span`.
+    /// This indexes into the source file,
+    /// so if the `Span` is along an invalid byte boundary or
+    /// is empty, the program will panic.
     pub fn contents(&self) -> String {
-        if self.is_empty() { panic!("An empty annotation does not have any contents") }
+        if self.is_empty() { panic!("An empty span does not have any contents") }
         self.source.contents[self.offset..(self.offset + self.length)].to_string()
     }
 
+    /// Returns the start and end lines and columns of the `Span` if the `Span` is not empty.
     fn line_indicies(&self) -> Option<((usize, usize), (usize, usize))> {
         if self.is_empty() {
             return None;
@@ -96,19 +99,23 @@ impl<'a> Ann<'a> {
 }
 
 // TODO: tests
-impl Display for Ann<'_> {
+impl Display for Span<'_> {
+    /// Given a `Span`, `fmt` will print out where the `Span` occurs in its source.
+    /// Single-line `Span`s:
+    /// ```
+    /// 12 | x = blatant { error }
+    ///    |     ^^^^^^^^^^^^^^^^^
+    /// ```
+    /// Multi-line `Span`s:
+    /// ```
+    /// 12 | > x -> {
+    /// 13 | >    y = x + 1
+    /// 14 | >    another { error }
+    /// 15 | > }
+    /// ```
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        // Does:
-        // 12 | x = blatant { error }
-        //    |     ^^^^^^^^^^^^^^^^^
-        // and:
-        // 12 | > x -> {
-        // 13 | >    y = x + 1
-        // 14 | >    another { error }
-        // 15 | > }
-
         if self.is_empty() {
-            panic!("Can't display the section corresponding with an empty annotation")
+            panic!("Can't display the section corresponding with an empty Spanotation")
         }
 
         let lines: Vec<&str> = self.source.contents.lines().collect();
@@ -160,6 +167,30 @@ impl Display for Ann<'_> {
     }
 }
 
+/// A wrapper for spanning types.
+/// For example, a token, such as
+/// ```
+/// pub enum Token {
+///     Number(f64),
+///     Open,
+///     Close,
+/// }
+/// ```
+/// or the like, can be spanned to indicate where it was parsed from (a `Spanned<Token>`).
+#[derive(Debug, Clone)]
+pub struct Spanned<'a, T> {
+    pub item: T,
+    pub span: Span<'a>,
+}
+
+// TODO: docs
+impl<'a, T> Spanned<'a, T> {
+    /// Takes a prede
+    pub fn over(item: T, span: Span<'a>) -> Spanned<'a, T> {
+        Spanned { item, span }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -167,22 +198,22 @@ mod test {
     #[test]
     fn combination() {
         let source = Source::source("heck, that's awesome");
-        let a = Ann::new(&source, 0, 5);
-        let b = Ann::new(&source, 11, 2);
+        let a = Span::new(&source, 0, 5);
+        let b = Span::new(&source, 11, 2);
 
-        assert_eq!(Ann::combine(&a, &b), Ann::new(&source, 0, 13));
+        assert_eq!(Span::combine(&a, &b), Span::new(&source, 0, 13));
     }
 
     #[test]
     fn span_and_contents() {
         let source = Source::source("hello, this is some text!");
-        let anns   = vec![
-            Ann::new(&source, 0,  8),
-            Ann::new(&source, 7,  5),
-            Ann::new(&source, 12, 4),
+        let Spans   = vec![
+            Span::new(&source, 0,  8),
+            Span::new(&source, 7,  5),
+            Span::new(&source, 12, 4),
         ];
-        let result = Ann::new(&source, 0, 16);
+        let result = Span::new(&source, 0, 16);
 
-        assert_eq!(Ann::span(anns).contents(), result.contents());
+        assert_eq!(Span::join(Spans).contents(), result.contents());
     }
 }
