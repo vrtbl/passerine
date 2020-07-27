@@ -1,74 +1,53 @@
 use std::fmt;
-// use std::ops::Try;
-
 use crate::utils::span::{ Span, Spanned };
 
-/// This is a Result returned by functions in the passerine compiler.
-/// - `Ok(_)` indicates ok, and returns a value to be used by the next step.
-/// - `Syntax(message, span)` denotes a syntax or static error,
-///    caught by the compiler at compile-time.
-/// - `Trace(kind, message, spans)` denotes a runtime error, and has a traceback.
-/// Both `Syntax(...)` and `Trace(...)` can be `Displayed`.
-pub enum Result<'a, T> {
-    Ok(T),
-    // Not a spanned string for consistency with Trace
-    // TODO: merge syntax and trace, or make syntax spanned string?
-    Syntax(String, Span<'a>),
-    Trace(String, String, Vec<Span<'a>>),
+/// Represents a static error (syntax, semantics, etc.) found at compile time
+pub struct Syntax<'a> {
+    message: String,
+    span:    Span<'a>,
 }
 
-impl<'a, T> Result<'a, T> {
-    pub fn syntax(message: &str, span: Span<'a>) -> Result<'a, T> {
-        Result::Syntax(message.to_string(), span)
-    }
-
-    pub fn trace(kind: &str, message: &str, spans: Vec<Span<'a>>) -> Result<'a, T> {
-        Result::Trace(kind.to_string(), message.to_string(), spans)
+impl<'a> Syntax<'a> {
+    pub fn error(message: &str, span: Span<'a>) -> Syntax<'a> {
+        Syntax { message: message.to_string(), span }
     }
 }
 
-impl<T> fmt::Display for Result<'_, T> {
-    /// Prints the corrosponding annotations, and the error message.
-    /// If the `Result` variant is *not* an error, this function will panic.
+impl fmt::Display for Syntax<'_> {
     fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Result::Ok(e) => panic!("Can't display a non-error"),
-            Result::Syntax(m, a) => {
-                fmt::Display::fmt(a, f);
-                writeln!(f, "Encountered a Static Error: {}", m)
-            },
-            Result::Trace(k, m, v) => {
-                writeln!(f, "Traceback, most recent call last");
+        fmt::Display::fmt(self.span, f);
+        writeln!(f, "Encountered a Static Error: {}", self.message)
+    }
+}
 
-                for a in v.iter() {
-                    fmt::Display::fmt(a, f);
-                }
+/// Represents a runtime error, i.e. a traceback
+pub struct Trace<'a> {
+    kind: String, // TODO: enum?
+    message: String,
+    spans: Vec<Span<'a>>,
+}
 
-                writeln!(f, "Runtime {}: {}", k, m)
-            },
+impl<'a> Trace<'a> {
+    pub fn error(kind: &str, message: &str, spans: Vec<Span<'a>>) -> Trace<'a> {
+        Trace {
+            kind: kind.to_string(),
+            message: message.to_string(),
+            spans,
         }
     }
 }
 
-// TODO: make error it's own type?
-// idk, man
-// is this not idiomatic?
-// std Result expects 1 error type, but runtime Result has two.
-// should they be their own things?
-// impl<'a, T> Try for Result<'a, T> {
-//     type Ok    = T;
-//     type Error = Result<'a>;
-//
-//     fn into_result(self) -> std::result::Result<Self::Ok, Self::Error> {
-//         match self {
-//             Result::Ok(item) => item,
-//             other            => other,
-//         }
-//     }
-//
-//     fn from_error(v: Self::Error) -> Self { v }
-//     fn from_ok(v: Self::Ok)       -> Self { Result::Ok(v) }
-// }
+impl fmt::Display for Trace<'_> {
+    fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Traceback, most recent call last:");
+
+        for span in self.spans.iter() {
+            fmt::Display::fmt(span, f);
+        }
+
+        writeln!(f, "Runtime {}: {}", self.kind, self.message)
+    }
+}
 
 #[cfg(test)]
 mod test {

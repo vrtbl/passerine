@@ -22,7 +22,7 @@ pub enum Token {
     Lambda,
 
     // Datatypes
-    Symbol(Local),
+    Symbol(String),
     Number(Data),
     String(Data),
     Boolean(Data),

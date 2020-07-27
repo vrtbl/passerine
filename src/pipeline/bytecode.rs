@@ -18,7 +18,7 @@ pub enum Opcode {
     Con    = 0,
     Save   = 1,
     Load   = 2,
-    Clear  = 3,
+    Clear  = 3, // probably unneeded
     Call   = 4,
     Return = 5,
 }

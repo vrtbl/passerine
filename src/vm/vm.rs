@@ -1,7 +1,7 @@
 use std::mem;
 
 use crate::utils::number::build_number;
-use crate::utils::runtime::Result;
+use crate::utils::runtime::Trace;
 use crate::vm::local::Local;
 use crate::vm::data::{Data, Tagged};
 use crate::vm::stack::{Stack, Item};
@@ -35,11 +35,11 @@ impl VM {
     }
 
 
-    fn next(&mut self)                    { self.ip += 1; }
-    fn terminate(&mut self) -> Result<()> { self.ip = self.chunk.code.len(); Result::Ok(()) }
-    fn done(&mut self)      -> Result<()> { self.next(); Result::Ok(()) }
-    fn peek_byte(&mut self) -> u8         { self.chunk.code[self.ip] }
-    fn next_byte(&mut self) -> u8         { self.done(); self.peek_byte() }
+    fn next(&mut self)                           { self.ip += 1; }
+    fn terminate(&mut self) -> Result<(), Trace> { self.ip = self.chunk.code.len(); Ok(()) }
+    fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
+    fn peek_byte(&mut self) -> u8                { self.chunk.code[self.ip] }
+    fn next_byte(&mut self) -> u8                { self.done(); self.peek_byte() }
 
     /// Builds the next number in the bytecode stream.
     /// See `utils::number` for more.
@@ -80,7 +80,7 @@ impl VM {
     /// Dissasembles and interprets a single (potentially fallible) bytecode op.
     /// The op definitions follow in the proceeding impl block.
     /// To see what each op does, check `pipeline::bytecode.rs`
-    fn step(&mut self) -> Result<()> {
+    fn step(&mut self) -> Result<(), Trace> {
         let op_code = Opcode::from_byte(self.peek_byte());
 
         // println!("op_code: {}", self.peek_byte());
@@ -99,7 +99,7 @@ impl VM {
     /// Or failure, in which it returns the runtime error.
     /// In the future, fibers will allow for error handling -
     /// right now, error in Passerine are practically panics.
-    fn run(&mut self, chunk: Chunk) -> Result<()> {
+    fn run(&mut self, chunk: Chunk) -> Result<(), Trace> {
         // cache current state, load new bytecode
         let old_chunk = mem::replace(&mut self.chunk, chunk);
         let old_ip    = mem::replace(&mut self.ip,    0);
@@ -128,7 +128,7 @@ impl VM {
 // - replace some panics with Result<()>s
 impl VM {
     /// Load a constant and push it onto the stack.
-    fn con(&mut self) -> Result<()> {
+    fn con(&mut self) -> Result<(), Trace> {
         // get the constant index
         let index = self.next_number();
 
@@ -137,7 +137,7 @@ impl VM {
     }
 
     /// Save the topmost value on the stack into a variable.
-    fn save(&mut self) -> Result<()> {
+    fn save(&mut self) -> Result<(), Trace> {
         let data = match self.stack.pop() { Some(Item::Data(d)) => d.data(), _ => panic!("Expected data") };
         let (local, index) = self.local_index();
 
@@ -162,7 +162,7 @@ impl VM {
     }
 
     /// Push a copy of a variable's value onto the stack.
-    fn load(&mut self) -> Result<()> {
+    fn load(&mut self) -> Result<(), Trace> {
         let (_, index) = self.local_index();
 
         match index {
@@ -179,7 +179,7 @@ impl VM {
     }
 
     /// Clear all data off the stack.
-    fn clear(&mut self) -> Result<()> {
+    fn clear(&mut self) -> Result<(), Trace> {
         loop {
             match self.stack.pop() {
                 Some(Item::Data(_)) => (),
@@ -192,7 +192,7 @@ impl VM {
     }
 
     /// Call a function on the top of the stack, passing the next value as an argument.
-    fn call(&mut self) -> Result<()> {
+    fn call(&mut self) -> Result<(), Trace> {
         let fun = match self.stack.pop() {
             Some(Item::Data(d)) => match d.data() {
                 Data::Lambda(l) => l,
@@ -217,7 +217,7 @@ impl VM {
     /// Return a value from a function.
     /// End the execution of the current chunk.
     /// Relpaces the last frame with the value on the top of the stack.
-    fn return_val(&mut self) -> Result<()> {
+    fn return_val(&mut self) -> Result<(), Trace> {
         let val = match self.stack.pop() {
             Some(Item::Data(d)) => d,
             _                   => unreachable!(),
