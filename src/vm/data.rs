@@ -3,16 +3,26 @@ use std::fmt::{Debug, Error, Formatter};
 use std::ops::Deref;
 use std::mem;
 use std::f64;
+use std::rc::Rc;
 
 use crate::compiler::gen::Chunk;
+use crate::vm::local::Local;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
+    // VM Stack
+    Frame,
+    Local(Local, Box<Data>),
+    Heap(Local, Rc<Data>),
+
+    // Passerine Data (Atomic)
     Real(f64),
     Boolean(bool),
     String(String),
     Lambda(Chunk),
     Label(String, Box<Data>), // TODO: better type
+
+    // Compound Datatypes
     Unit, // an empty typle
     // Tuple(Vec<Data>),
     // // TODO: Hashmap?
@@ -58,7 +68,7 @@ const T_FLAG: u64 = 0x0000_0000_0000_0011;
 
 impl Tagged {
     /// Wraps `Data` to create a new tagged pointer.
-    pub fn from(data: Data) -> Tagged {
+    pub fn new(data: Data) -> Tagged {
         match data {
             // Real
             Data::Real(f) => Tagged(f.to_bits()),
@@ -149,7 +159,7 @@ mod test {
 
         for n in &[positive, negative, nan, neg_inf] {
             let data    = Data::Real(*n);
-            let wrapped = Tagged::from(data);
+            let wrapped = Tagged::new(data);
             match wrapped.data() {
                 Data::Real(f) if f.is_nan() => assert!(n.is_nan()),
                 Data::Real(f) => assert_eq!(*n, f),
@@ -160,13 +170,13 @@ mod test {
 
     #[test]
     fn bool_and_back() {
-        assert_eq!(Data::Boolean(true),  Tagged::from(Data::Boolean(true) ).data());
-        assert_eq!(Data::Boolean(false), Tagged::from(Data::Boolean(false)).data());
+        assert_eq!(Data::Boolean(true),  Tagged::new(Data::Boolean(true) ).data());
+        assert_eq!(Data::Boolean(false), Tagged::new(Data::Boolean(false)).data());
     }
 
     #[test]
     fn unit() {
-        assert_eq!(Data::Unit, Tagged::from(Data::Unit).data());
+        assert_eq!(Data::Unit, Tagged::new(Data::Unit).data());
     }
 
     #[test]
@@ -188,7 +198,7 @@ mod test {
 
         for item in &[s, three, x] {
             let data    = Data::String(item.clone());
-            let wrapped = Tagged::from(data);
+            let wrapped = Tagged::new(data);
             // println!("{:#b}", u64::from(wrapped));
             match wrapped.data() {
                 Data::String(s) => { assert_eq!(item, &s) },
@@ -223,7 +233,7 @@ mod test {
         for test in tests {
             println!("{:?}", test);
             println!("starting pack");
-            let tagged = Tagged::from(test.clone());
+            let tagged = Tagged::new(test.clone());
             println!("starting unpack");
             let untagged = tagged.data();
             println!("finished unpack");

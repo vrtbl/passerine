@@ -1,7 +1,8 @@
 use std::fmt;
-use crate::utils::span::{ Span, Spanned };
+use crate::utils::span::Span;
 
 /// Represents a static error (syntax, semantics, etc.) found at compile time
+#[derive(Debug)]
 pub struct Syntax<'a> {
     message: String,
     span:    Span<'a>,
@@ -15,12 +16,13 @@ impl<'a> Syntax<'a> {
 
 impl fmt::Display for Syntax<'_> {
     fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(self.span, f);
+        fmt::Display::fmt(&self.span, f);
         writeln!(f, "Encountered a Static Error: {}", self.message)
     }
 }
 
 /// Represents a runtime error, i.e. a traceback
+#[derive(Debug)]
 pub struct Trace<'a> {
     kind: String, // TODO: enum?
     message: String,
@@ -59,7 +61,7 @@ mod test {
         // This is just a demo to check formatting
         // might not coincide with an actual Passerine error
         let source = Source::source("x = \"Hello, world\" -> y + 1");
-        let error = Result::syntax(
+        let error = Syntax::error(
             "Unexpected token '\"Hello, world!\"'",
             Span::new(&source, 4, 14),
         );
@@ -102,7 +104,7 @@ Line 4:1
   | ^^^^^^^^^^^^^^^^^^^
 Runtime TypeError: Can't add Label to Label";
 
-        let traceback = Result::trace(
+        let traceback = Trace::error(
             "TypeError",
             "Can't add Label to Label",
             vec![

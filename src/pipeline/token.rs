@@ -1,7 +1,3 @@
-use std::str::FromStr;
-use std::f64;
-
-use crate::utils::span::Span;
 use crate::vm::data::Data;
 use crate::vm::local::Local;
 
@@ -22,7 +18,7 @@ pub enum Token {
     Lambda,
 
     // Datatypes
-    Symbol(String),
+    Symbol(Local),
     Number(Data),
     String(Data),
     Boolean(Data),

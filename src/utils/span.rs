@@ -21,6 +21,12 @@ impl<'a> Span<'a> {
         return Span { source, offset, length };
     }
 
+    /// A `Span` that points at a specific point in the source.
+    pub fn point(source: &'a Source, offset: usize) -> Span<'a> {
+        // NOTE: maybe it should be 0?
+        return Span { source, offset, length: 1 }
+    }
+
     /// Create a new empty `Span`.
     /// An empty `Span` has only a source,
     /// if combined with another `Span`, the resulting `Span` will just be the other.
@@ -177,7 +183,7 @@ impl Display for Span<'_> {
 /// }
 /// ```
 /// or the like, can be spanned to indicate where it was parsed from (a `Spanned<Token>`).
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Spanned<'a, T> {
     pub item: T,
     pub span: Span<'a>,
@@ -186,9 +192,12 @@ pub struct Spanned<'a, T> {
 // TODO: docs
 impl<'a, T> Spanned<'a, T> {
     /// Takes a prede
-    pub fn over(item: T, span: Span<'a>) -> Spanned<'a, T> {
+    pub fn new(item: T, span: Span<'a>) -> Spanned<'a, T> {
         Spanned { item, span }
     }
+
+    /// a destructive alias for `self.item`
+    pub fn into(self) -> T { self.item }
 }
 
 #[cfg(test)]

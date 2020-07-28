@@ -1,4 +1,3 @@
-# not turing complete (yet!)
 START = block END
 
 block = (call SEP)+ call

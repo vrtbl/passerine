@@ -1,3 +1,6 @@
+use std::str::FromStr;
+use std::f64;
+
 use crate::pipeline::source::Source;
 use crate::pipeline::token::Token;
 use crate::utils::runtime::Syntax;
@@ -5,11 +8,11 @@ use crate::utils::span::{ Span, Spanned };
 use crate::vm::local::Local;
 use crate::vm::data::Data;
 
-type Consume = Option<(Token, usize)>;
+type Bite = (Token, usize);
 
-pub fn lex(source: Source) -> Option<Vec<Token>> {
-    let mut lexer = Lexer::new(&source);
-    return Some(lexer.all()?);
+pub fn lex<'a>(source: Source) -> Result<Vec<Spanned<'a, Token>>, Syntax<'a>> {
+    let mut lexer = Lexer::new(source);
+    return lexer.all();
 }
 
 /// This represents a lexer object.
@@ -24,40 +27,32 @@ impl Lexer {
         Lexer { source, offset: 0 }
     }
 
-    fn all(&mut self) -> Vec<Spanned<Token>> {
+    fn all(&mut self) -> Result<Vec<Spanned<Token>>, Syntax> {
         let tokens = vec![];
 
         while self.remaining().len() != 0 {
-            // eat whitespace
-            // lex the next token
-            let (kind, consumed) = self.next()?;
+            // strip preceeding whitespace, get next token kind, build token
+            let (kind, consumed) = match Lexer::step(self.remaining()) {
+                Ok(k)  => k,
+                Err(e) => return Err(
+                    Syntax::error(&e, Span::point(&self.source, self.offset))
+                ),
+            };
+
             // annotate it
-            tokens.push(Spanned::new(kind, self.source, self.offset, consumed));
+            tokens.push(Spanned::new(
+                kind,
+                Span::new(&self.source, self.offset, consumed),
+            ));
             self.offset += consumed;
+            self.strip();
         }
 
-        return tokens;
+        return Ok(tokens);
     }
 
     fn remaining(&self) -> &str {
         return &self.source.contents[self.offset..]
-    }
-
-    fn next(&mut self) -> Option<Syntax> {
-        // strip preceeding whitespace, get next token kind, build token
-        let (kind, consumed) = match Token::from(self.remaining()) {
-            Ok(k)  => k,
-            Err(e) => return Some(
-                Syntax::new(e, Span::new(&self.source, self.offset, 1))
-            ),
-        };
-
-        let token = Token::new(kind, Span::new(&self.source, self.offset, consumed));
-        self.offset += consumed;
-        self.tokens.push(token);
-        self.strip();
-
-        return None;
     }
 
     fn strip(&mut self) {
@@ -74,37 +69,37 @@ impl Lexer {
         self.offset += len;
     }
 
-    pub fn step(self) {
-        let rules: Vec<Box<dyn Fn(&str) -> Consume>> = vec![
+    pub fn step(source: &str) -> Result<Bite, String> {
+        let rules: Vec<Box<dyn Fn(&str) -> Result<Bite, String>>> = vec![
             // higher up in order = higher precedence
             // think 'or' as symbol or 'or' as operator
             // static
-            Box::new(|s| Token::open_bracket(s) ),
-            Box::new(|s| Token::close_bracket(s)),
-            Box::new(|s| Token::open_paren(s)   ),
-            Box::new(|s| Token::close_paren(s)  ),
-            Box::new(|s| Token::assign(s)       ),
-            Box::new(|s| Token::lambda(s)       ),
+            Box::new(|s| Lexer::open_bracket(s) ),
+            Box::new(|s| Lexer::close_bracket(s)),
+            Box::new(|s| Lexer::open_paren(s)   ),
+            Box::new(|s| Lexer::close_paren(s)  ),
+            Box::new(|s| Lexer::assign(s)       ),
+            Box::new(|s| Lexer::lambda(s)       ),
 
             // variants
-            Box::new(|s| Token::sep(s)    ),
-            Box::new(|s| Token::boolean(s)),
+            Box::new(|s| Lexer::sep(s)    ),
+            Box::new(|s| Lexer::boolean(s)),
 
             // dynamic
-            Box::new(|s| Token::real(s)  ),
-            Box::new(|s| Token::string(s)),
-            // Box::new(|s| Token::int(s)),
+            Box::new(|s| Lexer::real(s)  ),
+            Box::new(|s| Lexer::string(s)),
+            // Box::new(|s| Lexer::int(s)),
 
             // keep this @ the bottom, lmao
-            Box::new(|s| Token::symbol(s) ),
+            Box::new(|s| Lexer::symbol(s) ),
         ];
 
         // maybe some sort of map reduce?
-        let mut best = Consume::Err("Next token is not known in this context".to_string());
+        let mut best = Err("Next token is not known in this context".to_string());
 
         // check longest
         for rule in &rules {
-            if let Ok((k, c)) = rule(self.source) {
+            if let Ok((k, c)) = rule(source) {
                 match best {
                     Err(_)              => best = Ok((k, c)),
                     Ok((_, o)) if c > o => best = Ok((k, c)),
@@ -141,13 +136,13 @@ impl Lexer {
         return if len == 0 { Err("Expected digits".to_string()) } else { Ok(len) };
     }
 
-    fn literal(source: &str, literal: &str, kind: Token) -> Consume {
-        Ok((kind, Token::expect(source, literal)?))
+    fn literal(source: &str, literal: &str, kind: Token) -> Result<Bite, String> {
+        Ok((kind, Lexer::expect(source, literal)?))
     }
 
     // token classifiers
 
-    fn symbol(source: &str) -> Consume {
+    fn symbol(source: &str) -> Result<Bite, String> {
         // for now, a symbol is one or more ascii alphanumerics
         // TODO: extend to full unicode
         let mut len = 0;
@@ -166,39 +161,39 @@ impl Lexer {
         };
     }
 
-    fn open_bracket(source: &str) -> Option<(Token, usize)> {
-        Token::literal(source, "{", Token::OpenBracket)
+    fn open_bracket(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "{", Token::OpenBracket)
     }
 
-    fn close_bracket(source: &str) -> Consume {
-        Token::literal(source, "}", Token::CloseBracket)
+    fn close_bracket(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "}", Token::CloseBracket)
     }
 
-    fn open_paren(source: &str) -> Consume {
-        Token::literal(source, "(", Token::OpenParen)
+    fn open_paren(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "(", Token::OpenParen)
     }
 
-    fn close_paren(source: &str) -> Consume {
-        Token::literal(source, ")", Token::CloseParen)
+    fn close_paren(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, ")", Token::CloseParen)
     }
 
-    fn assign(source: &str) -> Consume {
-        Token::literal(source, "=", Token::Assign)
+    fn assign(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "=", Token::Assign)
     }
 
-    fn lambda(source: &str) -> Consume {
-        Token::literal(source, "->", Token::Lambda)
+    fn lambda(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "->", Token::Lambda)
     }
 
-    fn real(source: &str) -> Consume {
+    fn real(source: &str) -> Result<Bite, String> {
         // TODO: NaNs, Infinity, the whole shebang
         // look at how f64::from_str is implemented, maybe?
         let mut len = 0;
 
         // one or more digits followed by a '.' followed by 1 or more digits
-        len += Token::eat_digits(source)?;
-        len += Token::expect(&source[len..], ".")?;
-        len += Token::eat_digits(&source[len..])?;
+        len += Lexer::eat_digits(source)?;
+        len += Lexer::expect(&source[len..], ".")?;
+        len += Lexer::eat_digits(&source[len..])?;
 
         let number = match f64::from_str(&source[..len]) {
             Ok(n)  => n,
@@ -211,7 +206,7 @@ impl Lexer {
     // the below pattern is pretty common...
     // but I'm not going to abstract it out, yet
 
-    fn string(source: &str) -> Consume {
+    fn string(source: &str) -> Result<Bite, String> {
         // TODO: read through the rust compiler and figure our how they do this
         // look into parse_str_lit
 
@@ -219,7 +214,7 @@ impl Lexer {
         let mut escape = false;
         let mut string = "".to_string();
 
-        len += Token::expect(source, "\"")?;
+        len += Lexer::expect(source, "\"")?;
 
         for c in source[len..].chars() {
             len += 1;
@@ -245,19 +240,20 @@ impl Lexer {
         return Err("Unexpected EOF while parsing string literal".to_string());
     }
 
-    fn boolean(source: &str) -> Consume {
-        if let Ok(x) = Token::literal(source, "true", Token::Boolean(Data::Boolean(true))) {
-            return Ok(x);
-        }
-
-        if let Ok(x) = Token::literal(source, "false", Token::Boolean(Data::Boolean(false))) {
-            return Ok(x);
+    fn boolean(source: &str) -> Result<Bite, String> {
+        for (lit, val) in [
+            ("true",  true),
+            ("false", false),
+        ].into_iter() {
+            if let x @ Ok(_) = Lexer::literal(
+                source, lit, Token::Boolean(Data::Boolean(*val))
+            ) { return x; }
         }
 
         return Err("Expected a boolean".to_string());
     }
 
-    fn sep(source: &str) -> Consume {
+    fn sep(source: &str) -> Result<Bite, String> {
         match source.chars().next() {
             Some('\n') | Some(';') => Ok((Token::Sep, 1)),
             Some(_) => Err("Expected a separator, such as a newline".to_string()),
@@ -266,7 +262,6 @@ impl Lexer {
     }
 }
 
-// TODO: cfg test isn't working, so using #[test] for now
 // #[cfg(test)]
 // mod test {
 //     use super::*;
@@ -278,7 +273,7 @@ impl Lexer {
 //     #[test]
 //     fn lex_empty() {
 //         // no source code? no tokens!
-//         assert_eq!(lex(Source::source("")), Ok(vec![]));
+//         assert_eq!(lex(Source::source("")), Ok(Vec::new()));
 //     }
 //
 //     #[test]
@@ -286,9 +281,9 @@ impl Lexer {
 //         let source = Source::source("heck = true");
 //
 //         let result = vec![
-//             AnnToken::new(Token::Symbol(Local::new("heck".to_string())), Ann::new(&source, 0, 4)),
-//             AnnToken::new(Token::Assign,                                 Ann::new(&source, 5, 1)),
-//             AnnToken::new(Token::Boolean(Data::Boolean(true)),           Ann::new(&source, 7, 4)),
+//             Spanned::new(Token::Symbol(Local::new("heck".to_string())), Span::new(&source, 0, 4)),
+//             Spanned::new(Token::Assign,                                 Span::new(&source, 5, 1)),
+//             Spanned::new(Token::Boolean(Data::Boolean(true)),           Span::new(&source, 7, 4)),
 //         ];
 //
 //         assert_eq!(lex(source), Ok(result));
@@ -299,8 +294,8 @@ impl Lexer {
 //         let source = Source::source("  true  ;  ");
 //
 //         let result = vec![
-//             AnnToken::new(Token::Boolean(Data::Boolean(true)), Ann::new(&source, 2, 4)),
-//             AnnToken::new(Token::Sep,                          Ann::new(&source, 8, 1)),
+//             Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 2, 4)),
+//             Spanned::new(Token::Sep,                          Span::new(&source, 8, 1)),
 //         ];
 //
 //         assert_eq!(lex(source), Ok(result));
@@ -313,15 +308,15 @@ impl Lexer {
 //         // TODO: finish test
 //
 //         let result = vec![
-//             AnnToken::new(Token::OpenBracket,                             Ann::new(&source, 0, 1)),
-//             AnnToken::new(Token::Sep,                                     Ann::new(&source, 1, 1)),
-//             AnnToken::new(Token::Symbol(Local::new("hello".to_string())), Ann::new(&source, 3, 5)),
-//             AnnToken::new(Token::Assign,                                  Ann::new(&source,  9, 1)),
-//             AnnToken::new(Token::Boolean(Data::Boolean(true)),            Ann::new(&source, 11, 4)),
-//             AnnToken::new(Token::Sep,                                     Ann::new(&source, 15, 1)),
-//             AnnToken::new(Token::Symbol(Local::new("hello".to_string())), Ann::new(&source, 17, 5)),
-//             AnnToken::new(Token::Sep,                                     Ann::new(&source, 22, 1)),
-//             AnnToken::new(Token::CloseBracket,                            Ann::new(&source, 23, 1)),
+//             Spanned::new(Token::OpenBracket,                             Span::new(&source, 0, 1)),
+//             Spanned::new(Token::Sep,                                     Span::new(&source, 1, 1)),
+//             Spanned::new(Token::Symbol(Local::new("hello".to_string())), Span::new(&source, 3, 5)),
+//             Spanned::new(Token::Assign,                                  Span::new(&source,  9, 1)),
+//             Spanned::new(Token::Boolean(Data::Boolean(true)),            Span::new(&source, 11, 4)),
+//             Spanned::new(Token::Sep,                                     Span::new(&source, 15, 1)),
+//             Spanned::new(Token::Symbol(Local::new("hello".to_string())), Span::new(&source, 17, 5)),
+//             Spanned::new(Token::Sep,                                     Span::new(&source, 22, 1)),
+//             Spanned::new(Token::CloseBracket,                            Span::new(&source, 23, 1)),
 //         ];
 //
 //         assert_eq!(lex(source), Ok(result));
@@ -331,28 +326,21 @@ impl Lexer {
 //     fn function() {
 //         let source = Source::source("identity = x -> x\nidentity (identity \"heck\")");
 //         let result = vec![
-//             AnnToken::new(Token::Symbol(Local::new("identity".to_string())), Ann::new(&source, 0, 8)),
-//             AnnToken::new(Token::Assign,                                     Ann::new(&source, 9, 1)),
-//             AnnToken::new(Token::Symbol(Local::new("x".to_string())),        Ann::new(&source, 11, 1)),
-//             AnnToken::new(Token::Lambda,                                     Ann::new(&source, 13, 2)),
-//             AnnToken::new(Token::Symbol(Local::new("x".to_string())),        Ann::new(&source, 16, 1)),
-//             AnnToken::new(Token::Sep,                                        Ann::new(&source, 17, 1)),
-//             AnnToken::new(Token::Symbol(Local::new("identity".to_string())), Ann::new(&source, 18, 8)),
-//             AnnToken::new(Token::OpenParen,                                  Ann::new(&source, 27, 1)),
-//             AnnToken::new(Token::Symbol(Local::new("identity".to_string())), Ann::new(&source, 28, 8)),
-//             AnnToken::new(Token::String(Data::String("heck".to_string())),   Ann::new(&source, 37, 6)),
-//             AnnToken::new(Token::CloseParen,                                 Ann::new(&source, 43, 1)),
+//             Spanned::new(Token::Symbol(Local::new("identity".to_string())), Span::new(&source, 0, 8)),
+//             Spanned::new(Token::Assign,                                     Span::new(&source, 9, 1)),
+//             Spanned::new(Token::Symbol(Local::new("x".to_string())),        Span::new(&source, 11, 1)),
+//             Spanned::new(Token::Lambda,                                     Span::new(&source, 13, 2)),
+//             Spanned::new(Token::Symbol(Local::new("x".to_string())),        Span::new(&source, 16, 1)),
+//             Spanned::new(Token::Sep,                                        Span::new(&source, 17, 1)),
+//             Spanned::new(Token::Symbol(Local::new("identity".to_string())), Span::new(&source, 18, 8)),
+//             Spanned::new(Token::OpenParen,                                  Span::new(&source, 27, 1)),
+//             Spanned::new(Token::Symbol(Local::new("identity".to_string())), Span::new(&source, 28, 8)),
+//             Spanned::new(Token::String(Data::String("heck".to_string())),   Span::new(&source, 37, 6)),
+//             Spanned::new(Token::CloseParen,                                 Span::new(&source, 43, 1)),
 //         ];
 //
 //         assert_eq!(lex(source), Ok(result));
 //     }
-// }
-//
-//
-// // cfg ain't working
-// #[cfg(test)]
-// mod test {
-//     use super::*;
 //
 //     // each case tests the detection of a specific token type
 //

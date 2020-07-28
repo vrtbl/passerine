@@ -1,0 +1,22 @@
+> src
+    > common
+        bytecode.rs # bytecode
+        error.rs    # error types
+        number.rs   # destructuring numbers into bytestreams
+        span.rs     # spanning sections of source code
+    > compiler
+        # compiler pipeline
+        lex.rs    # Source -> Tokens
+        parse.rs  # Tokens -> AST
+        # expand.rs # AST -> Desugared AST
+        gen.rs    # Desugared AST -> Bytecode
+        # opt.rs  # Bytecode -> Optimized Bytecode
+
+        # compiler datastructures
+        token.rs
+        ast.rs
+    > vm
+        chunk.rs    # chunks of bytecode and interpreter
+        data.rs     # passerine datatypes
+        tag.rs      # nan-tagging and stack items
+        vm.rs       # core bytecode interpreter itself
