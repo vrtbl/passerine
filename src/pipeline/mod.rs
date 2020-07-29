@@ -6,6 +6,7 @@
 // -> Bytecode        : gen.rs
 // ~> Run (result)    : vm.rs
 
+pub mod source;
 pub mod token;
 pub mod ast;
 pub mod bytecode;

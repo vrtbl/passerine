@@ -1,12 +1,20 @@
-# not turing complete (yet!)
 START = block END
 
-block = (expr SEP). expr
+block = (call SEP)+ call
+call  = call expr
+      | expr
+
 expr  = '{' + block + '}'
+      | '(' + call  + ')'
       | op
       | literal
 
-op = SYMBOL ASSIGN expr
+op = assignment
+
+assignment = SYMBOL '=' call
+           | lambda
+
+lambda = SYMBOL '->' call
 
 literal = SYMBOL
         | number
@@ -14,3 +22,4 @@ literal = SYMBOL
         | BOOLEAN
 
 number = REAL
+#      | INT

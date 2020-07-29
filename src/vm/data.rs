@@ -3,12 +3,26 @@ use std::fmt::{Debug, Error, Formatter};
 use std::ops::Deref;
 use std::mem;
 use std::f64;
+use std::rc::Rc;
+
+use crate::compiler::gen::Chunk;
+use crate::vm::local::Local;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
+    // VM Stack
+    Frame,
+    Local(Local, Box<Data>),
+    Heap(Local, Rc<Data>),
+
+    // Passerine Data (Atomic)
     Real(f64),
     Boolean(bool),
     String(String),
+    Lambda(Chunk),
+    Label(String, Box<Data>), // TODO: better type
+
+    // Compound Datatypes
     Unit, // an empty typle
     // Tuple(Vec<Data>),
     // // TODO: Hashmap?
@@ -24,22 +38,27 @@ pub enum Data {
 
 impl Eq for Data {}
 
-// No Nan-tagging for now...
-// HAHA: it's nan-tagging time
-// NOTE: implementation modeled after:
-// https://github.com/rpjohnst/dejavu/blob/master/gml/src/vm/value.rs
-// and the Optimization chapter from Crafting Interpreters
-// Thank you!
+/// Tagged implements Nan-tagging around the `Data` enum.
+/// In essence, it's possible to exploit the representation of f64 NaNs
+/// to store pointers to other datatypes.
+/// When layed out, this is what the bit-level representation of a
+/// double-precision floating-point number looks like.
+/// Below is the bit-level layout of a tagged NaN.
+/// ```plain
+/// SExponent---QIMantissa------------------------------------------
+/// PNaN--------11D-Payload---------------------------------------TT
+/// ```
+/// Where `S` is sign, `Q` is quiet flag, `I` is Intel’s “QNan Floating-Point Indefinite”,
+/// `P` is pointer flag, `D` is Data Tag (should always be 1), `T` is Tag.
+/// We have 2 tag bits, 4 values: 00 is unit '()', 10 is false, 11 is true,
+/// but this might change if I figure out what to do with them
+/// NOTE: maybe add tag bit for 'unit'
+/// NOTE: implementation modeled after:
+/// https://github.com/rpjohnst/dejavu/blob/master/gml/src/vm/value.rs
+/// and the Optimization chapter from Crafting Interpreters
+/// Thank you!
 pub struct Tagged(u64);
 
-// Double-precision floating-point format & tagged equiv.
-// SExponent---QIMantissa------------------------------------------
-// PNaN--------11D-Payload---------------------------------------TT
-// S is sign, Q is quiet flag, I is Intel’s “QNan Floating-Point Indefinite”,
-// P is pointer flag, D is Data Tag (should always be 1), T is Tag.
-// We have 2 tag bits, 4 values: 00 is unit '()', 10 is false, 11 is true,
-// but this might change if I figure out what to do with them
-// NOTE: maybe add tag bit for 'unit'
 const QNAN:   u64 = 0x7ffe_0000_0000_0000;
 const P_FLAG: u64 = 0x8000_0000_0000_0000;
 const P_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
@@ -48,7 +67,8 @@ const F_FLAG: u64 = 0x0000_0000_0000_0010;
 const T_FLAG: u64 = 0x0000_0000_0000_0011;
 
 impl Tagged {
-    pub fn from(data: Data) -> Tagged {
+    /// Wraps `Data` to create a new tagged pointer.
+    pub fn new(data: Data) -> Tagged {
         match data {
             // Real
             Data::Real(f) => Tagged(f.to_bits()),
@@ -66,10 +86,12 @@ impl Tagged {
 
     // TODO: use deref trait
     // Can't for not because of E0515 caused by &Data result
-    pub fn deref(&self) -> Data {
+    /// Unwrapps a tagged number into the appropriate datatype.
+    pub fn data(self) -> Data {
+        // This function drops the data upon unpack, resulting in a double-free
         let Tagged(bits) = self;
 
-        match *bits {
+        match bits {
             n if (n & QNAN) != QNAN   => Data::Real(f64::from_bits(n)),
             u if u == (QNAN | U_FLAG) => Data::Unit,
             f if f == (QNAN | F_FLAG) => Data::Boolean(false),
@@ -77,29 +99,50 @@ impl Tagged {
             p if (p & P_FLAG) == P_FLAG => {
                 // TODO: Not sure if this will work correctly...
                 // Might need to have someone else look over it
-                let pointer = (bits & P_MASK) as *mut Data;
-                unsafe { *Box::from_raw(pointer) }
+                unsafe {
+                    let ptr = (bits & P_MASK) as *mut Data;
+                    let raw = Box::from_raw(ptr);
+                    let data = raw.clone();
+                    Box::into_raw(raw);
+                    *data
+                }
             },
             _ => unreachable!("Corrupted tagged data"),
         }
     }
 }
 
+// TODO: verify this works as intended
 impl Drop for Tagged {
     fn drop(&mut self) {
-        // this should drop the data the tag points to as well
-        self.deref();
+        println!("Dropping!");
+        let Tagged(bits) = &self;
+        let pointer = P_FLAG | QNAN;
+
+        match *bits {
+            p if (pointer & p) == pointer => unsafe {
+                // this should drop the data the tag points to as well
+                println!("yeet");
+                mem::drop(*Box::from_raw((bits & P_MASK) as *mut Data));
+                println!("yote");
+            },
+            _ => (),
+        }
+        println!("done Dropping!");
     }
 }
 
 impl Debug for Tagged {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> Result<(), Error> {
-        let data: Data = (*self).deref();
-        return Debug::fmt(&data, formatter);
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        Debug::fmt("Tagged(<Hidden>)", f)
+        // TODO: causes double-free?
+        // let Data
+        // Debug::fmt(&self.data(), formatter)
     }
 }
 
 impl From<Tagged> for u64 {
+    /// Unwraps a tagged pointer into the literal representation for debugging.
     fn from(tagged: Tagged) -> Self { tagged.0 }
 }
 
@@ -109,15 +152,15 @@ mod test {
 
     #[test]
     fn reals_eq() {
-        let positive = 478329.0;
+        let positive = 478_329.0;
         let negative = -231.0;
         let nan      = f64::NAN;
         let neg_inf  = f64::NEG_INFINITY;
 
         for n in &[positive, negative, nan, neg_inf] {
             let data    = Data::Real(*n);
-            let wrapped = Tagged::from(data);
-            match wrapped.deref() {
+            let wrapped = Tagged::new(data);
+            match wrapped.data() {
                 Data::Real(f) if f.is_nan() => assert!(n.is_nan()),
                 Data::Real(f) => assert_eq!(*n, f),
                 _             => panic!("Didn't unwrap to a real"),
@@ -127,13 +170,13 @@ mod test {
 
     #[test]
     fn bool_and_back() {
-        assert_eq!(Data::Boolean(true),  Tagged::from(Data::Boolean(true) ).deref());
-        assert_eq!(Data::Boolean(false), Tagged::from(Data::Boolean(false)).deref());
+        assert_eq!(Data::Boolean(true),  Tagged::new(Data::Boolean(true) ).data());
+        assert_eq!(Data::Boolean(false), Tagged::new(Data::Boolean(false)).data());
     }
 
     #[test]
     fn unit() {
-        assert_eq!(Data::Unit, Tagged::from(Data::Unit).deref());
+        assert_eq!(Data::Unit, Tagged::new(Data::Unit).data());
     }
 
     #[test]
@@ -155,13 +198,13 @@ mod test {
 
         for item in &[s, three, x] {
             let data    = Data::String(item.clone());
-            let wrapped = Tagged::from(data);
+            let wrapped = Tagged::new(data);
             // println!("{:#b}", u64::from(wrapped));
-            match wrapped.deref() {
+            match wrapped.data() {
                 Data::String(s) => { assert_eq!(item, &s) },
                 other           => {
                     println!("{:#?}", other);
-                    println!("{:#b}", u64::from(wrapped));
+                    // println!("{:#b}", u64::from(wrapped));
                     panic!("Didn't unwrap to a string");
                 },
             }
@@ -188,12 +231,15 @@ mod test {
         ];
 
         for test in tests {
-            let data     = test;
-            let tagged   = Tagged::from(data.clone());
-            let untagged = tagged.deref();
+            println!("{:?}", test);
+            println!("starting pack");
+            let tagged = Tagged::new(test.clone());
+            println!("starting unpack");
+            let untagged = tagged.data();
+            println!("finished unpack");
 
             if let Data::Real(f) = untagged {
-                if let Data::Real(n) = data {
+                if let Data::Real(n) = test {
                     if n.is_nan() {
                         assert!(f.is_nan())
                     } else {
@@ -201,7 +247,7 @@ mod test {
                     }
                 }
             } else {
-                assert_eq!(data, untagged);
+                assert_eq!(test, untagged);
             }
         }
     }
