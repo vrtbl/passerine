@@ -17,21 +17,21 @@ use crate::vm::local::Local;
 /// If you're reading this and think you know a better way.
 /// please, at the least, open an issue describing your more optimal methodology.
 #[derive(Debug, Clone)]
-pub enum AST<'s> {
+pub enum AST {
     Data(Data),
     Symbol(Local),
-    Block(Vec<Spanned<'s, AST<'s>>>),
+    Block(Vec<Spanned<AST>>),
     Assign {
-        pattern:    Box<Spanned<'s, AST<'s>>>, // Note - should be pattern
-        expression: Box<Spanned<'s, AST<'s>>>,
+        pattern:    Box<Spanned<AST>>, // Note - should be pattern
+        expression: Box<Spanned<AST>>,
     },
     Lambda {
-        pattern:    Box<Spanned<'s, AST<'s>>>,
-        expression: Box<Spanned<'s, AST<'s>>>,
+        pattern:    Box<Spanned<AST>>,
+        expression: Box<Spanned<AST>>,
     },
     Call {
-        fun: Box<Spanned<'s, AST<'s>>>,
-        arg: Box<Spanned<'s, AST<'s>>>,
+        fun: Box<Spanned<AST>>,
+        arg: Box<Spanned<AST>>,
     }
     // TODO: support following constructs as they are implemented
     // Lambda {
@@ -50,18 +50,18 @@ pub enum AST<'s> {
 // Additionally, convert to Spanned<AST>?
 
 // TODO: These are semi-reduntant
-impl<'s> AST<'s> {
+impl AST {
     // Leafs; terminals
-    pub fn data(data: Data)      -> AST<'s> { AST::Data(data)     }
-    pub fn symbol(symbol: Local) -> AST<'s> { AST::Symbol(symbol) }
+    pub fn data(data: Data)      -> AST { AST::Data(data)     }
+    pub fn symbol(symbol: Local) -> AST { AST::Symbol(symbol) }
 
     // Recursive
-    pub fn block(exprs: Vec<Spanned<'s, AST<'s>>>) -> AST<'s> { AST::Block(exprs) }
+    pub fn block(exprs: Vec<Spanned<AST>>) -> AST { AST::Block(exprs) }
 
     pub fn assign(
-        pattern:    Spanned<'s, AST<'s>>,
-        expression: Spanned<'s, AST<'s>>
-    ) -> AST<'s> {
+        pattern:    Spanned<AST>,
+        expression: Spanned<AST>
+    ) -> AST {
         AST::Assign {
             pattern:    Box::new(pattern),
             expression: Box::new(expression)
@@ -69,9 +69,9 @@ impl<'s> AST<'s> {
     }
 
     pub fn lambda(
-        pattern:    Spanned<'s, AST<'s>>,
-        expression: Spanned<'s, AST<'s>>
-    ) -> AST<'s> {
+        pattern:    Spanned<AST>,
+        expression: Spanned<AST>
+    ) -> AST {
         AST::Lambda {
             pattern:    Box::new(pattern),
             expression: Box::new(expression)
@@ -79,9 +79,9 @@ impl<'s> AST<'s> {
     }
 
     pub fn call(
-        fun: Spanned<'s, AST<'s>>,
-        arg: Spanned<'s, AST<'s>>
-    ) -> AST<'s> {
+        fun: Spanned<AST>,
+        arg: Spanned<AST>
+    ) -> AST {
         AST::Call {
             fun: Box::new(fun),
             arg: Box::new(arg)

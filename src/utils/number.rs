@@ -2,7 +2,7 @@
 
 /// Splits a number into a vector of bytes.
 /// Each byte in the vector is layed out as follows:
-/// ```
+/// ```plain
 /// CDDDDDDD
 /// ```
 /// Where C is the continue bit-flag, and d are data bits.

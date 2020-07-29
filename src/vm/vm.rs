@@ -48,6 +48,7 @@ impl VM {
         let remaining      = self.chunk.code[self.ip..].to_vec();
         let (index, eaten) = build_number(remaining);
         self.ip += eaten - 1; // ip left on next op
+        println!("{}", index);
         return index;
     }
 
@@ -83,7 +84,6 @@ impl VM {
     fn step(&mut self) -> Result<(), Trace> {
         let op_code = Opcode::from_byte(self.peek_byte());
 
-        // println!("op_code: {}", self.peek_byte());
         match op_code {
             Opcode::Con    => self.con(),
             Opcode::Save   => self.save(),
@@ -106,8 +106,10 @@ impl VM {
         // TODO: should chunks store their own ip?
 
         while self.ip < self.chunk.code.len() {
-            // println!("before: {:?}", self.stack);
-            self.step();
+            println!("before: {:?}", self.stack);
+            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            println!("---");
+            self.step()?;
         }
 
         // return current state
@@ -207,9 +209,9 @@ impl VM {
 
         self.stack.push(Item::Frame);
         self.stack.push(Item::Data(arg));
-        // println!("entering...");
-        self.run(fun);
-        // println!("exiting...");
+        println!("entering...");
+        self.run(fun)?;
+        println!("exiting...");
 
         self.done()
     }
@@ -291,7 +293,10 @@ mod test {
         ).unwrap()).unwrap());
 
         let mut vm = VM::init();
-        vm.run(chunk);
+        match vm.run(chunk) {
+            Ok(_)  => (),
+            Err(e) => eprintln!("{}", e),
+        }
 
         if let Some(Item::Data(t)) = vm.stack.pop() {
             assert_eq!(t.data(), Data::Boolean(true));
@@ -306,10 +311,15 @@ mod test {
             Source::source("y = (x -> { z = x; z }) 7.0; y")
         ).unwrap().into()).unwrap());
 
+        println!("{:#?}", chunk);
+
         let out_of_scope = Local::new("z".to_string());
 
         let mut vm = VM::init();
-        vm.run(chunk);
+        match vm.run(chunk) {
+            Ok(_)  => (),
+            Err(e) => eprintln!("{}", e),
+        }
 
         // check that z has been dealloced
         assert_eq!(vm.find_local(&out_of_scope), None);

@@ -44,7 +44,7 @@ impl Eq for Data {}
 /// When layed out, this is what the bit-level representation of a
 /// double-precision floating-point number looks like.
 /// Below is the bit-level layout of a tagged NaN.
-/// ```
+/// ```plain
 /// SExponent---QIMantissa------------------------------------------
 /// PNaN--------11D-Payload---------------------------------------TT
 /// ```

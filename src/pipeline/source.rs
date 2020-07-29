@@ -2,6 +2,7 @@ use std::str::Chars;
 use std::path::PathBuf;
 use std::io::Read;
 use std::fs::File;
+use std::rc::Rc;
 
 /// `Source` represents some literal source code.
 /// Whether a repl session, a file on disk, or some library code.
@@ -19,23 +20,23 @@ impl Source {
     /// Note that this function does not check that the contents of the file
     /// match the source.
     /// `Source::path` or `Source::source` should be used instead.
-    pub fn new(source: &str, path: PathBuf) -> Source {
-        Source { contents: source.to_string(), path }
+    pub fn new(source: &str, path: PathBuf) -> Rc<Source> {
+        Rc::new(Source { contents: source.to_string(), path })
     }
 
     /// Build a `Source` from a path.
     /// This will read a file to create a new source.
-    pub fn path(path: PathBuf) -> std::io::Result<Source> {
+    pub fn path(path: PathBuf) -> std::io::Result<Rc<Source>> {
         let mut source = String::new();
         let mut file   = File::open(path.clone())?;
         file.read_to_string(&mut source)?;
 
-        Ok(Source { contents: source, path })
+        Ok(Source::new(&source, path))
     }
 
     /// Build an empty `Source` containing just a string.
     /// Note that this source will point towards `./source`.
-    pub fn source(source: &str) -> Source {
-        Source { contents: source.to_string(), path: PathBuf::from("./source") }
+    pub fn source(source: &str) -> Rc<Source> {
+        Source::new(&source.to_string(), PathBuf::from("./source"))
     }
 }

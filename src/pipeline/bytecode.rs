@@ -14,13 +14,14 @@ use crate::vm::local::Local;
 /// | Call   | Fun, Data           |              | Calls the function passing Data as arg         |
 /// | Return | Data                |              | Clears the frame, leaving value on the stack   |
 #[repr(u8)]
+#[derive(Debug)]
 pub enum Opcode {
     Con    = 0,
     Save   = 1,
     Load   = 2,
-    Clear  = 3, // probably unneeded
-    Call   = 4,
-    Return = 5,
+    Call   = 3,
+    Return = 4,
+    Clear  = 5, // probably unneeded
 }
 
 impl Opcode {

@@ -9,17 +9,17 @@ use crate::vm::local::Local;
 // TODO: the 'vacuum' seems kind of cheap.
 
 // some sort of recursive descent parser, I guess
-type Tokens<'a>   = &'a [Spanned<'a, Token>];
-type Bite<'e, 's> = (Spanned<'s, AST<'s>>, Tokens<'e>);
-type Rule         = Box<dyn Fn(Tokens) -> Result<(Spanned<AST>, Tokens), Syntax>>;
+type Tokens<'a> = &'a [Spanned<Token>];
+type Bite<'a>   = (Spanned<AST>, Tokens<'a>);
+type Rule   = Box<dyn Fn(Tokens) -> Result<(Spanned<AST>, Tokens), Syntax>>;
 
-pub fn parse<'a>(tokens: Vec<Spanned<'a, Token>>) -> Result<Spanned<AST>, Syntax> {
+pub fn parse<'a>(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     // parse the file
     // slices are easier to work with
-    match block(&tokens[..]) {
+    match block(&tokens) {
         // vaccum all extra seperators
-        Result::Ok((node, parsed)) => if vaccum(parsed, Token::Sep).is_empty()
-            { Result::Ok(node) } else { unreachable!() },
+        Ok((node, parsed)) => if vaccum(parsed, Token::Sep).is_empty()
+            { Ok(node) } else { unreachable!() },
         // if there are still tokens left, something's gone wrong.
         // TODO: handle error
         _ => unreachable!(),
@@ -64,7 +64,7 @@ fn consume(tokens: Tokens, token: Token) -> Result<Tokens, Syntax> {
                 token,
                 t.item
             ),
-            t.span
+            t.span.clone()
         ));
     }
 
@@ -82,7 +82,7 @@ fn first(tokens: Tokens, rules: Vec<Rule>) -> Result<(Spanned<AST>, Tokens), Syn
     }
 
     match tokens.iter().next() {
-        Some(t) => Err(Syntax::error("Unexpected construct", t.span)),
+        Some(t) => Err(Syntax::error("Unexpected construct", t.span.clone())),
         None    => Err(Syntax::error("Unexpected EOF while parsing", Span::empty())),
     }
 }
@@ -101,7 +101,7 @@ fn block(tokens: Tokens) -> Result<(Spanned<AST>, Tokens), Syntax> {
     while !remaining.is_empty() {
         match call(remaining) {
             Result::Ok((e, r)) => {
-                annotations.push(e.span);
+                annotations.push(e.span.clone());
                 expressions.push(e);
                 remaining = r;
             },
@@ -236,13 +236,13 @@ fn literal(tokens: Tokens) -> Result<Bite, Syntax> {
     if let Some(Spanned { item: token, span }) = tokens.iter().next() {
         Result::Ok((Spanned::new(
             match token {
-                Token::Symbol(l)  => AST::symbol(*l),
-                Token::Number(n)  => AST::data(*n),
-                Token::String(s)  => AST::data(*s),
-                Token::Boolean(b) => AST::data(*b),
-                _ => return Err(Syntax::error("Unexpected token", *span)),
+                Token::Symbol(l)  => AST::symbol(l.clone()),
+                Token::Number(n)  => AST::data(n.clone()),
+                Token::String(s)  => AST::data(s.clone()),
+                Token::Boolean(b) => AST::data(b.clone()),
+                _ => return Err(Syntax::error("Unexpected token", span.clone())),
             },
-            *span
+            span.clone()
         ), &tokens[1..]))
     } else {
         Err(Syntax::error("Unexpected EOF while parsing", Span::empty()))

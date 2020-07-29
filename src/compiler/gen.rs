@@ -46,17 +46,13 @@ impl Chunk {
     /// and for them to be incorrect is an error in the compiler itself.
     fn walk(&mut self, ast: &Spanned<AST>) {
         // push left, push right, push center
-        // NOTE: borrowing here introduces some complexity and cloning...
-        // AST should be immutable and not behind shared reference so does not make sense to clone
-        match &ast.item {
-            AST::Data(data) => self.data(data.clone()),
-            AST::Symbol(symbol) => self.symbol(symbol.clone()),
-            AST::Block(block) => self.block(*block),
-
-            // TODO: code smell, I'm almost a 3-star programmer.
-            AST::Assign { pattern, expression } => self.assign(**pattern, **expression),
-            AST::Lambda { pattern, expression } => self.lambda(**pattern, **expression),
-            AST::Call   { fun,     arg        } => self.call(**fun, **arg),
+        match ast.item.clone() {
+            AST::Data(data) => self.data(data),
+            AST::Symbol(symbol) => self.symbol(symbol),
+            AST::Block(block) => self.block(block),
+            AST::Assign { pattern, expression } => self.assign(*pattern, *expression),
+            AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
+            AST::Call   { fun,     arg        } => self.call(*fun, *arg),
         }
     }
 
@@ -126,7 +122,7 @@ impl Chunk {
     /// This makes passerine strictly pass by value.
     /// Though mutable objects can be simulated with macros.
     /// For example:
-    /// ```
+    /// ```plain
     /// --- Increments a variable by 1, returns new value.
     /// increment = var ~> { var = var + 1; var }
     ///
@@ -138,7 +134,7 @@ impl Chunk {
     /// { counter = counter + 1; counter }
     /// ```
     /// To demonstrate what I mean, let's annotate the vars.
-    /// ```
+    /// ```plain
     /// increment = var<`a> ~> {
     ///     var<`b> = var<`a> + 1
     ///     var<`b>
@@ -146,7 +142,7 @@ impl Chunk {
     /// ```
     /// `<\`_>` means that the value held by var is the same.
     /// Because
-    /// ```
+    /// ```plain
     ///     var<`b> = var<`a> + 1
     ///                  ^^^^
     /// ```
@@ -164,10 +160,11 @@ impl Chunk {
         // load the following symbol ...
         self.code.push(Opcode::Save as u8);
         // ... the symbol to be loaded
-        match symbol.item {
+        let index = match symbol.item {
             AST::Symbol(l) => self.index_symbol(l),
-            _               => unreachable!(),
+            _              => unreachable!(),
         };
+        self.code.append(&mut split_number(index));
         // TODO: load Unit
     }
 
@@ -186,7 +183,7 @@ impl Chunk {
     ///   when creating a closure.
     ///   While easy to implement, captured values would not represent
     ///   the same object:
-    ///   ```
+    ///   ```plain
     ///   counter = start -> {
     ///       value = start
     ///       increment = () -> { value = value + 1 }
@@ -200,7 +197,7 @@ impl Chunk {
     ///   an alternative would be adding support for pseudo-objects via macros.
     ///   this wouldn't clash with naïeve closure implementations;
     ///   here's what I'm getting at:
-    ///   ```
+    ///   ```plain
     ///   counter = start -> {
     ///       Counter start -- wrap value in Label, creating a type
     ///   }
@@ -229,7 +226,7 @@ impl Chunk {
     ///   variables are removed from the environment,
     ///   And all functions return containing an ARC to the base function's environment
     /// - I noticed an issue. Take this example:
-    ///   ```
+    ///   ```plain
     ///   escape = huge tiny -> {
     ///       forget   = () -> huge,
     ///       remember = () -> tiny
@@ -252,10 +249,11 @@ impl Chunk {
         // inside the function
         // save the argument into the given variable
         fun.code.push(Opcode::Save as u8);
-        fun.index_symbol(match symbol.item {
+        let index = fun.index_symbol(match symbol.item {
             AST::Symbol(l) => l,
             _               => unreachable!(),
         });
+        fun.code.append(&mut split_number(index));
 
         fun.code.push(Opcode::Clear as u8);  // clear the stack
         fun.walk(&expression);               // run the function
