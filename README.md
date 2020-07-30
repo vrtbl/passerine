@@ -1,5 +1,4 @@
-# Passerine
-![Rust](https://github.com/vrtbl/passerine/workflows/Rust/badge.svg)
+![Passerine Logotype](https://raw.githubusercontent.com/vrtbl/passerine/master/Logotype.png)
 
 Welcome to Passerine!
 Passerine is a small, concise, extensible programming language, powered by a VM written in Rust.
