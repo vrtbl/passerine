@@ -1,8 +1,8 @@
-use crate::utils::runtime::Syntax;
-use crate::utils::span::{Span, Spanned};
-use crate::pipeline::token::Token;
-use crate::pipeline::ast::AST;
-use crate::vm::data::Data;
+use crate::compiler::syntax::Syntax;
+use crate::compiler::token::Token;
+use crate::compiler::ast::AST;
+use crate::common::span::{Span, Spanned};
+use crate::common::data::Data;
 use crate::vm::local::Local;
 
 // This is a recursive descent parser that builds the AST
