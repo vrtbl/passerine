@@ -1,4 +1,7 @@
 pub mod vm;
-pub mod data;
-pub mod local;
-pub mod stack;
+
+mod tag;
+pub mod local; // TODO: should not be public
+mod stack;
+
+mod trace;

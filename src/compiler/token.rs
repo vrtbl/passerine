@@ -1,4 +1,4 @@
-use crate::vm::data::Data;
+use crate::common::data::Data;
 use crate::vm::local::Local;
 
 /// These are the different tokens the lexer will output.

@@ -2,7 +2,7 @@ use std::fmt::{Formatter, Display, Result};
 use std::usize;
 use std::rc::Rc;
 
-use crate::pipeline::source::Source;
+use crate::common::source::Source;
 
 /// A `Span` refers to a section of a source,
 /// much like a `&str`, but with a reference to a `Source` rather than a `String`.

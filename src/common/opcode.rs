@@ -1,7 +1,3 @@
-// TODO: move to VM
-use crate::vm::data::Data;
-use crate::vm::local::Local;
-
 /// This enum represents a single opcode.
 /// Under the hood, it's just a byte.
 /// This allows non opcode bytes to be inserted in bytecode streams.

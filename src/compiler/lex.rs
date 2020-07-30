@@ -2,12 +2,12 @@ use std::str::FromStr;
 use std::f64;
 use std::rc::Rc;
 
-use crate::pipeline::source::Source;
-use crate::pipeline::token::Token;
-use crate::utils::runtime::Syntax;
-use crate::utils::span::{ Span, Spanned };
+use crate::compiler::token::Token;
+use crate::compiler::syntax::Syntax;
+use crate::common::source::Source;
+use crate::common::span::{ Span, Spanned };
+use crate::common::data::Data;
 use crate::vm::local::Local;
-use crate::vm::data::Data;
 
 type Bite = (Token, usize);
 
@@ -284,7 +284,7 @@ impl Lexer {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::vm::data::Data;
+    use crate::common::data::Data;
     use crate::vm::local::Local;
 
     // NOTE: lexing individual tokens is tested in pipeline::token

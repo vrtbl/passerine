@@ -1,16 +1,15 @@
-use crate::pipeline::ast::AST;
-use crate::pipeline::bytecode::Opcode;
-use crate::vm::data::Data;
+use crate::compiler::ast::AST;
+use crate::common::opcode::Opcode;
+use crate::common::data::Data;
+use crate::common::span::Spanned;
+use crate::common::number::split_number;
 use crate::vm::local::Local;
-use crate::utils::span::Spanned;
-use crate::utils::number::split_number;
 
-
-// The bytecode generator (emitter) walks the AST and produces (unoptimized) Bytecode
-// There are plans to add a bytecode optimizer in the future.
-// The bytecode generator
 // TODO: annotations in bytecode
+// TODO: separate AST compiler from Chunk itself
 
+/// The bytecode generator (emitter) walks the AST and produces (unoptimized) Bytecode
+/// There are plans to add a bytecode optimizer in the future.
 pub fn gen(ast: Spanned<AST>) -> Chunk {
     let mut generator = Chunk::empty();
     generator.walk(&ast);
@@ -92,7 +91,7 @@ impl Chunk {
     /// Takes a symbol leaf, and produces some code to load the local.
     fn symbol(&mut self, symbol: Local) {
         self.code.push(Opcode::Load as u8);
-        let mut index = self.index_symbol(symbol);
+        let index = self.index_symbol(symbol);
         self.code.append(&mut split_number(index));
     }
 
@@ -277,7 +276,7 @@ mod test {
     use super::*;
     use crate::compiler::lex::lex;
     use crate::compiler::parse::parse;
-    use crate::pipeline::source::Source;
+    use crate::common::source::Source;
 
     #[test]
     fn constants() {

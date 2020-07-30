@@ -1,5 +1,5 @@
-use crate::utils::span::{Spanned};
-use crate::vm::data::Data;
+use crate::common::span::Spanned;
+use crate::common::data::Data;
 use crate::vm::local::Local;
 
 // NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)

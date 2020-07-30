@@ -1,4 +1,3 @@
-use std::str::Chars;
 use std::path::PathBuf;
 use std::io::Read;
 use std::fs::File;

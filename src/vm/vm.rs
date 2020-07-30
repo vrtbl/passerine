@@ -1,11 +1,12 @@
 use std::mem;
 
-use crate::utils::number::build_number;
-use crate::utils::runtime::Trace;
-use crate::vm::data::{Data, Tagged};
+use crate::common::number::build_number;
+use crate::common::data::Data;
+use crate::common::opcode::Opcode;
+use crate::vm::trace::Trace;
+use crate::vm::tag::Tagged;
 use crate::vm::stack::{Item, Stack};
 use crate::vm::local::Local;
-use crate::pipeline::bytecode::Opcode;
 use crate::compiler::gen::Chunk; // TODO: Move chunk to a better spot?
 
 /// A `VM` executes bytecode chunks.
@@ -39,7 +40,7 @@ impl VM {
     fn terminate(&mut self) -> Result<(), Trace> { self.ip = self.chunk.code.len(); Ok(()) }
     fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
     fn peek_byte(&mut self) -> u8                { self.chunk.code[self.ip] }
-    fn next_byte(&mut self) -> u8                { self.done(); self.peek_byte() }
+    fn next_byte(&mut self) -> u8                { self.done().unwrap(); self.peek_byte() }
 
     /// Builds the next number in the bytecode stream.
     /// See `utils::number` for more.
@@ -246,7 +247,7 @@ mod test {
         lex::lex,
         gen::gen,
     };
-    use crate::pipeline::source::Source;
+    use crate::common::source::Source;
 
     #[test]
     fn init_run() {

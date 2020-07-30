@@ -1,4 +1,5 @@
-use crate::vm::data::{Data, Tagged};
+use crate::common::data::Data;
+use crate::vm::tag::Tagged;
 use crate::vm::local::Local;
 
 pub type Stack = Vec<Item>;
