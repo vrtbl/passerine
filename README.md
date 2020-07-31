@@ -1,5 +1,9 @@
 ![Passerine Logotype](https://raw.githubusercontent.com/vrtbl/passerine/master/Logotype.png)
 
+![Rust Build Status](https://github.com/vrtbl/passerine/workflows/Rust/badge.svg)
+![Crates.io](https://img.shields.io/crates/v/passerine.svg)
+![Docs.rs](https://docs.rs/passerine/badge.svg)
+
 Welcome to Passerine!
 Passerine is a small, concise, extensible programming language, powered by a VM written in Rust.
 It was inspired by Scheme, OCaml, Rust, and Wren.
