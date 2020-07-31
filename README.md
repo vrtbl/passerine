@@ -63,7 +63,7 @@ we plan to add to Passerine to reach 1.0.
 | **0.5.2** | Numbers                     | Stable           |             |
 | **0.5.3** | Strings                     | Stable           |             |
 | 0.6       | Functions                   | WIP              | 2020-08-08  |
-| 0.6.1     | Block Scope                 | WIP              |             |
+| **0.6.1** | Block Scope                 | Stable           |             |
 | 0.6.2     | Closures                    | WIP              |             |
 | 0.6.3     | Operators                   | WIP              |             |
 | 0.7       | Alg. Structs.               | Planning         | 2020-05-15  |
