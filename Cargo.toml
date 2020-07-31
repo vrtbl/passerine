@@ -3,7 +3,6 @@ name = "passerine"
 version = "0.6.0"
 authors = ["Isaac Cayton (slightknack) <slightknack@gmail.com>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-# NOTE: I'm trying to keep passerine a no-deps library
-[dependencies]
+description = "A small extensible programming language designed for concise expression with little code."
+license = "MIT"
+license-file = "LICENSE.txt"
