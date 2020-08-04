@@ -54,9 +54,8 @@ If you'd like to contribute:
 ## Roadmap
 This is a loose roadmap of the features
 we plan to add to Passerine to reach 1.0.
-
-- **Bold** Indicates work-in-progress
-- *Italic* Indicates planning
+**Bold** items are a work-in-progress.
+*Italic* items are currently being planned.
 
 - [X] 0: Start Project
   - [X] 0.1: Lexer
