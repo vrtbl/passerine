@@ -17,7 +17,9 @@ syntax 'for 'each var 'in list do {
     loop = remaining -> {
         match remaining {
             () -> (),
-            [head & tail] -> { body head; remaining tail }
+            [head & tail] -> { 
+                body head 
+                remaining tail . loop
         }
     }
 
