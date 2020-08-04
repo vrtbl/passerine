@@ -1,4 +1,4 @@
-![Passerine Logotype](https://raw.githubusercontent.com/vrtbl/passerine/master/Logotype.png)]
+[![Passerine Logotype](https://raw.githubusercontent.com/vrtbl/passerine/master/Logotype.png)](https://passerine.io)
 
 [![Rust Build Status](https://github.com/vrtbl/passerine/workflows/Rust/badge.svg)](https://github.com/vrtbl/passerine/actions)
 [![Crates.io](https://img.shields.io/crates/v/passerine.svg)](https://crates.io/crates/passerine)
