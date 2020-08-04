@@ -62,39 +62,39 @@ we plan to add to Passerine to reach 1.0.
   - [X] 0.1: Lexer
   - [X] 0.2: Parser
   - [X] 0.3: Bytecode Generator
-  - [X] 0.4: VM <details><summary>Details</summary>
+  - [X] 0.4: Virtual Machine <details><summary>**Details**</summary>
     - [X] Local Variables
     - [X] Block Expressions
     </details>
-  - [X] 0.5: Unary Datatypes <details><summary>Details</summary>
+  - [X] 0.5: Unary Datatypes <details><summary>**Details**</summary>
     - [X] NaN Tagging
     - [X] Numbers
     - [X] Strings
     </details>
-  - [ ] **0.6: Functions** <details><summary>Details</summary>
+  - [ ] **0.6: Functions** <details><summary>**Details**</summary>
     - [X] Block Scope
     - [ ] **Closures**
     - [ ] **Operators**
     </details>
-  - [ ] 0.7: *Compound Data Types*< details><summary>Details</summary>
+  - [ ] 0.7: *Compound Data Types* <details><summary>**Details**</summary>
     - [ ] *Tuple*
     - [ ] *Union*
     - [ ] *Record*
     - [ ] *Map*
     </details>
-  - [ ] 0.8: *Hygenic Macros* <details><summary>Details</summary>
+  - [ ] 0.8: *Hygenic Macros* <details><summary>**Details**</summary>
     - [ ] Pattern Matching
     - [ ] Modules
     - [ ] Types and Traits (Labels)
     </details>
-  - [ ] 0.9: *Fibers* <details><summary>Details</summary>
+  - [ ] 0.9: *Fibers* <details><summary>**Details**</summary>
     - [ ] Coroutines
     - [ ] **Error Handling**
     </details>
-  - [ ] 0.10: [**CLI**](https://github.io/vrtbl/aspen) <details><summary>Details</summary>
+  - [ ] 0.10: [**CLI**](https://github.io/vrtbl/aspen) <details><summary>**Details**</summary>
     Visit the [Aspen](https://github.io/vrtbl/aspen) repository to discover the status of Passerine's CLI and package manager.
     </details>
-  - [ ] 0.11: Standard Library <details><summary>Details</summary>
+  - [ ] 0.11: Standard Library <details><summary>**Details**</summary>
     - [ ] FFI
     - [ ] I/O
     - [ ] Math
@@ -102,7 +102,7 @@ we plan to add to Passerine to reach 1.0.
     - [ ] Time
     - [ ] Networking
     </details>
-  - [ ] 0.12 Prepare for Stable Release <details><summary>Details</summary>
+  - [ ] 0.12 Prepare for Stable Release <details><summary>**Details**</summary>
     - [ ] **Website**
     - [ ] **Documentation**
     - [ ] Optimizations
