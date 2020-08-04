@@ -1,8 +1,8 @@
-![Passerine Logotype](https://raw.githubusercontent.com/vrtbl/passerine/master/Logotype.png)
+![Passerine Logotype](https://raw.githubusercontent.com/vrtbl/passerine/master/Logotype.png)]
 
-![Rust Build Status](https://github.com/vrtbl/passerine/workflows/Rust/badge.svg)
-![Crates.io](https://img.shields.io/crates/v/passerine.svg)
-![Docs.rs](https://docs.rs/passerine/badge.svg)
+[![Rust Build Status](https://github.com/vrtbl/passerine/workflows/Rust/badge.svg)](https://github.com/vrtbl/passerine/actions)
+[![Crates.io](https://img.shields.io/crates/v/passerine.svg)](https://crates.io/crates/passerine)
+[![Docs.rs](https://docs.rs/passerine/badge.svg)](https://docs.rs/passerine)
 
 Welcome to Passerine!
 Passerine is a small, concise, extensible programming language, powered by a VM written in Rust.
@@ -53,46 +53,63 @@ If you'd like to contribute:
 This is a loose roadmap of the features
 we plan to add to Passerine to reach 1.0.
 
-| Version   | Milestone                   | Status (P, W, S) | Stable Goal |
-|-----------|-----------------------------|------------------|-------------|
-| **0**     | Start Project               | Stable           |             |
-| **0.1**   | Lexer                       | Stable           |             |
-| **0.2**   | Parser                      | Stable           |             |
-| **0.3**   | Bytecode Generator          | Stable           |             |
-| **0.4**   | VM                          | Stable           | 2020-04-25✓ |
-| **0.4.1** | Local Variables             | Stable           |             |
-| **0.4.2** | Block Expressions           | Stable           |             |
-| **0.5**   | Unary Datatypes             | Stable           | 2020-05-02✓ |
-| **0.5.1** | Nan Tagging                 | Stable           |             |
-| **0.5.2** | Numbers                     | Stable           |             |
-| **0.5.3** | Strings                     | Stable           |             |
-| 0.6       | Functions                   | WIP              | 2020-08-08  |
-| **0.6.1** | Block Scope                 | Stable           |             |
-| 0.6.2     | Closures                    | WIP              |             |
-| 0.6.3     | Operators                   | WIP              |             |
-| 0.7       | Alg. Structs.               | Planning         | 2020-05-15  |
-| 0.7.1     | Tuple                       | Planning         |             |
-| 0.7.2     | Union                       | Planning         |             |
-| 0.7.3     | Record                      | Planning         |             |
-| 0.7.4     | Map                         | Planning         |             |
-| 0.8       | Hygenic Macros              | Planning         | 2020-05-29  |
-| 0.8.1     | Pattern Matching            | Planning         |             |
-| 0.8.2     | Types and Traits            | Planning         |             |
-| 0.9.0     | Fibers                      |                  |             |
-| 0.9.1     | Error Handling              | WIP              |             |
-| 0.10      | CLI                         |                  |             |
-| 0.11      | Standard Library            |                  |             |
-| 0.11.1    | FFI                         |                  |             |
-| 0.11.1    | I/O                         |                  |             |
-| 0.11.2    | Math & Numeric Tower        |                  |             |
-| 0.11.3    | Random                      |                  |             |
-| 0.11.4    | Time                        |                  |             |
-| 0.11.5    | Networking                  |                  |             |
-| 0.12      | Clean up for Stable Release |                  |             |
-| 0.12.1    | Website                     | Planning         |             |
-| 1.0.0     | First Stable Release        |                  |             |
-| 1.1.0     | Automated Tests             |                  |             |
-| 1.2.0     | Documentation Generation    |                  |             |
-| 1.3.0     | Package Manager             |                  |             |
-| 2.0.0     | Parallelism                 |                  |             |
-| ...       | TBD                         |                  |             |
+- **Bold** Indicates work-in-progress
+- *Italic* Indicates planning
+
+- [X] 0: Start Project
+  - [X] 0.1: Lexer
+  - [X] 0.2: Parser
+  - [X] 0.3: Bytecode Generator
+  - [X] 0.4: VM <details><summary>Details</summary>
+    - [X] Local Variables
+    - [X] Block Expressions
+    </details>
+  - [X] 0.5: Unary Datatypes <details><summary>Details</summary>
+    - [X] NaN Tagging
+    - [X] Numbers
+    - [X] Strings
+    </details>
+  - [ ] **0.6: Functions** <details><summary>Details</summary>
+    - [X] Block Scope
+    - [ ] **Closures**
+    - [ ] **Operators**
+    </details>
+  - [ ] 0.7: *Compound Data Types*< details><summary>Details</summary>
+    - [ ] *Tuple*
+    - [ ] *Union*
+    - [ ] *Record*
+    - [ ] *Map*
+    </details>
+  - [ ] 0.8: *Hygenic Macros* <details><summary>Details</summary>
+    - [ ] Pattern Matching
+    - [ ] Modules
+    - [ ] Types and Traits (Labels)
+    </details>
+  - [ ] 0.9: *Fibers* <details><summary>Details</summary>
+    - [ ] Coroutines
+    - [ ] **Error Handling**
+    </details>
+  - [ ] 0.10: [**CLI**](https://github.io/vrtbl/aspen) <details><summary>Details</summary>
+    Visit the [Aspen](https://github.io/vrtbl/aspen) repository to discover the status of Passerine's CLI and package manager.
+    </details>
+  - [ ] 0.11: Standard Library <details><summary>Details</summary>
+    - [ ] FFI
+    - [ ] I/O
+    - [ ] Math
+    - [ ] Random
+    - [ ] Time
+    - [ ] Networking
+    </details>
+  - [ ] 0.12 Prepare for Stable Release <details><summary>Details</summary>
+    - [ ] **Website**
+    - [ ] **Documentation**
+    - [ ] Optimizations
+    - [ ] Resources
+    </details>
+- [ ] 1: First Stable Release
+    - [ ] 1.1: Automated Tests 
+    - [ ] 1.2: Documentation Generation
+    - [ ] 1.3: **Package Manager**
+    - [ ] ...
+- [ ] 2: Parallelism
+- [ ] ... 
