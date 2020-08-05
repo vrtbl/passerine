@@ -1,40 +1,38 @@
-use crate::compiler::ast::AST;
-use crate::common::opcode::Opcode;
-use crate::common::data::Data;
-use crate::common::span::Spanned;
 use crate::common::number::split_number;
-use crate::vm::local::Local;
+use crate::common::span::{Span, Spanned};
+use crate::common::chunk::Chunk;
+use crate::common::opcode::Opcode;
+use crate::common::local::Local;
+use crate::compiler::ast::AST;
 
-// TODO: annotations in bytecode
-// TODO: separate AST compiler from Chunk itself
-
-/// The bytecode generator (emitter) walks the AST and produces (unoptimized) Bytecode
-/// There are plans to add a bytecode optimizer in the future.
-pub fn gen(ast: Spanned<AST>) -> Chunk {
-    let mut generator = Chunk::empty();
-    generator.walk(&ast);
-    generator
+pub struct Compiler {
+    locals: Vec<Local>,
+    depth: usize,
+    chunk: Chunk,
 }
 
-/// Represents a single interpretable chunk of bytecode,
-/// Think a function.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Chunk {
-    pub code:      Vec<u8>,    // each byte is an opcode or a number-stream
-    pub offsets:   Vec<usize>, // each usize indexes the bytecode op that begins each line
-    pub constants: Vec<Data>,  // number-stream indexed, used to load constants
-    pub locals:    Vec<Local>, // ''                                  variables
-}
-
-impl Chunk {
-    /// Creates a new empty chunk to be filled.
-    pub fn empty() -> Chunk {
-        Chunk {
-            code:      vec![],
-            offsets:   vec![],
-            constants: vec![],
-            locals:    vec![],
+impl Compiler {
+    pub fn new() -> Compiler {
+        Compiler {
+            locals: vec![],
+            depth: 0,
+            chunk: Chunk::empty()
         }
+    }
+
+    pub fn begin_scope(&mut self) { self.depth += 1; }
+    pub fn end_scope(&mut self) {
+        self.depth -= 1;
+
+        while let Some(_) = self.locals.pop() {
+            self.chunk.emit(Opcode::Del)
+        }
+    }
+
+    pub fn declare(&mut self) {
+        self.locals.push(
+            Local { symbol: todo!(), depth: self.depth }
+        )
     }
 
     // TODO: bytecode chunk dissambler
@@ -55,37 +53,11 @@ impl Chunk {
         }
     }
 
-    /// Given some data, this function adds it to the constants table,
-    /// and returns the data's index.
-    /// The constants table is push only, so constants are identified by their index.
-    /// The resulting usize can be split up into a number byte stream,
-    /// and be inserted into the bytecode.
-    pub fn index_data(&mut self, data: Data) -> usize {
-        match self.constants.iter().position(|d| d == &data) {
-            Some(d) => d,
-            None    => {
-                self.constants.push(data);
-                self.constants.len() - 1
-            },
-        }
-    }
-
     /// Takes a `Data` leaf and and produces some code to load the constant
     fn data(&mut self, data: Data) {
         self.code.push(Opcode::Con as u8);
         let mut split = split_number(self.index_data(data));
         self.code.append(&mut split);
-    }
-
-    /// Similar to index constant, but indexes variables instead.
-    fn index_symbol(&mut self, symbol: Local) -> usize {
-        match self.locals.iter().position(|l| l == &symbol) {
-            Some(l) => l,
-            None    => {
-                self.locals.push(symbol);
-                self.locals.len() - 1
-            },
-        }
     }
 
     /// Takes a symbol leaf, and produces some code to load the local.
