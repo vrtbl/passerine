@@ -5,7 +5,6 @@ use crate::common::{
     data::Data,
     opcode::Opcode,
     chunk::Chunk,
-    local::Local,
 };
 
 use crate::vm::{
@@ -35,11 +34,10 @@ impl VM {
     pub fn init() -> VM {
         VM {
             chunk: Chunk::empty(),
-            stack: vec![Item::Frame],
+            stack: Stack::init(),
             ip:    0,
         }
     }
-
 
     fn next(&mut self)                           { self.ip += 1; }
     fn terminate(&mut self) -> Result<(), Trace> { self.ip = self.chunk.code.len(); Ok(()) }
@@ -58,30 +56,6 @@ impl VM {
         return index;
     }
 
-    /// Finds a local on stack.
-    /// Note that in the future, locals should be pre-indexed when the AST is walked
-    /// so this function won't be necessary then.
-    fn find_local(&mut self, local: &Local) -> Option<usize> {
-        for (index, item) in self.stack.iter().enumerate().rev() {
-            match item {
-                Item::Local { local: l, .. } => if local == l { return Some(index); },
-                Item::Frame                  => break,
-                Item::Data(_)                => (),
-            }
-        }
-
-        return None;
-    }
-
-    /// finds the index of the local on the stack indicated by the bytecode.
-    fn local_index(&mut self) -> (Local, Option<usize>) {
-        let local_index = self.next_number();
-        let local       = self.chunk.locals[local_index].clone();
-        let index       = self.find_local(&local);
-
-        return (local, index);
-    }
-
     // core interpreter loop
 
     /// Dissasembles and interprets a single (potentially fallible) bytecode op.
@@ -92,9 +66,9 @@ impl VM {
 
         match op_code {
             Opcode::Con    => self.con(),
+            Opcode::Del    => self.del(),
             Opcode::Save   => self.save(),
             Opcode::Load   => self.load(),
-            Opcode::Clear  => self.clear(),
             Opcode::Call   => self.call(),
             Opcode::Return => self.return_val(),
         }
@@ -125,97 +99,57 @@ impl VM {
         // nothing went wrong!
         return Result::Ok(());
     }
-}
 
-// TODO: there are a lot of optimizations that can be made
-// I'll list a few here:
-// - searching the stack for variables
-//   A global Hash-table has significantly less overhead for function calls
-// - cloning the heck out of everything - useless copies
-//   instead, lifetime analysis during compilation
-// - replace some panics with Result<()>s
-impl VM {
+    // TODO: there are a lot of optimizations that can be made
+    // I'll list a few here:
+    // - searching the stack for variables
+    //   A global Hash-table has significantly less overhead for function calls
+    // - cloning the heck out of everything - useless copies
+    //   instead, lifetime analysis during compilation
+    // - replace some panics with Result<()>s
+
     /// Load a constant and push it onto the stack.
     fn con(&mut self) -> Result<(), Trace> {
         // get the constant index
         let index = self.next_number();
 
-        self.stack.push(Item::Data(Tagged::new(self.chunk.constants[index].clone())));
+        self.stack.push_data(self.chunk.constants[index].clone());
         self.done()
     }
 
     /// Save the topmost value on the stack into a variable.
     fn save(&mut self) -> Result<(), Trace> {
-        let data = match self.stack.pop() { Some(Item::Data(d)) => d.data(), _ => panic!("Expected data") };
-        let (local, index) = self.local_index();
-
-        // NOTE: Does it make a copy or does it make a reference?
-        // It makes a copy of the data
-        match index {
-            // It's been declared
-            Some(i) => mem::drop(
-                mem::replace(
-                    &mut self.stack[i],
-                    Item::Local { local, data },
-                )
-            ),
-            // It hasn't been declared
-            None => self.stack.push(Item::Local { local, data }),
-        }
-
-        // TODO: make separate byte code op?
-        self.stack.push(Item::Data(Tagged::new(Data::Unit)));
-
+        let data = self.stack.pop_data();
+        let index = self.next_number();
+        self.stack.set_local(index);
         self.done()
     }
 
     /// Push a copy of a variable's value onto the stack.
     fn load(&mut self) -> Result<(), Trace> {
-        let (_, index) = self.local_index();
-
-        match index {
-            Some(i) => {
-                if let Item::Local { data, .. } = &self.stack[i] {
-                    let data = Item::Data(Tagged::new(data.clone()));
-                    self.stack.push(data);
-                }
-            },
-            None => panic!("Local not found on stack!"), // TODO: make it a Passerine error
-        }
-
+        let index = self.next_number();
+        self.stack.get_local(index);
         self.done()
     }
 
-    /// Clear all data off the stack.
-    fn clear(&mut self) -> Result<(), Trace> {
-        loop {
-            match self.stack.pop() {
-                Some(Item::Data(_)) => (),
-                Some(l)             => { self.stack.push(l); break; },
-                None                => panic!("There wasn't a frame on the stack.")
-            }
-        }
-
-        self.done()
+    /// Delete the top item of the stack
+    fn del(&mut self) -> Result<(), Trace> {
+        Ok(mem::drop(self.stack.pop_data()))
     }
 
+    // TODO: closures
     /// Call a function on the top of the stack, passing the next value as an argument.
     fn call(&mut self) -> Result<(), Trace> {
-        let fun = match self.stack.pop() {
-            Some(Item::Data(d)) => match d.data() {
-                Data::Lambda(l) => l,
-                _               => unreachable!(),
-            }
-            _ => unreachable!(),
+        let fun = match self.stack.pop_data() {
+            Data::Lambda(l) => l,
+            _               => unreachable!(),
         };
-        let arg = match self.stack.pop() {
-            Some(Item::Data(d)) => d,
-            _                   => unreachable!(),
-        };
+        let arg = self.stack.pop_data();
 
-        self.stack.push(Item::Frame);
-        self.stack.push(Item::Data(arg));
+        self.stack.push_frame();
+        self.stack.push_data(arg);
         println!("entering...");
+        // TODO: keep the passerine call stack separated from the rust call stack.
         self.run(fun)?;
         println!("exiting...");
 
@@ -225,21 +159,11 @@ impl VM {
     /// Return a value from a function.
     /// End the execution of the current chunk.
     /// Relpaces the last frame with the value on the top of the stack.
+    /// Expects the stack to be a `[..., Frame, Data]`
     fn return_val(&mut self) -> Result<(), Trace> {
-        let val = match self.stack.pop() {
-            Some(Item::Data(d)) => d,
-            _                   => unreachable!(),
-        };
-
-        loop {
-            match self.stack.pop() {
-                Some(Item::Frame) => break,
-                None              => unreachable!("There should never not be a frame on the stack"),
-                _                 => (),
-            }
-        }
-
-        self.stack.push(Item::Data(val));
+        let val = self.stack.pop_data();
+        self.stack.pop_frame();
+        self.stack.push_data(val);
         self.terminate()
     }
 }
@@ -282,13 +206,9 @@ mod test {
             Err(e) => eprintln!("{}", e),
         }
 
-        if let Some(Item::Data(t)) = vm.stack.pop() {
-            match t.data() {
-                Data::Boolean(true) => (),
-                _                   => panic!("Expected true value"),
-            }
-        } else {
-            panic!("Expected data on top of stack");
+        match vm.stack.pop_data() {
+            Data::Boolean(true) => (),
+            _                   => panic!("Expected true value"),
         }
     }
 
@@ -304,11 +224,8 @@ mod test {
             Err(e) => eprintln!("{}", e),
         }
 
-        if let Some(Item::Data(t)) = vm.stack.pop() {
-            assert_eq!(t.data(), Data::Boolean(true));
-        } else {
-            panic!("Expected float on top of stack");
-        }
+        let t = vm.stack.pop_data();
+        assert_eq!(t, Data::Boolean(true));
     }
 
     #[test]
@@ -319,22 +236,14 @@ mod test {
 
         println!("{:#?}", chunk);
 
-        let out_of_scope = Local::new("z".to_string());
-
         let mut vm = VM::init();
         match vm.run(chunk) {
             Ok(_)  => (),
             Err(e) => eprintln!("{}", e),
         }
 
-        // check that z has been dealloced
-        assert_eq!(vm.find_local(&out_of_scope), None);
-
         // check that y is in fact 7
-        if let Some(Item::Data(t)) = vm.stack.pop() {
-            assert_eq!(t.data(), Data::Real(7.0));
-        } else {
-            panic!("Expected 7.0 on top of stack");
-        }
+        let t = vm.stack.pop_data();
+        assert_eq!(t, Data::Real(7.0));
     }
 }

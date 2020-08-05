@@ -16,8 +16,7 @@ use crate::common::{
 pub enum Data {
     // VM Stack
     Frame,
-    // Local(Local, Box<Data>),
-    // Heap(Local, Rc<Data>),
+    Heaped(Rc<Data>),
 
     // Passerine Data (Atomic)
     Real(f64),

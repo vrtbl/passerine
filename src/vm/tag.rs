@@ -4,6 +4,8 @@ use std::{
     fmt::{Formatter, Debug, Error},
 };
 
+// TODO: implement stack Frame
+
 use crate::common::data::Data;
 
 /// Tagged implements Nan-tagging around the `Data` enum.
@@ -50,6 +52,11 @@ impl Tagged {
             // TODO: layout to make sure pointer is the right size when boxing
             other => Tagged(P_FLAG | QNAN | (P_MASK & (Box::into_raw(Box::new(other))) as u64)),
         }
+    }
+
+    // TODO: encode frame in tag itself; a frame is not data
+    pub fn frame() -> Tagged {
+        Tagged::new(Data::Frame)
     }
 
     // TODO: use deref trait

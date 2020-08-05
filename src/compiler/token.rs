@@ -1,4 +1,7 @@
-use crate::common::data::Data;
+use crate::common::{
+    span::Span,
+    data::Data,
+};
 
 /// These are the different tokens the lexer will output.
 /// `Token`s with data contain that data,
@@ -17,7 +20,7 @@ pub enum Token {
     Lambda,
 
     // Datatypes
-    Local(String),
+    Symbol, // is specified by Span rather than an actual value
     Number(Data),
     String(Data),
     Boolean(Data),

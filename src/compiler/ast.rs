@@ -20,8 +20,8 @@ use crate::common::{
 /// please, at the least, open an issue describing your more optimal methodology.
 #[derive(Debug, Clone)]
 pub enum AST {
+    Symbol,
     Data(Data),
-    Symbol(Local),
     Block(Vec<Spanned<AST>>),
     Assign {
         pattern:    Box<Spanned<AST>>, // Note - should be pattern

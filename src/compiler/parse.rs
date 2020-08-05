@@ -240,6 +240,7 @@ fn literal(tokens: Tokens) -> Result<Bite, Syntax> {
     if let Some(Spanned { item: token, span }) = tokens.iter().next() {
         Result::Ok((Spanned::new(
             match token {
+                // TODO: pass the span
                 Token::Symbol(l)  => AST::symbol(l.clone()),
                 Token::Number(n)  => AST::data(n.clone()),
                 Token::String(s)  => AST::data(s.clone()),

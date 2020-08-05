@@ -1,7 +1,6 @@
 use crate::common::{
     opcode::Opcode,
     data::Data,
-    local::Local,
 };
 
 // // TODO: annotations in bytecode
@@ -34,12 +33,19 @@ impl Chunk {
         }
     }
 
+    /// Emits an opcode as a byte
     pub fn emit(&mut self, op: Opcode) {
         self.code.push(op as u8)
     }
 
+    /// Emits a series of bytes
     pub fn emit_bytes(&mut self, bytes: &mut Vec<u8>) {
         self.code.append(bytes)
+    }
+
+    /// Removes the last emitted byte
+    pub fn demit(&mut self) {
+        self.code.pop();
     }
 
     /// Given some data, this function adds it to the constants table,

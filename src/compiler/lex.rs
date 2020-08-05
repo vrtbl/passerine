@@ -66,7 +66,7 @@ impl Lexer {
 
         let rules: Vec<Box<dyn Fn(&str) -> Result<Bite, String>>> = vec![
             // higher up in order = higher precedence
-            // think 'or' as symbol or 'or' as operator
+            // think 'or' as literal or 'or' as operator
 
             // static
             Box::new(|s| Lexer::open_bracket(s) ),
@@ -171,7 +171,8 @@ impl Lexer {
         return match len {
             0 => Err("Expected a symbol".to_string()),
             // TODO: make sure that symbol name is correct
-            l => Ok((Token::Symbol(Local::new(source[..l].to_string())), l)),
+            // TODO: give symbol access to the index
+            l => Ok((Token::Symbol(Span::empty()), l)),
         };
     }
 
@@ -309,9 +310,9 @@ mod test {
         let source = Source::source("heck = true");
 
         let result = vec![
-            Spanned::new(Token::Symbol(Local::new("heck".to_string())), Span::new(&source, 0, 4)),
-            Spanned::new(Token::Assign,                                 Span::new(&source, 5, 1)),
-            Spanned::new(Token::Boolean(Data::Boolean(true)),           Span::new(&source, 7, 4)),
+            Spanned::new(Token::Symbol,                       Span::new(&source, 0, 4)),
+            Spanned::new(Token::Assign,                       Span::new(&source, 5, 1)),
+            Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 7, 4)),
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -336,15 +337,15 @@ mod test {
         // TODO: finish test
 
         let result = vec![
-            Spanned::new(Token::OpenBracket,                             Span::new(&source, 0, 1)),
-            Spanned::new(Token::Sep,                                     Span::new(&source, 1, 2)),
-            Spanned::new(Token::Symbol(Local::new("hello".to_string())), Span::new(&source, 3, 5)),
-            Spanned::new(Token::Assign,                                  Span::new(&source,  9, 1)),
-            Spanned::new(Token::Boolean(Data::Boolean(true)),            Span::new(&source, 11, 4)),
-            Spanned::new(Token::Sep,                                     Span::new(&source, 15, 2)),
-            Spanned::new(Token::Symbol(Local::new("hello".to_string())), Span::new(&source, 17, 5)),
-            Spanned::new(Token::Sep,                                     Span::new(&source, 22, 1)),
-            Spanned::new(Token::CloseBracket,                            Span::new(&source, 23, 1)),
+            Spanned::new(Token::OpenBracket,                  Span::new(&source, 0, 1)),
+            Spanned::new(Token::Sep,                          Span::new(&source, 1, 2)),
+            Spanned::new(Token::Symbol,                       Span::new(&source, 3, 5)),
+            Spanned::new(Token::Assign,                       Span::new(&source,  9, 1)),
+            Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 11, 4)),
+            Spanned::new(Token::Sep,                          Span::new(&source, 15, 2)),
+            Spanned::new(Token::Symbol,                       Span::new(&source, 17, 5)),
+            Spanned::new(Token::Sep,                          Span::new(&source, 22, 1)),
+            Spanned::new(Token::CloseBracket,                 Span::new(&source, 23, 1)),
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -354,17 +355,17 @@ mod test {
     fn function() {
         let source = Source::source("identity = x -> x\nidentity (identity \"heck\")");
         let result = vec![
-            Spanned::new(Token::Symbol(Local::new("identity".to_string())), Span::new(&source, 0, 8)),
-            Spanned::new(Token::Assign,                                     Span::new(&source, 9, 1)),
-            Spanned::new(Token::Symbol(Local::new("x".to_string())),        Span::new(&source, 11, 1)),
-            Spanned::new(Token::Lambda,                                     Span::new(&source, 13, 2)),
-            Spanned::new(Token::Symbol(Local::new("x".to_string())),        Span::new(&source, 16, 1)),
-            Spanned::new(Token::Sep,                                        Span::new(&source, 17, 1)),
-            Spanned::new(Token::Symbol(Local::new("identity".to_string())), Span::new(&source, 18, 8)),
-            Spanned::new(Token::OpenParen,                                  Span::new(&source, 27, 1)),
-            Spanned::new(Token::Symbol(Local::new("identity".to_string())), Span::new(&source, 28, 8)),
-            Spanned::new(Token::String(Data::String("heck".to_string())),   Span::new(&source, 37, 6)),
-            Spanned::new(Token::CloseParen,                                 Span::new(&source, 43, 1)),
+            Spanned::new(Token::Symbol,                                   Span::new(&source, 0, 8)),
+            Spanned::new(Token::Assign,                                   Span::new(&source, 9, 1)),
+            Spanned::new(Token::Symbol,                                   Span::new(&source, 11, 1)),
+            Spanned::new(Token::Lambda,                                   Span::new(&source, 13, 2)),
+            Spanned::new(Token::Symbol,                                   Span::new(&source, 16, 1)),
+            Spanned::new(Token::Sep,                                      Span::new(&source, 17, 1)),
+            Spanned::new(Token::Symbol,                                   Span::new(&source, 18, 8)),
+            Spanned::new(Token::OpenParen,                                Span::new(&source, 27, 1)),
+            Spanned::new(Token::Symbol,                                   Span::new(&source, 28, 8)),
+            Spanned::new(Token::String(Data::String("heck".to_string())), Span::new(&source, 37, 6)),
+            Spanned::new(Token::CloseParen,                               Span::new(&source, 43, 1)),
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -398,11 +399,7 @@ mod test {
 
     #[test]
     fn symbol() {
-        if !test_literal(
-            "orchard",
-            Token::Symbol(Local::new("orchard".to_string())),
-            7,
-        ) { panic!() }
+        if !test_literal("orchard", Token::Symbol, 7) { panic!() }
     }
 
     #[test]

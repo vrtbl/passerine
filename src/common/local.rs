@@ -7,3 +7,7 @@ pub struct Local {
     symbol: Span,
     depth: usize
 }
+
+impl Local {
+    
+}
