@@ -1,6 +1,8 @@
-use std::fmt::{Formatter, Display, Result};
-use std::usize;
-use std::rc::Rc;
+use std::{
+    fmt::{Formatter, Display, Result},
+    usize,
+    rc::Rc,
+};
 
 use crate::common::source::Source;
 

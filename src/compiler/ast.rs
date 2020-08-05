@@ -1,6 +1,8 @@
-use crate::common::span::Spanned;
-use crate::common::data::Data;
-use crate::vm::local::Local;
+use crate::common::{
+    span::Spanned,
+    data::Data,
+    local::Local,
+};
 
 // NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)
 // Store class of item in AST, then delegate exact type to external enum?

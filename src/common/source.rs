@@ -1,7 +1,9 @@
-use std::path::PathBuf;
-use std::io::Read;
-use std::fs::File;
-use std::rc::Rc;
+use std::{
+    path::PathBuf,
+    io::Read,
+    fs::File,
+    rc::Rc,
+};
 
 /// `Source` represents some literal source code.
 /// Whether a repl session, a file on disk, or some library code.

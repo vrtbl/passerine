@@ -1,5 +1,4 @@
 use crate::common::data::Data;
-use crate::vm::local::Local;
 
 /// These are the different tokens the lexer will output.
 /// `Token`s with data contain that data,
@@ -18,7 +17,7 @@ pub enum Token {
     Lambda,
 
     // Datatypes
-    Symbol(Local),
+    Local(String),
     Number(Data),
     String(Data),
     Boolean(Data),

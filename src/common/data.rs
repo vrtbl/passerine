@@ -1,19 +1,23 @@
-use std::hash::{Hash, Hasher};
-use std::fmt::{Debug, Error, Formatter};
-use std::ops::Deref;
-use std::mem;
-use std::f64;
-use std::rc::Rc;
+use std::{
+    hash::{Hash, Hasher},
+    fmt::{Debug, Error, Formatter},
+    ops::Deref,
+    mem,
+    f64,
+    rc::Rc,
+};
 
-use crate::compiler::gen::Chunk;
-use crate::vm::local::Local;
+use crate::common::{
+    chunk::Chunk,
+    local::Local,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     // VM Stack
     Frame,
-    Local(Local, Box<Data>),
-    Heap(Local, Rc<Data>),
+    // Local(Local, Box<Data>),
+    // Heap(Local, Rc<Data>),
 
     // Passerine Data (Atomic)
     Real(f64),

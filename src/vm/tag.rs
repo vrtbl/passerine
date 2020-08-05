@@ -1,6 +1,9 @@
-use std::mem;
-use std::f64;
-use std::fmt::{Formatter, Debug, Error};
+use std::{
+    mem,
+    f64,
+    fmt::{Formatter, Debug, Error},
+};
+
 use crate::common::data::Data;
 
 /// Tagged implements Nan-tagging around the `Data` enum.

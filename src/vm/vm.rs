@@ -1,13 +1,18 @@
 use std::mem;
 
-use crate::common::number::build_number;
-use crate::common::data::Data;
-use crate::common::opcode::Opcode;
-use crate::vm::trace::Trace;
-use crate::vm::tag::Tagged;
-use crate::vm::stack::{Item, Stack};
-use crate::vm::local::Local;
-use crate::compiler::gen::Chunk; // TODO: Move chunk to a better spot?
+use crate::common::{
+    number::build_number,
+    data::Data,
+    opcode::Opcode,
+    chunk::Chunk,
+    local::Local,
+};
+
+use crate::vm::{
+    trace::Trace,
+    tag::Tagged,
+    stack::Stack,
+};
 
 /// A `VM` executes bytecode chunks.
 /// Each VM's state is self-contained,

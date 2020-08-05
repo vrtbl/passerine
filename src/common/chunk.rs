@@ -1,6 +1,8 @@
-use crate::common::opcode::Opcode;
-use crate::common::data::Data;
-use crate::common::local::Local;
+use crate::common::{
+    opcode::Opcode,
+    data::Data,
+    local::Local,
+};
 
 // // TODO: annotations in bytecode
 // // TODO: separate AST compiler from Chunk itself
@@ -40,7 +42,6 @@ impl Chunk {
         self.code.append(bytes)
     }
 
-
     /// Given some data, this function adds it to the constants table,
     /// and returns the data's index.
     /// The constants table is push only, so constants are identified by their index.
@@ -49,20 +50,9 @@ impl Chunk {
     pub fn index_data(&mut self, data: Data) -> usize {
         match self.constants.iter().position(|d| d == &data) {
             Some(d) => d,
-            None    => {
+            None => {
                 self.constants.push(data);
                 self.constants.len() - 1
-            },
-        }
-    }
-
-    /// Similar to index constant, but indexes variables instead.
-    fn index_symbol(&mut self, symbol: Local) -> usize {
-        match self.locals.iter().position(|l| l == &symbol) {
-            Some(l) => l,
-            None    => {
-                self.locals.push(symbol);
-                self.locals.len() - 1
             },
         }
     }

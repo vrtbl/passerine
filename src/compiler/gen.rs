@@ -1,8 +1,11 @@
-use crate::common::number::split_number;
-use crate::common::span::{Span, Spanned};
-use crate::common::chunk::Chunk;
-use crate::common::opcode::Opcode;
-use crate::common::local::Local;
+use crate::common::{
+    number::split_number,
+    span::Spanned,
+    chunk::Chunk,
+    opcode::Opcode,
+    local::Local,
+};
+
 use crate::compiler::ast::AST;
 
 pub struct Compiler {
