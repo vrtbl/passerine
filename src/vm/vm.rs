@@ -4,23 +4,23 @@ use crate::common::{
     number::build_number,
     data::Data,
     opcode::Opcode,
-    chunk::Chunk,
 };
 
 use crate::vm::{
     trace::Trace,
     tag::Tagged,
     stack::Stack,
+    closure::Closure,
 };
 
-/// A `VM` executes bytecode chunks.
+/// A `VM` executes bytecode lambdas.
 /// Each VM's state is self-contained,
 /// So more than one can be spawned if needed.
 #[derive(Debug)]
 pub struct VM {
-    chunk: Chunk,
-    stack: Stack,
-    ip:    usize,
+    closure: Closure,
+    stack:   Stack,
+    ip:      usize,
 }
 
 // NOTE: use Opcode::same and Opcode.to_byte() rather than actual bytes
@@ -30,26 +30,26 @@ pub struct VM {
 // the next impl contains opcode implementations
 impl VM {
     /// Initialize a new VM.
-    /// To run the VM, a chunk must be passed to it through `run`.
+    /// To run the VM, a lambda must be passed to it through `run`.
     pub fn init() -> VM {
         VM {
-            chunk: Chunk::empty(),
+            closure: Closure::empty(),
             stack: Stack::init(),
             ip:    0,
         }
     }
 
     fn next(&mut self)                           { self.ip += 1; }
-    fn terminate(&mut self) -> Result<(), Trace> { self.ip = self.chunk.code.len(); Ok(()) }
+    fn terminate(&mut self) -> Result<(), Trace> { self.ip = self.lambda.code.len(); Ok(()) }
     fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
-    fn peek_byte(&mut self) -> u8                { self.chunk.code[self.ip] }
+    fn peek_byte(&mut self) -> u8                { self.lambda.code[self.ip] }
     fn next_byte(&mut self) -> u8                { self.done().unwrap(); self.peek_byte() }
 
     /// Builds the next number in the bytecode stream.
     /// See `utils::number` for more.
     fn next_number(&mut self) -> usize {
         self.next();
-        let remaining      = self.chunk.code[self.ip..].to_vec();
+        let remaining      = self.lambda.code[self.ip..].to_vec();
         let (index, eaten) = build_number(remaining);
         self.ip += eaten - 1; // ip left on next op
         println!("{}", index);
@@ -74,18 +74,18 @@ impl VM {
         }
     }
 
-    /// Suspends the current chunk and runs a new one on the VM.
-    /// Runs until either success, in which it restores the state of the previous chunk,
+    /// Suspends the current lambda and runs a new one on the VM.
+    /// Runs until either success, in which it restores the state of the previous lambda,
     /// Or failure, in which it returns the runtime error.
     /// In the future, fibers will allow for error handling -
     /// right now, error in Passerine are practically panics.
-    fn run(&mut self, chunk: Chunk) -> Result<(), Trace> {
+    fn run(&mut self, closure: Closure) -> Result<(), Trace> {
         // cache current state, load new bytecode
-        let old_chunk = mem::replace(&mut self.chunk, chunk);
+        let old_closure = mem::replace(&mut self.closure, closure);
         let old_ip    = mem::replace(&mut self.ip,    0);
-        // TODO: should chunks store their own ip?
+        // TODO: should lambdas store their own ip?
 
-        while self.ip < self.chunk.code.len() {
+        while self.ip < self.closure.lambda.code.len() {
             println!("before: {:?}", self.stack);
             println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             println!("---");
@@ -93,7 +93,7 @@ impl VM {
         }
 
         // return current state
-        mem::drop(mem::replace(&mut self.chunk, old_chunk));
+        mem::drop(mem::replace(&mut self.closure, old_closure));
         self.ip = old_ip;
 
         // nothing went wrong!
@@ -113,7 +113,7 @@ impl VM {
         // get the constant index
         let index = self.next_number();
 
-        self.stack.push_data(self.chunk.constants[index].clone());
+        self.stack.push_data(self.closure.lambda.constants[index].clone());
         self.done()
     }
 
@@ -141,7 +141,7 @@ impl VM {
     /// Call a function on the top of the stack, passing the next value as an argument.
     fn call(&mut self) -> Result<(), Trace> {
         let fun = match self.stack.pop_data() {
-            Data::Lambda(l) => l,
+            Data::Lambda(l) => Closure::wrap(l),
             _               => unreachable!(),
         };
         let arg = self.stack.pop_data();
@@ -157,7 +157,7 @@ impl VM {
     }
 
     /// Return a value from a function.
-    /// End the execution of the current chunk.
+    /// End the execution of the current lambda.
     /// Relpaces the last frame with the value on the top of the stack.
     /// Expects the stack to be a `[..., Frame, Data]`
     fn return_val(&mut self) -> Result<(), Trace> {
@@ -181,13 +181,13 @@ mod test {
     #[test]
     fn init_run() {
         // TODO: check @ each step, write more tests
-        let chunk = gen(parse(lex(
+        let lambda = gen(parse(lex(
             Source::source("boop = 37.201; true; dhuiew = true; boop")
         ).unwrap()).unwrap());
 
         let mut vm = VM::init();
 
-        match vm.run(chunk) {
+        match vm.run(lambda) {
             Ok(_)  => (),
             Err(e) => eprintln!("{}", e),
         }
@@ -195,13 +195,13 @@ mod test {
 
     #[test]
     fn block_expression() {
-        let chunk = gen(parse(lex(
+        let lambda = gen(parse(lex(
             Source::source("boop = true; heck = { x = boop; x }; heck")
         ).unwrap()).unwrap());
 
         let mut vm = VM::init();
 
-        match vm.run(chunk) {
+        match vm.run(lambda) {
             Ok(_)  => (),
             Err(e) => eprintln!("{}", e),
         }
@@ -214,12 +214,12 @@ mod test {
 
     #[test]
     fn functions() {
-        let chunk = gen(parse(lex(
+        let lambda = gen(parse(lex(
             Source::source("iden = x -> x; y = true; iden ((iden iden) (iden y))")
         ).unwrap()).unwrap());
 
         let mut vm = VM::init();
-        match vm.run(chunk) {
+        match vm.run(lambda) {
             Ok(_)  => (),
             Err(e) => eprintln!("{}", e),
         }
@@ -230,14 +230,14 @@ mod test {
 
     #[test]
     fn fun_scope() {
-        let chunk = gen(parse(lex(
+        let lambda = gen(parse(lex(
             Source::source("y = (x -> { z = x; z }) 7.0; y")
         ).unwrap().into()).unwrap());
 
-        println!("{:#?}", chunk);
+        println!("{:#?}", lambda);
 
         let mut vm = VM::init();
-        match vm.run(chunk) {
+        match vm.run(lambda) {
             Ok(_)  => (),
             Err(e) => eprintln!("{}", e),
         }

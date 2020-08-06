@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::common::{
-    chunk::Chunk,
+    lambda::Lambda,
     local::Local,
 };
 
@@ -22,7 +22,7 @@ pub enum Data {
     Real(f64),
     Boolean(bool),
     String(String),
-    Lambda(Chunk),
+    Lambda(Lambda),
     Label(String, Box<Data>), // TODO: better type
 
     // Compound Datatypes

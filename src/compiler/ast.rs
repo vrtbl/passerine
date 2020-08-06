@@ -1,7 +1,6 @@
 use crate::common::{
     span::Spanned,
     data::Data,
-    local::Local,
 };
 
 // NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)
@@ -54,8 +53,8 @@ pub enum AST {
 // TODO: These are semi-reduntant
 impl AST {
     // Leafs; terminals
-    pub fn data(data: Data)      -> AST { AST::Data(data)     }
-    pub fn symbol(symbol: Local) -> AST { AST::Symbol(symbol) }
+    pub fn data(data: Data) -> AST { AST::Data(data)   }
+    pub fn symbol()         -> AST { AST::Symbol }
 
     // Recursive
     pub fn block(exprs: Vec<Spanned<AST>>) -> AST { AST::Block(exprs) }

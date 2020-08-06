@@ -4,10 +4,12 @@ use crate::common::span::Span;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Local {
-    symbol: Span,
-    depth: usize
+    pub span: Span,
+    pub depth: usize
 }
 
 impl Local {
-    
+    pub fn new(span: Span, depth: usize) -> Local {
+        Local { span, depth }
+    }
 }

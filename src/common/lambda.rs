@@ -1,15 +1,16 @@
 use crate::common::{
     opcode::Opcode,
     data::Data,
+    local::Local,
 };
 
 // // TODO: annotations in bytecode
-// // TODO: separate AST compiler from Chunk itself
+// // TODO: separate AST compiler from Lambda itself
 //
 // /// The bytecode generator (emitter) walks the AST and produces (unoptimized) Bytecode
 // /// There are plans to add a bytecode optimizer in the future.
-// pub fn gen(ast: Spanned<AST>) -> Chunk {
-//     let mut generator = Chunk::empty();
+// pub fn gen(ast: Spanned<AST>) -> Lambda {
+//     let mut generator = Lambda::empty();
 //     generator.walk(&ast);
 //     generator
 // }
@@ -17,16 +18,16 @@ use crate::common::{
 /// Represents a single interpretable chunk of bytecode,
 /// Think a function.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Chunk {
+pub struct Lambda {
     pub code:      Vec<u8>,    // each byte is an opcode or a number-stream
     pub offsets:   Vec<usize>, // each usize indexes the bytecode op that begins each line
     pub constants: Vec<Data>,  // number-stream indexed, used to load constants
 }
 
-impl Chunk {
-    /// Creates a new empty chunk to be filled.
-    pub fn empty() -> Chunk {
-        Chunk {
+impl Lambda {
+    /// Creates a new empty Lambda to be filled.
+    pub fn empty() -> Lambda {
+        Lambda {
             code:      vec![],
             offsets:   vec![],
             constants: vec![],
