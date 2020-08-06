@@ -172,7 +172,7 @@ impl Lexer {
             0 => Err("Expected a symbol".to_string()),
             // TODO: make sure that symbol name is correct
             // TODO: give symbol access to the index
-            l => Ok((Token::Symbol(Span::empty()), l)),
+            l => Ok((Token::Symbol, l)),
         };
     }
 

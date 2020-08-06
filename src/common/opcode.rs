@@ -8,7 +8,9 @@ pub enum Opcode {
     Con = 0,
     /// Delete a value off the stack
     Del,
-    /// Save a constant into a variable (NOTE: deprecate?)
+    /// Moves a variable onto the heap
+    Capture,
+    /// Save a constant into a variable
     Save,
     /// Save a value to a captured variable
     SaveCap,

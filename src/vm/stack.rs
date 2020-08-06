@@ -80,14 +80,13 @@ impl Stack {
     pub fn get_local(&mut self, index: usize) {
         let local_index = self.frames.peek() + index + 1;
 
-        let mut copy = None;
-        mem::replace(&mut self.stack[local_index], {
-            let data = self.stack[local_index].data();
-            copy = Some(data.clone());
-            Tagged::new(data)
-        });
+        // a little bit of shuffling involved
+        // I know that something better than this can be done
+        let data = mem::replace(&mut self.stack[local_index], Tagged::frame()).data();
+        let copy = data.clone();
+        mem::replace(&mut self.stack[local_index], Tagged::new(data));
 
-        self.push_data(copy.unwrap());
+        self.push_data(copy);
     }
 
     pub fn set_local(&mut self, index: usize) {
@@ -102,12 +101,8 @@ impl Stack {
             // replace the old value with the new one
             // doesn't check that the new value is data
             // TODO: rewrite to check for data when frame representation is implemented
-            mem::drop(
-                mem::replace(
-                    &mut self.stack[local_index],
-                    self.stack.pop().unwrap(),
-                )
-            )
+            let top = self.stack.pop().unwrap();
+            mem::drop(mem::replace(&mut self.stack[local_index], top))
         }
     }
 }

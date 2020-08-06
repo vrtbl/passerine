@@ -12,7 +12,9 @@ impl Linked {
     }
 
     pub fn prepend(&mut self, new_index: usize) {
-        mem::replace(self, Linked(0, Some(Box::new(*self))));
+        let old_tail = mem::replace(&mut self.1, None);
+        let old = Linked(self.0, old_tail);
+        *self = Linked(new_index, Some(Box::new(old)));
     }
 
     pub fn prepop(&mut self) -> usize {
