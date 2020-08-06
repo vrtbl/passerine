@@ -7,15 +7,19 @@ pub enum Opcode {
     /// Load a constant
     Con = 0,
     /// Delete a value off the stack
-    Del = 1,
+    Del,
     /// Save a constant into a variable (NOTE: deprecate?)
-    Save = 2,
+    Save,
+    /// Save a value to a captured variable
+    SaveCap,
     /// Push a copy of a variable onto the stack
-    Load = 3,
+    Load,
+    /// Load a copy of a captured variable
+    LoadCap,
     /// Call a function
-    Call = 4,
+    Call,
     /// Return from a function
-    Return = 5,
+    Return,
 }
 
 impl Opcode {

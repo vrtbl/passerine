@@ -78,7 +78,7 @@ impl Stack {
 
     /// Gets a local and pushes it onto the top of the stack;
     pub fn get_local(&mut self, index: usize) {
-        let local_index = self.frames.peek() + index;
+        let local_index = self.frames.peek() + index + 1;
 
         let mut copy = None;
         mem::replace(&mut self.stack[local_index], {
@@ -91,7 +91,7 @@ impl Stack {
     }
 
     pub fn set_local(&mut self, index: usize) {
-        let local_index = self.frames.peek() + index;
+        let local_index = self.frames.peek() + index + 1;
 
         if self.stack.len() - 1 == local_index {
             // local is already in the correct spot; we declare it

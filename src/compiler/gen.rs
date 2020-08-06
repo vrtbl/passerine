@@ -8,13 +8,16 @@ use crate::common::{
     data::Data,
 };
 
-use crate::compiler::ast::AST;
+use crate::compiler::{
+    ast::AST,
+    syntax::Syntax,
+};
 
 pub struct Compiler {
     enclosing: Option<Box<Compiler>>,
     lambda: Lambda,
     locals: Vec<Local>,
-    captured: Vec<Captured>,
+    captureds: Vec<Captured>,
     depth: usize,
 }
 
@@ -24,7 +27,7 @@ impl Compiler {
             enclosing: None,
             lambda: Lambda::empty(),
             locals: vec![],
-            captured: vec![],
+            captureds: vec![],
             depth: 0,
         }
     }
@@ -34,18 +37,8 @@ impl Compiler {
             enclosing: Some(Box::new(compiler)),
             lambda: Lambda::empty(),
             locals: vec![],
-            captured: vec![],
-            depth: 0,
-        }
-    }
-
-
-    pub fn begin_scope(&mut self) { self.depth += 1; }
-    pub fn end_scope(&mut self) {
-        self.depth -= 1;
-
-        while let Some(_) = self.locals.pop() {
-            self.lambda.emit(Opcode::Del)
+            captureds: vec![],
+            depth: compiler.depth + 1,
         }
     }
 
@@ -61,9 +54,9 @@ impl Compiler {
     /// At this stage, the AST should've been verified, pruned, typechecked, etc.
     /// A malformed AST will cause a panic, as ASTs should be correct at this stage,
     /// and for them to be incorrect is an error in the compiler itself.
-    fn walk(&mut self, ast: &Spanned<AST>) {
+    fn walk(&mut self, ast: &Spanned<AST>) -> Result<(), Syntax> {
         // push left, push right, push center
-        match ast.item.clone() {
+        let result = match ast.item.clone() {
             AST::Data(data) => self.data(data),
             AST::Symbol => self.symbol(ast.span),
             AST::Block(block) => self.block(block),
@@ -71,13 +64,19 @@ impl Compiler {
             AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
             AST::Call   { fun,     arg        } => self.call(*fun, *arg),
         }
+
+        return match result {
+            Ok(()) => Ok(()),
+            Err(message) => Err(Syntax::error(message, ast.span)),
+        }
     }
 
     /// Takes a `Data` leaf and and produces some code to load the constant
-    fn data(&mut self, data: Data) {
+    fn data(&mut self, data: Data) -> Result<(), String> {
         self.lambda.emit(Opcode::Con);
         let mut split = split_number(self.lambda.index_data(data));
         self.lambda.emit_bytes(&mut split);
+        Ok(())
     }
 
     fn local(&self, span: Span) -> Option<usize> {
@@ -90,77 +89,105 @@ impl Compiler {
         return None;
     }
 
-    fn captured(&self, span: Span) -> Option<usize> {
-        match self.enclosing {
-            Some(enclosing) => {
-                match Compiler::local(&enclosing, span) {
-                    Some(index) =>
-                }
+    fn capture(&mut self, captured: Captured) -> usize {
+        // is already captured
+        for (i, c) in self.captureds.iter().enumerate() {
+            if &captured == c {
+                return i;
             }
-            None => None,
         }
+
+        // is not captured
+        self.captureds.push(captured);
+        return self.captureds.len() - 1;
+    }
+
+    fn captured(&self, span: Span) -> Option<usize> {
+        if let Some(enclosing) = self.enclosing {
+            if let Some(index) = Compiler::local(&enclosing, span) {
+                return Some(self.capture(Captured::local(index)));
+            }
+
+            if let Some(index) = Compiler::captured(&enclosing, span) {
+                return Some(self.capture(Captured::nonlocal(index)));
+            }
+        }
+
+        return None;
     }
 
     // TODO: rewrite according to new local rules
     /// Takes a symbol leaf, and produces some code to load the local
-    fn symbol(&mut self, span: Span) {
+    fn symbol(&mut self, span: Span) -> Result<(), String> {
         if let Some(index) = self.local(span) {
             self.lambda.emit(Opcode::Load);
             self.lambda.emit_bytes(&mut split_number(index))
-        } else if let Some(w) = self.captured(w) {
-
+        } else if let Some(index) = self.captured(span) {
+            self.lambda.emit(Opcode::LoadCap);
+            self.lambda.emit_bytes(&mut split_number(index))
+        } else {
+            return Err("Variable referenced before assignment; it is undefined".to_string())
         }
+        Ok(())
     }
 
-    // TODO: require all ops to require exactly one item be left on stack
     /// A block is a series of expressions where the last is returned.
     /// Each sup-expression is walked, the last value is left on the stack.
-    /// (In the future, block should create a new scope.)
-    fn block(&mut self, children: Vec<Spanned<AST>>) {
+    fn block(&mut self, children: Vec<Spanned<AST>>) -> Result<(), String> {
         for child in children {
             self.walk(&child);
             self.lambda.emit(Opcode::Del);
         }
 
-        // remove the last clear instruction
+        // remove the last delete instruction
         self.lambda.demit();
+        Ok(())
     }
 
     // TODO: rewrite according to new symbol rules
-    // fn assign(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) {
-    //     // eval the expression
-    //     self.walk(&expression);
-    //     // load the following symbol ...
-    //     self.chunk.emit(Opcode::Save);
-    //     // ... the symbol to be loaded
-    //     let index = match symbol.item {
-    //         AST::Symbol(l) => self.index_symbol(l),
-    //         _              => unreachable!(),
-    //     };
-    //     self.code.append(&mut split_number(index));
-    //     // TODO: load Unit
-    // }
+    fn assign(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), String> {
+        // eval the expression
+        self.walk(&expression);
+        // load the following symbol ...
+        let span = match symbol.item {
+            AST::Symbol => symbol.span,
+            _ => unreachable!(),
+        };
+
+        // abstract out?
+        let index = if let Some(i) = self.local(span) {
+            Opcode::Save; i
+        } else if let Some(i) = self.captured(span) {
+            Opcode::SaveCap; i
+        } else {
+            // TODO: define variable
+            todo!();
+        };
+
+        self.lambda.emit_bytes(&mut split_number(index));
+        Ok(())
+    }
 
     // TODO: rewrite according to new symbol rules
-    // fn lambda(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) {
-    //     let mut fun = Chunk::empty();
-    //
-    //     // inside the function
-    //     // save the argument into the given variable
-    //     fun.code.push(Opcode::Save as u8);
-    //     let index = fun.index_symbol(match symbol.item {
-    //         AST::Symbol(l) => l,
-    //         _               => unreachable!(),
-    //     });
-    //     fun.code.append(&mut split_number(index));
-    //
-    //     fun.code.push(Opcode::Clear as u8);  // clear the stack
-    //     fun.walk(&expression);               // run the function
-    //     fun.code.push(Opcode::Return as u8); // return the result
-    //
-    //     // push the lambda object onto the callee's stack.
-    //     self.data(Data::Lambda(fun));
-    // }
+    fn lambda(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), String> {
+        let mut lambda = Lambda::empty();
+
+        // save the argument into the given variable
+        lambda.emit(Opcode::Save);
+        lambda.emit_bytes(&mut split_number(0)); // NOTE: should this always be 0?
+
+        // enter a new scope and walk the function body
+        let nested = Compiler::over(*self);
+        nested.walk(&expression);    // run the function
+        lambda.emit(Opcode::Return); // return the result
+        lambda.emit_bytes(&mut split_number(nested.locals.len()));
+
+        // TODO: lift locals off stack if captured
+
+        // push the lambda object onto the callee's stack.
+        self.lambda.index_data(Data::Lambda(lambda));
+        Ok(())
+    }
 
     /// When a function is called, the top two items are taken off the stack,
     /// The topmost item is expected to be a function.

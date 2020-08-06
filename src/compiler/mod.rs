@@ -10,7 +10,7 @@ pub mod lex;
 pub mod parse;
 pub mod gen;
 
-mod token;
-mod ast;
+pub mod token;
+pub mod ast;
 
-mod syntax;
+pub mod syntax;

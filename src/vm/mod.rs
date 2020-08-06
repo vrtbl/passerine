@@ -1,7 +1,7 @@
 pub mod vm;
 
-mod tag;
-mod linked;
-mod stack;
-mod trace;
-mod closure;
+pub mod tag;
+pub mod linked;
+pub mod stack;
+pub mod trace;
+pub mod closure;

@@ -49,7 +49,7 @@ impl VM {
     /// See `utils::number` for more.
     fn next_number(&mut self) -> usize {
         self.next();
-        let remaining      = self.lambda.code[self.ip..].to_vec();
+        let remaining      = self.closure.lambda.code[self.ip..].to_vec();
         let (index, eaten) = build_number(remaining);
         self.ip += eaten - 1; // ip left on next op
         println!("{}", index);
@@ -62,15 +62,17 @@ impl VM {
     /// The op definitions follow in the proceeding impl block.
     /// To see what each op does, check `pipeline::bytecode.rs`
     fn step(&mut self) -> Result<(), Trace> {
-        let op_code = Opcode::from_byte(self.peek_byte());
+        let opcode = Opcode::from_byte(self.peek_byte());
 
-        match op_code {
-            Opcode::Con    => self.con(),
-            Opcode::Del    => self.del(),
-            Opcode::Save   => self.save(),
-            Opcode::Load   => self.load(),
-            Opcode::Call   => self.call(),
-            Opcode::Return => self.return_val(),
+        match opcode {
+            Opcode::Con     => self.con(),
+            Opcode::Del     => self.del(),
+            Opcode::Save    => self.save(),
+            Opcode::SaveCap => self.save_cap(),
+            Opcode::Load    => self.load(),
+            Opcode::LoadCap => self.load_cap(),
+            Opcode::Call    => self.call(),
+            Opcode::Return  => self.return_val(),
         }
     }
 
@@ -122,8 +124,12 @@ impl VM {
         let data = self.stack.pop_data();
         let index = self.next_number();
         self.stack.set_local(index);
+        self.stack.push_data(Data::Unit);
         self.done()
     }
+
+    /// Save the topmost value on the stack into a captured variable.
+    fn save_cap()
 
     /// Push a copy of a variable's value onto the stack.
     fn load(&mut self) -> Result<(), Trace> {
@@ -158,12 +164,19 @@ impl VM {
 
     /// Return a value from a function.
     /// End the execution of the current lambda.
+    /// Takes the number of locals on the stack
     /// Relpaces the last frame with the value on the top of the stack.
-    /// Expects the stack to be a `[..., Frame, Data]`
+    /// Expects the stack to be a `[..., Frame, Local 1, ..., Local N, Data]`
     fn return_val(&mut self) -> Result<(), Trace> {
+        // the value to be returned
         let val = self.stack.pop_data();
-        self.stack.pop_frame();
-        self.stack.push_data(val);
+
+        // clear all locals
+        let locals = self.next_number();
+        for _ in 0..locals { self.del()?; }
+
+        self.stack.pop_frame();    // remove the frame
+        self.stack.push_data(val); // push the return value
         self.terminate()
     }
 }
