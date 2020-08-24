@@ -4,5 +4,10 @@
 # Backups, rustfmt
 **/*.rs.bk
 
-# Mac folder display files
-**/.DS_Store
+# Hidden files
+**/.*
+
+# But not:
+!.gitignore
+!.git
+!.github
