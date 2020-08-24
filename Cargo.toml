@@ -1,7 +1,10 @@
 [package]
 name = "passerine"
 version = "0.6.1"
-authors = ["Isaac Cayton (slightknack) <slightknack@gmail.com>"]
+authors = [
+    "Isaac Cayton (slightknack) <slightknack@gmail.com>",
+    "The Passerine Community",
+]
 edition = "2018"
 description = "A small extensible programming language designed for concise expression with little code."
 license = "MIT"
