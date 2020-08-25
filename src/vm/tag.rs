@@ -121,8 +121,6 @@ impl Drop for Tagged {
 
 impl Debug for Tagged {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        println!("Debugging");
-
         let Tagged(bits) = &self;
         let pointer = P_FLAG | QNAN;
 
@@ -229,12 +227,8 @@ mod test {
         ];
 
         for test in tests {
-            println!("{:?}", test);
-            println!("starting pack");
             let tagged = Tagged::new(test.clone());
-            println!("starting unpack");
             let untagged = tagged.data();
-            println!("finished unpack");
 
             if let Data::Real(f) = untagged {
                 if let Data::Real(n) = test {

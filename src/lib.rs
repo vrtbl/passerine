@@ -6,12 +6,12 @@
 //!
 //! ## Embedding Passerine in Rust
 //! Add passerine to your `Cargo.toml`:
-//! ```
+//! ```toml
 //! # make sure it's the latest version
 //! passerine = 0.6
 //! ```
 //! Then simply:
-//! ```
+//! ```ignore
 //! use passerine;
 //!
 //! fn main() {
@@ -24,7 +24,6 @@
 //! ## Overview of the compilation process
 //! Within the compiler pipeline, source code is represented as a `Source` object
 //!
-
 
 pub mod common;
 pub mod compiler;

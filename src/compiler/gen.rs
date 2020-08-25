@@ -72,7 +72,6 @@ impl Compiler {
             AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
             AST::Call   { fun,     arg        } => self.call(*fun, *arg),
         };
-
         return result;
     }
 
@@ -176,6 +175,9 @@ impl Compiler {
             self.locals.push(Local::new(span, self.depth));
             self.locals.len() - 1
         };
+
+        self.lambda.emit(Opcode::Con);
+        self.data(Data::Unit)?;
 
         self.lambda.emit_bytes(&mut split_number(index));
         Ok(())

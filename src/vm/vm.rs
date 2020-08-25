@@ -207,14 +207,13 @@ mod test {
     #[test]
     fn init_run() {
         // TODO: check @ each step, write more tests
+
         let lambda = gen(parse(lex(
-            Source::source("boop = x -> \n{\nxyz \n}")
+            Source::source("boop = 27.28; boop")
         ).unwrap()).unwrap()).unwrap();
 
-        println!("{:#?}", lambda);
-
         let mut vm = VM::init();
-
+        
         match vm.run(Closure::wrap(lambda)) {
             Ok(_)  => (),
             Err(e) => eprintln!("{}", e),

@@ -94,6 +94,7 @@ impl Stack {
     }
 
     pub fn set_local(&mut self, index: usize) {
+        println!("{}", index);
         let local_index = self.frames.peek() + index + 1;
 
         if self.stack.len() - 1 == local_index {
