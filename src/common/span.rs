@@ -93,25 +93,20 @@ impl Span {
     fn line_indicies(&self) -> Option<((usize, usize), (usize, usize))> {
         if self.is_empty() { panic!("Can not return the line indicies of an empty span") }
 
-        let source = self.source.as_ref().unwrap();
         let start = self.offset;
         let end   = self.offset + self.length;
 
-        let start_lines: Vec<&str> = source.contents[..start].lines().collect();
-        let end_lines:   Vec<&str> = source.contents[..end].lines().collect();
+        let start_lines: Vec<&str> = self.source.as_ref().unwrap().contents[..=start].lines().collect();
+        let end_lines:   Vec<&str> = self.source.as_ref().unwrap().contents[..end].lines().collect();
 
-        let start_line = start_lines.len()
-            - if source.contents.chars().nth(start).unwrap() == '\n' { 1 } else { 0 };
-        let end_line = end_lines.len()
-            - if source.contents.chars().nth(start).unwrap() == '\n' { 1 } else { 0 };
+        let start_line = start_lines.len() - 1;
+        let end_line   = end_lines.len() - 1;
 
-        println!("{:?}", start_lines.last()?.len());
-        println!("{:?}", end_lines.last()?.len());
-
-        let start_col = start_lines.last()?.len();
-        let end_col   = end_lines.last()?.len();
+        let start_col = start_lines.last()?.len() - 1;
+        let end_col   = end_lines.last()?.len() - 1;
 
         return Some(((start_line, start_col), (end_line, end_col)));
+
     }
 }
 
@@ -165,7 +160,7 @@ impl Display for Span {
             writeln!(f, "{}", line)?;
             writeln!(f, "{}", span)
         } else {
-            let formatted = lines[start_line..end_line]
+            let formatted = lines[start_line..=end_line]
                 .iter()
                 .enumerate()
                 .map(|(i, l)| {
@@ -217,7 +212,7 @@ mod test {
 
     #[test]
     fn combination() {
-        let source = Rc::new(Source::source("heck, that's awesome"));
+        let source = Source::source("heck, that's awesome");
         let a = Span::new(&source, 0, 5);
         let b = Span::new(&source, 11, 2);
 
@@ -226,7 +221,7 @@ mod test {
 
     #[test]
     fn span_and_contents() {
-        let source = Rc::new(Source::source("hello, this is some text!"));
+        let source = Source::source("hello, this is some text!");
         let spans   = vec![
             Span::new(&source, 0,  8),
             Span::new(&source, 7,  5),
@@ -235,5 +230,19 @@ mod test {
         let result = Span::new(&source, 0, 16);
 
         assert_eq!(Span::join(spans).contents(), result.contents());
+    }
+
+    #[test]
+    fn display() {
+        let source = Source::source("hello\nbanana boat\nmagination\n");
+        let span = Span::new(&source, 16, 12);
+        assert_eq!(format!("{}", span), "\
+            Line 2:11\n  \
+              |\n\
+            2 > banana boat\n\
+            3 > magination\n  \
+              |\n\
+            "
+        )
     }
 }
