@@ -93,18 +93,20 @@ impl Span {
     fn line_indicies(&self) -> Option<((usize, usize), (usize, usize))> {
         if self.is_empty() { panic!("Can not return the line indicies of an empty span") }
 
+        let source = self.source.as_ref().unwrap();
         let start = self.offset;
         let end   = self.offset + self.length;
 
-        println!("{} {}", start, end);
+        let start_lines: Vec<&str> = source.contents[..start].lines().collect();
+        let end_lines:   Vec<&str> = source.contents[..end].lines().collect();
 
-        let start_lines: Vec<&str> = self.source.as_ref().unwrap().contents[..start].lines().collect();
-        let end_lines:   Vec<&str> = self.source.as_ref().unwrap().contents[..end].lines().collect();
+        let start_line = start_lines.len()
+            - if source.contents.chars().nth(start).unwrap() == '\n' { 1 } else { 0 };
+        let end_line = end_lines.len()
+            - if source.contents.chars().nth(start).unwrap() == '\n' { 1 } else { 0 };
 
-        println!("{:?}", start_lines);
-
-        let start_line = start_lines.len() - 1;
-        let end_line   = end_lines.len() - 1;
+        println!("{:?}", start_lines.last()?.len());
+        println!("{:?}", end_lines.last()?.len());
 
         let start_col = start_lines.last()?.len();
         let end_col   = end_lines.last()?.len();
@@ -148,7 +150,6 @@ impl Display for Span {
         let separator = format!("{} |", " ".repeat(padding));
 
         if start_line == end_line {
-            // TODO: Error here:
             let l = lines[end_line];
 
             let line = format!("{} | {}", readable_end_line, l);

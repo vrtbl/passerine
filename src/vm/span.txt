@@ -231,4 +231,3 @@ mod test {
         assert_eq!(Span::join(spans).contents(), result.contents());
     }
 }
-
