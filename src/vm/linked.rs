@@ -8,7 +8,7 @@ pub struct Linked(usize, Option<Box<Linked>>);
 
 impl Linked {
     pub fn new(index: usize) -> Linked {
-        Linked(0, None)
+        Linked(index, None)
     }
 
     pub fn prepend(&mut self, new_index: usize) {
@@ -19,7 +19,8 @@ impl Linked {
 
     pub fn prepop(&mut self) -> usize {
         let index = self.0;
-        mem::replace(self, *self.1.expect("can not prepop past base item"));
+        *self = *mem::replace(&mut self.1, None)
+            .expect("Can not pop back past root link");
         return index;
     }
 

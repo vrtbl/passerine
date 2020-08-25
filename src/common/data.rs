@@ -5,18 +5,16 @@ use std::{
     mem,
     f64,
     rc::Rc,
+    cell::RefCell,
 };
 
-use crate::common::{
-    lambda::Lambda,
-    local::Local,
-};
+use crate::common::lambda::Lambda;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     // VM Stack
     Frame,
-    Heaped(Rc<Data>),
+    Heaped(Rc<RefCell<Data>>),
 
     // Passerine Data (Atomic)
     Real(f64),

@@ -208,7 +208,7 @@ fn assign_assign(tokens: Tokens) -> Result<Bite, Syntax> {
     let (next, mut remaining) = literal(tokens)?;
     let s = match next {
         // Destructure restucture
-        spanned @ Spanned { item: AST::Symbol, span } => spanned,
+        spanned @ Spanned { item: AST::Symbol, span: _ } => spanned,
         other => return Err(Syntax::error("Expected symbol for assignment", other.span)),
     };
 
@@ -224,7 +224,7 @@ fn lambda(tokens: Tokens) -> Result<Bite, Syntax> {
     // get symbol acting as arg to function
     let (next, mut remaining) = literal(tokens)?;
     let s = match next {
-        spanned @ Spanned { item: AST::Symbol, span } => spanned,
+        spanned @ Spanned { item: AST::Symbol, span: _ } => spanned,
         other => return Err(Syntax::error("Expected symbol for function paramater", other.span)),
     };
 

@@ -2,7 +2,7 @@
 name = "passerine"
 version = "0.6.1"
 authors = [
-    "Isaac Cayton (slightknack) <slightknack@gmail.com>",
+    "Isaac Clayton (slightknack) <slightknack@gmail.com>",
     "The Passerine Community",
 ]
 edition = "2018"

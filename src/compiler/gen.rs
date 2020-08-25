@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::common::{
     number::split_number,
     span::{Span, Spanned},
@@ -14,7 +16,7 @@ use crate::compiler::{
 };
 
 pub fn gen(ast: Spanned<AST>) -> Result<Lambda, Syntax> {
-    let compiler = Compiler::base();
+    let mut compiler = Compiler::base();
     compiler.walk(&ast)?;
     return Ok(compiler.lambda);
 }
@@ -38,15 +40,15 @@ impl Compiler {
         }
     }
 
-    pub fn over(compiler: Compiler) -> Compiler {
-        Compiler {
-            enclosing: Some(Box::new(compiler)),
-            lambda: Lambda::empty(),
-            locals: vec![],
-            captureds: vec![],
-            depth: compiler.depth + 1,
-        }
-    }
+    // pub fn over(/* compiler: Box<Compiler> */) -> Compiler {
+    //     Compiler {
+    //         enclosing: Some(compiler),
+    //         lambda: Lambda::empty(),
+    //         locals: vec![],
+    //         captureds: vec![],
+    //         depth: compiler.depth + 1, // at top to prevent used-after move error
+    //     }
+    // }
 
     pub fn declare(&mut self, span: Span) {
         self.locals.push(
@@ -64,21 +66,18 @@ impl Compiler {
         // push left, push right, push center
         let result = match ast.item.clone() {
             AST::Data(data) => self.data(data),
-            AST::Symbol => self.symbol(ast.span),
+            AST::Symbol => self.symbol(ast.span.clone()),
             AST::Block(block) => self.block(block),
             AST::Assign { pattern, expression } => self.assign(*pattern, *expression),
             AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
             AST::Call   { fun,     arg        } => self.call(*fun, *arg),
         };
 
-        return match result {
-            Ok(()) => Ok(()),
-            Err(message) => Err(Syntax::error(&message, ast.span)),
-        };
+        return result;
     }
 
     /// Takes a `Data` leaf and and produces some code to load the constant
-    fn data(&mut self, data: Data) -> Result<(), String> {
+    fn data(&mut self, data: Data) -> Result<(), Syntax> {
         self.lambda.emit(Opcode::Con);
         let mut split = split_number(self.lambda.index_data(data));
         self.lambda.emit_bytes(&mut split);
@@ -109,13 +108,13 @@ impl Compiler {
         return self.captureds.len() - 1;
     }
 
-    fn captured(&self, span: Span) -> Option<usize> {
-        if let Some(enclosing) = self.enclosing {
-            if let Some(index) = Compiler::local(&enclosing, span) {
+    fn captured(&mut self, span: Span) -> Option<usize> {
+        if let Some(enclosing) = self.enclosing.as_mut() {
+            if let Some(index) = Compiler::local(&enclosing, span.clone()) {
                 return Some(self.capture(Captured::local(index)));
             }
 
-            if let Some(index) = Compiler::captured(&enclosing, span) {
+            if let Some(index) = Compiler::captured(enclosing.as_mut(), span) {
                 return Some(self.capture(Captured::nonlocal(index)));
             }
         }
@@ -125,24 +124,29 @@ impl Compiler {
 
     // TODO: rewrite according to new local rules
     /// Takes a symbol leaf, and produces some code to load the local
-    fn symbol(&mut self, span: Span) -> Result<(), String> {
-        if let Some(index) = self.local(span) {
+    fn symbol(&mut self, span: Span) -> Result<(), Syntax> {
+        if let Some(index) = self.local(span.clone()) {
+            // if the variable is locally in scope
             self.lambda.emit(Opcode::Load);
             self.lambda.emit_bytes(&mut split_number(index))
-        } else if let Some(index) = self.captured(span) {
+        } else if let Some(index) = self.captured(span.clone()) {
+            // if the variable is captured in a closure
             self.lambda.emit(Opcode::LoadCap);
             self.lambda.emit_bytes(&mut split_number(index))
         } else {
-            return Err("Variable referenced before assignment; it is undefined".to_string())
+            // TODO: hoist?
+            return Err(Syntax::error(
+                "Variable referenced before assignment; it is undefined", span
+            ));
         }
         Ok(())
     }
 
     /// A block is a series of expressions where the last is returned.
     /// Each sup-expression is walked, the last value is left on the stack.
-    fn block(&mut self, children: Vec<Spanned<AST>>) -> Result<(), String> {
+    fn block(&mut self, children: Vec<Spanned<AST>>) -> Result<(), Syntax> {
         for child in children {
-            self.walk(&child);
+            self.walk(&child)?;
             self.lambda.emit(Opcode::Del);
         }
 
@@ -152,9 +156,10 @@ impl Compiler {
     }
 
     // TODO: rewrite according to new symbol rules
-    fn assign(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), String> {
+    fn assign(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), Syntax> {
         // eval the expression
-        self.walk(&expression);
+        self.walk(&expression)?;
+
         // load the following symbol ...
         let span = match symbol.item {
             AST::Symbol => symbol.span,
@@ -162,13 +167,14 @@ impl Compiler {
         };
 
         // abstract out?
-        let index = if let Some(i) = self.local(span) {
-            Opcode::Save; i
-        } else if let Some(i) = self.captured(span) {
-            Opcode::SaveCap; i
+        let index = if let Some(i) = self.local(span.clone()) {
+            self.lambda.emit(Opcode::Save); i
+        } else if let Some(i) = self.captured(span.clone()) {
+            self.lambda.emit(Opcode::SaveCap); i
         } else {
-            // TODO: define variable
-            todo!();
+            self.lambda.emit(Opcode::Save);
+            self.locals.push(Local::new(span, self.depth));
+            self.locals.len() - 1
         };
 
         self.lambda.emit_bytes(&mut split_number(index));
@@ -176,18 +182,23 @@ impl Compiler {
     }
 
     // TODO: rewrite according to new symbol rules
-    fn lambda(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), String> {
+    fn lambda(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), Syntax> {
         let mut lambda = Lambda::empty();
 
         // save the argument into the given variable
         lambda.emit(Opcode::Save);
         lambda.emit_bytes(&mut split_number(0)); // NOTE: should this always be 0?
 
+        let mut nested = Compiler::base();
+        nested.depth = self.depth + 1;
+        let enclosing = mem::replace(self, nested);
+        self.enclosing = Some(Box::new(enclosing));
+
         // enter a new scope and walk the function body
-        let nested = Compiler::over(*self);
-        nested.walk(&expression);    // run the function
+        // let mut nested = Compiler::over(&mut );
+        self.walk(&expression);    // run the function
         lambda.emit(Opcode::Return); // return the result
-        lambda.emit_bytes(&mut split_number(nested.locals.len()));
+        lambda.emit_bytes(&mut split_number(self.locals.len()));
 
         // TODO: lift locals off stack if captured
 
@@ -198,7 +209,7 @@ impl Compiler {
 
     /// When a function is called, the top two items are taken off the stack,
     /// The topmost item is expected to be a function.
-    fn call(&mut self, fun: Spanned<AST>, arg: Spanned<AST>) -> Result<(), String> {
+    fn call(&mut self, fun: Spanned<AST>, arg: Spanned<AST>) -> Result<(), Syntax> {
         self.walk(&arg);
         self.walk(&fun);
         self.lambda.emit(Opcode::Call);
