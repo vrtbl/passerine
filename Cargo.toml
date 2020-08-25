@@ -1,6 +1,6 @@
 [package]
 name = "passerine"
-version = "0.6.1"
+version = "0.7.0"
 authors = [
     "Isaac Clayton (slightknack) <slightknack@gmail.com>",
     "The Passerine Community",
@@ -9,4 +9,4 @@ edition = "2018"
 description = "A small extensible programming language designed for concise expression with little code."
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/passerine-lang/passerine"
+repository = "https://github.com/vrtbl/passerine"

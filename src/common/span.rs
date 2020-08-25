@@ -96,8 +96,8 @@ impl Span {
         let start = self.offset;
         let end   = self.offset + self.length;
 
-        let start_lines: Vec<&str> = self.source.as_ref().unwrap().contents[..=start].lines().collect();
-        let end_lines:   Vec<&str> = self.source.as_ref().unwrap().contents[..=end].lines().collect();
+        let start_lines: Vec<&str> = self.source.as_ref().unwrap().contents[..start].lines().collect();
+        let end_lines:   Vec<&str> = self.source.as_ref().unwrap().contents[..end].lines().collect();
 
         let start_line = start_lines.len() - 1;
         let end_line   = end_lines.len() - 1;
@@ -150,7 +150,7 @@ impl Display for Span {
 
             let line = format!("{} | {}", readable_end_line, l);
             let span = format!(
-                "{} | {}{}",
+                "{} |  {}{}",
                 " ".repeat(padding),
                 " ".repeat(start_col),
                 "^".repeat(self.length),

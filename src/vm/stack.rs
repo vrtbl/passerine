@@ -1,4 +1,8 @@
-use std::{mem, rc::Rc};
+use std::{
+    mem,
+    rc::Rc,
+    cell::RefCell
+};
 
 use crate::common::data::Data;
 
@@ -73,7 +77,7 @@ impl Stack {
             Data::Heaped(_) => panic!("Can not put data that is already on the heap onto the heap"),
             other => other,
         };
-        self.push_data(Data::Heaped(Rc::new(data)));
+        self.push_data(Data::Heaped(Rc::new(RefCell::new(data))));
     }
 
     /// Gets a local and pushes it onto the top of the stack;
@@ -84,7 +88,7 @@ impl Stack {
         // I know that something better than this can be done
         let data = mem::replace(&mut self.stack[local_index], Tagged::frame()).data();
         let copy = data.clone();
-        mem::replace(&mut self.stack[local_index], Tagged::new(data));
+        mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(data)));
 
         self.push_data(copy);
     }

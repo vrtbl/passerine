@@ -196,7 +196,7 @@ impl Compiler {
 
         // enter a new scope and walk the function body
         // let mut nested = Compiler::over(&mut );
-        self.walk(&expression);    // run the function
+        self.walk(&expression)?;    // run the function
         lambda.emit(Opcode::Return); // return the result
         lambda.emit_bytes(&mut split_number(self.locals.len()));
 
@@ -210,8 +210,8 @@ impl Compiler {
     /// When a function is called, the top two items are taken off the stack,
     /// The topmost item is expected to be a function.
     fn call(&mut self, fun: Spanned<AST>, arg: Spanned<AST>) -> Result<(), Syntax> {
-        self.walk(&arg);
-        self.walk(&fun);
+        self.walk(&arg)?;
+        self.walk(&fun)?;
         self.lambda.emit(Opcode::Call);
         Ok(())
     }

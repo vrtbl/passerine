@@ -53,7 +53,7 @@ impl VM {
         let remaining      = self.closure.lambda.code[self.ip..].to_vec();
         let (index, eaten) = build_number(remaining);
         self.ip += eaten - 1; // ip left on next op
-        println!("{}", index);
+        // println!("{}", index);
         return index;
     }
 
@@ -208,8 +208,10 @@ mod test {
     fn init_run() {
         // TODO: check @ each step, write more tests
         let lambda = gen(parse(lex(
-            Source::source("boop = 37.201; true; dhuiew = true; boop")
+            Source::source("boop = x -> \n{\nxyz \n}")
         ).unwrap()).unwrap()).unwrap();
+
+        println!("{:#?}", lambda);
 
         let mut vm = VM::init();
 

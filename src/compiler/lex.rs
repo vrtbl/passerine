@@ -229,7 +229,6 @@ impl Lexer {
         len += Lexer::expect(source, "\"")?;
 
         for c in source[len..].chars() {
-            print!("{}|", c);
             len += 1;
             if escape {
                 escape = false;
@@ -376,8 +375,6 @@ mod test {
     fn test_literal(literal: &str, token: Token, length: usize) -> bool {
         let result = Lexer::new(&Source::source(literal)).step();
 
-        println!("{:?}", result);
-
         match result {
             Ok(v) => v == (token, length),
             Err(_) => false
@@ -449,7 +446,6 @@ mod test {
         ) { panic!() }
 
         let unicode = "\"Yo 👋! Ünícode µ works just fine 🚩! うん、気持ちいい！\"";
-        println!("{}", unicode.len());
         if !test_literal(
             unicode,
             Token::String(Data::String("Yo 👋! Ünícode µ works just fine 🚩! うん、気持ちいい！".to_string())),

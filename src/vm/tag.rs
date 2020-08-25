@@ -85,34 +85,58 @@ impl Tagged {
             _ => unreachable!("Corrupted tagged data"),
         }
     }
+
+    pub fn copy(&self) -> Data {
+        let Tagged(bits) = &self;
+        let pointer = P_FLAG | QNAN;
+
+        let mut copy = None;
+
+        if (pointer & bits) == pointer {
+            // follow pointer, clone data, return data clone
+            let item = unsafe { Box::from_raw((bits & P_MASK) as *mut Data) };
+            copy = Some(*item.clone());
+            mem::forget(item);
+        } else {
+            // not a pointer, can just copy bits
+            copy = Some(Data::Real(f64::from_bits(bits.clone())));
+        }
+
+        return copy.expect("No Data was copied")
+    }
 }
 
 // TODO: verify this works as intended
 impl Drop for Tagged {
     fn drop(&mut self) {
-        println!("Dropping!");
         let Tagged(bits) = &self;
         let pointer = P_FLAG | QNAN;
 
-        match *bits {
-            p if (pointer & p) == pointer => unsafe {
-                // this should drop the data the tag points to as well
-                println!("yeet");
-                mem::drop(*Box::from_raw((bits & P_MASK) as *mut Data));
-                println!("yote");
-            },
-            _ => (),
+        if (pointer & bits) == pointer {
+            // this should drop the data the tag points to as well
+            unsafe { mem::drop(*Box::from_raw((bits & P_MASK) as *mut Data)); };
         }
-        println!("done Dropping!");
     }
 }
 
 impl Debug for Tagged {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        Debug::fmt("Tagged(<Hidden>)", f)
-        // TODO: causes double-free?
-        // let Data
-        // Debug::fmt(&self.data(), formatter)
+        println!("Debugging");
+
+        let Tagged(bits) = &self;
+        let pointer = P_FLAG | QNAN;
+
+        if (pointer & bits) == pointer {
+            let item = unsafe { Box::from_raw((bits & P_MASK) as *mut Data) };
+            write!(f, "Data {:?}", item)?;
+            mem::forget(item);
+        } else {
+            write!(f, "Real {}", f64::from_bits(bits.clone()))?;
+        }
+
+        Ok(())
+        // write an exact copy of the data
+        // write!(f, "{:?}", self.copy())
     }
 }
 
@@ -178,7 +202,6 @@ mod test {
             match wrapped.data() {
                 Data::String(s) => { assert_eq!(item, &s) },
                 other           => {
-                    println!("{:#?}", other);
                     // println!("{:#b}", u64::from(wrapped));
                     panic!("Didn't unwrap to a string");
                 },

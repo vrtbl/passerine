@@ -23,10 +23,10 @@ pub fn parse<'a>(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     match block(&tokens) {
         // vaccum all extra seperators
         Ok((node, parsed)) => if vaccum(parsed, Token::Sep).is_empty()
-            { Ok(node) } else { unreachable!() },
+            { Ok(node) } else { panic!("Did not consume all tokens") },
         // if there are still tokens left, something's gone wrong.
         // TODO: handle error
-        _ => unreachable!(),
+        _ => panic!("Did not handle error"),
     }
 }
 
