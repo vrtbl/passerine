@@ -101,6 +101,7 @@ impl Stack {
             // local is already in the correct spot; we declare it
             return;
         } else if self.stack.len() >= local_index {
+            println!("{} stacc {:?}", local_index, self.stack);
             panic!("Can not set local that is not yet on stack");
         } else {
             // replace the old value with the new one

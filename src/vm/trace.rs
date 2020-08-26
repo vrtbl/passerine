@@ -46,25 +46,26 @@ dub_incr = z -> (incr x) + (incr x)
 forever = a -> a = a + (dub_incr a)
 forever RandomLabel
 "));
-        let target = "Traceback, most recent call last:
-Line 1:13
-  |
-1 | incr = x -> x + 1
-  |             ^^^^^
-Line 2:17
-  |
-2 | dub_incr = z -> (incr x) + (incr x)
-  |                 ^^^^^^^^
-Line 3:24
-  |
-3 | forever = a -> a = a + (dub_incr a)
-  |                        ^^^^^^^^^^^^
-Line 4:1
-  |
-4 | forever RandomLabel
-  | ^^^^^^^^^^^^^^^^^^^
-Runtime Type Error: Can't add Label to Label
-";
+        let target = "\
+            Traceback, most recent call last:\n\
+            Line 1:13\n  \
+              |\n\
+            1 | incr = x -> x + 1\n  \
+              |             ^^^^^\n\
+            Line 2:17\n  \
+              |\n\
+            2 | dub_incr = z -> (incr x) + (incr x)\n  \
+              |                 ^^^^^^^^\n\
+            Line 3:24\n  \
+              |\n\
+            3 | forever = a -> a = a + (dub_incr a)\n  \
+              |                        ^^^^^^^^^^^^\n\
+            Line 4:1\n  \
+              |\n\
+            4 | forever RandomLabel\n  \
+              | ^^^^^^^^^^^^^^^^^^^\n\
+            Runtime Type Error: Can't add Label to Label\n\
+        ";
 
         let traceback = Trace::error(
             "Type Error",

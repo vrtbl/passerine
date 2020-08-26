@@ -128,10 +128,8 @@ impl VM {
 
     /// Save the topmost value on the stack into a variable.
     fn save(&mut self) -> Result<(), Trace> {
-        let data = self.stack.pop_data();
         let index = self.next_number();
         self.stack.set_local(index);
-        self.stack.push_data(Data::Unit);
         self.done()
     }
 
@@ -213,7 +211,7 @@ mod test {
         ).unwrap()).unwrap()).unwrap();
 
         let mut vm = VM::init();
-        
+
         match vm.run(Closure::wrap(lambda)) {
             Ok(_)  => (),
             Err(e) => eprintln!("{}", e),

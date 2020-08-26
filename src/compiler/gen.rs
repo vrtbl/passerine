@@ -176,10 +176,10 @@ impl Compiler {
             self.locals.len() - 1
         };
 
+        self.lambda.emit_bytes(&mut split_number(index));
         self.lambda.emit(Opcode::Con);
         self.data(Data::Unit)?;
 
-        self.lambda.emit_bytes(&mut split_number(index));
         Ok(())
     }
 

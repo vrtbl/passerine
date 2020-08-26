@@ -59,82 +59,76 @@ impl Tagged {
         Tagged::new(Data::Frame)
     }
 
-    // TODO: use deref trait
-    // Can't for not because of E0515 caused by &Data result
-    /// Unwrapps a tagged number into the appropriate datatype.
-    pub fn data(self) -> Data {
-        // This function drops the data upon unpack, resulting in a double-free
+    /// Returns the underlying data or a pointer to that data.
+    pub fn extract(&self) -> Result<Data, Box<Data>> {
+        println!("-- Extracting...");
         let Tagged(bits) = self;
+        mem::forget(self);
 
-        match bits {
-            n if (n & QNAN) != QNAN   => Data::Real(f64::from_bits(n)),
-            u if u == (QNAN | U_FLAG) => Data::Unit,
-            f if f == (QNAN | F_FLAG) => Data::Boolean(false),
-            t if t == (QNAN | T_FLAG) => Data::Boolean(true),
-            p if (p & P_FLAG) == P_FLAG => {
-                // TODO: Not sure if this will work correctly...
-                // Might need to have someone else look over it
+        return match bits {
+            n if (n & QNAN) != QNAN    => Ok(Data::Real(f64::from_bits(*n))),
+            u if u == &(QNAN | U_FLAG) => Ok(Data::Unit),
+            f if f == &(QNAN | F_FLAG) => Ok(Data::Boolean(false)),
+            t if t == &(QNAN | T_FLAG) => Ok(Data::Boolean(true)),
+            p if (p & P_FLAG) == P_FLAG => Err(
                 unsafe {
-                    let ptr = (bits & P_MASK) as *mut Data;
-                    let raw = Box::from_raw(ptr);
-                    let data = raw.clone();
-                    Box::into_raw(raw);
-                    *data
+                    Box::from_raw((bits & P_MASK) as *mut Data)
                 }
-            },
+            ),
             _ => unreachable!("Corrupted tagged data"),
         }
     }
 
-    pub fn copy(&self) -> Data {
-        let Tagged(bits) = &self;
-        let pointer = P_FLAG | QNAN;
-
-        let mut copy = None;
-
-        if (pointer & bits) == pointer {
-            // follow pointer, clone data, return data clone
-            let item = unsafe { Box::from_raw((bits & P_MASK) as *mut Data) };
-            copy = Some(*item.clone());
-            mem::forget(item);
-        } else {
-            // not a pointer, can just copy bits
-            copy = Some(Data::Real(f64::from_bits(bits.clone())));
+    // TODO: use deref trait
+    // Can't for not because of E0515 caused by &Data result
+    /// Unwrapps a tagged number into the appropriate datatype.
+    pub fn data(self) -> Data {
+        match self.extract() {
+            Ok(data) => data,
+            Err(boxed) => *boxed,
         }
+    }
 
-        return copy.expect("No Data was copied")
+    pub fn copy(&self) -> Data {
+        match self.extract() {
+            Ok(data) => data.to_owned(),
+            Err(boxed) => {
+                let copy = *boxed.clone();
+                mem::forget(boxed);
+                copy
+            },
+        }
     }
 }
 
 // TODO: verify this works as intended
 impl Drop for Tagged {
     fn drop(&mut self) {
-        let Tagged(bits) = &self;
-        let pointer = P_FLAG | QNAN;
-
-        if (pointer & bits) == pointer {
-            // this should drop the data the tag points to as well
-            unsafe { mem::drop(*Box::from_raw((bits & P_MASK) as *mut Data)); };
+        match self.extract() {
+            Ok(_data) => (),
+            Err(boxed) => mem::drop(*boxed),
         }
+
+        mem::drop(self);
     }
 }
 
 impl Debug for Tagged {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        let Tagged(bits) = &self;
-        let pointer = P_FLAG | QNAN;
-
-        if (pointer & bits) == pointer {
-            let item = unsafe { Box::from_raw((bits & P_MASK) as *mut Data) };
-            write!(f, "Data {:?}", item)?;
-            mem::forget(item);
-        } else {
-            write!(f, "Real {}", f64::from_bits(bits.clone()))?;
-        }
-
-        Ok(())
-        // write an exact copy of the data
-        // write!(f, "{:?}", self.copy())
+        // let Tagged(bits) = &self;
+        // let pointer = P_FLAG | QNAN;
+        //
+        // if (pointer & bits) == pointer {
+        //     let item = unsafe { Box::from_raw((bits & P_MASK) as *mut Data) };
+        //     write!(f, "Data {:?}", item)?;
+        //     mem::forget(item);
+        // } else {
+        //     write!(f, "Real {}", f64::from_bits(bits.clone()))?;
+        // }
+        //
+        // Ok(())
+        // // write an exact copy of the data
+        write!(f, "Tagged({:?})", self.copy())
     }
 }
 
@@ -216,6 +210,8 @@ mod test {
             Data::Real(2.5e10),
             Data::Real(2.5E-10),
             Data::Real(0.5),
+            Data::Real(f64::MAX),
+            Data::Real(f64::MIN),
             Data::Real(f64::INFINITY),
             Data::Real(f64::NEG_INFINITY),
             Data::Real(f64::NAN),
@@ -224,18 +220,24 @@ mod test {
             Data::String("Whoop 😋".to_string()),
             Data::Boolean(true),
             Data::Boolean(false),
+            Data::Unit,
         ];
 
         for test in tests {
+            println!("{:?}", test);
             let tagged = Tagged::new(test.clone());
+            println!("{:?}", tagged);
+            println!("{:#b}", tagged.0);
             let untagged = tagged.data();
+            println!("{:?}", untagged);
+            println!("---");
 
             if let Data::Real(f) = untagged {
                 if let Data::Real(n) = test {
                     if n.is_nan() {
                         assert!(f.is_nan())
                     } else {
-                        assert_eq!(f, n);
+                        assert_eq!(test, Data::Real(n));
                     }
                 }
             } else {
