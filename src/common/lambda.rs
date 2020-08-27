@@ -68,9 +68,12 @@ impl Lambda {
 
     /// Dump some bytecode for inspection.
     pub fn dump(&self) {
+        println!("Dumping Constants:");
+        for constant in self.constants.iter() {
+            println!("{:?}", constant);
+        }
         println!("Dumping Bytecode:");
         println!("Inst.   \tArg?\tValue?");
-        println!("---");
         let mut index = 0;
 
         while index < self.code.len() {
@@ -112,4 +115,8 @@ impl Lambda {
             }
         }
     }
+}
+
+impl Debug for Lambda {
+
 }
