@@ -32,9 +32,10 @@ pub struct Tagged(u64);
 const QNAN:   u64 = 0x7ffe_0000_0000_0000;
 const P_FLAG: u64 = 0x8000_0000_0000_0000;
 const P_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
-const U_FLAG: u64 = 0x0000_0000_0000_0000;
-const F_FLAG: u64 = 0x0000_0000_0000_0010;
-const T_FLAG: u64 = 0x0000_0000_0000_0011;
+const U_FLAG: u64 = 0x0000_0000_0000_0001;
+const F_FLAG: u64 = 0x0000_0000_0000_0002;
+const T_FLAG: u64 = 0x0000_0000_0000_0004;
+const S_FLAG: u64 = 0x0000_0000_0000_0008; // stack frame
 
 impl Tagged {
     /// Wraps `Data` to create a new tagged pointer.
@@ -47,6 +48,8 @@ impl Tagged {
             // True and false
             Data::Boolean(false) => Tagged(QNAN | F_FLAG),
             Data::Boolean(true)  => Tagged(QNAN | T_FLAG),
+            // Stack frame
+            Data::Frame => Tagged(QNAN | S_FLAG),
 
             // on the heap
             // TODO: layout to make sure pointer is the right size when boxing
@@ -60,61 +63,77 @@ impl Tagged {
     }
 
     /// Returns the underlying data or a pointer to that data.
-    pub fn extract(&self) -> Result<Data, Box<Data>> {
-        println!("-- Extracting...");
+    unsafe fn extract(&self) -> Result<Data, Box<Data>> {
+        // println!("-- Extracting...");
         let Tagged(bits) = self;
-        mem::forget(self);
 
         return match bits {
             n if (n & QNAN) != QNAN    => Ok(Data::Real(f64::from_bits(*n))),
             u if u == &(QNAN | U_FLAG) => Ok(Data::Unit),
             f if f == &(QNAN | F_FLAG) => Ok(Data::Boolean(false)),
             t if t == &(QNAN | T_FLAG) => Ok(Data::Boolean(true)),
-            p if (p & P_FLAG) == P_FLAG => Err(
-                unsafe {
-                    Box::from_raw((bits & P_MASK) as *mut Data)
-                }
-            ),
+            s if s == &(QNAN | S_FLAG) => Ok(Data::Frame),
+            p if (p & P_FLAG) == P_FLAG => Err({
+                // println!("{:#x}", p & P_MASK);
+                // unsafe part
+                Box::from_raw((bits & P_MASK) as *mut Data)
+            }),
             _ => unreachable!("Corrupted tagged data"),
         }
     }
 
     // TODO: use deref trait
     // Can't for not because of E0515 caused by &Data result
-    /// Unwrapps a tagged number into the appropriate datatype.
+    /// Unwrapps a tagged number into the appropriate datatype,
+    /// Consuming the tagged number.
     pub fn data(self) -> Data {
-        match self.extract() {
-            Ok(data) => data,
-            Err(boxed) => *boxed,
-        }
+        // println!("-- Data...");
+
+        let d = unsafe {
+            match self.extract() {
+                Ok(data) => data,
+                Err(boxed) => {
+                    *boxed
+                }
+            }
+        };
+
+        // println!("-- Forgetting...");
+        mem::drop(self.0);
+        mem::forget(self);
+        return d;
     }
 
     pub fn copy(&self) -> Data {
-        match self.extract() {
-            Ok(data) => data.to_owned(),
-            Err(boxed) => {
-                let copy = *boxed.clone();
-                mem::forget(boxed);
-                copy
-            },
+        // println!("-- Copy...");
+        unsafe {
+            match self.extract() {
+                Ok(data) => data.to_owned(),
+                Err(boxed) => {
+                    let copy = boxed.clone();
+                    // println!("-- Leaking...");
+                    // we took ownership to clone the pointer,
+                    // but we do not own the pointer,
+                    // so we 'leak' it - &self still holds a reference
+                    Box::leak(boxed);
+                    *copy
+                },
+            }
         }
     }
 }
 
-// TODO: verify this works as intended
 impl Drop for Tagged {
     fn drop(&mut self) {
-        match self.extract() {
-            Ok(_data) => (),
-            Err(boxed) => mem::drop(*boxed),
-        }
-
-        mem::drop(self);
+        // println!("-- Dropping...");
+        // println!("{:#x}", self.0 & P_MASK);
+        unsafe { mem::drop(self.extract()) };
     }
 }
 
 impl Debug for Tagged {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        // println!("-- Fmt...");
         // let Tagged(bits) = &self;
         // let pointer = P_FLAG | QNAN;
         //
@@ -128,6 +147,7 @@ impl Debug for Tagged {
         //
         // Ok(())
         // // write an exact copy of the data
+
         write!(f, "Tagged({:?})", self.copy())
     }
 }
@@ -215,22 +235,21 @@ mod test {
             Data::Real(f64::INFINITY),
             Data::Real(f64::NEG_INFINITY),
             Data::Real(f64::NAN),
-            Data::String("Hello, World!".to_string()),
-            Data::String("".to_string()),
-            Data::String("Whoop 😋".to_string()),
             Data::Boolean(true),
             Data::Boolean(false),
             Data::Unit,
+            Data::String("Hello, World!".to_string()),
+            Data::String("".to_string()),
+            Data::String("Whoop 😋".to_string()),
         ];
 
         for test in tests {
-            println!("{:?}", test);
+            // println!("test: {:?}", test);
             let tagged = Tagged::new(test.clone());
-            println!("{:?}", tagged);
-            println!("{:#b}", tagged.0);
+            // println!("tagged: {:?}", tagged);
             let untagged = tagged.data();
-            println!("{:?}", untagged);
-            println!("---");
+            // println!("untagged: {:?}", untagged);
+            // println!("---");
 
             if let Data::Real(f) = untagged {
                 if let Data::Real(n) = test {
@@ -244,5 +263,36 @@ mod test {
                 assert_eq!(test, untagged);
             }
         }
+    }
+
+    #[test]
+    fn no_leak_round() {
+        // TODO: check memory was freed properly
+        let location = "This is a string".to_string();
+
+        // drop dereferenced data
+        let tagged = Tagged::new(Data::String(location.clone()));
+        let pointer = tagged.0 & P_MASK;
+        let untagged = tagged.data();
+        // println!("-- Casting...");
+        let data = unsafe { Box::from_raw(pointer as *mut Data) };
+        // println!("before drop: {:?}", data);
+        mem::forget(data);
+        mem::drop(untagged);
+        // println!("after drop: {:?}", data);
+    }
+
+    fn no_leak_tagged() {
+        let location = "This is a string".to_string();
+
+        // drop tagged data
+        let tagged = Tagged::new(Data::String(location.clone()));
+        let pointer = tagged.0 & P_MASK;
+        let data = unsafe { Box::from_raw(pointer as *mut Data) };
+        // println!("-- Dropping...");
+        // println!("before drop: {:?}", data);
+        mem::forget(data);
+        mem::drop(tagged);
+        // println!("after drop: {:?}", data);
     }
 }

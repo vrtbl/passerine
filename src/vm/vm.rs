@@ -50,7 +50,7 @@ impl VM {
     /// See `utils::number` for more.
     fn next_number(&mut self) -> usize {
         self.next();
-        let remaining      = self.closure.lambda.code[self.ip..].to_vec();
+        let remaining      = &self.closure.lambda.code[self.ip..];
         let (index, eaten) = build_number(remaining);
         self.ip += eaten - 1; // ip left on next op
         // println!("{}", index);
@@ -207,15 +207,16 @@ mod test {
         // TODO: check @ each step, write more tests
 
         let lambda = gen(parse(lex(
-            Source::source("boop = 27.28; boop")
+            Source::source("f = x -> 1.0; n = 0.0; x = f 0.0")
         ).unwrap()).unwrap()).unwrap();
 
-        let mut vm = VM::init();
-
-        match vm.run(Closure::wrap(lambda)) {
-            Ok(_)  => (),
-            Err(e) => eprintln!("{}", e),
-        }
+        lambda.dump();
+        // let mut vm = VM::init();
+        //
+        // match vm.run(Closure::wrap(lambda)) {
+        //     Ok(_)  => (),
+        //     Err(e) => eprintln!("{}", e),
+        // }
     }
 
     // #[test]

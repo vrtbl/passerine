@@ -2,7 +2,9 @@ use crate::common::{
     opcode::Opcode,
     data::Data,
     local::Local,
+    number::build_number,
 };
+use std::mem;
 
 // // TODO: annotations in bytecode
 // // TODO: separate AST compiler from Lambda itself
@@ -61,6 +63,53 @@ impl Lambda {
                 self.constants.push(data);
                 self.constants.len() - 1
             },
+        }
+    }
+
+    /// Dump some bytecode for inspection.
+    pub fn dump(&self) {
+        println!("Dumping Bytecode:");
+        println!("Inst.   \tArg?\tValue?");
+        println!("---");
+        let mut index = 0;
+
+        while index < self.code.len() {
+            index += 1;
+            match Opcode::from_byte(self.code[index - 1]) {
+                Opcode::Con => {
+                    let (constant_index, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    println!("Load Con\t{}\t{:?}", constant_index, self.constants[constant_index]);
+                },
+                Opcode::Del => { println!("Delete  \t--\t--"); },
+                Opcode::Capture => { println!("Capture \t--\tHeapify top of stack"); },
+                Opcode::Save => {
+                    let (local_index, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    println!("Save    \t{}\tIndexed local", local_index);
+                },
+                Opcode::SaveCap => {
+                    let (upvalue_index, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    println!("Save Cap\t{}\tIndexed upvalue on heap", upvalue_index);
+                },
+                Opcode::Load => {
+                    let (local_index, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    println!("Load    \t{}\tIndexed local", local_index);
+                },
+                Opcode::LoadCap => {
+                    let (upvalue_index, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    println!("Load Cap\t{}\tIndexed upvalue on heap", upvalue_index);
+                },
+                Opcode::Call => { println!("Call    \t--\tRun top function using next stack value"); }
+                Opcode::Return => {
+                    let (num_locals, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    println!("Return  \t{}\tLocals on stack deleted", num_locals);
+                }
+            }
         }
     }
 }
