@@ -123,3 +123,7 @@ impl fmt::Debug for Lambda {
         Ok(())
     }
 }
+
+impl Debug for Lambda {
+
+}
