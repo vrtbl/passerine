@@ -127,7 +127,7 @@ impl Display for Span {
     /// ```
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         if self.is_empty() {
-            panic!("Can't display the section corresponding with an empty Spanotation")
+            panic!("Can't display the section corresponding with an empty Span")
         }
 
         let lines: Vec<&str> = self.source.as_ref().unwrap().contents.lines().collect();

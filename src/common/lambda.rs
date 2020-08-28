@@ -4,7 +4,11 @@ use crate::common::{
     local::Local,
     number::build_number,
 };
-use std::mem;
+use std::{
+    fmt,
+    io::Write,
+    mem,
+};
 
 // // TODO: annotations in bytecode
 // // TODO: separate AST compiler from Lambda itself
@@ -19,7 +23,7 @@ use std::mem;
 
 /// Represents a single interpretable chunk of bytecode,
 /// Think a function.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Lambda {
     pub code:      Vec<u8>,    // each byte is an opcode or a number-stream
     pub offsets:   Vec<usize>, // each usize indexes the bytecode op that begins each line
@@ -65,12 +69,16 @@ impl Lambda {
             },
         }
     }
+}
 
-    /// Dump some bytecode for inspection.
-    pub fn dump(&self) {
-        println!("Dumping Bytecode:");
-        println!("Inst.   \tArg?\tValue?");
-        println!("---");
+impl fmt::Debug for Lambda {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "\n-- Dumping Constants:")?;
+        for constant in self.constants.iter() {
+            writeln!(f, "{:?}", constant)?;
+        }
+        writeln!(f, "-- Dumping Bytecode:")?;
+        writeln!(f, "Inst.   \tArg?\tValue?")?;
         let mut index = 0;
 
         while index < self.code.len() {
@@ -79,37 +87,39 @@ impl Lambda {
                 Opcode::Con => {
                     let (constant_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
-                    println!("Load Con\t{}\t{:?}", constant_index, self.constants[constant_index]);
+                    writeln!(f, "Load Con\t{}\t{:?}", constant_index, self.constants[constant_index])?;
                 },
-                Opcode::Del => { println!("Delete  \t--\t--"); },
-                Opcode::Capture => { println!("Capture \t--\tHeapify top of stack"); },
+                Opcode::Del => { writeln!(f, "Delete  \t--\t--")?; },
+                Opcode::Capture => { writeln!(f, "Capture \t--\tHeapify top of stack")?; },
                 Opcode::Save => {
                     let (local_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
-                    println!("Save    \t{}\tIndexed local", local_index);
+                    writeln!(f, "Save    \t{}\tIndexed local", local_index)?;
                 },
                 Opcode::SaveCap => {
                     let (upvalue_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
-                    println!("Save Cap\t{}\tIndexed upvalue on heap", upvalue_index);
+                    writeln!(f, "Save Cap\t{}\tIndexed upvalue on heap", upvalue_index)?;
                 },
                 Opcode::Load => {
                     let (local_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
-                    println!("Load    \t{}\tIndexed local", local_index);
+                    writeln!(f, "Load    \t{}\tIndexed local", local_index)?;
                 },
                 Opcode::LoadCap => {
                     let (upvalue_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
-                    println!("Load Cap\t{}\tIndexed upvalue on heap", upvalue_index);
+                    writeln!(f, "Load Cap\t{}\tIndexed upvalue on heap", upvalue_index)?;
                 },
-                Opcode::Call => { println!("Call    \t--\tRun top function using next stack value"); }
+                Opcode::Call => { writeln!(f, "Call    \t--\tRun top function using next stack value")?; }
                 Opcode::Return => {
                     let (num_locals, consumed) = build_number(&self.code[index..]);
                     index += consumed;
-                    println!("Return  \t{}\tLocals on stack deleted", num_locals);
+                    writeln!(f, "Return  \t{}\tLocals on stack deleted", num_locals)?;
                 }
             }
         }
+
+        Ok(())
     }
 }

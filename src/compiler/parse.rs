@@ -15,7 +15,7 @@ use crate::common::{
 // some sort of recursive descent parser, I guess
 type Tokens<'a> = &'a [Spanned<Token>];
 type Bite<'a>   = (Spanned<AST>, Tokens<'a>);
-type Rule   = Box<dyn Fn(Tokens) -> Result<(Spanned<AST>, Tokens), Syntax>>;
+type Rule   = Box<dyn Fn(Tokens) -> Result<Bite, Syntax>>;
 
 pub fn parse<'a>(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     // parse the file
@@ -23,10 +23,12 @@ pub fn parse<'a>(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     match block(&tokens) {
         // vaccum all extra seperators
         Ok((node, parsed)) => if vaccum(parsed, Token::Sep).is_empty()
-            { Ok(node) } else { panic!("Did not consume all tokens") },
+            { Ok(node) } else {
+                println!("parsed: {:#?}", parsed);
+                panic!("Did not consume all tokens")
+            },
         // if there are still tokens left, something's gone wrong.
-        // TODO: handle error
-        _ => panic!("Did not handle error"),
+        Err(e) => Err(e),
     }
 }
 
@@ -64,9 +66,10 @@ fn consume(tokens: Tokens, token: Token) -> Result<Tokens, Syntax> {
     if t.item != token {
         return Err(Syntax::error(
             &format!(
-                "Expected {:?}, found {:?}",
+                "Expected {}, found {} ({:?})",
                 token,
-                t.item
+                t.item,
+                t.span.contents(),
             ),
             t.span.clone()
         ));
@@ -78,12 +81,25 @@ fn consume(tokens: Tokens, token: Token) -> Result<Tokens, Syntax> {
 /// Given a list of parsing rules and a token stream,
 /// This function returns the first rule result that successfully parses the token stream.
 /// Think of 'or' for parser-combinators.
-fn first(tokens: Tokens, rules: Vec<Rule>) -> Result<(Spanned<AST>, Tokens), Syntax> {
+fn first(tokens: Tokens, rules: Vec<Rule>) -> Result<Bite, Syntax> {
+    let mut worst = None;
+
     for rule in rules {
-        if let Result::Ok((ast, r)) = rule(tokens) {
-            return Result::Ok((ast, r))
+        match rule(tokens) {
+            Ok((ast, r)) => {
+                println!("matched!");
+                return Ok((ast, r));
+            }
+            Err(e) => {
+                if worst == None { worst = Some(e) }
+            }
         }
     }
+
+    // if nothing matched, return the first potential error
+    if let Some(e) = worst {
+        return Err(e);
+    };
 
     match tokens.iter().next() {
         Some(t) => Err(Syntax::error("Unexpected construct", t.span.clone())),
@@ -97,7 +113,7 @@ fn first(tokens: Tokens, rules: Vec<Rule>) -> Result<(Spanned<AST>, Tokens), Syn
 
 /// Matches a literal block, i.e. a list of expressions seperated by separators.
 /// Note that block expressions `{ e 1, ..., e n }` are blocks surrounded by `{}`.
-fn block(tokens: Tokens) -> Result<(Spanned<AST>, Tokens), Syntax> {
+fn block(tokens: Tokens) -> Result<Bite, Syntax> {
     let mut expressions = vec![];
     let mut annotations = vec![];
     let mut remaining   = vaccum(tokens, Token::Sep);
@@ -109,14 +125,15 @@ fn block(tokens: Tokens) -> Result<(Spanned<AST>, Tokens), Syntax> {
                 expressions.push(e);
                 remaining = r;
             },
-            Err(_) => break,
+            Err(e) => {
+                eprintln!("discarded Err:\n{}", e);
+                break;
+            },
         }
 
         // TODO: implement one-or-more, rename vaccum (which is really just a special case of zero or more)
         // expect at least one separator between statements
-        // remaining = match consume(tokens, Token::Sep) { Result::Ok(r) => r, Err(_) => break };
         remaining = vaccum(remaining, Token::Sep);
-        // println!("{:?}", remaining);
     }
 
     // TODO: is this true? an empty program is should be valid

@@ -56,7 +56,26 @@ impl Compiler {
         )
     }
 
-    // TODO: bytecode chunk dissambler
+    /// Replace the current compiler with a fresh one,
+    /// keeping a reference to the old one in `self.enclosing`.
+    pub fn enter_scope(&mut self) {
+        let depth = self.depth + 1;
+        let mut nested = Compiler::base();
+        nested.depth = depth;
+        let enclosing = mem::replace(self, nested);
+        self.enclosing = Some(Box::new(enclosing));
+    }
+
+    /// Restore the enclosing compiler,
+    /// returning the nested one for data extraction.
+    pub fn exit_scope(&mut self) -> Compiler {
+        let enclosing = mem::replace(&mut self.enclosing, None);
+        let nested = match enclosing {
+            Some(compiler) => mem::replace(self, *compiler),
+            None => panic!("Can not go back past base compiler"),
+        };
+        return nested;
+    }
 
     /// Walks an AST to generate bytecode.
     /// At this stage, the AST should've been verified, pruned, typechecked, etc.
@@ -154,7 +173,6 @@ impl Compiler {
         Ok(())
     }
 
-    // TODO: rewrite according to new symbol rules
     fn assign(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), Syntax> {
         // eval the expression
         self.walk(&expression)?;
@@ -184,27 +202,27 @@ impl Compiler {
 
     // TODO: rewrite according to new symbol rules
     fn lambda(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), Syntax> {
-        let mut lambda = Lambda::empty();
+        // just so the parallel is visually apparent
+        self.enter_scope();
+        {
+            // save the argument into the given variable
+            if let AST::Symbol = symbol.item {} else { unreachable!() }
+            self.lambda.emit(Opcode::Save);
+            self.locals.push(Local::new(symbol.span, self.depth));
+            self.lambda.emit_bytes(&mut split_number(0)); // will always be zerost item on stack
 
-        // save the argument into the given variable
-        lambda.emit(Opcode::Save);
-        lambda.emit_bytes(&mut split_number(0)); // NOTE: should this always be 0?
+            // enter a new scope and walk the function body
+            // let mut nested = Compiler::over(&mut );
+            self.walk(&expression)?;    // run the function
+            self.lambda.emit(Opcode::Return); // return the result
+            self.lambda.emit_bytes(&mut split_number(self.locals.len()));
 
-        let mut nested = Compiler::base();
-        nested.depth = self.depth + 1;
-        let enclosing = mem::replace(self, nested);
-        self.enclosing = Some(Box::new(enclosing));
-
-        // enter a new scope and walk the function body
-        // let mut nested = Compiler::over(&mut );
-        self.walk(&expression)?;    // run the function
-        lambda.emit(Opcode::Return); // return the result
-        lambda.emit_bytes(&mut split_number(self.locals.len()));
-
-        // TODO: lift locals off stack if captured
+            // TODO: lift locals off stack if captured
+        }
+        let lambda = self.exit_scope().lambda;
 
         // push the lambda object onto the callee's stack.
-        self.lambda.index_data(Data::Lambda(lambda));
+        self.data(Data::Lambda(lambda))?;
         Ok(())
     }
 

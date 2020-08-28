@@ -52,8 +52,8 @@ impl VM {
         self.next();
         let remaining      = &self.closure.lambda.code[self.ip..];
         let (index, eaten) = build_number(remaining);
+        println!("number: {}", index);
         self.ip += eaten - 1; // ip left on next op
-        // println!("{}", index);
         return index;
     }
 
@@ -90,11 +90,13 @@ impl VM {
         // TODO: should lambdas store their own ip?
 
         while self.ip < self.closure.lambda.code.len() {
-            println!("before: {:?}", self.stack);
+            println!("before: {:?}", self.stack.stack);
             println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
-            println!("---");
             self.step()?;
+            println!("---");
         }
+        println!("after: {:?}", self.stack);
+        println!("---");
 
         // return current state
         mem::drop(mem::replace(&mut self.closure, old_closure));
@@ -123,7 +125,7 @@ impl VM {
 
     fn capture(&mut self) -> Result<(), Trace> {
         self.stack.heapify_top();
-        Ok(())
+        self.done()
     }
 
     /// Save the topmost value on the stack into a variable.
@@ -151,7 +153,8 @@ impl VM {
 
     /// Delete the top item of the stack
     fn del(&mut self) -> Result<(), Trace> {
-        Ok(mem::drop(self.stack.pop_data()))
+        mem::drop(self.stack.pop_data());
+        self.done()
     }
 
     // TODO: closures
@@ -207,69 +210,72 @@ mod test {
         // TODO: check @ each step, write more tests
 
         let lambda = gen(parse(lex(
-            Source::source("f = x -> 1.0; n = 0.0; x = f 0.0")
+            Source::source("heck = 0.0; y = heck")
         ).unwrap()).unwrap()).unwrap();
 
-        lambda.dump();
-        // let mut vm = VM::init();
-        //
-        // match vm.run(Closure::wrap(lambda)) {
-        //     Ok(_)  => (),
-        //     Err(e) => eprintln!("{}", e),
-        // }
+        // println!("{:?}", lambda);
+        let mut vm = VM::init();
+
+        match vm.run(Closure::wrap(lambda)) {
+            Ok(_)  => (),
+            Err(e) => eprintln!("{}", e),
+        }
     }
 
-    // #[test]
-    // fn block_expression() {
-    //     let lambda = gen(parse(lex(
-    //         Source::source("boop = true; heck = { x = boop; x }; heck")
-    //     ).unwrap()).unwrap());
-    //
-    //     let mut vm = VM::init();
-    //
-    //     match vm.run(lambda) {
-    //         Ok(_)  => (),
-    //         Err(e) => eprintln!("{}", e),
-    //     }
-    //
-    //     match vm.stack.pop_data() {
-    //         Data::Boolean(true) => (),
-    //         _                   => panic!("Expected true value"),
-    //     }
-    // }
-    //
-    // #[test]
-    // fn functions() {
-    //     let lambda = gen(parse(lex(
-    //         Source::source("iden = x -> x; y = true; iden ((iden iden) (iden y))")
-    //     ).unwrap()).unwrap());
-    //
-    //     let mut vm = VM::init();
-    //     match vm.run(lambda) {
-    //         Ok(_)  => (),
-    //         Err(e) => eprintln!("{}", e),
-    //     }
-    //
-    //     let t = vm.stack.pop_data();
-    //     assert_eq!(t, Data::Boolean(true));
-    // }
-    //
-    // #[test]
-    // fn fun_scope() {
-    //     let lambda = gen(parse(lex(
-    //         Source::source("y = (x -> { z = x; z }) 7.0; y")
-    //     ).unwrap().into()).unwrap());
-    //
-    //     println!("{:#?}", lambda);
-    //
-    //     let mut vm = VM::init();
-    //     match vm.run(lambda) {
-    //         Ok(_)  => (),
-    //         Err(e) => eprintln!("{}", e),
-    //     }
-    //
-    //     // check that y is in fact 7
-    //     let t = vm.stack.pop_data();
-    //     assert_eq!(t, Data::Real(7.0));
-    // }
+    #[test]
+    fn block_expression() {
+        let lambda = gen(parse(lex(
+            Source::source("x = false; boop = true; heck = { x = boop; x }; heck")
+        ).unwrap()).unwrap()).unwrap();
+
+        // println!("{:?}", lambda);
+        let mut vm = VM::init();
+
+        match vm.run(Closure::wrap(lambda)) {
+            Ok(_)  => (),
+            Err(e) => eprintln!("{}", e),
+        }
+
+        match vm.stack.pop_data() {
+            Data::Boolean(true) => (),
+            _                   => panic!("Expected true value"),
+        }
+    }
+
+    #[test]
+    fn functions() {
+        let lambda = gen(parse(lex(
+            Source::source("iden = x -> x; y = true; iden ({y = false; iden iden} (iden y))")
+        ).unwrap()).unwrap()).unwrap();
+
+        println!("{:?}", lambda);
+        let mut vm = VM::init();
+
+        match vm.run(Closure::wrap(lambda)) {
+            Ok(_)  => (),
+            Err(e) => eprintln!("{}", e),
+        }
+
+        let t = vm.stack.pop_data();
+        assert_eq!(t, Data::Boolean(true));
+    }
+
+    #[test]
+    fn fun_scope() {
+        let lambda = gen(parse(lex(
+            Source::source("y = (x -> {\n    y = x; y\n} 7.0\ny")
+        ).unwrap().into()).unwrap()).unwrap();
+
+        println!("{:#?}", lambda);
+        let mut vm = VM::init();
+
+        match vm.run(Closure::wrap(lambda)) {
+            Ok(_)  => (),
+            Err(e) => eprintln!("{}", e),
+        }
+
+        // check that y is in fact 7
+        let t = vm.stack.pop_data();
+        assert_eq!(t, Data::Real(7.0));
+    }
 }

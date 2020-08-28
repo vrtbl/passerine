@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::common::{
     span::Span,
     data::Data,
@@ -24,4 +26,23 @@ pub enum Token {
     Number(Data),
     String(Data),
     Boolean(Data),
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let message = match self {
+            Token::OpenBracket  => "an opening bracket",
+            Token::CloseBracket => "a closing bracket",
+            Token::OpenParen    => "an openening paren",
+            Token::CloseParen   => "a closing paren",
+            Token::Sep          => "a separator",
+            Token::Assign       => "an assignment",
+            Token::Lambda       => "a lambda",
+            Token::Symbol       => "a symbol",
+            Token::Number(_)    => "a number",
+            Token::String(_)    => "a string",
+            Token::Boolean(_)   => "a boolean, like 'True' or 'False'",
+        };
+        write!(f, "{}", message)
+    }
 }
