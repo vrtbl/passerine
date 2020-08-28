@@ -21,6 +21,10 @@ pub fn gen(ast: Spanned<AST>) -> Result<Lambda, Syntax> {
     return Ok(compiler.lambda);
 }
 
+// // TODO: annotations in bytecode
+
+/// Compiler is a bytecode generator that walks an AST and produces (unoptimized) Bytecode.
+/// There are plans to add a bytecode optimizer in the future.
 pub struct Compiler {
     enclosing: Option<Box<Compiler>>,
     lambda: Lambda,

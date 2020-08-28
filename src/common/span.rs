@@ -12,9 +12,9 @@ use crate::common::source::Source;
 /// to be used during error reporting.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Span {
-    source: Option<Rc<Source>>,
-    offset: usize,
-    length: usize,
+    pub source: Option<Rc<Source>>,
+    pub offset: usize,
+    pub length: usize,
 }
 
 impl Span {
@@ -43,6 +43,10 @@ impl Span {
         self.source == None
     }
 
+    pub fn end(&self) -> usize {
+        self.offset + self.length
+    }
+
     /// Creates a new `Span` which spans the space of the previous two.
     /// ```plain
     /// hello this is cool
@@ -59,7 +63,7 @@ impl Span {
         }
 
         let offset = a.offset.min(b.offset);
-        let end    = (a.offset + a.length).max(b.offset + b.length);
+        let end    = a.end().max(b.end());
         let length = end - offset;
 
         // `a` should not be empty at this point
@@ -86,7 +90,7 @@ impl Span {
     /// is empty, the program will panic.
     pub fn contents(&self) -> String {
         if self.is_empty() { panic!("An empty span does not have any contents") }
-        self.source.as_ref().unwrap().contents[self.offset..(self.offset + self.length)].to_string()
+        self.source.as_ref().unwrap().contents[self.offset..(self.end())].to_string()
     }
 
     /// Returns the start and end lines and columns of the `Span` if the `Span` is not empty.
@@ -94,7 +98,7 @@ impl Span {
         if self.is_empty() { panic!("Can not return the line indicies of an empty span") }
 
         let start = self.offset;
-        let end   = self.offset + self.length;
+        let end   = self.end();
 
         let start_lines: Vec<&str> = self.source.as_ref().unwrap().contents[..=start].lines().collect();
         let end_lines:   Vec<&str> = self.source.as_ref().unwrap().contents[..end].lines().collect();

@@ -1,0 +1,756 @@
+
+running 1 test
+-- try parse call
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:1
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  | ^
+Static Error: Expected an opening bracket, found a symbol ("y")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+-- try parse call
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:5
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |     ^
+Static Error: Expected an opening bracket, found an openening paren ("(")
+
+exiting...
+entering...
+-- try parse expr call
+-- try parse call
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:6
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |      ^
+Static Error: Expected an opening bracket, found a symbol ("x")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+worst error is: -> Line 1:8
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |        ^^
+Static Error: Expected an assignment, found a lambda ("->")
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+-- try parse call
+-- try parse expr
+---
+entering...
+-- try parse expr block
+-- try parse call
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:13
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |             ^
+Static Error: Expected an opening bracket, found a symbol ("y")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+-- try parse call
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:17
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                 ^
+Static Error: Expected an opening bracket, found a symbol ("x")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+worst error is: -> Line 1:18
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                  ^^
+Static Error: Expected an assignment, found a separator ("; ")
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:18
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                  ^^
+Static Error: Expected an assignment, found a separator ("; ")
+
+escalated to: -> Line 1:18
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                  ^^
+Static Error: Expected an assignment, found a separator ("; ")
+
+exiting...
+entering...
+-- try parse literal
+exiting matched: -> Line 1:17
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                 ^
+
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:18
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                  ^^
+Static Error: Expected an opening bracket, found a separator ("; ")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+worst error is: -> Line 1:18
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                  ^^
+Static Error: Unexpected token
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:18
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                  ^^
+Static Error: Unexpected token
+
+no escalation
+exiting...
+entering...
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:18
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                  ^^
+Static Error: Expected an opening bracket, found a separator ("; ")
+
+exiting matched: -> Line 1:13
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |             ^^^^^
+
+exiting matched: -> Line 1:13
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |             ^^^^^
+
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:18
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                  ^^
+Static Error: Expected an opening bracket, found a separator ("; ")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+worst error is: -> Line 1:18
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                  ^^
+Static Error: Unexpected token
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:18
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                  ^^
+Static Error: Unexpected token
+
+no escalation
+exiting...
+entering...
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:18
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                  ^^
+Static Error: Expected an opening bracket, found a separator ("; ")
+
+-- try parse call
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:20
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                    ^
+Static Error: Expected an opening bracket, found a symbol ("y")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+worst error is: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Expected an assignment, found a closing paren (")")
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Expected an assignment, found a closing paren (")")
+
+escalated to: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Expected an assignment, found a closing paren (")")
+
+exiting...
+entering...
+-- try parse literal
+exiting matched: -> Line 1:20
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                    ^
+
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Expected an opening bracket, found a closing paren (")")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+worst error is: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Unexpected token
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Unexpected token
+
+no escalation
+exiting...
+entering...
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Expected an opening bracket, found a closing paren (")")
+
+-- try parse call
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Expected an opening bracket, found a closing paren (")")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+worst error is: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Unexpected token
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Unexpected token
+
+no escalation
+exiting...
+entering...
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Expected an opening bracket, found a closing paren (")")
+
+-- parsed block body...
+-- but there was an error: no closing bracket!
+worst error is: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Expected an opening bracket, found a closing paren (")")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+worst error is: -> Line 1:11
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |           ^
+Static Error: Unexpected token
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:11
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |           ^
+Static Error: Unexpected token
+
+no escalation
+exiting...
+entering...
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Expected an opening bracket, found a closing paren (")")
+
+escalated to: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Expected an opening bracket, found a closing paren (")")
+
+exiting...
+all rules checked
+returning error: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Expected an opening bracket, found a closing paren (")")
+
+escalated to: -> Line 1:22
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |                      ^
+Static Error: Expected an opening bracket, found a closing paren (")")
+
+exiting...
+entering...
+-- try parse literal
+exiting matched: -> Line 1:6
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |      ^
+
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:8
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |        ^^
+Static Error: Expected an opening bracket, found a lambda ("->")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+worst error is: -> Line 1:8
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |        ^^
+Static Error: Unexpected token
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:8
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |        ^^
+Static Error: Unexpected token
+
+no escalation
+exiting...
+entering...
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:8
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |        ^^
+Static Error: Expected an opening bracket, found a lambda ("->")
+
+escalated to: -> Line 1:8
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |        ^^
+Static Error: Expected a closing paren, found a lambda ("->")
+
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+worst error is: -> Line 1:5
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |     ^
+Static Error: Unexpected token
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:5
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |     ^
+Static Error: Unexpected token
+
+no escalation
+exiting...
+entering...
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:8
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |        ^^
+Static Error: Expected a closing paren, found a lambda ("->")
+
+worst error is: -> Line 1:8
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |        ^^
+Static Error: Expected a closing paren, found a lambda ("->")
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:8
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |        ^^
+Static Error: Expected a closing paren, found a lambda ("->")
+
+escalated to: -> Line 1:8
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |        ^^
+Static Error: Expected a closing paren, found a lambda ("->")
+
+exiting...
+entering...
+-- try parse literal
+exiting matched: -> Line 1:1
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  | ^
+
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:3
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |   ^
+Static Error: Expected an opening bracket, found an assignment ("=")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+worst error is: -> Line 1:3
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |   ^
+Static Error: Unexpected token
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:3
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |   ^
+Static Error: Unexpected token
+
+no escalation
+exiting...
+entering...
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:3
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |   ^
+Static Error: Expected an opening bracket, found an assignment ("=")
+
+-- try parse call
+-- try parse expr
+---
+entering...
+-- try parse expr block
+worst error is: -> Line 1:3
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |   ^
+Static Error: Expected an opening bracket, found an assignment ("=")
+
+exiting...
+entering...
+-- try parse expr call
+no escalation
+exiting...
+entering...
+-- try parse assign
+---
+entering...
+-- try parse assign assign
+-- try parse literal
+worst error is: -> Line 1:3
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |   ^
+Static Error: Unexpected token
+
+exiting...
+entering...
+-- try parse lambda
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:3
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |   ^
+Static Error: Unexpected token
+
+no escalation
+exiting...
+entering...
+-- try parse literal
+no escalation
+exiting...
+all rules checked
+returning error: -> Line 1:3
+  |
+1 | y = (x -> { y = x; y ) 7.0; y
+  |   ^
+Static Error: Expected an opening bracket, found an assignment ("=")
+
+test vm::vm::test::fun_scope ... FAILED
+
+failures:
+
+failures:
+    vm::vm::test::fun_scope
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 30 filtered out
+

@@ -263,7 +263,7 @@ mod test {
     #[test]
     fn fun_scope() {
         let lambda = gen(parse(lex(
-            Source::source("y = (x -> {\n    y = x; y\n} 7.0\ny")
+            Source::source("y = (x -> { y = x; y ) 7.0; y")
         ).unwrap().into()).unwrap()).unwrap();
 
         println!("{:#?}", lambda);

@@ -10,17 +10,6 @@ use std::{
     mem,
 };
 
-// // TODO: annotations in bytecode
-// // TODO: separate AST compiler from Lambda itself
-//
-// /// The bytecode generator (emitter) walks the AST and produces (unoptimized) Bytecode
-// /// There are plans to add a bytecode optimizer in the future.
-// pub fn gen(ast: Spanned<AST>) -> Lambda {
-//     let mut generator = Lambda::empty();
-//     generator.walk(&ast);
-//     generator
-// }
-
 /// Represents a single interpretable chunk of bytecode,
 /// Think a function.
 #[derive(Clone, Eq, PartialEq)]

@@ -4,8 +4,8 @@ use crate::common::span::Span;
 /// Represents a static error (syntax, semantics, etc.) found at compile time
 #[derive(PartialEq, Eq)]
 pub struct Syntax {
-    message: String,
-    span:    Span,
+    pub message: String,
+    pub span:    Span,
 }
 
 impl Syntax {

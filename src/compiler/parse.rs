@@ -21,14 +21,9 @@ pub fn parse<'a>(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     // parse the file
     // slices are easier to work with
     match block(&tokens) {
-        // vaccum all extra seperators
-        Ok((node, parsed)) => if vaccum(parsed, Token::Sep).is_empty()
-            { Ok(node) } else {
-                println!("parsed: {:#?}", parsed);
-                panic!("Did not consume all tokens")
-            },
-        // if there are still tokens left, something's gone wrong.
-        Err(e) => Err(e),
+        (ast, Some(syntax), tokens) => { Err(syntax) },
+        (ast, None, tokens) => if vaccum(tokens, Token::Sep).is_empty()
+            { Ok(ast) } else { panic!("Did not consume all tokens") },
     }
 }
 
@@ -82,24 +77,46 @@ fn consume(tokens: Tokens, token: Token) -> Result<Tokens, Syntax> {
 /// This function returns the first rule result that successfully parses the token stream.
 /// Think of 'or' for parser-combinators.
 fn first(tokens: Tokens, rules: Vec<Rule>) -> Result<Bite, Syntax> {
-    let mut worst = None;
+    let mut worst: Option<Syntax> = None;
+
+    println!("---");
 
     for rule in rules {
+        println!("entering...");
         match rule(tokens) {
             Ok((ast, r)) => {
-                println!("matched!");
+                println!("exiting matched: -> {}", ast.span);
                 return Ok((ast, r));
             }
             Err(e) => {
-                if worst == None { worst = Some(e) }
+                if let Some(ref p) = worst {
+                    // if this error starts the latest and is the longest
+                    if e.span.offset > p.span.offset
+                       || (e.span.offset == p.span.offset
+                          && e.span.end() > p.span.end())  {
+                        println!("escalated to: -> {}", e);
+                        worst = Some(e)
+                    } else {
+                        println!("no escalation");
+                    }
+                } else {
+                    println!("worst error is: -> {}", e);
+                    worst = Some(e);
+                }
             }
         }
+        println!("exiting...");
     }
+
+    println!("all rules checked");
 
     // if nothing matched, return the first potential error
     if let Some(e) = worst {
+        println!("returning error: -> {}", e);
         return Err(e);
-    };
+    }
+
+    println!("no matches!");
 
     match tokens.iter().next() {
         Some(t) => Err(Syntax::error("Unexpected construct", t.span.clone())),
@@ -113,10 +130,11 @@ fn first(tokens: Tokens, rules: Vec<Rule>) -> Result<Bite, Syntax> {
 
 /// Matches a literal block, i.e. a list of expressions seperated by separators.
 /// Note that block expressions `{ e 1, ..., e n }` are blocks surrounded by `{}`.
-fn block(tokens: Tokens) -> Result<Bite, Syntax> {
+fn block(tokens: Tokens) -> (Spanned<AST>, Option<Syntax>, Tokens) {
     let mut expressions = vec![];
     let mut annotations = vec![];
     let mut remaining   = vaccum(tokens, Token::Sep);
+    let mut error       = None;
 
     while !remaining.is_empty() {
         match call(remaining) {
@@ -126,12 +144,12 @@ fn block(tokens: Tokens) -> Result<Bite, Syntax> {
                 remaining = r;
             },
             Err(e) => {
-                eprintln!("discarded Err:\n{}", e);
+                error = Some(e);
                 break;
             },
         }
 
-        // TODO: implement one-or-more, rename vaccum (which is really just a special case of zero or more)
+        // TODO: implement one-or-more
         // expect at least one separator between statements
         remaining = vaccum(remaining, Token::Sep);
     }
@@ -140,17 +158,19 @@ fn block(tokens: Tokens) -> Result<Bite, Syntax> {
     // what does it make sense for an empty block to return?
     // empty blocks don't make any sense - use unit
     if annotations.is_empty() {
-        return Err(Syntax::error("Block can't be empty, use Unit '()' instead", Span::empty()))
+        panic!("annotations were empty");
+        // return Err(Syntax::error("Block can't be empty, use Unit '()' instead", Span::empty()))
     }
 
     let ast = Spanned::new(AST::block(expressions), Span::join(annotations));
-    return Result::Ok((ast, remaining));
+    return (ast, error, remaining);
 }
 
 /// Matches a function call, i.e. `f x y z`.
 /// Function calls are left binding,
 /// so the above is parsed as `((f x) y) z`.
 fn call(tokens: Tokens) -> Result<Bite, Syntax> {
+    println!("-- try parse call");
     // try to eat an new expression
     // if it's successfull, nest like so:
     // previous = Call(previous, new)
@@ -175,6 +195,7 @@ fn call(tokens: Tokens) -> Result<Bite, Syntax> {
 
 /// Matches an expression, or more tightly binding expressions.
 fn expr(tokens: Tokens) -> Result<Bite, Syntax> {
+    println!("-- try parse expr");
     let rules: Vec<Rule> = vec![
         Box::new(|s| expr_block(s)),
         Box::new(|s| expr_call(s)),
@@ -187,14 +208,35 @@ fn expr(tokens: Tokens) -> Result<Bite, Syntax> {
 
 /// Matches a literal block, `{ expression 1; ...; expression n }`.
 fn expr_block(tokens: Tokens) -> Result<Bite, Syntax> {
-    let start      = consume(tokens, Token::OpenBracket)?;
-    let (ast, end) = block(start)?;
-    let remaining  = consume(end, Token::CloseBracket)?;
+    println!("-- try parse expr block");
+    // match the opening bracket
+    let start = consume(tokens, Token::OpenBracket)?;
 
-    return Result::Ok((ast, remaining));
+    // try to parse as much as possible as a block body
+    let (ast, error, remaining) = block(start);
+    println!("-- parsed block body...");
+
+    // when we can't anymore, match the closing bracket
+    return match consume(remaining, Token::CloseBracket) {
+        // if the closing bracket is matched, ignore the earlier error
+        // because we break on errors when parsing an expression AST, it's still valid
+        Ok(tokens) => Ok((ast, tokens)),
+        Err(e) => {
+            println!("-- but there was an error: no closing bracket!");
+            // pass earlier error if one occured
+            if let Some(syntax) = error {
+                println!("-- this might've been because of an earlier error");
+                Err(syntax)
+            } else {
+                println!("-- let's let them know!");
+                Err(e)
+            }
+        },
+    };
 }
 
 fn expr_call(tokens: Tokens) -> Result<Bite, Syntax> {
+    println!("-- try parse expr call");
     let start      = consume(tokens, Token::OpenParen)?;
     let (ast, end) = call(start)?;
     let remaining  = consume(end, Token::CloseParen)?;
@@ -208,6 +250,7 @@ fn op(tokens: Tokens) -> Result<Bite, Syntax> {
 
 /// Matches an assignment or more tightly binding expressions.
 fn assign(tokens: Tokens) -> Result<Bite, Syntax> {
+    println!("-- try parse assign");
     let rules: Vec<Rule> = vec![
         Box::new(|s| assign_assign(s)),
         Box::new(|s| lambda(s)),
@@ -220,6 +263,7 @@ fn assign(tokens: Tokens) -> Result<Bite, Syntax> {
 
 /// Matches an actual assignment, `pattern = expression`.
 fn assign_assign(tokens: Tokens) -> Result<Bite, Syntax> {
+    println!("-- try parse assign assign");
     // TODO: pattern matching support!
     // get symbol being assigned too
     let (next, mut remaining) = literal(tokens)?;
@@ -238,6 +282,7 @@ fn assign_assign(tokens: Tokens) -> Result<Bite, Syntax> {
 
 /// Matches a function, `pattern -> expression`.
 fn lambda(tokens: Tokens) -> Result<Bite, Syntax> {
+    println!("-- try parse lambda");
     // get symbol acting as arg to function
     let (next, mut remaining) = literal(tokens)?;
     let s = match next {
@@ -254,6 +299,7 @@ fn lambda(tokens: Tokens) -> Result<Bite, Syntax> {
 
 /// Matches some literal data, such as a String or a Number.
 fn literal(tokens: Tokens) -> Result<Bite, Syntax> {
+    println!("-- try parse literal");
     if let Some(Spanned { item: token, span }) = tokens.iter().next() {
         Result::Ok((Spanned::new(
             match token {
