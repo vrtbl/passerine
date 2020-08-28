@@ -26,6 +26,21 @@ pub enum Token {
     Number(Data),
     String(Data),
     Boolean(Data),
+
+    // EoS
+    End
+}
+
+impl Token {
+    pub fn left_bind(&self) -> usize {
+        match self {
+            Token::Assign => 1,
+            Token::Lambda => 2,
+
+            Token::End => 0,
+            _ => panic!("Token does not have any binding power"),
+        }
+    }
 }
 
 impl Display for Token {
@@ -42,6 +57,7 @@ impl Display for Token {
             Token::Number(_)    => "a number",
             Token::String(_)    => "a string",
             Token::Boolean(_)   => "a boolean, like 'True' or 'False'",
+            Token::End          => "the end of source"
         };
         write!(f, "{}", message)
     }

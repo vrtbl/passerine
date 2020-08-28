@@ -58,6 +58,8 @@ impl Lexer {
             self.offset += consumed;
         }
 
+        tokens.push(Spanned::new(Token::End, Span::empty()));
+
         return Ok(tokens);
     }
 

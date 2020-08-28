@@ -262,20 +262,26 @@ mod test {
 
     #[test]
     fn fun_scope() {
-        let lambda = gen(parse(lex(
-            Source::source("y = (x -> { y = x; y ) 7.0; y")
-        ).unwrap().into()).unwrap()).unwrap();
-
-        println!("{:#?}", lambda);
-        let mut vm = VM::init();
-
-        match vm.run(Closure::wrap(lambda)) {
-            Ok(_)  => (),
-            Err(e) => eprintln!("{}", e),
+        // y = (x -> { y = x; y ) 7.0; y
+        let tokens = lex(Source::source("y = { x = 0.0; x"));
+        if let Ok(t) = tokens {
+            let ast = parse(t);
+            println!("{:#?}", ast);
+        } else {
+            println!("{:#?}", tokens);
         }
 
-        // check that y is in fact 7
-        let t = vm.stack.pop_data();
-        assert_eq!(t, Data::Real(7.0));
+        panic!();
+
+        // let mut vm = VM::init();
+        //
+        // match vm.run(Closure::wrap(lambda)) {
+        //     Ok(_)  => (),
+        //     Err(e) => eprintln!("{}", e),
+        // }
+        //
+        // // check that y is in fact 7
+        // let t = vm.stack.pop_data();
+        // assert_eq!(t, Data::Real(7.0));
     }
 }

@@ -15,48 +15,61 @@ use crate::common::{
 // some sort of recursive descent parser, I guess
 type Tokens<'a> = &'a [Spanned<Token>];
 type Bite<'a>   = (Spanned<AST>, Tokens<'a>);
-type Rule   = Box<dyn Fn(Tokens) -> Result<Bite, Syntax>>;
+type Rule       = Box<dyn Fn(Tokens) -> Result<Bite, Syntax>>;
 
 pub fn parse<'a>(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     // parse the file
     // slices are easier to work with
     match block(&tokens) {
-        (ast, Some(syntax), tokens) => { Err(syntax) },
-        (ast, None, tokens) => if vaccum(tokens, Token::Sep).is_empty()
+        (_, Some(syntax), _) => { Err(syntax) },
+        (ast, None, tokens)  => if vacuum(tokens, Token::Sep).is_empty()
             { Ok(ast) } else { panic!("Did not consume all tokens") },
     }
 }
 
 // cookie-monster's helper functions
 
+fn next(tokens: Tokens) -> Result<&Spanned<Token>, Syntax> {
+    match tokens.iter().next() {
+        Some(t) => Ok(t),
+        None => Err(Syntax::error("Unexpected EOF while parsing", Span::empty())),
+    }
+}
+
 /// Consumes all next tokens that match.
 /// For example, `[Sep, Sep, Sep, Number(...), Sep]`
-/// when passed to `vaccum(..., Sep)`
+/// when passed to `vacuum(..., Sep)`
 /// would become `[Number(...), Sep]`.
-/// Each parser rule is responsible for vaccuming its input.
-fn vaccum(tokens: Tokens, token: Token) -> Tokens {
-    // vaccums all leading tokens that match token
+/// Each parser rule is responsible for vacuuming its input.
+fn vacuum(tokens: Tokens, token: Token) -> Tokens {
+    // vacuums all leading tokens that match token
     let mut remaining = tokens;
 
-    while !remaining.is_empty() {
-        let t = &remaining[0].item;
-        if t != &token { break; }
+    for t in tokens.iter() {
+        if t.item != token { break; }
         remaining = &remaining[1..];
     }
 
     return remaining;
 }
 
+fn one_or_more(tokens: Tokens, token: Token) -> Result<Tokens, Syntax> {
+    let remaining = vacuum(tokens, token.clone());
+
+    if remaining.len() == tokens.len() {
+        Err(Syntax::error(
+            &format!("Expected at least one {}, found none", token),
+            next(tokens)?.span.clone()
+        ))
+    } else {
+        Ok(remaining)
+    }
+}
+
 /// Expects an exact token to be next in a stream.
 /// For example, `consume(stream, Bracket)` expects the next item in stream to be a `Bracket`.
 fn consume(tokens: Tokens, token: Token) -> Result<Tokens, Syntax> {
-    let t = match tokens.iter().next() {
-        Some(t) => t,
-        None => return Err(Syntax::error(
-            "Unexpected EOF while parsing",
-            Span::empty()
-        )),
-    };
+    let t = next(tokens)?;
 
     if t.item != token {
         return Err(Syntax::error(
@@ -91,9 +104,7 @@ fn first(tokens: Tokens, rules: Vec<Rule>) -> Result<Bite, Syntax> {
             Err(e) => {
                 if let Some(ref p) = worst {
                     // if this error starts the latest and is the longest
-                    if e.span.offset > p.span.offset
-                       || (e.span.offset == p.span.offset
-                          && e.span.end() > p.span.end())  {
+                    if e.span.later_than(&p.span) {
                         println!("escalated to: -> {}", e);
                         worst = Some(e)
                     } else {
@@ -117,11 +128,7 @@ fn first(tokens: Tokens, rules: Vec<Rule>) -> Result<Bite, Syntax> {
     }
 
     println!("no matches!");
-
-    match tokens.iter().next() {
-        Some(t) => Err(Syntax::error("Unexpected construct", t.span.clone())),
-        None    => Err(Syntax::error("Unexpected EOF while parsing", Span::empty())),
-    }
+    return Err(Syntax::error("Unexpected construct", next(tokens)?.span.clone()));
 }
 
 // fn parse_op(tokens: Tokens, left: Rule, op: Token, right:Rule) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
@@ -133,7 +140,7 @@ fn first(tokens: Tokens, rules: Vec<Rule>) -> Result<Bite, Syntax> {
 fn block(tokens: Tokens) -> (Spanned<AST>, Option<Syntax>, Tokens) {
     let mut expressions = vec![];
     let mut annotations = vec![];
-    let mut remaining   = vaccum(tokens, Token::Sep);
+    let mut remaining   = vacuum(tokens, Token::Sep);
     let mut error       = None;
 
     while !remaining.is_empty() {
@@ -151,7 +158,13 @@ fn block(tokens: Tokens) -> (Spanned<AST>, Option<Syntax>, Tokens) {
 
         // TODO: implement one-or-more
         // expect at least one separator between statements
-        remaining = vaccum(remaining, Token::Sep);
+        remaining = match one_or_more(remaining, Token::Sep) {
+            Ok(r) => r,
+            Err(e) => {
+                error = Some(e);
+                break;
+            },
+        };
     }
 
     // TODO: is this true? an empty program is should be valid
@@ -177,7 +190,7 @@ fn call(tokens: Tokens) -> Result<Bite, Syntax> {
     // empty    => error
     // single   => expression
     // multiple => call
-    let (mut previous, mut remaining) = expr(vaccum(tokens, Token::Sep))?;
+    let (mut previous, mut remaining) = expr(vacuum(tokens, Token::Sep))?;
 
     while !remaining.is_empty() {
         match expr(remaining) {
@@ -197,10 +210,7 @@ fn call(tokens: Tokens) -> Result<Bite, Syntax> {
 fn expr(tokens: Tokens) -> Result<Bite, Syntax> {
     println!("-- try parse expr");
     let rules: Vec<Rule> = vec![
-        Box::new(|s| expr_block(s)),
-        Box::new(|s| expr_call(s)),
         Box::new(|s| op(s)),
-        Box::new(|s| literal(s)),
     ];
 
     return first(tokens, rules);
@@ -216,6 +226,8 @@ fn expr_block(tokens: Tokens) -> Result<Bite, Syntax> {
     let (ast, error, remaining) = block(start);
     println!("-- parsed block body...");
 
+    // TODO: REFACTOR
+
     // when we can't anymore, match the closing bracket
     return match consume(remaining, Token::CloseBracket) {
         // if the closing bracket is matched, ignore the earlier error
@@ -226,7 +238,11 @@ fn expr_block(tokens: Tokens) -> Result<Bite, Syntax> {
             // pass earlier error if one occured
             if let Some(syntax) = error {
                 println!("-- this might've been because of an earlier error");
-                Err(syntax)
+                if syntax.span.later_than(&e.span) {
+                    Err(syntax)
+                } else {
+                    Err(e)
+                }
             } else {
                 println!("-- let's let them know!");
                 Err(e)
@@ -280,9 +296,19 @@ fn assign_assign(tokens: Tokens) -> Result<Bite, Syntax> {
     Result::Ok((Spanned::new(AST::assign(s, e), combined), remaining))
 }
 
-/// Matches a function, `pattern -> expression`.
 fn lambda(tokens: Tokens) -> Result<Bite, Syntax> {
     println!("-- try parse lambda");
+    let rules: Vec<Rule> = vec![
+        Box::new(|s| lambda_lambda(s)),
+        Box::new(|s| literal(s)),
+    ];
+
+    return first(tokens, rules);
+}
+
+/// Matches a function, `pattern -> expression`.
+fn lambda_lambda(tokens: Tokens) -> Result<Bite, Syntax> {
+    println!("-- try parse lambda lambda");
     // get symbol acting as arg to function
     let (next, mut remaining) = literal(tokens)?;
     let s = match next {
@@ -297,25 +323,39 @@ fn lambda(tokens: Tokens) -> Result<Bite, Syntax> {
     Result::Ok((Spanned::new(AST::lambda(s, e), combined), remaining))
 }
 
-/// Matches some literal data, such as a String or a Number.
 fn literal(tokens: Tokens) -> Result<Bite, Syntax> {
-    println!("-- try parse literal");
-    if let Some(Spanned { item: token, span }) = tokens.iter().next() {
-        Result::Ok((Spanned::new(
-            match token {
-                // TODO: pass the span
-                Token::Symbol     => AST::symbol(),
-                Token::Number(n)  => AST::data(n.clone()),
-                Token::String(s)  => AST::data(s.clone()),
-                Token::Boolean(b) => AST::data(b.clone()),
-                _ => return Err(Syntax::error("Unexpected token", span.clone())),
-            },
-            span.clone()
-        ), &tokens[1..]))
-    } else {
-        Err(Syntax::error("Unexpected EOF while parsing", Span::empty()))
-    }
+    println!("-- try parse lambda");
+    let rules: Vec<Rule> = vec![
+        Box::new(|s| expr_block(s)),
+        Box::new(|s| expr_call(s)),
+        Box::new(|s| literal_literal(s)),
+    ];
+
+    return first(tokens, rules);
 }
+
+/// Matches some literal data, such as a String or a Number.
+fn literal_literal(tokens: Tokens) -> Result<Bite, Syntax> {
+    println!("-- try parse literal");
+    let Spanned { item: token, span } = next(tokens)?;
+
+    let leaf = match token {
+        // TODO: pass the span
+        Token::Symbol     => AST::symbol(),
+        Token::Number(n)  => AST::data(n.clone()),
+        Token::String(s)  => AST::data(s.clone()),
+        Token::Boolean(b) => AST::data(b.clone()),
+        _ => return Err(Syntax::error("Unexpected token", span.clone())),
+    };
+
+    Result::Ok((Spanned::new(leaf, span.clone()), &tokens[1..]))
+}
+
+// fn symbol(tokens: Tokens) -> Result<Bite, Syntax> {
+//     if let Some(Spanned {item : token, span }) = next(tokens) {
+//
+//     }
+// }
 
 // TODO: ASTs can get really big, really fast - have tests in external file?
 // #[cfg(test)]

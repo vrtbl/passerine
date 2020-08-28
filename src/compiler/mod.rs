@@ -8,6 +8,7 @@
 
 pub mod lex;
 pub mod parse;
+pub mod parse_new;
 pub mod gen;
 
 pub mod token;

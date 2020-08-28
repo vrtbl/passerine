@@ -47,6 +47,17 @@ impl Span {
         self.offset + self.length
     }
 
+    /// Compares two Spans.
+    /// returns true if this span starts the latest
+    /// or is the longest in the case of a tie
+    /// but false there is a total tie
+    /// or otherwise
+    pub fn later_than(&self, other: &Span) -> bool {
+        self.offset > other.offset
+           || (self.offset == other.offset
+              && self.end() > other.end())
+    }
+
     /// Creates a new `Span` which spans the space of the previous two.
     /// ```plain
     /// hello this is cool
