@@ -46,19 +46,7 @@ pub enum AST {
     // Form(Vec<AST>) // function call -> (fun a1 a2 .. an)
 }
 
-// TODO: Do annotations and nodes need separate lifetimes?
-// anns live past the generator, nodes shouldn't
-// Additionally, convert to Spanned<AST>?
-
-// TODO: These are semi-reduntant
 impl AST {
-    // Leafs; terminals
-    pub fn data(data: Data) -> AST { AST::Data(data)   }
-    pub fn symbol()         -> AST { AST::Symbol }
-
-    // Recursive
-    pub fn block(exprs: Vec<Spanned<AST>>) -> AST { AST::Block(exprs) }
-
     pub fn assign(
         pattern:    Spanned<AST>,
         expression: Spanned<AST>

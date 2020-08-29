@@ -175,7 +175,7 @@ fn block(tokens: Tokens) -> (Spanned<AST>, Option<Syntax>, Tokens) {
         // return Err(Syntax::error("Block can't be empty, use Unit '()' instead", Span::empty()))
     }
 
-    let ast = Spanned::new(AST::block(expressions), Span::join(annotations));
+    let ast = Spanned::new(AST::Block(expressions), Span::join(annotations));
     return (ast, error, remaining);
 }
 
@@ -341,10 +341,10 @@ fn literal_literal(tokens: Tokens) -> Result<Bite, Syntax> {
 
     let leaf = match token {
         // TODO: pass the span
-        Token::Symbol     => AST::symbol(),
-        Token::Number(n)  => AST::data(n.clone()),
-        Token::String(s)  => AST::data(s.clone()),
-        Token::Boolean(b) => AST::data(b.clone()),
+        Token::Symbol     => AST::Symbol,
+        Token::Number(n)  => AST::Data(n.clone()),
+        Token::String(s)  => AST::Data(s.clone()),
+        Token::Boolean(b) => AST::Data(b.clone()),
         _ => return Err(Syntax::error("Unexpected token", span.clone())),
     };
 

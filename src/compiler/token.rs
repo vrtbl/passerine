@@ -31,18 +31,6 @@ pub enum Token {
     End
 }
 
-impl Token {
-    pub fn left_bind(&self) -> usize {
-        match self {
-            Token::Assign => 1,
-            Token::Lambda => 2,
-
-            Token::End => 0,
-            _ => panic!("Token does not have any binding power"),
-        }
-    }
-}
-
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let message = match self {
