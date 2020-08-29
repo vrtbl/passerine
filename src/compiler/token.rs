@@ -45,7 +45,7 @@ impl Display for Token {
             Token::Number(_)    => "a number",
             Token::String(_)    => "a string",
             Token::Boolean(_)   => "a boolean, like 'True' or 'False'",
-            Token::End          => "the end of source"
+            Token::End          => "end of source"
         };
         write!(f, "{}", message)
     }

@@ -302,7 +302,9 @@ mod test {
     fn empty() {
         // no source code? no tokens!
         let result = lex(Source::source(""));
-        let target: Result<Vec<Spanned<Token>>, Syntax> = Ok(vec![]);
+        let target: Result<Vec<Spanned<Token>>, Syntax> =
+            Ok(vec![Spanned::new(Token::End, Span::empty())]);
+
         assert_eq!(result, target);
     }
 
@@ -314,6 +316,7 @@ mod test {
             Spanned::new(Token::Symbol,                       Span::new(&source, 0, 4)),
             Spanned::new(Token::Assign,                       Span::new(&source, 5, 1)),
             Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 7, 4)),
+            Spanned::new(Token::End,                          Span::empty()),
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -326,6 +329,8 @@ mod test {
         let result = vec![
             Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 2, 4)),
             Spanned::new(Token::Sep,                          Span::new(&source, 8, 3)),
+            Spanned::new(Token::End,                          Span::empty()),
+
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -347,6 +352,7 @@ mod test {
             Spanned::new(Token::Symbol,                       Span::new(&source, 17, 5)),
             Spanned::new(Token::Sep,                          Span::new(&source, 22, 1)),
             Spanned::new(Token::CloseBracket,                 Span::new(&source, 23, 1)),
+            Spanned::new(Token::End,                          Span::empty()),
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -367,6 +373,7 @@ mod test {
             Spanned::new(Token::Symbol,                                   Span::new(&source, 28, 8)),
             Spanned::new(Token::String(Data::String("heck".to_string())), Span::new(&source, 37, 6)),
             Spanned::new(Token::CloseParen,                               Span::new(&source, 43, 1)),
+            Spanned::new(Token::End,                          Span::empty()),
         ];
 
         assert_eq!(lex(source), Ok(result));

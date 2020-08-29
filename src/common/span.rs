@@ -1,5 +1,10 @@
 use std::{
-    fmt::{Formatter, Display, Result},
+    fmt::{
+        Formatter,
+        Debug,
+        Display,
+        Result
+    },
     usize,
     rc::Rc,
 };
@@ -10,7 +15,7 @@ use crate::common::source::Source;
 /// much like a `&str`, but with a reference to a `Source` rather than a `String`.
 /// A `Span` is  meant to be paired with other datastructures,
 /// to be used during error reporting.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Span {
     pub source: Option<Rc<Source>>,
     pub offset: usize,
@@ -122,6 +127,12 @@ impl Span {
 
         return Some(((start_line, start_col), (end_line, end_col)));
 
+    }
+}
+
+impl Debug for Span {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "Span {{ {:?}, ({}, {}) }}", self.contents(), self.offset, self.length)
     }
 }
 
