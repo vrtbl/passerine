@@ -17,7 +17,7 @@ use crate::common::{
 /// and comes across as a code-smell.
 /// If you're reading this and think you know a better way.
 /// please, at the least, open an issue describing your more optimal methodology.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AST {
     Symbol,
     Data(Data),

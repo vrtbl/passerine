@@ -132,7 +132,11 @@ impl Span {
 
 impl Debug for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "Span {{ {:?}, ({}, {}) }}", self.contents(), self.offset, self.length)
+        if !self.is_empty() {
+            write!(f, "Span {{ {:?}, ({}, {}) }}", self.contents(), self.offset, self.length)
+        } else {
+            write!(f, "Span {{ Empty }}")
+        }
     }
 }
 

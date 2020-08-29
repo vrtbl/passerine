@@ -1,554 +1,231 @@
+// Rewrite of the old parser.
+// Pratt parser.
+// To be finished on the 29th
+use std::mem;
+use crate::common::span::{Span, Spanned};
+
 use crate::compiler::{
     syntax::Syntax,
     token::Token,
     ast::AST,
 };
 
-use crate::common::{
-    span::{Span, Spanned},
-    local::Local,
-};
+pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
+    let mut parser = Parser::new(tokens);
+    println!("started parsing");
+    let ast = parser.expression(Prec::None)?;
+    println!("done");
+    parser.consume(Token::End)?;
+    return Ok(ast);
+}
 
-// This is a recursive descent parser that builds the AST
-// TODO: the 'vacuum' seems kind of cheap.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Prec {
+    None,
+    Assign,
+    Lambda,
+    End,
+}
 
-// some sort of recursive descent parser, I guess
-type Tokens<'a> = &'a [Spanned<Token>];
-type Bite<'a>   = (Spanned<AST>, Tokens<'a>);
-type Rule       = Box<dyn Fn(Tokens) -> Result<Bite, Syntax>>;
-
-pub fn parse<'a>(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
-    // parse the file
-    // slices are easier to work with
-    match block(&tokens) {
-        (_, Some(syntax), _) => { Err(syntax) },
-        (ast, None, tokens)  => if vacuum(tokens, Token::Sep).is_empty()
-            { Ok(ast) } else { panic!("Did not consume all tokens") },
+impl Prec {
+    pub fn escalate(&self) -> Prec {
+        if let Prec::End = self { panic!("Can not escalate prec further") }
+        return unsafe { mem::transmute(self.clone() as u8 + 1) };
     }
 }
 
-// cookie-monster's helper functions
-
-fn next(tokens: Tokens) -> Result<&Spanned<Token>, Syntax> {
-    match tokens.iter().next() {
-        Some(t) => Ok(t),
-        None => Err(Syntax::error("Unexpected EOF while parsing", Span::empty())),
-    }
+#[derive(Debug)]
+pub struct Parser {
+    tokens: Vec<Spanned<Token>>,
+    index:  usize,
 }
 
-/// Consumes all next tokens that match.
-/// For example, `[Sep, Sep, Sep, Number(...), Sep]`
-/// when passed to `vacuum(..., Sep)`
-/// would become `[Number(...), Sep]`.
-/// Each parser rule is responsible for vacuuming its input.
-fn vacuum(tokens: Tokens, token: Token) -> Tokens {
-    // vacuums all leading tokens that match token
-    let mut remaining = tokens;
-
-    for t in tokens.iter() {
-        if t.item != token { break; }
-        remaining = &remaining[1..];
+impl Parser {
+    pub fn new(tokens: Vec<Spanned<Token>>) -> Parser {
+        Parser { tokens, index: 0 }
     }
 
-    return remaining;
-}
+    // Cookie Monster's Helper Functions:
 
-fn one_or_more(tokens: Tokens, token: Token) -> Result<Tokens, Syntax> {
-    let remaining = vacuum(tokens, token.clone());
-
-    if remaining.len() == tokens.len() {
-        Err(Syntax::error(
-            &format!("Expected at least one {}, found none", token),
-            next(tokens)?.span.clone()
-        ))
-    } else {
-        Ok(remaining)
-    }
-}
-
-/// Expects an exact token to be next in a stream.
-/// For example, `consume(stream, Bracket)` expects the next item in stream to be a `Bracket`.
-fn consume(tokens: Tokens, token: Token) -> Result<Tokens, Syntax> {
-    let t = next(tokens)?;
-
-    if t.item != token {
-        return Err(Syntax::error(
-            &format!(
-                "Expected {}, found {} ({:?})",
-                token,
-                t.item,
-                t.span.contents(),
-            ),
-            t.span.clone()
-        ));
-    }
-
-    return Result::Ok(&tokens[1..]);
-}
-
-/// Given a list of parsing rules and a token stream,
-/// This function returns the first rule result that successfully parses the token stream.
-/// Think of 'or' for parser-combinators.
-fn first(tokens: Tokens, rules: Vec<Rule>) -> Result<Bite, Syntax> {
-    let mut worst: Option<Syntax> = None;
-
-    println!("---");
-
-    for rule in rules {
-        println!("entering...");
-        match rule(tokens) {
-            Ok((ast, r)) => {
-                println!("exiting matched: -> {}", ast.span);
-                return Ok((ast, r));
-            }
-            Err(e) => {
-                if let Some(ref p) = worst {
-                    // if this error starts the latest and is the longest
-                    if e.span.later_than(&p.span) {
-                        println!("escalated to: -> {}", e);
-                        worst = Some(e)
-                    } else {
-                        println!("no escalation");
-                    }
-                } else {
-                    println!("worst error is: -> {}", e);
-                    worst = Some(e);
-                }
-            }
+    // NOTE: Maybe don't return bool?
+    /// Consumes all separator tokens, returning whether there were any
+    fn sep(&mut self) -> bool {
+        if self.tokens[self.index].item != Token::Sep { false } else {
+            while self.tokens[self.index].item == Token::Sep {
+                println!("sepping");
+                self.advance();
+            };
+            true
         }
-        println!("exiting...");
     }
 
-    println!("all rules checked");
-
-    // if nothing matched, return the first potential error
-    if let Some(e) = worst {
-        println!("returning error: -> {}", e);
-        return Err(e);
+    /// Returns the current non-sep token then advances the parser.
+    fn advance(&mut self) -> &Spanned<Token> {
+        println!("advancing");
+        self.sep();
+        self.index += 1;
+        &self.tokens[self.index - 1]
     }
 
-    println!("no matches!");
-    return Err(Syntax::error("Unexpected construct", next(tokens)?.span.clone()));
-}
+    /// Returns the first non-Sep token.
+    fn current(&mut self) -> &Spanned<Token> {
+        println!("getting current");
+        self.sep();
+        &self.tokens[self.index]
+    }
 
-// fn parse_op(tokens: Tokens, left: Rule, op: Token, right:Rule) -> Result<'e, (Spanned<'s, AST<'s, 'i>>, Tokens)> {
-//     unimplemented!()
-// }
+    // fn previous(&mut self) -> &Spanned<Token> {
+    //     &self.tokens[self.index - 1]
+    // }
 
-/// Matches a literal block, i.e. a list of expressions seperated by separators.
-/// Note that block expressions `{ e 1, ..., e n }` are blocks surrounded by `{}`.
-fn block(tokens: Tokens) -> (Spanned<AST>, Option<Syntax>, Tokens) {
-    let mut expressions = vec![];
-    let mut annotations = vec![];
-    let mut remaining   = vacuum(tokens, Token::Sep);
-    let mut error       = None;
-
-    while !remaining.is_empty() {
-        match call(remaining) {
-            Result::Ok((e, r)) => {
-                annotations.push(e.span.clone());
-                expressions.push(e);
-                remaining = r;
-            },
-            Err(e) => {
-                error = Some(e);
-                break;
-            },
+    // Consumes a specific token then advances the parser.
+    // Can be used to consume Sep tokens, which are normally skipped.
+    fn consume(&mut self, token: Token) -> Result<&Spanned<Token>, Syntax> {
+        println!("consuming {}", token);
+        self.index += 1;
+        let current = &self.tokens[self.index - 1];
+        if current.item != token {
+            Err(Syntax::error(&format!("Expected {}, found {}", token, current.item), current.span.clone()))
+        } else {
+            Ok(current)
         }
+    }
 
-        // TODO: implement one-or-more
-        // expect at least one separator between statements
-        remaining = match one_or_more(remaining, Token::Sep) {
-            Ok(r) => r,
-            Err(e) => {
-                error = Some(e);
-                break;
-            },
+    // Core Pratt Parser:
+
+    /// Looks at the current operator token and determines the precedence
+    pub fn prec(&mut self) -> Result<Prec, Syntax> {
+        let prec = match self.current().item {
+            Token::Assign => Prec::Assign,
+            Token::Lambda => Prec::Lambda,
+            Token::End    => Prec::End,
+            _ => Prec::None,
+            // maybe prec end?
+            // _ => return Err(Syntax::error("Expected an operator", self.current().span.clone())),
         };
+        Ok(prec)
     }
 
-    // TODO: is this true? an empty program is should be valid
-    // what does it make sense for an empty block to return?
-    // empty blocks don't make any sense - use unit
-    if annotations.is_empty() {
-        panic!("annotations were empty");
-        // return Err(Syntax::error("Block can't be empty, use Unit '()' instead", Span::empty()))
-    }
-
-    let ast = Spanned::new(AST::Block(expressions), Span::join(annotations));
-    return (ast, error, remaining);
-}
-
-/// Matches a function call, i.e. `f x y z`.
-/// Function calls are left binding,
-/// so the above is parsed as `((f x) y) z`.
-fn call(tokens: Tokens) -> Result<Bite, Syntax> {
-    println!("-- try parse call");
-    // try to eat an new expression
-    // if it's successfull, nest like so:
-    // previous = Call(previous, new)
-    // empty    => error
-    // single   => expression
-    // multiple => call
-    let (mut previous, mut remaining) = expr(vacuum(tokens, Token::Sep))?;
-
-    while !remaining.is_empty() {
-        match expr(remaining) {
-            Result::Ok((arg, r)) => {
-                remaining = r;
-                let span = Span::combine(&previous.span, &arg.span);
-                previous = Spanned::new(AST::call(previous, arg), span);
-            },
-            _ => break,
+    /// Looks at the current token and parses an infix expression
+    pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
+        match self.current().item {
+            Token::End         => Ok(Spanned::new(AST::Block(vec![]), Span::empty())),
+            Token::OpenBracket => self.block(),
+            Token::OpenParen   => self.call(),
+            Token::Symbol      => self.symbol(),
+              Token::Number(_)
+            | Token::String(_)
+            | Token::Boolean(_) => self.literal(),
+            _ => Err(Syntax::error("Expected an expression", self.current().span.clone())),
         }
     }
 
-    return Result::Ok((previous, remaining));
+    /// Looks at the current token and parses the right side of any infix expressions.
+    pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        match self.current().item {
+            Token::Assign => self.assign(left),
+            Token::Lambda => self.lambda(left),
+            _ => return Err(Syntax::error("Expected another expression", self.current().span.clone()))
+        }
+    }
+
+    pub fn expression(&mut self, prec: Prec) -> Result<Spanned<AST>, Syntax> {
+        let mut left = self.rule_prefix()?;
+
+        while prec <= self.prec()? && self.prec()? != Prec::End {
+            left = self.rule_infix(left)?;
+        }
+
+        return Ok(left);
+    }
+
+    // Rule Definitions:
+
+    // Prefix:
+
+    fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let symbol = self.consume(Token::Symbol)?;
+        Ok(Spanned::new(AST::Symbol, symbol.span.clone()))
+    }
+
+    fn literal(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let Spanned { item: token, span } = self.advance();
+
+        let leaf = match token {
+            Token::Number(n)  => AST::Data(n.clone()),
+            Token::String(s)  => AST::Data(s.clone()),
+            Token::Boolean(b) => AST::Data(b.clone()),
+            unexpected => return Err(Syntax::error(
+                &format!("Expected a literal, found {:?}", unexpected),
+                span.clone()
+            )),
+        };
+
+        Result::Ok(Spanned::new(leaf, span.clone()))
+    }
+
+    // Infix:
+
+    fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        let symbol = if let AST::Symbol = left.item { left }
+            else { return Err(Syntax::error("Expected a symbol", left.span))? };
+
+        self.consume(Token::Assign)?;
+        let expression = self.expression(Prec::Assign)?;
+        let combined   = Span::combine(&symbol.span, &expression.span);
+        Result::Ok(Spanned::new(AST::assign(symbol, expression), combined))
+    }
+
+    fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        todo!()
+    }
+
+    fn block(&mut self) -> Result<Spanned<AST>, Syntax> {
+        todo!()
+    }
+
+    fn call(&mut self) -> Result<Spanned<AST>, Syntax> {
+        self.consume(Token::OpenParen)?;
+        let ast = self.expression(Prec::None)?;
+        self.consume(Token::CloseParen)?;
+        Ok(ast)
+    }
 }
 
-/// Matches an expression, or more tightly binding expressions.
-fn expr(tokens: Tokens) -> Result<Bite, Syntax> {
-    println!("-- try parse expr");
-    let rules: Vec<Rule> = vec![
-        Box::new(|s| op(s)),
-    ];
-
-    return first(tokens, rules);
-}
-
-/// Matches a literal block, `{ expression 1; ...; expression n }`.
-fn expr_block(tokens: Tokens) -> Result<Bite, Syntax> {
-    println!("-- try parse expr block");
-    // match the opening bracket
-    let start = consume(tokens, Token::OpenBracket)?;
-
-    // try to parse as much as possible as a block body
-    let (ast, error, remaining) = block(start);
-    println!("-- parsed block body...");
-
-    // TODO: REFACTOR
-
-    // when we can't anymore, match the closing bracket
-    return match consume(remaining, Token::CloseBracket) {
-        // if the closing bracket is matched, ignore the earlier error
-        // because we break on errors when parsing an expression AST, it's still valid
-        Ok(tokens) => Ok((ast, tokens)),
-        Err(e) => {
-            println!("-- but there was an error: no closing bracket!");
-            // pass earlier error if one occured
-            if let Some(syntax) = error {
-                println!("-- this might've been because of an earlier error");
-                if syntax.span.later_than(&e.span) {
-                    Err(syntax)
-                } else {
-                    Err(e)
-                }
-            } else {
-                println!("-- let's let them know!");
-                Err(e)
-            }
-        },
-    };
-}
-
-fn expr_call(tokens: Tokens) -> Result<Bite, Syntax> {
-    println!("-- try parse expr call");
-    let start      = consume(tokens, Token::OpenParen)?;
-    let (ast, end) = call(start)?;
-    let remaining  = consume(end, Token::CloseParen)?;
-
-    return Result::Ok((ast, remaining));
-}
-
-fn op(tokens: Tokens) -> Result<Bite, Syntax> {
-    assign(tokens)
-}
-
-/// Matches an assignment or more tightly binding expressions.
-fn assign(tokens: Tokens) -> Result<Bite, Syntax> {
-    println!("-- try parse assign");
-    let rules: Vec<Rule> = vec![
-        Box::new(|s| assign_assign(s)),
-        Box::new(|s| lambda(s)),
-    ];
-
-    return first(tokens, rules);
-}
-
-// TODO: implement parse_op and rewrite lambda / assign
-
-/// Matches an actual assignment, `pattern = expression`.
-fn assign_assign(tokens: Tokens) -> Result<Bite, Syntax> {
-    println!("-- try parse assign assign");
-    // TODO: pattern matching support!
-    // get symbol being assigned too
-    let (next, mut remaining) = literal(tokens)?;
-    let s = match next {
-        // Destructure restucture
-        spanned @ Spanned { item: AST::Symbol, span: _ } => spanned,
-        other => return Err(Syntax::error("Expected symbol for assignment", other.span)),
+#[cfg(test)]
+mod test {
+    use crate::common::{
+        data::Data,
+        source::Source
     };
 
-    // eat the = sign
-    remaining = consume(remaining, Token::Assign)?;
-    let (e, remaining) = call(remaining)?;
-    let combined       = Span::combine(&s.span, &e.span);
-    Result::Ok((Spanned::new(AST::assign(s, e), combined), remaining))
+    use crate::compiler::lex::lex;
+    use super::*;
+
+    #[test]
+    pub fn empty() {
+        let source = Source::source("");
+        let ast = parse(lex(source.clone()).unwrap()).unwrap();
+        assert_eq!(ast, Spanned::new(AST::Block(vec![]), Span::empty()));
+    }
+
+    #[test]
+    pub fn literal() {
+        let source = Source::source("x = 55.0");
+        let ast = parse(lex(source.clone()).unwrap()).unwrap();
+        assert_eq!(
+            ast,
+            Spanned::new(
+                AST::assign(
+                    Spanned::new(AST::Symbol, Span::new(&source, 0, 1)),
+                    Spanned::new(
+                        AST::Data(Data::Real(55.0)),
+                        Span::new(&source, 4, 4),
+                    ),
+                ),
+                Span::new(&source, 0, 8),
+            )
+        );
+    }
 }
-
-fn lambda(tokens: Tokens) -> Result<Bite, Syntax> {
-    println!("-- try parse lambda");
-    let rules: Vec<Rule> = vec![
-        Box::new(|s| lambda_lambda(s)),
-        Box::new(|s| literal(s)),
-    ];
-
-    return first(tokens, rules);
-}
-
-/// Matches a function, `pattern -> expression`.
-fn lambda_lambda(tokens: Tokens) -> Result<Bite, Syntax> {
-    println!("-- try parse lambda lambda");
-    // get symbol acting as arg to function
-    let (next, mut remaining) = literal(tokens)?;
-    let s = match next {
-        spanned @ Spanned { item: AST::Symbol, span: _ } => spanned,
-        other => return Err(Syntax::error("Expected symbol for function paramater", other.span)),
-    };
-
-    // eat the '->'
-    remaining = consume(remaining, Token::Lambda)?;
-    let (e, remaining) = call(remaining)?;
-    let combined       = Span::combine(&s.span, &e.span);
-    Result::Ok((Spanned::new(AST::lambda(s, e), combined), remaining))
-}
-
-fn literal(tokens: Tokens) -> Result<Bite, Syntax> {
-    println!("-- try parse lambda");
-    let rules: Vec<Rule> = vec![
-        Box::new(|s| expr_block(s)),
-        Box::new(|s| expr_call(s)),
-        Box::new(|s| literal_literal(s)),
-    ];
-
-    return first(tokens, rules);
-}
-
-/// Matches some literal data, such as a String or a Number.
-fn literal_literal(tokens: Tokens) -> Result<Bite, Syntax> {
-    println!("-- try parse literal");
-    let Spanned { item: token, span } = next(tokens)?;
-
-    let leaf = match token {
-        // TODO: pass the span
-        Token::Symbol     => AST::Symbol,
-        Token::Number(n)  => AST::Data(n.clone()),
-        Token::String(s)  => AST::Data(s.clone()),
-        Token::Boolean(b) => AST::Data(b.clone()),
-        _ => return Err(Syntax::error("Unexpected token", span.clone())),
-    };
-
-    Result::Ok((Spanned::new(leaf, span.clone()), &tokens[1..]))
-}
-
-// fn symbol(tokens: Tokens) -> Result<Bite, Syntax> {
-//     if let Some(Spanned {item : token, span }) = next(tokens) {
-//
-//     }
-// }
-
-// TODO: ASTs can get really big, really fast - have tests in external file?
-// #[cfg(test)]
-// mod test {
-//     use crate::pipeline::source::Source;
-//     use crate::compiler::lex::lex;
-//     use super::*;
-//
-//     #[test]
-//     fn assignment() {
-//         // who knew so little could mean so much?
-//         // forget verbose, we should all write ~~lisp~~ ast
-//         let source = Source::source("heck = false; naw = heck");
-//
-//         // oof, I wrote this out by hand
-//         let result = AST::new(
-//             Node::block(vec![
-//                 AST::new(
-//                     Node::assign(
-//                         AST::new(Node::symbol(Local::new("heck".to_string())), Span::new(&source, 0, 4)),
-//                         AST::new(Node::data(Data::Boolean(false)), Span::new(&source, 7, 5)),
-//                     ),
-//                     Span::new(&source, 0, 12),
-//                 ),
-//                 AST::new(
-//                     Node::assign(
-//                         AST::new(Node::Symbol(Local::new("naw".to_string())), Span::new(&source, 14, 3)),
-//                         AST::new(Node::Symbol(Local::new("heck".to_string())), Span::new(&source, 20, 4)),
-//                     ),
-//                     Span::new(&source, 14, 10),
-//                 ),
-//             ]),
-//             Span::new(&source, 0, 24),
-//         );
-//
-//         assert_eq!(parse(lex(source).unwrap()), Result::Ok(result));
-//     }
-//
-//     #[test]
-//     fn failure() {
-//         let source = Source::source("\n hello9 = {; ");
-//
-//         // assert_eq!(parse(lex(source).unwrap()), Err(CompilerError()));
-//         // TODO: determing exactly which error is thrown
-//         panic!();
-//     }
-//
-//     #[test]
-//     fn block() {
-//         // TODO: Put this bad-boy somewhere else.
-//         // maybe just have one test file and a huge hand-verified ast
-//         let source = Source::source("x = true\n{\n\ty = {x; true; false}\n\tz = false\n}");
-//         let parsed = parse(lex(source).unwrap());
-//         let result = Result::Ok(
-//             AST::new(
-//                 Node::block(vec![
-//                     AST::new(
-//                         Node::assign(
-//                             AST::new(Node::symbol(Local::new("x".to_string())), Span::new(&source, 0, 1)),
-//                             AST::new(Node::data(Data::Boolean(true)),           Span::new(&source, 4, 4)),
-//                         ),
-//                         Span::new(&source, 0, 8)
-//                     ),
-//                     AST::new(Node::block(
-//                         vec![
-//                             AST::new(
-//                                 Node::assign(
-//                                     AST::new(Node::symbol(Local::new("y".to_string())), Span::new(&source, 12, 1)),
-//                                     AST::new(
-//                                         Node::block(vec![
-//                                             AST::new(Node::symbol(Local::new("x".to_string())), Span::new(&source, 17, 1)),
-//                                             AST::new(Node::data(Data::Boolean(true)),           Span::new(&source, 20, 4)),
-//                                             AST::new(Node::data(Data::Boolean(false)),          Span::new(&source, 26, 5)),
-//                                         ]),
-//                                         Span::new(&source, 17, 14),
-//                                     )
-//                                 ),
-//                                 Span::new(&source, 12, 19),
-//                             ),
-//                             AST::new(
-//                                 Node::assign(
-//                                     AST::new(Node::symbol(Local::new("z".to_string())),Span::new(&source, 34, 1)),
-//                                     AST::new(Node::data(Data::Boolean(false)), Span::new(&source, 38, 5)),
-//                                 ),
-//                                 Span::new(&source, 34, 9),
-//                             ),
-//                         ]),
-//                         Span::new(&source, 12, 31),
-//                     ),
-//                 ]),
-//                 Span::new(&source, 0, 43),
-//             ),
-//         );
-//         assert_eq!(parsed, result);
-//     }
-//
-//     #[test]
-//     fn number() {
-//         let source = Source::source("number = { true; 0.0 }");
-//         let parsed = parse(lex(source).unwrap());
-//         let result = Result::Ok(
-//             AST::new(
-//                 Node::block(vec![
-//                     AST::new(
-//                         Node::assign(
-//                             AST::new(Node::symbol(Local::new("number".to_string())), Span::new(&source, 0, 6)),
-//                             AST::new(
-//                                 Node::block(vec![
-//                                     AST::new(Node::data(Data::Boolean(true)), Span::new(&source, 11, 4)),
-//                                     AST::new(Node::data(Data::Real(0.0)), Span::new(&source, 17, 3)),
-//                                 ]),
-//                                 Span::new(&source, 11, 9),
-//                             ),
-//                         ),
-//                         Span::new(&source, 0, 20),
-//                     )
-//                 ]),
-//                 Span::new(&source, 0, 20),
-//             ),
-//         );
-//
-//         assert_eq!(parsed, result);
-//     }
-//
-//     #[test]
-//     fn functions() {
-//         let source = Source::source("applyzero = fun -> arg -> fun arg 0.0");
-//         let parsed = parse(lex(source).unwrap());
-//         let result = Result::Ok(
-//             AST::new(
-//                 Node::block(vec![
-//                     AST::new(
-//                         Node::assign(
-//                             AST::new(Node::symbol(Local::new("applyzero".to_string())), Span::new(&source, 0, 9)),
-//                             AST::new(
-//                                 Node::lambda(
-//                                     AST::new(Node::symbol(Local::new("fun".to_string())), Span::new(&source, 12, 3)),
-//                                     AST::new(Node::lambda(
-//                                         AST::new(Node::symbol(Local::new("arg".to_string())),  Span::new(&source, 19, 3)),
-//                                         AST::new(
-//                                             Node::call(
-//                                                 AST::new(
-//                                                     Node::call(
-//                                                         AST::new(Node::symbol(Local::new("fun".to_string())), Span::new(&source, 26, 3)),
-//                                                         AST::new(Node::symbol(Local::new("arg".to_string())), Span::new(&source, 30, 3)),
-//                                                     ),
-//                                                     Span::new(&source, 26, 7),
-//                                                 ),
-//                                                 AST::new(Node::data(Data::Real(0.0)), Span::new(&source, 34, 3)),
-//                                             ),
-//                                             Span::new(&source, 26, 11)
-//                                         )
-//                                     ),
-//                                     Span::new(&source, 19, 18),
-//                                 ),
-//                             ),
-//                             Span::new(&source, 12, 25),
-//                         ),
-//                     ),
-//                     Span::new(&source, 0, 37),
-//                 )]),
-//                 Span::new(&source, 0, 37),
-//             ),
-//         );
-//
-//         assert_eq!(parsed, result);
-//     }
-//
-//     #[test]
-//     fn calling() {
-//         let source = Source::source("bink (bonk 0.0)");
-//         let parsed = parse(lex(source).unwrap());
-//
-//         let result = Result::Ok(
-//             AST::new(
-//                 Node::block(vec![
-//                     AST::new(
-//                         Node::call (
-//                             AST::new(Node::symbol(Local::new("bink".to_string())), Span::new(&source, 0, 4)),
-//                             AST::new(
-//                                 Node::call(
-//                                     AST::new(Node::symbol(Local::new("bonk".to_string())), Span::new(&source, 6, 4)),
-//                                     AST::new(Node::data(Data::Real(0.0)), Span::new(&source, 11, 3)),
-//                                 ),
-//                                 Span::new(&source, 6, 8),
-//                             ),
-//                         ),
-//                         Span::new(&source, 0, 14)
-//                     ),
-//                 ]),
-//                 Span::new(&source, 0, 14),
-//             ),
-//         );
-//         assert_eq!(parsed, result);
-//     }
-// }
