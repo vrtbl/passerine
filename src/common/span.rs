@@ -109,6 +109,32 @@ impl Span {
         self.source.as_ref().unwrap().contents[self.offset..(self.end())].to_string()
     }
 
+    // NOTE: once split_inclusive is included in rust's stdlib,
+    // just replace this method with the std version.
+    /// Splits a string by the newline character into a Vector of string slices.
+    /// Includes the trailing newline in each slice.
+    fn split_lines_inclusive(string: &str) -> Vec<&str> {
+        let newline = "\n";
+
+        let mut indicies: Vec<usize> = vec![0];
+        indicies.append(&mut string
+            .match_indices(newline).collect::<Vec<(usize, &str)>>()
+            .into_iter().map(|(s, _)| s + newline.len()).collect()
+        );
+        indicies.push(string.len());
+
+        println!("indicies: {:?}", indicies);
+
+        let mut lines = vec![];
+        for i in 0..(indicies.len() - 1) {
+            lines.push(&string[indicies[i]..indicies[i + 1]]);
+        }
+
+        println!("done, lol");
+
+        return lines;
+    }
+
     /// Returns the start and end lines and columns of the `Span` if the `Span` is not empty.
     fn line_indicies(&self) -> Option<((usize, usize), (usize, usize))> {
         if self.is_empty() { panic!("Can not return the line indicies of an empty span") }
@@ -116,8 +142,14 @@ impl Span {
         let start = self.offset;
         let end   = self.end();
 
-        let start_lines: Vec<&str> = self.source.as_ref().unwrap().contents[..=start].lines().collect();
-        let end_lines:   Vec<&str> = self.source.as_ref().unwrap().contents[..end].lines().collect();
+        let full_source = &self.source.as_ref().unwrap().contents;
+        let start_lines: Vec<&str> = Span::split_lines_inclusive(&full_source[..=start]);
+        let end_lines:   Vec<&str> = Span::split_lines_inclusive(&full_source[..end]);
+
+        println!("{} {}", self.offset, self.length);
+        println!("{:?}", full_source);
+        println!("{:?}", start_lines);
+        println!("{:?}", end_lines);
 
         let start_line = start_lines.len() - 1;
         let end_line   = end_lines.len() - 1;
@@ -141,6 +173,7 @@ impl Debug for Span {
 }
 
 // TODO: tests
+// TODO: this can be vastly simplified
 impl Display for Span {
     /// Given a `Span`, `fmt` will print out where the `Span` occurs in its source.
     /// Single-line `Span`s:
@@ -161,7 +194,7 @@ impl Display for Span {
         }
 
         let lines: Vec<&str> = self.source.as_ref().unwrap().contents.lines().collect();
-        let ((start_line, start_col), (end_line, end_col)) = match self.line_indicies() {
+        let ((start_line, start_col), (end_line, _end_col)) = match self.line_indicies() {
             Some(li) => li,
             None     => unreachable!(),
         };
@@ -171,7 +204,14 @@ impl Display for Span {
         let readable_start_col  = (start_col  + 1).to_string();
         let padding = readable_end_line.len();
 
-        let location  = format!("Line {}:{}", readable_start_line, readable_start_col);
+        let location  = format!(
+            "While compiling {}:{}:{}",
+            self.source.clone().unwrap()
+                .path.to_string_lossy(),
+            readable_start_line,
+            readable_start_col
+        );
+
         let separator = format!("{} |", " ".repeat(padding));
 
         if start_line == end_line {

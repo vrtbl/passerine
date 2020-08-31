@@ -92,7 +92,7 @@ impl Lexer {
         ];
 
         // maybe some sort of map reduce?
-        let mut best = Err("Unexpected token".to_string());
+        let mut best = Err("Whatever this is supposed to be isn't even a thing".to_string());
 
         // check longest
         for rule in &rules {
@@ -460,5 +460,16 @@ mod test {
             Token::String(Data::String("Yo 👋! Ünícode µ works just fine 🚩! うん、気持ちいい！".to_string())),
             unicode.chars().collect::<Vec<char>>().len(),
         ) { panic!() }
+    }
+
+    #[test]
+    fn comma() {
+        let source = Source::source("heck, man");
+        let tokens = lex(source);
+        println!("{:?}", tokens.unwrap());
+        // for token in tokens.iter() {
+        //     println!("{}", token.item);
+        // }
+        panic!();
     }
 }

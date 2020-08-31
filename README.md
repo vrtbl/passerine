@@ -52,4 +52,4 @@ If you'd like to contribute:
    `CONTRIBUTING.md` has general guidelines and discusses project structure
 
 ## Roadmap
-See The [Project Roadmap](https://github.com/vrtbl/passerine/projects/1).
+See the [Project Roadmap](https://github.com/vrtbl/passerine/projects/1).
