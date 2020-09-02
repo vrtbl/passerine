@@ -1,6 +1,6 @@
 use std::mem;
 
-/// A linked list of usizes that functions as a stack.
+/// A linked list of `usize`s that functions as a stack.
 /// Used to keep track of the current stack frame while preserving
 /// the indicies of past frames.
 #[derive(Debug)]

@@ -1,6 +1,7 @@
 use std::fmt;
 use crate::common::span::Span;
 
+// TODO: rename to Static?
 /// Represents a static error (syntax, semantics, etc.) found at compile time
 #[derive(Debug, PartialEq, Eq)]
 pub struct Syntax {
@@ -9,6 +10,7 @@ pub struct Syntax {
 }
 
 impl Syntax {
+    /// Creates a new static error.
     pub fn error(message: &str, span: Span) -> Syntax {
         Syntax { message: message.to_string(), span }
     }

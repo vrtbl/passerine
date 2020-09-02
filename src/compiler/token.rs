@@ -33,6 +33,8 @@ pub enum Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // pretty formatting for tokens
+        // just use debug if you're not printing a message or something.
         let message = match self {
             Token::OpenBracket  => "an opening bracket",
             Token::CloseBracket => "a closing bracket",

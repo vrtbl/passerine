@@ -276,10 +276,12 @@ mod test {
     #[test]
     fn fun_scope() {
         // y = (x -> { y = x; y ) 7.0; y
-        let tokens = lex(Source::source("y = { x = 0.0; x"));
+        let tokens = lex(Source::source("slippery =; banana"));
         if let Ok(t) = tokens {
-            let ast = parse(t);
-            println!("{:#?}", ast);
+            let ast = gen(parse(t).unwrap());
+            if let Err(e) = ast {
+                println!("{}", e);
+            }
         } else {
             println!("{:#?}", tokens);
         }

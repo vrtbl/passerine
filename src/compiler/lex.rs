@@ -18,6 +18,8 @@ use crate::compiler::{
 
 type Bite = (Token, usize);
 
+/// Simple function that lexes a source file into a token stream.
+/// Exposes the functionality of the `Lexer`.
 pub fn lex(source: Rc<Source>) -> Result<Vec<Spanned<Token>>, Syntax> {
     let mut lexer = Lexer::new(&source);
     return lexer.all();
@@ -25,17 +27,23 @@ pub fn lex(source: Rc<Source>) -> Result<Vec<Spanned<Token>>, Syntax> {
 
 /// This represents a lexer object.
 /// A lexer takes a source file and lexes it into tokens.
+/// Note that this struct should not be controlled manually,
+/// use the `lex` function instead.
 struct Lexer {
+    /// A reference to the source being lexed.
     source: Rc<Source>,
+    /// The current lexing offset.
     offset: usize,
 }
 
 impl Lexer {
+    /// Create a new empty lexer.
     pub fn new(source: &Rc<Source>) -> Lexer {
         Lexer { source: Rc::clone(source), offset: 0 }
     }
 
-    fn all(&mut self) -> Result<Vec<Spanned<Token>>, Syntax> {
+    /// Run the lexer, generating the entire token stream.
+    pub fn all(&mut self) -> Result<Vec<Spanned<Token>>, Syntax> {
         let mut tokens = vec![];
 
         while self.remaining().len() != 0 {
@@ -63,6 +71,7 @@ impl Lexer {
         return Ok(tokens);
     }
 
+    /// Step the lexer, returning the next token.
     pub fn step(&self) -> Result<Bite, String> {
         let source = self.remaining();
 
@@ -110,11 +119,14 @@ impl Lexer {
 
     // helpers
 
-    fn remaining(&self) -> &str {
+    /// Helper function that returns the remaining source to be lexed as a `&str`.
+    pub fn remaining(&self) -> &str {
         return &self.source.contents[self.offset..]
     }
 
-    fn strip(&mut self) {
+    /// Helper function that Strips leading whitespace.
+    /// Note that a newline is not leading whitespace, it's a separator token.
+    pub fn strip(&mut self) {
         let mut len = 0;
 
         for char in self.remaining().chars() {
@@ -128,7 +140,8 @@ impl Lexer {
         self.offset += len;
     }
 
-    fn expect(source: &str, literal: &str) -> Result<usize, String> {
+    /// Helper function that expects an exact literal.
+    pub fn expect(source: &str, literal: &str) -> Result<usize, String> {
         if literal.len() > source.len() {
             return Err("Unexpected EOF while lexing".to_string());
         }
@@ -139,7 +152,9 @@ impl Lexer {
         }
     }
 
-    fn eat_digits(source: &str) -> Result<usize, String> {
+    /// Helper function that eats numeric digits,
+    /// returning how many lead.
+    pub fn eat_digits(source: &str) -> Result<usize, String> {
         let mut len = 0;
 
         for char in source.chars() {
@@ -152,14 +167,46 @@ impl Lexer {
         return if len == 0 { Err("Expected digits".to_string()) } else { Ok(len) };
     }
 
-    fn literal(source: &str, literal: &str, kind: Token) -> Result<Bite, String> {
+    /// Helper function that expects a literal, returning an error otherwise.
+    pub fn literal(source: &str, literal: &str, kind: Token) -> Result<Bite, String> {
         Ok((kind, Lexer::expect(source, literal)?))
     }
 
     // token classifiers
 
-    fn symbol(source: &str) -> Result<Bite, String> {
-        // for now, a symbol is one or more ascii alphanumerics
+    /// Matches a literal opening bracket `{`.
+    pub fn open_bracket(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "{", Token::OpenBracket)
+    }
+
+    /// Matches a literal closing bracket `{``.
+    pub fn close_bracket(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "}", Token::CloseBracket)
+    }
+
+    /// Matches a literal opening parenthesis `(`.
+    pub fn open_paren(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "(", Token::OpenParen)
+    }
+
+    /// Matches a literal closing parenthesis `)`.
+    pub fn close_paren(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, ")", Token::CloseParen)
+    }
+
+    /// Matches a literal assignment equal sign `=`.
+    pub fn assign(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "=", Token::Assign)
+    }
+
+    /// Matches a literal lambda arrow `->`.
+    pub fn lambda(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "->", Token::Lambda)
+    }
+
+    /// Classifis a symbol (i.e. variable name).
+    /// for now, a symbol is one or more ascii alphanumerics
+    pub fn symbol(source: &str) -> Result<Bite, String> {
         // TODO: extend to full unicode
         let mut len = 0;
 
@@ -176,31 +223,8 @@ impl Lexer {
         };
     }
 
-    fn open_bracket(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "{", Token::OpenBracket)
-    }
-
-    fn close_bracket(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "}", Token::CloseBracket)
-    }
-
-    fn open_paren(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "(", Token::OpenParen)
-    }
-
-    fn close_paren(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, ")", Token::CloseParen)
-    }
-
-    fn assign(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "=", Token::Assign)
-    }
-
-    fn lambda(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "->", Token::Lambda)
-    }
-
-    fn real(source: &str) -> Result<Bite, String> {
+    /// Matches a number with a decimal point.
+    pub fn real(source: &str) -> Result<Bite, String> {
         // TODO: NaNs, Infinity, the whole shebang
         // look at how f64::from_str is implemented, maybe?
         let mut len = 0;
@@ -218,7 +242,8 @@ impl Lexer {
         return Ok((Token::Number(Data::Real(number)), len));
     }
 
-    fn string(source: &str) -> Result<Bite, String> {
+    /// Matches a string, converting escapes.
+    pub fn string(source: &str) -> Result<Bite, String> {
         // TODO: read through the rust compiler and figure our how they do this
         // look into parse_str_lit
 
@@ -234,7 +259,7 @@ impl Lexer {
                 escape = false;
                 // TODO: add more escape codes
                 string.push(match c {
-                    '\"' => '\"',
+                    '"'  => '"',
                     '\\' => '\\',
                     'n'  => '\n',
                     't'  => '\t',
@@ -252,7 +277,8 @@ impl Lexer {
         return Err("Unexpected EOF while parsing string literal".to_string());
     }
 
-    fn boolean(source: &str) -> Result<Bite, String> {
+    /// Matches a literal boolean.
+    pub fn boolean(source: &str) -> Result<Bite, String> {
         for (lit, val) in [
             ("true",  true),
             ("false", false),
@@ -265,7 +291,15 @@ impl Lexer {
         return Err("Expected a boolean".to_string());
     }
 
-    fn sep(source: &str) -> Result<Bite, String> {
+    /// Matches a separator.
+    /// Note that separators are special, as they're mostly ignored
+    /// They're used to denote lines in functions blocks.
+    /// A separator is either a newline or semicolon.
+    /// They're grouped, so something like ';\n' is only one separator.
+    /// Although the parser makes no assumptions,
+    /// there should be only at most one separator
+    /// between any two non-separator tokens.
+    pub fn sep(source: &str) -> Result<Bite, String> {
         let mut chars = source.chars();
         let c = chars.next()
             .ok_or("Unexpected EOF while parsing")?;

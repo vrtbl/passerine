@@ -15,25 +15,35 @@ use crate::compiler::{
     syntax::Syntax,
 };
 
+/// Simple function that generates unoptimized bytecode from an `AST`.
+/// Exposes the functionality of the `Compiler`.
 pub fn gen(ast: Spanned<AST>) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base();
     compiler.walk(&ast)?;
     return Ok(compiler.lambda);
 }
 
-// // TODO: annotations in bytecode
+// TODO: annotations in bytecode
 
 /// Compiler is a bytecode generator that walks an AST and produces (unoptimized) Bytecode.
 /// There are plans to add a bytecode optimizer in the future.
+/// Note that this struct should not be controlled manually,
+/// use the `gen` function instead.
 pub struct Compiler {
+    /// The previous compiler (when compiling nested scopes).
     enclosing: Option<Box<Compiler>>,
+    /// The current bytecode emission target.
     lambda: Lambda,
+    /// The locals in the current scope.
     locals: Vec<Local>,
+    /// The captured variables used in the current scope.
     captureds: Vec<Captured>,
+    /// The nested depth of the current compiler.
     depth: usize,
 }
 
 impl Compiler {
+    /// Construct a new `Compiler`.
     pub fn base() -> Compiler {
         Compiler {
             enclosing: None,
@@ -54,6 +64,7 @@ impl Compiler {
     //     }
     // }
 
+    /// Declare a local variable.
     pub fn declare(&mut self, span: Span) {
         self.locals.push(
             Local { span, depth: self.depth }
@@ -85,7 +96,7 @@ impl Compiler {
     /// At this stage, the AST should've been verified, pruned, typechecked, etc.
     /// A malformed AST will cause a panic, as ASTs should be correct at this stage,
     /// and for them to be incorrect is an error in the compiler itself.
-    fn walk(&mut self, ast: &Spanned<AST>) -> Result<(), Syntax> {
+    pub fn walk(&mut self, ast: &Spanned<AST>) -> Result<(), Syntax> {
         // push left, push right, push center
         let result = match ast.item.clone() {
             AST::Data(data) => self.data(data),
@@ -99,14 +110,15 @@ impl Compiler {
     }
 
     /// Takes a `Data` leaf and and produces some code to load the constant
-    fn data(&mut self, data: Data) -> Result<(), Syntax> {
+    pub fn data(&mut self, data: Data) -> Result<(), Syntax> {
         self.lambda.emit(Opcode::Con);
         let mut split = split_number(self.lambda.index_data(data));
         self.lambda.emit_bytes(&mut split);
         Ok(())
     }
 
-    fn local(&self, span: Span) -> Option<usize> {
+    /// Returns the relative position on the stack of a declared local, if it exists.
+    pub fn local(&self, span: Span) -> Option<usize> {
         for (index, l) in self.locals.iter().enumerate() {
             if span.contents() == l.span.contents() {
                 return Some(index);
@@ -116,7 +128,10 @@ impl Compiler {
         return None;
     }
 
-    fn capture(&mut self, captured: Captured) -> usize {
+    /// Marks a local as captured in a closure,
+    /// which essentially tells the VM to move it to the heap.
+    /// Returns the index of the captured variable.
+    pub fn capture(&mut self, captured: Captured) -> usize {
         // is already captured
         for (i, c) in self.captureds.iter().enumerate() {
             if &captured == c {
@@ -130,7 +145,9 @@ impl Compiler {
         return self.captureds.len() - 1;
     }
 
-    fn captured(&mut self, span: Span) -> Option<usize> {
+    // TODO: rewrite
+    /// NOTE: Function is not yet stable.
+    pub fn captured(&mut self, span: Span) -> Option<usize> {
         if let Some(enclosing) = self.enclosing.as_mut() {
             if let Some(index) = Compiler::local(&enclosing, span.clone()) {
                 return Some(self.capture(Captured::local(index)));
@@ -146,7 +163,7 @@ impl Compiler {
 
     // TODO: rewrite according to new local rules
     /// Takes a symbol leaf, and produces some code to load the local
-    fn symbol(&mut self, span: Span) -> Result<(), Syntax> {
+    pub fn symbol(&mut self, span: Span) -> Result<(), Syntax> {
         if let Some(index) = self.local(span.clone()) {
             // if the variable is locally in scope
             self.lambda.emit(Opcode::Load);
@@ -166,7 +183,7 @@ impl Compiler {
 
     /// A block is a series of expressions where the last is returned.
     /// Each sup-expression is walked, the last value is left on the stack.
-    fn block(&mut self, children: Vec<Spanned<AST>>) -> Result<(), Syntax> {
+    pub fn block(&mut self, children: Vec<Spanned<AST>>) -> Result<(), Syntax> {
         for child in children {
             self.walk(&child)?;
             self.lambda.emit(Opcode::Del);
@@ -177,7 +194,8 @@ impl Compiler {
         Ok(())
     }
 
-    fn assign(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), Syntax> {
+    /// Assign a value to a variable.
+    pub fn assign(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), Syntax> {
         // eval the expression
         self.walk(&expression)?;
 
@@ -205,7 +223,8 @@ impl Compiler {
     }
 
     // TODO: rewrite according to new symbol rules
-    fn lambda(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), Syntax> {
+    /// Recursively compiles a lambda declaration in a new scope.
+    pub fn lambda(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), Syntax> {
         // just so the parallel is visually apparent
         self.enter_scope();
         {
@@ -232,7 +251,7 @@ impl Compiler {
 
     /// When a function is called, the top two items are taken off the stack,
     /// The topmost item is expected to be a function.
-    fn call(&mut self, fun: Spanned<AST>, arg: Spanned<AST>) -> Result<(), Syntax> {
+    pub fn call(&mut self, fun: Spanned<AST>, arg: Spanned<AST>) -> Result<(), Syntax> {
         self.walk(&arg)?;
         self.walk(&fun)?;
         self.lambda.emit(Opcode::Call);
@@ -265,7 +284,7 @@ mod test {
     //
     //     assert_eq!(chunk.constants, result);
     // }
-
+    //
     // #[test]
     // fn bytecode() {
     //     let source = Source::source("heck = true; lol = heck; lmao = false");

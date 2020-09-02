@@ -1,6 +1,3 @@
-// Rewrite of the old parser.
-// Pratt parser.
-// To be finished on the 29th
 use std::mem;
 use crate::common::span::{Span, Spanned};
 
@@ -10,6 +7,8 @@ use crate::compiler::{
     ast::AST,
 };
 
+/// Simple function that parses a token stream into an AST.
+/// Exposes the functionality of the `Parser`.
 pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     let mut parser = Parser::new(tokens);
     let ast = parser.body(Token::End)?;
@@ -17,6 +16,10 @@ pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     return Ok(Spanned::new(ast, Span::empty()));
 }
 
+/// We're using a Pratt parser, so this little enum
+/// Defines different precedence levels.
+/// Each successive level is higher, so, for example,
+/// `* > +`.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Prec {
@@ -28,12 +31,22 @@ pub enum Prec {
 }
 
 impl Prec {
+    /// Increments precedence level to cause the
+    /// parser to associate infix operators to the left.
+    /// For example, addition is left-associated:
+    /// ```ignore
+    /// parser.expression(Prec::Addition.associate_left.)
+    /// ```
+    /// By default, the parser accociates right.
     pub fn associate_left(&self) -> Prec {
         if let Prec::End = self { panic!("Can not associate further left") }
         return unsafe { mem::transmute(self.clone() as u8 + 1) };
     }
 }
 
+/// Constructs an `AST` from a token stream.
+/// Note that this struct should not be controlled manually,
+/// use the `parse` function instead.
 #[derive(Debug)]
 pub struct Parser {
     tokens: Vec<Spanned<Token>>,
@@ -41,6 +54,7 @@ pub struct Parser {
 }
 
 impl Parser {
+    /// Create a new `parser`.
     pub fn new(tokens: Vec<Spanned<Token>>) -> Parser {
         Parser { tokens, index: 0 }
     }
@@ -48,8 +62,8 @@ impl Parser {
     // Cookie Monster's Helper Functions:
 
     // NOTE: Maybe don't return bool?
-    /// Consumes all seperator tokens, returning whether there were any
-    fn sep(&mut self) -> bool {
+    /// Consumes all seperator tokens, returning whether there were any.
+    pub fn sep(&mut self) -> bool {
         if self.tokens[self.index].item != Token::Sep { false } else {
             while self.tokens[self.index].item == Token::Sep {
                 self.index += 1;
@@ -59,33 +73,36 @@ impl Parser {
     }
 
     /// Returns the current token then advances the parser.
-    fn advance(&mut self) -> &Spanned<Token> {
+    pub fn advance(&mut self) -> &Spanned<Token> {
         self.index += 1;
         &self.tokens[self.index - 1]
     }
 
     /// Returns the first token.
-    fn current(&self) -> &Spanned<Token> {
+    pub fn current(&self) -> &Spanned<Token> {
         &self.tokens[self.index]
     }
 
     /// Returns the first non-Sep token.
-    fn skip(&mut self) -> &Spanned<Token> {
+    pub fn skip(&mut self) -> &Spanned<Token> {
         self.sep();
         self.current()
     }
 
-    fn unexpected(&self) -> Syntax {
+    /// I get one funny error message, so this is it.
+    /// I'm going to try to change it up frequently.
+    /// Throws an error if the next token is unexpected.
+    pub fn unexpected(&self) -> Syntax {
         let token = self.current();
         Syntax::error(
-            &format!("WHAT!? What's {} even doing here? lmao, unexpected", token.item),
+            &format!("Oopsie woopsie, what's {} doing here?", token.item),
             token.span.clone()
         )
     }
 
     // Consumes a specific token then advances the parser.
     // Can be used to consume Sep tokens, which are normally skipped.
-    fn consume(&mut self, token: Token) -> Result<&Spanned<Token>, Syntax> {
+    pub fn consume(&mut self, token: Token) -> Result<&Spanned<Token>, Syntax> {
         self.index += 1;
         let current = &self.tokens[self.index - 1];
         if current.item != token {
@@ -151,6 +168,10 @@ impl Parser {
         Ok(prec)
     }
 
+    /// Uses some pratt parser magic to parse an expression.
+    /// It's essentially a fold-left over tokens
+    /// based on the precedence and content.
+    /// Cool stuff.
     pub fn expression(&mut self, prec: Prec) -> Result<Spanned<AST>, Syntax> {
         let mut left = self.rule_prefix()?;
 
@@ -167,12 +188,14 @@ impl Parser {
 
     // Prefix:
 
-    fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
+    /// Constructs an AST for a symbol.
+    pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
         let symbol = self.consume(Token::Symbol)?;
         Ok(Spanned::new(AST::Symbol, symbol.span.clone()))
     }
 
-    fn literal(&mut self) -> Result<Spanned<AST>, Syntax> {
+    /// Constructs the AST for a literal, such as a number or string.
+    pub fn literal(&mut self) -> Result<Spanned<AST>, Syntax> {
         let Spanned { item: token, span } = self.advance();
 
         let leaf = match token {
@@ -188,14 +211,20 @@ impl Parser {
         Result::Ok(Spanned::new(leaf, span.clone()))
     }
 
-    fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
+    /// Constructs the ast for a group,
+    /// i.e. an expression between parenthesis.
+    pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
         self.consume(Token::OpenParen)?;
         let ast = self.expression(Prec::None.associate_left())?;
         self.consume(Token::CloseParen)?;
         Ok(ast)
     }
 
-    fn body(&mut self, end: Token) -> Result<AST, Syntax> {
+    /// Parses the body of a block.
+    /// A block is one or more expressions, separated by separators.
+    /// This is more of a helper function, as it serves as both the
+    /// parser entrypoint while still being recursively nestable.
+    pub fn body(&mut self, end: Token) -> Result<AST, Syntax> {
         let mut expressions = vec![];
 
         while self.skip().item != end {
@@ -209,7 +238,10 @@ impl Parser {
         return Ok(AST::Block(expressions));
     }
 
-    fn block(&mut self) -> Result<Spanned<AST>, Syntax> {
+    /// Parse a block as an expression,
+    /// Building the appropriate `AST`.
+    /// Just a body between curlies.
+    pub fn block(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::OpenBracket)?.span.clone();
         let ast = self.body(Token::CloseBracket)?;
         let end = self.consume(Token::CloseBracket)?.span.clone();
@@ -220,7 +252,8 @@ impl Parser {
 
     // TODO: assign and lambda are similar... combine?
 
-    fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+    /// Parses an assignment, associates right.
+    pub fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let symbol = if let AST::Symbol = left.item { left }
             else { return Err(Syntax::error("Expected a symbol", left.span))? };
 
@@ -230,7 +263,8 @@ impl Parser {
         Result::Ok(Spanned::new(AST::assign(symbol, expression), combined))
     }
 
-    fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+    /// Parses a lambda definition, associates right.
+    pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let symbol = if let AST::Symbol = left.item { left }
             else { return Err(Syntax::error("Expected a symbol", left.span))? };
 
@@ -240,7 +274,13 @@ impl Parser {
         Result::Ok(Spanned::new(AST::lambda(symbol, expression), combined))
     }
 
-    fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+    /// Parses a function call.
+    /// Function calls are a bit magical,
+    /// because they're just a series of expressions.
+    /// There's a bit of magic involved -
+    /// we interpret anything that isn't an operator as a function call operator.
+    /// Then pull a fast one and not parse it like an operator at all.
+    pub fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let argument = self.expression(Prec::Call.associate_left())?;
         let combined = Span::combine(&left.span, &argument.span);
         return Ok(Spanned::new(AST::call(left, argument), combined));
@@ -285,7 +325,8 @@ mod test {
 
     #[test]
     pub fn complex() {
-        let source = Source::source("x -> y -> x y");
+        // you cant\nparse =; this
+        let source = Source::source("y =; x");
         //"\
         // x = {\n    \
         //     w = y -> z -> {\n         \
@@ -295,9 +336,14 @@ mod test {
         // }\n\
         // w = { z x y }\n\
         // ");
-        let ast = parse(lex(source.clone()).unwrap()).unwrap();
+        let ast = parse(lex(source.clone()).unwrap());
+
+        if let Err(e) = ast {
+            println!("{}", e);
+        }
+
         println!("{}", source.contents);
-        println!("{:#?}", ast);
+        // println!("{}", ast);
         panic!();
     }
 }
