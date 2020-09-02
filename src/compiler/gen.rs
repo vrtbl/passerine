@@ -5,7 +5,6 @@ use crate::common::{
     span::{Span, Spanned},
     lambda::Lambda,
     opcode::Opcode,
-    local::Local,
     captured::Captured,
     data::Data,
 };
@@ -21,6 +20,22 @@ pub fn gen(ast: Spanned<AST>) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base();
     compiler.walk(&ast)?;
     return Ok(compiler.lambda);
+}
+
+// TODO: implement equality
+// TODO: maybe just move into compiler?
+/// Represents a local when compiling.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Local {
+    pub span: Span,
+    pub depth: usize
+}
+
+impl Local {
+    // Creates a new `Local`.
+    pub fn new(span: Span, depth: usize) -> Local {
+        Local { span, depth }
+    }
 }
 
 // TODO: annotations in bytecode

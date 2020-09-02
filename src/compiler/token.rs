@@ -7,7 +7,7 @@ use crate::common::{
 
 /// These are the different tokens the lexer will output.
 /// `Token`s with data contain that data,
-/// e.g. a boolean will be a Data::Boolean(...), not just a string.
+/// e.g. a boolean will be a `Data::Boolean(...)`, not just a string.
 /// `Token`s can be spanned using `Spanned<Token>`.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Token {

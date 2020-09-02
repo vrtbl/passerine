@@ -8,7 +8,6 @@ use crate::common::{
     source::Source,
     span::{ Span, Spanned },
     data::Data,
-    local::Local,
 };
 
 use crate::compiler::{
@@ -326,7 +325,6 @@ impl Lexer {
 mod test {
     use super::*;
     use crate::common::data::Data;
-    use crate::common::local::Local;
 
     // NOTE: lexing individual tokens is tested in pipeline::token
 

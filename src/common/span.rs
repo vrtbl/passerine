@@ -109,6 +109,8 @@ impl Span {
         self.source.as_ref().unwrap().contents[self.offset..(self.end())].to_string()
     }
 
+    // Used by fmt::Display:
+
     // NOTE: once split_inclusive is included in rust's stdlib,
     // just replace this method with the std version.
     /// Splits a string by the newline character into a Vector of string slices.

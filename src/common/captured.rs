@@ -1,4 +1,6 @@
 // TODO: is the is_local field really required?
+// TODO: move to compiler?
+/// Work-in-progress, not stable yet.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Captured {
     pub index: usize,

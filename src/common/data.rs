@@ -10,6 +10,7 @@ use std::{
 
 use crate::common::lambda::Lambda;
 
+/// Built-in Passerine datatypes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     // VM Stack

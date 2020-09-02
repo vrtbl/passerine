@@ -1,7 +1,6 @@
 use crate::common::{
     opcode::Opcode,
     data::Data,
-    local::Local,
     number::build_number,
 };
 use std::{

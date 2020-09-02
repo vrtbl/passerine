@@ -5,13 +5,18 @@
 //! you're not in the right place.
 //!
 //! ## Embedding Passerine in Rust
+//! > TODO: Clean up crate visibility, create `run` function.
+//!
 //! Add passerine to your `Cargo.toml`:
 //! ```toml
 //! # make sure it's the latest version
-//! passerine = 0.6
+//! passerine = 0.7
 //! ```
 //! Then simply:
 //! ```ignore
+//! // DISCLAIMER: The `run` function used here has not been implemented yet,
+//! //             although the underlying interface is mostly stable.
+//!
 //! use passerine;
 //!
 //! fn main() {
