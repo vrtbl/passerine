@@ -10,12 +10,18 @@ pub struct Trace {
 }
 
 impl Trace {
+    /// Creates a new traceback
     pub fn error(kind: &str, message: &str, spans: Vec<Span>) -> Trace {
         Trace {
             kind: kind.to_string(),
             message: message.to_string(),
             spans,
         }
+    }
+
+    /// Used to add context (i.e. function calls) while unwinding the stack.
+    pub fn add_context(&mut self, span: Span) {
+        self.spans.push(span);
     }
 }
 

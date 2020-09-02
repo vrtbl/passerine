@@ -218,6 +218,8 @@ impl Parser {
 
     // Infix:
 
+    // TODO: assign and lambda are similar... combine?
+
     fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let symbol = if let AST::Symbol = left.item { left }
             else { return Err(Syntax::error("Expected a symbol", left.span))? };
@@ -229,15 +231,18 @@ impl Parser {
     }
 
     fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        todo!()
+        let symbol = if let AST::Symbol = left.item { left }
+            else { return Err(Syntax::error("Expected a symbol", left.span))? };
+
+        self.consume(Token::Lambda)?;
+        let expression = self.expression(Prec::Lambda)?;
+        let combined   = Span::combine(&symbol.span, &expression.span);
+        Result::Ok(Spanned::new(AST::lambda(symbol, expression), combined))
     }
 
     fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        println!("call");
         let argument = self.expression(Prec::Call.associate_left())?;
-        println!("b4 combine");
         let combined = Span::combine(&left.span, &argument.span);
-        println!("end call");
         return Ok(Spanned::new(AST::call(left, argument), combined));
     }
 }
@@ -280,7 +285,16 @@ mod test {
 
     #[test]
     pub fn complex() {
-        let source = Source::source("heck, man");
+        let source = Source::source("x -> y -> x y");
+        //"\
+        // x = {\n    \
+        //     w = y -> z -> {\n         \
+        //         y = z 2.0 3.0\n        \
+        //         x 1.0\n    \
+        //     } 17.0\n\
+        // }\n\
+        // w = { z x y }\n\
+        // ");
         let ast = parse(lex(source.clone()).unwrap()).unwrap();
         println!("{}", source.contents);
         println!("{:#?}", ast);

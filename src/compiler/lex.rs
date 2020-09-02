@@ -92,7 +92,7 @@ impl Lexer {
         ];
 
         // maybe some sort of map reduce?
-        let mut best = Err("Whatever this is supposed to be isn't even a thing".to_string());
+        let mut best = Err("Unexpected token".to_string());
 
         // check longest
         for rule in &rules {
@@ -172,8 +172,6 @@ impl Lexer {
 
         return match len {
             0 => Err("Expected a symbol".to_string()),
-            // TODO: make sure that symbol name is correct
-            // TODO: give symbol access to the index
             l => Ok((Token::Symbol, l)),
         };
     }
@@ -464,12 +462,8 @@ mod test {
 
     #[test]
     fn comma() {
-        let source = Source::source("heck, man");
-        let tokens = lex(source);
-        println!("{:?}", tokens.unwrap());
-        // for token in tokens.iter() {
-        //     println!("{}", token.item);
-        // }
-        panic!();
+        let source = Source::source("heck\\ man");
+        let tokens = lex(source.clone());
+        assert_eq!(tokens, Err(Syntax::error("Unexpected token", Span::new(&source, 4, 1))));
     }
 }

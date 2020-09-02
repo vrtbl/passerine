@@ -4,38 +4,46 @@ use std::{
     fmt::{Formatter, Debug, Error},
 };
 
-// TODO: implement stack Frame
-
 use crate::common::data::Data;
 
-/// Tagged implements Nan-tagging around the `Data` enum.
-/// In essence, it's possible to exploit the representation of f64 NaNs
+// TODO: add fallback for 32-bit systems and so on.
+/// `Tagged` implements Nan-tagging around the `Data` enum.
+/// In essence, it's possible to exploit the representation of `f64` NaNs
 /// to store pointers to other datatypes.
-/// When layed out, this is what the bit-level representation of a
-/// double-precision floating-point number looks like.
-/// Below is the bit-level layout of a tagged NaN.
+///
+/// When laid out, this is what the bit-level representation of a
+/// double-precision floating-point number looks like:
 /// ```plain
 /// SExponent---QIMantissa------------------------------------------
-/// PNaN--------11D-Payload---------------------------------------TT
+/// PNaN--------11D-Payload-------------------------------------...T
 /// ```
-/// Where `S` is sign, `Q` is quiet flag, `I` is Intel’s “QNan Floating-Point Indefinite”,
+/// Where `S` is sign, `Q` is quiet flag, `I` is Intel’s "QNan Floating-Point Indefinite";
 /// `P` is pointer flag, `D` is Data Tag (should always be 1), `T` is Tag.
-/// We have 2 tag bits, 4 values: 00 is unit '()', 10 is false, 11 is true,
-/// but this might change if I figure out what to do with them
-/// NOTE: maybe add tag bit for 'unit'
-/// NOTE: implementation modeled after:
-/// https://github.com/rpjohnst/dejavu/blob/master/gml/src/vm/value.rs
-/// and the Optimization chapter from Crafting Interpreters
-/// Thank you!
+///
+/// By exploiting this fact, assuming a 64-bit system,
+/// each item on the stack only takes up a machine word.
+/// This differs from having a stack of `Box`'d `Data`,
+/// because small items, like booleans, stack frames, etc.
+/// can be encoded directly into the tag
+/// rather than having to follow a pointer.
+/// It also keeps math fast for f64s, as a simple check and transmutation
+/// is all that's needed to reinterpret the bits as a valid number.
+///
+/// > NOTE: implementation modeled after:
+/// >
+/// > - [rpjohnst/dejavu](https://github.com/rpjohnst/dejavu/blob/master/gml/src/vm/value.rs),
+/// > - and the Optimization chapter from Crafting Interpreters.
+/// >
+/// > Thank you!
 pub struct Tagged(u64);
 
 const QNAN:   u64 = 0x7ffe_0000_0000_0000;
 const P_FLAG: u64 = 0x8000_0000_0000_0000;
 const P_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
-const U_FLAG: u64 = 0x0000_0000_0000_0001;
-const F_FLAG: u64 = 0x0000_0000_0000_0002;
-const T_FLAG: u64 = 0x0000_0000_0000_0004;
-const S_FLAG: u64 = 0x0000_0000_0000_0008; // stack frame
+const S_FLAG: u64 = 0x0000_0000_0000_0000; // stack frame
+const U_FLAG: u64 = 0x0000_0000_0000_0001; // unit
+const F_FLAG: u64 = 0x0000_0000_0000_0002; // false
+const T_FLAG: u64 = 0x0000_0000_0000_0004; // true
 
 impl Tagged {
     /// Wraps `Data` to create a new tagged pointer.
@@ -58,11 +66,12 @@ impl Tagged {
     }
 
     // TODO: encode frame in tag itself; a frame is not data
+    /// Creates a new stack frame.
     pub fn frame() -> Tagged {
         Tagged::new(Data::Frame)
     }
 
-    /// Returns the underlying data or a pointer to that data.
+    /// Returns the underlying `Data` (or a pointer to that `Data`).
     unsafe fn extract(&self) -> Result<Data, Box<Data>> {
         // println!("-- Extracting...");
         let Tagged(bits) = self;
@@ -85,7 +94,7 @@ impl Tagged {
     // TODO: use deref trait
     // Can't for not because of E0515 caused by &Data result
     /// Unwrapps a tagged number into the appropriate datatype,
-    /// Consuming the tagged number.
+    /// consuming the tagged number.
     pub fn data(self) -> Data {
         // println!("-- Data...");
 
@@ -104,6 +113,7 @@ impl Tagged {
         return d;
     }
 
+    /// Deeply copies some `Tagged` data.
     pub fn copy(&self) -> Data {
         // println!("-- Copy...");
         unsafe {

@@ -2,7 +2,7 @@ use std::fmt;
 use crate::common::span::Span;
 
 /// Represents a static error (syntax, semantics, etc.) found at compile time
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Syntax {
     pub message: String,
     pub span:    Span,
@@ -18,12 +18,6 @@ impl fmt::Display for Syntax {
     fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if !self.span.is_empty() { fmt::Display::fmt(&self.span, f)? };
         writeln!(f, "Static Error: {}", self.message)
-    }
-}
-
-impl fmt::Debug for Syntax {
-    fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self, f)
     }
 }
 

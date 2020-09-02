@@ -18,12 +18,13 @@
 //!     passerine::run("print \"Hello from Passerine!\"");
 //! }
 //! ```
-//! > NOTE: print statements are not yet implemented
+//! > NOTE: print statements are not yet implemented.
 //! > They'll be implemented by version 0.11, once the FFI is solidified
 //!
 //! ## Overview of the compilation process
 //! Within the compiler pipeline, source code is represented as a `Source` object
 //!
+//! > TODO: Finish overview.
 
 pub mod common;
 pub mod compiler;

@@ -11,6 +11,13 @@ use crate::vm::{
     linked::Linked,
 };
 
+/// A stack of `Tagged` `Data`.
+/// Note that in general the stack is expected to follow the following pattern:
+/// ```plain
+/// FV...V...F V...T... ...
+/// ```
+/// Or in other words, a frame followed by a block of *n* values that are locals
+/// followed by *n* temporaries, ad infinitum.
 #[derive(Debug)]
 pub struct Stack {
     pub frames: Linked,
@@ -18,6 +25,7 @@ pub struct Stack {
 }
 
 impl Stack {
+    /// Create a new `Stack` with a single frame.
     pub fn init() -> Stack {
         Stack {
             frames: Linked::new(0),
@@ -25,19 +33,19 @@ impl Stack {
         }
     }
 
-    /// Pushes some data onto the stack, tagging it along the way
+    /// Pushes some `Data` onto the `Stack`, tagging it along the way
     #[inline]
     pub fn push_data(&mut self, data: Data) {
         self.stack.push(Tagged::new(data))
     }
 
-    /// Pushes some tagged data onto the stack without unwrapping it
+    /// Pushes some `Tagged` `Data` onto the `Stack` without unwrapping it.
     #[inline]
     pub fn push_tagged(&mut self, tagged: Tagged) {
         self.stack.push(tagged)
     }
 
-    /// Pops some data of the stack, panicing if what it pops is not data
+    /// Pops some `Data` of the `Stack`, panicking if what it pops is not `Data`.
     #[inline]
     pub fn pop_data(&mut self) -> Data {
         let value = self.stack.pop()
@@ -49,7 +57,8 @@ impl Stack {
         }
     }
 
-    /// Pops a stack frame from the stack, restoring the previous frame
+    /// Pops a stack frame from the `Stack`, restoring the previous frame.
+    /// Panics if there are no frames left on the stack.
     #[inline]
     pub fn pop_frame(&mut self) {
         let index = self.frames.prepop();
@@ -60,13 +69,14 @@ impl Stack {
         }
     }
 
-    /// Pushed a new stack frame onto the stack
+    /// Pushes a new stack frame onto the `Stack`.
     #[inline]
     pub fn push_frame(&mut self) {
         self.frames.prepend(self.stack.len());
         self.stack.push(Tagged::frame());
     }
 
+    // TODO: Change behaviour? Make if heapify a specified local?
     /// Wraps the top data value on the stack in `Data::Heaped`,
     /// if it is not already on the heap.
     #[inline]
@@ -80,7 +90,7 @@ impl Stack {
         self.push_data(Data::Heaped(Rc::new(RefCell::new(data))));
     }
 
-    /// Gets a local and pushes it onto the top of the stack;
+    /// Gets a local and pushes it onto the top of the `Stack`
     pub fn get_local(&mut self, index: usize) {
         let local_index = self.frames.peek() + index + 1;
 
@@ -93,6 +103,10 @@ impl Stack {
         self.push_data(copy);
     }
 
+    /// Sets a local - note that this function doesn't do much.
+    /// It's a simple swap-and-drop.
+    /// If a new local is being declared,
+    /// it's literally a bounds-check and no-op.
     pub fn set_local(&mut self, index: usize) {
         let local_index = self.frames.peek() + index + 1;
 

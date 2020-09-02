@@ -307,7 +307,7 @@ mod test {
         let source = Source::source("hello\nbanana boat\nmagination\n");
         let span = Span::new(&source, 16, 12);
         assert_eq!(format!("{}", span), "\
-            Line 2:11\n  \
+            While compiling ./source:2:11\n  \
               |\n\
             2 > banana boat\n\
             3 > magination\n  \

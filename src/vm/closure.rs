@@ -4,6 +4,8 @@ use crate::common::{
     data::Data,
 };
 
+/// Wraps a `Lambda` with some scope context.
+/// > NOTE: currently a work-in-progress.
 #[derive(Debug)]
 pub struct Closure {
     pub lambda: Lambda,
@@ -11,6 +13,7 @@ pub struct Closure {
 }
 
 impl Closure {
+    /// Constructs a new `Closure` by wrapping a `Lambda`.
     pub fn wrap(lambda: Lambda) -> Closure {
         Closure {
             lambda,

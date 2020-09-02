@@ -14,9 +14,11 @@ use crate::vm::{
     closure::Closure,
 };
 
-/// A `VM` executes bytecode lambdas.
-/// Each VM's state is self-contained,
-/// So more than one can be spawned if needed.
+/// A `VM` executes bytecode lambda closures.
+/// (That's a mouthful - think bytecode + some context).
+/// VM initialization overhead is tiny,
+/// and each VM's state is self-contained,
+/// so more than one can be spawned if needed.
 #[derive(Debug)]
 pub struct VM {
     closure: Closure,
@@ -40,15 +42,20 @@ impl VM {
         }
     }
 
-    fn next(&mut self)                           { self.ip += 1; }
-    fn terminate(&mut self) -> Result<(), Trace> { self.ip = self.closure.lambda.code.len(); Ok(()) }
-    fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
-    fn peek_byte(&mut self) -> u8                { self.closure.lambda.code[self.ip] }
-    fn next_byte(&mut self) -> u8                { self.done().unwrap(); self.peek_byte() }
+    /// Advances to the next instruction.
+    pub fn next(&mut self)                           { self.ip += 1; }
+    /// Jumps past the end of the block, causing the current lambda to return.
+    pub fn terminate(&mut self) -> Result<(), Trace> { self.ip = self.closure.lambda.code.len(); Ok(()) }
+    /// Advances IP, returns `Ok`. Used in Bytecode implementations.
+    pub fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
+    /// Returns the current instruction as a byte.
+    pub fn peek_byte(&mut self) -> u8                { self.closure.lambda.code[self.ip] }
+    // Advances IP and returns the current instruction as a byte.
+    pub fn next_byte(&mut self) -> u8                { self.next(); self.peek_byte() }
 
     /// Builds the next number in the bytecode stream.
     /// See `utils::number` for more.
-    fn next_number(&mut self) -> usize {
+    pub fn next_number(&mut self) -> usize {
         self.next();
         let remaining      = &self.closure.lambda.code[self.ip..];
         let (index, eaten) = build_number(remaining);
@@ -60,9 +67,9 @@ impl VM {
     // core interpreter loop
 
     /// Dissasembles and interprets a single (potentially fallible) bytecode op.
-    /// The op definitions follow in the proceeding impl block.
-    /// To see what each op does, check `pipeline::bytecode.rs`
-    fn step(&mut self) -> Result<(), Trace> {
+    /// The op definitions follow in the next `impl` block.
+    /// To see what each op does, check `common::opcode::Opcode`.
+    pub fn step(&mut self) -> Result<(), Trace> {
         let opcode = Opcode::from_byte(self.peek_byte());
 
         match opcode {
@@ -83,20 +90,20 @@ impl VM {
     /// Or failure, in which it returns the runtime error.
     /// In the future, fibers will allow for error handling -
     /// right now, error in Passerine are practically panics.
-    fn run(&mut self, closure: Closure) -> Result<(), Trace> {
+    pub fn run(&mut self, closure: Closure) -> Result<(), Trace> {
         // cache current state, load new bytecode
         let old_closure = mem::replace(&mut self.closure, closure);
         let old_ip    = mem::replace(&mut self.ip,    0);
         // TODO: should lambdas store their own ip?
 
         while self.ip < self.closure.lambda.code.len() {
-            println!("before: {:?}", self.stack.stack);
-            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            // println!("before: {:?}", self.stack.stack);
+            // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             self.step()?;
-            println!("---");
+            // println!("---");
         }
-        println!("after: {:?}", self.stack);
-        println!("---");
+        // println!("after: {:?}", self.stack);
+        // println!("---");
 
         // return current state
         mem::drop(mem::replace(&mut self.closure, old_closure));
@@ -115,7 +122,7 @@ impl VM {
     // - replace some panics with Result<()>s
 
     /// Load a constant and push it onto the stack.
-    fn con(&mut self) -> Result<(), Trace> {
+    pub fn con(&mut self) -> Result<(), Trace> {
         // get the constant index
         let index = self.next_number();
 
@@ -123,43 +130,49 @@ impl VM {
         self.done()
     }
 
-    fn capture(&mut self) -> Result<(), Trace> {
+    /// Moves the top value on the stack to the heap,
+    /// replacing it with a reference to the heapified value.
+    /// > NOTE: Behaviour is not stabilized yet.
+    pub fn capture(&mut self) -> Result<(), Trace> {
         self.stack.heapify_top();
         self.done()
     }
 
     /// Save the topmost value on the stack into a variable.
-    fn save(&mut self) -> Result<(), Trace> {
+    pub fn save(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         self.stack.set_local(index);
         self.done()
     }
 
     /// Save the topmost value on the stack into a captured variable.
-    fn save_cap(&mut self) -> Result<(), Trace> {
-        todo!();
+    /// > NOTE: Not implemented.
+    pub fn save_cap(&mut self) -> Result<(), Trace> {
+        unimplemented!();
     }
 
     /// Push a copy of a variable's value onto the stack.
-    fn load(&mut self) -> Result<(), Trace> {
+    pub fn load(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         self.stack.get_local(index);
         self.done()
     }
 
-    fn load_cap(&mut self) -> Result<(), Trace> {
+    /// Load a captured variable from the current closure.
+    /// > NOTE: Not implemented.
+    pub fn load_cap(&mut self) -> Result<(), Trace> {
         todo!();
     }
 
-    /// Delete the top item of the stack
-    fn del(&mut self) -> Result<(), Trace> {
+    /// Delete the top item of the stack.
+    pub fn del(&mut self) -> Result<(), Trace> {
         mem::drop(self.stack.pop_data());
         self.done()
     }
 
     // TODO: closures
     /// Call a function on the top of the stack, passing the next value as an argument.
-    fn call(&mut self) -> Result<(), Trace> {
+    pub fn call(&mut self) -> Result<(), Trace> {
         let fun = match self.stack.pop_data() {
             Data::Lambda(l) => Closure::wrap(l),
             _               => unreachable!(),
@@ -168,10 +181,10 @@ impl VM {
 
         self.stack.push_frame();
         self.stack.push_data(arg);
-        println!("entering...");
+        // println!("entering...");
         // TODO: keep the passerine call stack separated from the rust call stack.
         self.run(fun)?;
-        println!("exiting...");
+        // println!("exiting...");
 
         self.done()
     }
@@ -181,7 +194,7 @@ impl VM {
     /// Takes the number of locals on the stack
     /// Relpaces the last frame with the value on the top of the stack.
     /// Expects the stack to be a `[..., Frame, Local 1, ..., Local N, Data]`
-    fn return_val(&mut self) -> Result<(), Trace> {
+    pub fn return_val(&mut self) -> Result<(), Trace> {
         // the value to be returned
         let val = self.stack.pop_data();
 
