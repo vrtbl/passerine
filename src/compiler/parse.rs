@@ -230,7 +230,7 @@ impl Parser {
         while self.skip().item != end {
             let ast = self.expression(Prec::None)?;
             expressions.push(ast);
-            if let Err(e) = self.consume(Token::Sep) {
+            if let Err(_) = self.consume(Token::Sep) {
                 break;
             }
         }
@@ -340,14 +340,14 @@ mod test {
                                     AST::lambda(
                                         Spanned::new(AST::Symbol, Span::new(&source, 4, 1)),
                                         Spanned::new(
-                                            AST::Data(Data::Real(0.0)),
-                                            Span::new(&source, 9, 3),
+                                            AST::Data(Data::Real(3.141592)),
+                                            Span::new(&source, 9, 8),
                                         ),
                                     ),
-                                    Span::new(&source, 4, 8),
+                                    Span::new(&source, 4, 13),
                                 ),
                             ),
-                            Span::new(&source, 0, 12),
+                            Span::new(&source, 0, 17),
                         ),
                     ],
                 ),

@@ -9,15 +9,12 @@ use crate::common::{
 #[derive(Debug)]
 pub struct Closure {
     pub lambda: Lambda,
-    // pub captured: Vec<Rc<Data>>,
+    pub captured: Vec<Rc<Data>>,
 }
 
 impl Closure {
     /// Constructs a new `Closure` by wrapping a `Lambda`.
     pub fn wrap(lambda: Lambda) -> Closure {
-        Closure {
-            lambda,
-            // captured:
-        }
+        Closure { lambda, captured: vec![] }
     }
 }

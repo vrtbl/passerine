@@ -3,11 +3,8 @@ use crate::common::{
     data::Data,
     number::build_number,
 };
-use std::{
-    fmt,
-    io::Write,
-    mem,
-};
+
+use std::fmt;
 
 /// Represents a single interpretable chunk of bytecode,
 /// Think a function.
@@ -16,6 +13,7 @@ pub struct Lambda {
     pub code:      Vec<u8>,    // each byte is an opcode or a number-stream
     pub offsets:   Vec<usize>, // each usize indexes the bytecode op that begins each line
     pub constants: Vec<Data>,  // number-stream indexed, used to load constants
+    pub captured:  Vec<usize>  // TODO: see CLOSURES.md
 }
 
 impl Lambda {

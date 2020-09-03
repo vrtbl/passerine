@@ -1,9 +1,5 @@
 use std::fmt::Display;
-
-use crate::common::{
-    span::Span,
-    data::Data,
-};
+use crate::common::data::Data;
 
 /// These are the different tokens the lexer will output.
 /// `Token`s with data contain that data,

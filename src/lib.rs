@@ -86,7 +86,11 @@
 //! Recursively nesting itself when a new scope is encountered.
 //! To generate bytecode for an AST, use the `compiler::gen::gen` function.
 //!
-//!
+//! ### Execution
+//! The VM can raise `Err(Trace)` if it encounters
+//! errors during execution.
+//! A `Trace` is similar to `Syntax`, but it keeps track of
+//! multiple spans representing function calls and so on.
 //!
 //! After this, raw `Lambda`s are passed to the `VM` to be run.
 //! before being run by the `VM`, `Lambdas` are wrapped in `Closure`s,
@@ -107,7 +111,7 @@
 //! vm::run(bytecode);
 //! # }
 //! ```
-//! 
+//!
 //! The `VM` is just a simple light stack-based VM.
 
 pub mod common;

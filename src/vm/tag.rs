@@ -223,7 +223,7 @@ mod test {
             // println!("{:#b}", u64::from(wrapped));
             match wrapped.data() {
                 Data::String(s) => { assert_eq!(item, &s) },
-                other           => {
+                _ => {
                     // println!("{:#b}", u64::from(wrapped));
                     panic!("Didn't unwrap to a string");
                 },
@@ -292,6 +292,7 @@ mod test {
         // println!("after drop: {:?}", data);
     }
 
+    #[test]
     fn no_leak_tagged() {
         let location = "This is a string".to_string();
 

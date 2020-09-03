@@ -9,7 +9,7 @@ use crate::common::{
 
 use crate::vm::{
     trace::Trace,
-    tag::Tagged,
+    // tag::Tagged,
     stack::Stack,
     closure::Closure,
 };

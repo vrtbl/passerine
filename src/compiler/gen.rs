@@ -281,40 +281,48 @@ mod test {
     use crate::compiler::parse::parse;
     use crate::common::source::Source;
 
-    // #[test]
-    // fn constants() {
-    //     // TODO: flesh out as more datatypes are added
-    //     let source = Source::source("heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"");
-    //     let ast    = parse(
-    //         lex(source).unwrap()
-    //     ).unwrap();
-    //     let chunk = gen(ast);
-    //
-    //     let result = vec![
-    //         Data::Boolean(true),
-    //         Data::Real(0.0),
-    //         Data::Boolean(false),
-    //         Data::String("GOod MoRNiNg, SiR".to_string()),
-    //     ];
-    //
-    //     assert_eq!(chunk.constants, result);
-    // }
-    //
-    // #[test]
-    // fn bytecode() {
-    //     let source = Source::source("heck = true; lol = heck; lmao = false");
-    //     let ast    = parse(lex(source).unwrap()).unwrap();
-    //
-    //     let chunk = gen(ast);
-    //     let result = vec![
-    //         // con true, save to heck, clear
-    //         (Opcode::Con as u8), 128, (Opcode::Save as u8), 128, (Opcode::Clear as u8),
-    //         // load heck, save to lol, clear
-    //         (Opcode::Load as u8), 128, (Opcode::Save as u8), 129, (Opcode::Clear as u8),
-    //         // con false, save to lmao
-    //         (Opcode::Con as u8), 129, (Opcode::Save as u8), 130,
-    //     ];
-    //
-    //     assert_eq!(result, chunk.code);
-    // }
+    #[test]
+    fn constants() {
+        let source = Source::source("heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"");
+        let lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
+
+        println!("{:?}", lambda);
+
+        let result = vec![
+            Data::Boolean(true),
+            Data::Unit, // from assignment
+            Data::Real(0.0),
+            Data::Boolean(false),
+            Data::String("GOod MoRNiNg, SiR".to_string()),
+        ];
+
+        assert_eq!(lambda.constants, result);
+    }
+
+    #[test]
+    fn bytecode() {
+        let source = Source::source("heck = true; lol = heck; lmao = false");
+        let lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
+
+        let result = vec![
+            (Opcode::Con as u8), 128, (Opcode::Save as u8), 128,  // con true, save to heck,
+                (Opcode::Con as u8), 129, (Opcode::Del as u8),    // load unit, delete
+            (Opcode::Load as u8), 128, (Opcode::Save as u8), 129, // load heck, save to lol,
+                (Opcode::Con as u8), 129, (Opcode::Del as u8),    // load unit, delete
+            (Opcode::Con as u8), 130, (Opcode::Save as u8), 130,  // con false, save to lmao
+                (Opcode::Con as u8), 129,                         // load unit
+        ];
+
+        assert_eq!(result, lambda.code);
+    }
+
+    #[test]
+    fn closure() {
+        // TODO: replace add1 with actual addition
+        let source = Source::source("x = 0.0; incr = w -> { x = w x }");
+        let lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
+
+        println!("{:?}", lambda);
+        panic!();
+    }
 }
