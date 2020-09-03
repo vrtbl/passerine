@@ -28,7 +28,7 @@ pub fn lex(source: Rc<Source>) -> Result<Vec<Spanned<Token>>, Syntax> {
 /// A lexer takes a source file and lexes it into tokens.
 /// Note that this struct should not be controlled manually,
 /// use the `lex` function instead.
-struct Lexer {
+pub struct Lexer {
     /// A reference to the source being lexed.
     source: Rc<Source>,
     /// The current lexing offset.

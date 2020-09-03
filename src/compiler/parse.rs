@@ -17,7 +17,7 @@ pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
 }
 
 /// We're using a Pratt parser, so this little enum
-/// Defines different precedence levels.
+/// defines different precedence levels.
 /// Each successive level is higher, so, for example,
 /// `* > +`.
 #[repr(u8)]
@@ -34,8 +34,8 @@ impl Prec {
     /// Increments precedence level to cause the
     /// parser to associate infix operators to the left.
     /// For example, addition is left-associated:
-    /// ```ignore
-    /// parser.expression(Prec::Addition.associate_left.)
+    /// ```build
+    /// Prec::Addition.associate_left()
     /// ```
     /// By default, the parser accociates right.
     pub fn associate_left(&self) -> Prec {
@@ -89,9 +89,9 @@ impl Parser {
         self.current()
     }
 
-    /// I get one funny error message, so this is it.
-    /// I'm going to try to change it up frequently.
     /// Throws an error if the next token is unexpected.
+    /// I get one funny error message and this is it.
+    /// The error message returned by this function will be changed frequently
     pub fn unexpected(&self) -> Syntax {
         let token = self.current();
         Syntax::error(
@@ -100,8 +100,8 @@ impl Parser {
         )
     }
 
-    // Consumes a specific token then advances the parser.
-    // Can be used to consume Sep tokens, which are normally skipped.
+    /// Consumes a specific token then advances the parser.
+    /// Can be used to consume Sep tokens, which are normally skipped.
     pub fn consume(&mut self, token: Token) -> Result<&Spanned<Token>, Syntax> {
         self.index += 1;
         let current = &self.tokens[self.index - 1];
@@ -324,26 +324,35 @@ mod test {
     }
 
     #[test]
-    pub fn complex() {
-        // you cant\nparse =; this
-        let source = Source::source("y =; x");
-        //"\
-        // x = {\n    \
-        //     w = y -> z -> {\n         \
-        //         y = z 2.0 3.0\n        \
-        //         x 1.0\n    \
-        //     } 17.0\n\
-        // }\n\
-        // w = { z x y }\n\
-        // ");
-        let ast = parse(lex(source.clone()).unwrap());
-
-        if let Err(e) = ast {
-            println!("{}", e);
-        }
-
-        println!("{}", source.contents);
-        // println!("{}", ast);
-        panic!();
+    pub fn lambda() {
+        let source = Source::source("x = y -> 3.141592");
+        let ast = parse(lex(source.clone()).unwrap()).unwrap();
+        println!("{:#?}", ast);
+        assert_eq!(
+            ast,
+            Spanned::new(
+                AST::Block(
+                    vec![
+                        Spanned::new(
+                            AST::assign(
+                                Spanned::new(AST::Symbol, Span::new(&source, 0, 1)),
+                                Spanned::new(
+                                    AST::lambda(
+                                        Spanned::new(AST::Symbol, Span::new(&source, 4, 1)),
+                                        Spanned::new(
+                                            AST::Data(Data::Real(0.0)),
+                                            Span::new(&source, 9, 3),
+                                        ),
+                                    ),
+                                    Span::new(&source, 4, 8),
+                                ),
+                            ),
+                            Span::new(&source, 0, 12),
+                        ),
+                    ],
+                ),
+                Span::empty(),
+            )
+        );
     }
 }
