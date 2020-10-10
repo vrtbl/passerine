@@ -38,3 +38,18 @@ When the VM encounters a lambda definition:
 1. It wraps the lambda bytecode object in a closure.
 2. It uses the captured vec to store references to captured variables.
 3. It pushes the new closure object onto the stack.
+
+---
+
+Capturing is starting to be implemented, but it doesn't work right.
+Right now, it captures the variable in the current scope,
+rather than in the enclosing scopes.
+
+Future self, you need to implement some form of upvalues,
+or perhaps even you know, make it more multipass and just add
+hoisting and stuff.
+
+I believe in you!
+
+I'm off to work on assignments now, so I hope you'll come back to this
+when you actually have free time

@@ -313,7 +313,7 @@ mod test {
         // y = (x -> { y = x; y ) 7.0; y
         let lambda = gen(
             parse(
-                lex(Source::source("pi = 3.15; x = w -> pi; x ()")).unwrap()
+                lex(Source::source("pi = 3.15; x = w -> pi; x 37.6")).unwrap()
             ).unwrap()
         ).unwrap();
 
