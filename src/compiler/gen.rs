@@ -272,6 +272,7 @@ impl Compiler {
         self.walk(&arg)?;
         self.walk(&fun)?;
 
+        self.lambda.emit_span(&Span::combine(&fun.span, &arg.span));
         self.lambda.emit(Opcode::Call);
         Ok(())
     }

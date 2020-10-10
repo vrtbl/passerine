@@ -96,10 +96,16 @@ impl VM {
         let old_ip      = mem::replace(&mut self.ip,    0);
         // TODO: should lambdas store their own ip?
 
+        let mut result = Ok(());
+
         while self.ip < self.closure.lambda.code.len() {
             // println!("before: {:?}", self.stack.stack);
             // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
-            self.step()?;
+            if let error @ Err(_) = self.step() {
+                // TODO: clean up stack on error
+                result = error;
+                break;
+            };
             // println!("---");
         }
         // println!("after: {:?}", self.stack);
@@ -109,8 +115,8 @@ impl VM {
         mem::drop(mem::replace(&mut self.closure, old_closure));
         self.ip = old_ip;
 
-        // nothing went wrong!
-        return Result::Ok(());
+        // If something went wrong, the error will be returned.
+        return result;
     }
 
     // TODO: there are a lot of optimizations that can be made
@@ -135,7 +141,14 @@ impl VM {
     /// > NOTE: Behaviour is not stabilized yet.
     pub fn capture(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
+        // TODO: Write this all out efficiently?
         self.stack.heapify(index);
+        self.stack.get_local(index);
+        if let Data::Heaped(captured) = self.stack.pop_data() {
+            self.closure.captured.push(captured);
+        } else {
+            unreachable!("Heaped data wasn't heaped when cloned to top")
+        }
         self.done()
     }
 
@@ -150,8 +163,8 @@ impl VM {
     /// > NOTE: Not implemented.
     pub fn save_cap(&mut self) -> Result<(), Trace> {
         Err(Trace::error(
-            "Not Implemented",
-            "Saving to cap'd variables is not implemented",
+            "Impl.",
+            "Mutating captured variables is not yet implemented",
             vec![Span::empty()]
         ))
         // unimplemented!();
@@ -165,14 +178,19 @@ impl VM {
     }
 
     /// Load a captured variable from the current closure.
-    /// > NOTE: Not implemented.
+    /// TODO: simplify mechanisms
     pub fn load_cap(&mut self) -> Result<(), Trace> {
-        Err(Trace::error(
-            "Not Implemented",
-            "Loading cap'd variables is not implemented",
-            vec![self.closure.lambda.index_span(self.ip)],
-        ))
+        let index = self.next_number();
+        self.stack.push_data(Data::Heaped(self.closure.captured[index].clone()));
+
+        // Err(Trace::error(
+        //     "Impl.",
+        //     "Referencing captured variables is not yet implemented",
+        //     vec![self.closure.lambda.index_span(self.ip)],
+        // ));
         // unimplemented!();
+
+        self.done()
     }
 
     /// Delete the top item of the stack.
@@ -194,7 +212,13 @@ impl VM {
         self.stack.push_data(arg);
         // println!("entering...");
         // TODO: keep the passerine call stack separated from the rust call stack.
-        self.run(fun)?;
+        match self.run(fun) {
+            Ok(()) => (),
+            Err(mut trace) => {
+                trace.add_context(self.closure.lambda.index_span(self.ip));
+                return Err(trace);
+            },
+        };
         // println!("exiting...");
 
         self.done()
@@ -289,7 +313,7 @@ mod test {
         // y = (x -> { y = x; y ) 7.0; y
         let lambda = gen(
             parse(
-                lex(Source::source("pi = 3.15; w = x -> pi; w ()")).unwrap()
+                lex(Source::source("pi = 3.15; x = w -> pi; x ()")).unwrap()
             ).unwrap()
         ).unwrap();
 
@@ -299,6 +323,8 @@ mod test {
             Ok(_)  => (),
             Err(e) => eprintln!("{}", e),
         }
+
+        println!("{:?}", vm.stack.stack);
 
         panic!();
 

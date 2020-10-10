@@ -27,13 +27,14 @@ impl Trace {
 
 impl fmt::Display for Trace {
     fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Traceback, most recent call last:")?;
+        // TODO: better message?
+        writeln!(f, "Traceback, most recent is last:")?;
 
-        for span in self.spans.iter() {
+        for span in self.spans.iter().rev() {
             fmt::Display::fmt(span, f)?;
         }
 
-        writeln!(f, "Runtime Error: {}: {}", self.kind, self.message)
+        writeln!(f, "Runtime {} Error: {}", self.kind, self.message)
     }
 }
 
@@ -74,7 +75,7 @@ forever RandomLabel
         ";
 
         let traceback = Trace::error(
-            "Type Error",
+            "Type",
             "Can't add Label to Label",
             vec![
                 (Span::new(&source, 12, 5)),

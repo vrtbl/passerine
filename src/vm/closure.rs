@@ -1,4 +1,8 @@
-use std::rc::Rc;
+use std::{
+    rc::Rc,
+    cell::RefCell,
+};
+
 use crate::common::{
     lambda::Lambda,
     data::Data,
@@ -9,7 +13,7 @@ use crate::common::{
 #[derive(Debug)]
 pub struct Closure {
     pub lambda: Lambda,
-    pub captured: Vec<Rc<Data>>,
+    pub captured: Vec<Rc<RefCell<Data>>>,
 }
 
 impl Closure {
