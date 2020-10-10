@@ -5,6 +5,7 @@ use crate::common::{
     data::Data,
     opcode::Opcode,
     lambda::Lambda,
+    span::Span,
 };
 
 use crate::vm::{
@@ -59,7 +60,6 @@ impl VM {
         self.next();
         let remaining      = &self.closure.lambda.code[self.ip..];
         let (index, eaten) = build_number(remaining);
-        println!("number: {}", index);
         self.ip += eaten - 1; // ip left on next op
         return index;
     }
@@ -93,7 +93,7 @@ impl VM {
     pub fn run(&mut self, closure: Closure) -> Result<(), Trace> {
         // cache current state, load new bytecode
         let old_closure = mem::replace(&mut self.closure, closure);
-        let old_ip    = mem::replace(&mut self.ip,    0);
+        let old_ip      = mem::replace(&mut self.ip,    0);
         // TODO: should lambdas store their own ip?
 
         while self.ip < self.closure.lambda.code.len() {
@@ -134,7 +134,8 @@ impl VM {
     /// replacing it with a reference to the heapified value.
     /// > NOTE: Behaviour is not stabilized yet.
     pub fn capture(&mut self) -> Result<(), Trace> {
-        self.stack.heapify_top();
+        let index = self.next_number();
+        self.stack.heapify(index);
         self.done()
     }
 
@@ -148,7 +149,12 @@ impl VM {
     /// Save the topmost value on the stack into a captured variable.
     /// > NOTE: Not implemented.
     pub fn save_cap(&mut self) -> Result<(), Trace> {
-        unimplemented!();
+        Err(Trace::error(
+            "Not Implemented",
+            "Saving to cap'd variables is not implemented",
+            vec![Span::empty()]
+        ))
+        // unimplemented!();
     }
 
     /// Push a copy of a variable's value onto the stack.
@@ -161,7 +167,12 @@ impl VM {
     /// Load a captured variable from the current closure.
     /// > NOTE: Not implemented.
     pub fn load_cap(&mut self) -> Result<(), Trace> {
-        todo!();
+        Err(Trace::error(
+            "Not Implemented",
+            "Loading cap'd variables is not implemented",
+            vec![self.closure.lambda.index_span(self.ip)],
+        ))
+        // unimplemented!();
     }
 
     /// Delete the top item of the stack.
@@ -276,25 +287,21 @@ mod test {
     #[test]
     fn fun_scope() {
         // y = (x -> { y = x; y ) 7.0; y
-        let tokens = lex(Source::source("slippery =; banana"));
-        if let Ok(t) = tokens {
-            let ast = gen(parse(t).unwrap());
-            if let Err(e) = ast {
-                println!("{}", e);
-            }
-        } else {
-            println!("{:#?}", tokens);
+        let lambda = gen(
+            parse(
+                lex(Source::source("pi = 3.15; w = x -> pi; w ()")).unwrap()
+            ).unwrap()
+        ).unwrap();
+
+        let mut vm = VM::init();
+
+        match vm.run(Closure::wrap(lambda)) {
+            Ok(_)  => (),
+            Err(e) => eprintln!("{}", e),
         }
 
         panic!();
 
-        // let mut vm = VM::init();
-        //
-        // match vm.run(Closure::wrap(lambda)) {
-        //     Ok(_)  => (),
-        //     Err(e) => eprintln!("{}", e),
-        // }
-        //
         // // check that y is in fact 7
         // let t = vm.stack.pop_data();
         // assert_eq!(t, Data::Real(7.0));

@@ -1,5 +1,8 @@
 use std::mem;
-use crate::common::span::{Span, Spanned};
+use crate::common::{
+    span::{Span, Spanned},
+    data::Data,
+};
 
 use crate::compiler::{
     syntax::Syntax,
@@ -113,7 +116,7 @@ impl Parser {
         }
     }
 
-    // Core Pratt Parser:x
+    // Core Pratt Parser:
 
     /// Looks at the current token and parses an infix expression
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
@@ -123,7 +126,8 @@ impl Parser {
             Token::OpenParen   => self.group(),
             Token::OpenBracket => self.block(),
             Token::Symbol      => self.symbol(),
-              Token::Number(_)
+            Token::Unit
+            | Token::Number(_)
             | Token::String(_)
             | Token::Boolean(_) => self.literal(),
 
@@ -158,6 +162,7 @@ impl Parser {
             // prefix rules
               Token::OpenParen
             | Token::OpenBracket
+            | Token::Unit
             | Token::Symbol
             | Token::Number(_)
             | Token::String(_)
@@ -199,11 +204,12 @@ impl Parser {
         let Spanned { item: token, span } = self.advance();
 
         let leaf = match token {
+            Token::Unit       => AST::Data(Data::Unit),
             Token::Number(n)  => AST::Data(n.clone()),
             Token::String(s)  => AST::Data(s.clone()),
             Token::Boolean(b) => AST::Data(b.clone()),
             unexpected => return Err(Syntax::error(
-                &format!("Expected a literal, found {:?}", unexpected),
+                &format!("Expected a literal, found {}", unexpected),
                 span.clone()
             )),
         };
@@ -311,14 +317,21 @@ mod test {
         assert_eq!(
             ast,
             Spanned::new(
-                AST::assign(
-                    Spanned::new(AST::Symbol, Span::new(&source, 0, 1)),
-                    Spanned::new(
-                        AST::Data(Data::Real(55.0)),
-                        Span::new(&source, 4, 4),
-                    ),
+                AST::Block(
+                    vec![
+                        Spanned::new(
+                            AST::assign(
+                                Spanned::new(AST::Symbol, Span::new(&source, 0, 1)),
+                                Spanned::new(
+                                    AST::Data(Data::Real(55.0)),
+                                    Span::new(&source, 4, 4),
+                                ),
+                            ),
+                            Span::new(&source, 0, 8),
+                        )
+                    ]
                 ),
-                Span::new(&source, 0, 8),
+                Span::empty(),
             )
         );
     }

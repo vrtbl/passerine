@@ -80,14 +80,12 @@ impl Stack {
     /// Wraps the top data value on the stack in `Data::Heaped`,
     /// if it is not already on the heap.
     #[inline]
-    pub fn heapify_top(&mut self) {
-        let data = match self.pop_data() {
-            Data::Frame => unreachable!(),
-            // TODO: soft failure? just do nothing?
-            Data::Heaped(_) => panic!("Can not put data that is already on the heap onto the heap"),
-            other => other,
-        };
-        self.push_data(Data::Heaped(Rc::new(RefCell::new(data))));
+    pub fn heapify(&mut self, index: usize) {
+        let local_index = self.frames.peek() + index + 1;
+
+        let data = mem::replace(&mut self.stack[local_index], Tagged::frame()).data();
+        let heaped = Data::Heaped(Rc::new(RefCell::new(data)));
+        mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(heaped)));
     }
 
     /// Gets a local and pushes it onto the top of the `Stack`

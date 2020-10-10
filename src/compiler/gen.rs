@@ -69,16 +69,6 @@ impl Compiler {
         }
     }
 
-    // pub fn over(/* compiler: Box<Compiler> */) -> Compiler {
-    //     Compiler {
-    //         enclosing: Some(compiler),
-    //         lambda: Lambda::empty(),
-    //         locals: vec![],
-    //         captureds: vec![],
-    //         depth: compiler.depth + 1, // at top to prevent used-after move error
-    //     }
-    // }
-
     /// Declare a local variable.
     pub fn declare(&mut self, span: Span) {
         self.locals.push(
@@ -112,6 +102,9 @@ impl Compiler {
     /// A malformed AST will cause a panic, as ASTs should be correct at this stage,
     /// and for them to be incorrect is an error in the compiler itself.
     pub fn walk(&mut self, ast: &Spanned<AST>) -> Result<(), Syntax> {
+        // the entire span of the current node
+        self.lambda.emit_span(&ast.span);
+
         // push left, push right, push center
         let result = match ast.item.clone() {
             AST::Data(data) => self.data(data),
@@ -154,9 +147,15 @@ impl Compiler {
             }
         }
 
+        // the index of the local on the stack
+        // relative to the current stack frame
+        let index = captured.index;
+
         // is not captured
         self.captureds.push(captured);
         self.lambda.emit(Opcode::Capture);
+        self.lambda.emit_bytes(&mut split_number(index));
+
         return self.captureds.len() - 1;
     }
 
@@ -220,6 +219,9 @@ impl Compiler {
             _ => unreachable!(),
         };
 
+        // the span of the variable to be assigned to
+        self.lambda.emit_span(&span);
+
         // abstract out?
         let index = if let Some(i) = self.local(span.clone()) {
             self.lambda.emit(Opcode::Save); i
@@ -250,7 +252,7 @@ impl Compiler {
             self.lambda.emit_bytes(&mut split_number(0)); // will always be zerost item on stack
 
             // enter a new scope and walk the function body
-            // let mut nested = Compiler::over(&mut );
+            // let mut nested = Compiler::over(&mut);
             self.walk(&expression)?;    // run the function
             self.lambda.emit(Opcode::Return); // return the result
             self.lambda.emit_bytes(&mut split_number(self.locals.len()));
@@ -269,6 +271,7 @@ impl Compiler {
     pub fn call(&mut self, fun: Spanned<AST>, arg: Spanned<AST>) -> Result<(), Syntax> {
         self.walk(&arg)?;
         self.walk(&fun)?;
+
         self.lambda.emit(Opcode::Call);
         Ok(())
     }
@@ -319,10 +322,11 @@ mod test {
     #[test]
     fn closure() {
         // TODO: replace add1 with actual addition
-        let source = Source::source("x = 0.0; incr = w -> { x = w x }");
-        let lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
+        let source = Source::source("q = 1.0; x = (); w = y -> { x }; w ()");
+        let _lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
 
-        println!("{:?}", lambda);
-        panic!();
+        // I verified the output by hand
+        // TODO: verify manually
+        // println!("{:?}", lambda);
     }
 }

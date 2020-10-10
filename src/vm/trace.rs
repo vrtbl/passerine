@@ -33,7 +33,7 @@ impl fmt::Display for Trace {
             fmt::Display::fmt(span, f)?;
         }
 
-        writeln!(f, "Runtime {}: {}", self.kind, self.message)
+        writeln!(f, "Runtime Error: {}: {}", self.kind, self.message)
     }
 }
 

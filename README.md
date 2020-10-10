@@ -1,8 +1,20 @@
-[![Passerine Logotype](https://raw.githubusercontent.com/vrtbl/passerine/master/Logotype.png)](https://passerine.io)
-
-[![Rust Build Status](https://github.com/vrtbl/passerine/workflows/Rust/badge.svg)](https://github.com/vrtbl/passerine/actions)
-[![Crates.io](https://img.shields.io/crates/v/passerine.svg)](https://crates.io/crates/passerine)
-[![Docs.rs](https://docs.rs/passerine/badge.svg)](https://docs.rs/passerine)
+<center>
+    <a href="https://passerine.io">
+        <img src="https://raw.githubusercontent.com/vrtbl/passerine/master/Logotype.png">
+    </a>
+    <br>
+    <a href="https://github.com/vrtbl/passerine/actions">
+        <img src="https://github.com/vrtbl/passerine/workflows/Rust/badge.svg">
+    </a>
+    <a href="https://crates.io/crates/passerine">
+        <img src="https://img.shields.io/crates/v/passerine.svg">
+    </a>
+    <a href="https://docs.rs/passerine">
+        <img src="https://docs.rs/passerine/badge.svg">
+    </a>
+    <br>
+    <br>
+</center>
 
 Welcome to Passerine!
 Passerine is a small, concise, extensible programming language, powered by a VM written in Rust.

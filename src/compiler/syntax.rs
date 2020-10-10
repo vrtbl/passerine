@@ -39,7 +39,9 @@ mod test {
             Span::new(&source, 4, 14),
         );
 
-        let target = "Line 1:5
+        println!("{}", error);
+
+        let target = "In ./source:1:5
   |
 1 | x = \"Hello, world\" -> y + 1
   |     ^^^^^^^^^^^^^^

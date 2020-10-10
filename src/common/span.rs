@@ -125,14 +125,10 @@ impl Span {
         );
         indicies.push(string.len());
 
-        println!("indicies: {:?}", indicies);
-
         let mut lines = vec![];
         for i in 0..(indicies.len() - 1) {
             lines.push(&string[indicies[i]..indicies[i + 1]]);
         }
-
-        println!("done, lol");
 
         return lines;
     }
@@ -148,10 +144,10 @@ impl Span {
         let start_lines: Vec<&str> = Span::split_lines_inclusive(&full_source[..=start]);
         let end_lines:   Vec<&str> = Span::split_lines_inclusive(&full_source[..end]);
 
-        println!("{} {}", self.offset, self.length);
-        println!("{:?}", full_source);
-        println!("{:?}", start_lines);
-        println!("{:?}", end_lines);
+        // println!("{} {}", self.offset, self.length);
+        // println!("{:?}", full_source);
+        // println!("{:?}", start_lines);
+        // println!("{:?}", end_lines);
 
         let start_line = start_lines.len() - 1;
         let end_line   = end_lines.len() - 1;
@@ -207,7 +203,7 @@ impl Display for Span {
         let padding = readable_end_line.len();
 
         let location  = format!(
-            "While compiling {}:{}:{}",
+            "In {}:{}:{}",
             self.source.clone().unwrap()
                 .path.to_string_lossy(),
             readable_start_line,
@@ -309,7 +305,7 @@ mod test {
         let source = Source::source("hello\nbanana boat\nmagination\n");
         let span = Span::new(&source, 16, 12);
         assert_eq!(format!("{}", span), "\
-            While compiling ./source:2:11\n  \
+            In ./source:2:11\n  \
               |\n\
             2 > banana boat\n\
             3 > magination\n  \

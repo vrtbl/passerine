@@ -79,6 +79,7 @@ impl Lexer {
             // think 'or' as literal or 'or' as operator
 
             // static
+            Box::new(|s| Lexer::unit(s)         ),
             Box::new(|s| Lexer::open_bracket(s) ),
             Box::new(|s| Lexer::close_bracket(s)),
             Box::new(|s| Lexer::open_paren(s)   ),
@@ -191,6 +192,11 @@ impl Lexer {
     /// Matches a literal closing parenthesis `)`.
     pub fn close_paren(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, ")", Token::CloseParen)
+    }
+
+    /// Matches a literal closing parenthesis `)`.
+    pub fn unit(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "()", Token::Unit)
     }
 
     /// Matches a literal assignment equal sign `=`.

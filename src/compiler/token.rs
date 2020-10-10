@@ -18,6 +18,7 @@ pub enum Token {
     Lambda,
 
     // Datatypes
+    Unit,
     Symbol, // is specified by Span rather than an actual value
     Number(Data),
     String(Data),
@@ -39,6 +40,7 @@ impl Display for Token {
             Token::Sep          => "a separator",
             Token::Assign       => "an assignment",
             Token::Lambda       => "a lambda",
+            Token::Unit         => "unit",
             Token::Symbol       => "a symbol",
             Token::Number(_)    => "a number",
             Token::String(_)    => "a string",
