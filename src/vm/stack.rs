@@ -53,7 +53,7 @@ impl Stack {
             .expect("VM tried to pop empty stack, stack should never be empty");
 
         match value.data() {
-            Data::Frame => panic!("tried to pop data, Frame is not data"),
+            Data::Frame => unreachable!("tried to pop data, Frame is not data"),
             data        => data,
         }
     }
@@ -66,7 +66,7 @@ impl Stack {
         if self.stack.len() - 1 == index {
             self.stack.pop();
         } else {
-            panic!("Expected frame on top of stack, found data")
+            unreachable!("Expected frame on top of stack, found data")
         }
     }
 
@@ -113,7 +113,7 @@ impl Stack {
             // local is already in the correct spot; we declare it
             return;
         } else if self.stack.len() <= local_index {
-            panic!("Can not set local that is not yet on stack");
+            unreachable!("Can not set local that is not yet on stack");
         } else {
             // replace the old value with the new one
             // doesn't check that the new value is data

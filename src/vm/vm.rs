@@ -5,14 +5,13 @@ use crate::common::{
     data::Data,
     opcode::Opcode,
     lambda::Lambda,
-    span::Span,
+    closure::Closure,
 };
 
 use crate::vm::{
     trace::Trace,
     // tag::Tagged,
     stack::Stack,
-    closure::Closure,
 };
 
 /// A `VM` executes bytecode lambda closures.
@@ -51,7 +50,7 @@ impl VM {
     pub fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
     /// Returns the current instruction as a byte.
     pub fn peek_byte(&mut self) -> u8                { self.closure.lambda.code[self.ip] }
-    // Advances IP and returns the current instruction as a byte.
+    /// Advances IP and returns the current instruction as a byte.
     pub fn next_byte(&mut self) -> u8                { self.next(); self.peek_byte() }
 
     /// Builds the next number in the bytecode stream.
@@ -82,7 +81,7 @@ impl VM {
             Opcode::LoadCap => self.load_cap(),
             Opcode::Call    => self.call(),
             Opcode::Return  => self.return_val(),
-            Opcode::Closure => todo!("Implement closures"),
+            Opcode::Closure => self.closure(),
         }
     }
 
@@ -142,20 +141,16 @@ impl VM {
     /// > NOTE: Behaviour is not stabilized yet.
     pub fn capture(&mut self) -> Result<(), Trace> {
         // we need to use lambda captured, not closure captured!
-        let is_local = if self.next_number() == 1 { true } else { false };
         let index = self.next_number();
 
-        if is_local {
-            // TODO: Write this all out efficiently?
-            self.stack.heapify(index);
-            self.stack.get_local(index);
-            if let Data::Heaped(captured) = self.stack.pop_data() {
-                self.closure.captured.push(captured);
-            } else {
-                unreachable!("Heaped data wasn't heaped when cloned to top")
-            }
+        // TODO: Write this all out efficiently?
+        self.stack.heapify(index);   // move value to the heap
+        self.stack.get_local(index); // make a copy and push to the top of the stack
+        if let Data::Heaped(captured) = self.stack.pop_data() {
+            // yank that copy off the top of the stack, and capture it
+            self.closure.captureds.push(captured);
         } else {
-            panic!("capturing nonlocal values isn't implemented yet")
+            unreachable!("Heaped data wasn't heaped when cloned to top")
         }
 
         self.done()
@@ -173,7 +168,7 @@ impl VM {
     pub fn save_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         let data  = self.stack.pop_data();
-        mem::drop(self.closure.captured[index].replace(data));
+        mem::drop(self.closure.captureds[index].replace(data));
         self.done()
     }
 
@@ -185,10 +180,11 @@ impl VM {
     }
 
     /// Load a captured variable from the current closure.
-    /// TODO: simplify mechanisms
     pub fn load_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
-        self.stack.push_data(Data::Heaped(self.closure.captured[index].clone()));
+        // NOTE: should heaped data should only be present for variables?
+        // self.closure.captureds[index].borrow().to_owned()
+        self.stack.push_data(Data::Heaped(self.closure.captureds[index].clone()));
         self.done()
     }
 
@@ -202,8 +198,8 @@ impl VM {
     /// Call a function on the top of the stack, passing the next value as an argument.
     pub fn call(&mut self) -> Result<(), Trace> {
         let fun = match self.stack.pop_data() {
-            Data::Lambda(l) => Closure::wrap(l),
-            _               => unreachable!(),
+            Data::Closure(c) => c,
+            _                => unreachable!(),
         };
         let arg = self.stack.pop_data();
 
@@ -240,6 +236,23 @@ impl VM {
         self.stack.push_data(val); // push the return value
         self.terminate()
     }
+
+    pub fn closure(&mut self) -> Result<(), Trace> {
+        let index = self.next_number();
+
+        let lambda = match self.closure.lambda.constants[index].clone() {
+            Data::Lambda(lambda) => lambda,
+            _ => unreachable!("Expected a lambda to be wrapped with a closure"),
+        };
+
+        let mut closure = Closure::wrap(lambda);
+        for upvalue in closure.lambda.captureds.iter() {
+            closure.captureds.push(self.closure.captureds[*upvalue].clone())
+        }
+
+        self.stack.push_data(Data::Closure(closure));
+        self.done()
+    }
 }
 
 #[cfg(test)]
@@ -269,7 +282,10 @@ mod test {
 
         match vm.run(Closure::wrap(lambda)) {
             Ok(_)  => (),
-            Err(e) => eprintln!("{}", e),
+            Err(e) => {
+                eprintln!("{}", e);
+                panic!();
+            },
         }
     }
 
@@ -284,7 +300,10 @@ mod test {
 
         match vm.run(Closure::wrap(lambda)) {
             Ok(_)  => (),
-            Err(e) => eprintln!("{}", e),
+            Err(e) => {
+                eprintln!("{}", e);
+                panic!();
+            },
         }
 
         match vm.stack.pop_data() {
@@ -299,12 +318,14 @@ mod test {
             Source::source("iden = x -> x; y = true; iden ({y = false; iden iden} (iden y))")
         ).unwrap()).unwrap()).unwrap();
 
-        println!("{:?}", lambda);
         let mut vm = VM::init();
 
         match vm.run(Closure::wrap(lambda)) {
             Ok(_)  => (),
-            Err(e) => eprintln!("{}", e),
+            Err(e) => {
+                eprintln!("{}", e);
+                panic!();
+            },
         }
 
         let t = vm.stack.pop_data();
@@ -314,22 +335,19 @@ mod test {
     #[test]
     fn fun_scope() {
         // y = (x -> { y = x; y ) 7.0; y
-        let lambda = gen(
-            parse(
-                lex(Source::source("e = 2.72; pi = 3.15; x = w -> pi; x 37.6")).unwrap()
-            ).unwrap()
-        ).unwrap();
-
-        print!("{:?}", lambda);
+        let lambda = gen(parse(lex(Source::source(
+            "one = 1.0\npi = 3.14\ne = 2.72\n\nx = w -> pi\nx 37.6"
+        )).unwrap()).unwrap()).unwrap();
 
         let mut vm = VM::init();
 
         match vm.run(Closure::wrap(lambda)) {
             Ok(_)  => (),
-            Err(e) => eprintln!("{}", e),
+            Err(e) => {
+                eprintln!("{}", e);
+                panic!();
+            },
         }
-
-        // println!("{:?}", vm.stack.stack);
 
         let t = vm.stack.pop_data();
         assert_eq!(t, Data::Heaped(Rc::new(RefCell::new(Data::Real(3.14)))));

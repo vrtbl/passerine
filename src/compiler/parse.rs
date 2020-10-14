@@ -340,7 +340,7 @@ mod test {
     pub fn lambda() {
         let source = Source::source("x = y -> 3.141592");
         let ast = parse(lex(source.clone()).unwrap()).unwrap();
-        println!("{:#?}", ast);
+        // println!("{:#?}", ast);
         assert_eq!(
             ast,
             Spanned::new(

@@ -5,7 +5,10 @@ use std::{
     cell::RefCell,
 };
 
-use crate::common::lambda::Lambda;
+use crate::common::{
+    lambda::Lambda,
+    closure::Closure,
+};
 
 /// Built-in Passerine datatypes.
 #[derive(Debug, Clone, PartialEq)]
@@ -19,6 +22,7 @@ pub enum Data {
     Boolean(bool),
     String(String),
     Lambda(Lambda),
+    Closure(Closure),
     Label(String, Box<Data>), // TODO: better type
 
     // Compound Datatypes

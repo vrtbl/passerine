@@ -98,17 +98,17 @@
 //! To run some bytecode:
 //!
 //! ```
-//! # use common::source::Source
-//! # use crate::compiler::{lex::lex, parse::parse, gen::gen};
-//! # use crate::vm::vm::{Closure, VM};
+//! # use passerine::common::{closure::Closure, source::Source};
+//! # use passerine::compiler::{lex, parse, gen};
+//! # use passerine::vm::vm::VM;
 //! #
-//! # fn main() -> {
-//! # let source = Source::source("x = 0")
+//! # fn main() {
+//! # let source = Source::source("pi = 3.14");
 //! # let bytecode = Closure::wrap(gen(parse(lex(source).unwrap()).unwrap()).unwrap());
 //! // Initialize the VM:
 //! let mut vm = VM::init();
 //! // Run some bytecode:
-//! vm::run(bytecode);
+//! vm.run(bytecode);
 //! # }
 //! ```
 //!

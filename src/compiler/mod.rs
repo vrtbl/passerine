@@ -20,3 +20,7 @@ pub mod token;
 pub mod ast;
 
 pub mod syntax;
+
+pub use lex::lex;
+pub use parse::parse;
+pub use gen::gen;

@@ -152,52 +152,40 @@ impl Compiler {
             }
         }
 
-        // is not captured
-        let upvalue = match captured {
-            // move the variable onto the heap
-            Captured::Local(index) => {
-                self.lambda.emit(Opcode::Capture);
-                self.lambda.emit_bytes(&mut split_number(index));
-                index
-            },
-            // reference the previously heap'd variable
-            // in the closure's captureds vec
-            Captured::Nonlocal(upvalue) => upvalue,
-        };
+        // is not yet captured
+        if let Captured::Local(index) = captured {
+            self.lambda.emit(Opcode::Capture);
+            self.lambda.emit_bytes(&mut split_number(index));
+        }
 
         self.captureds.push(captured);
-        return upvalue;
+        return self.captureds.len() - 1;
     }
 
-    // TODO: rewrite
-    /// NOTE: Function is not yet stable.
+    // Tries to resolve a variable in enclosing scopes
+    // if resolution it successful, it captures the variable in the original scope
+    // then builds a chain of upvalues to hoist that upvalue where it's needed.
+    // This can be made more efficient.
     pub fn captured(&mut self, span: Span) -> Option<usize> {
-        println!("resolving {}", span);
         if let Some(enclosing) = self.enclosing.as_mut() {
-            println!("entering...");
-            println!("{:?}", Compiler::local(&enclosing, span.clone()));
-
             let upvalue = if let Some(index) = Compiler::local(&enclosing, span.clone()) {
                 // if the scope below us contains the local, we capture it
                 Compiler::capture(enclosing, Captured::Local(index))
             } else if let Some(index) = Compiler::captured(enclosing.as_mut(), span) {
                 // otherwise, we check the scope below us
+                // TODO: verify that doubly-lifted values work properly
                 Compiler::capture(enclosing, Captured::Nonlocal(index))
             } else {
                 // if the local wasn't found, we give up
-                println!("giving up ...");
                 return None;
             };
 
             self.lambda.captureds.push(upvalue);
             return Some(upvalue);
-        } else {
-            println!("base scope...");
         }
 
         // if there are no more enclosing scopes, we give up
-        // you can't capture a variable if it doesn't exist
-        println!("nothing found!");
+        // you can't capture a variable if it doesn't exist, lol
         return None;
     }
 
@@ -214,7 +202,6 @@ impl Compiler {
             self.lambda.emit_bytes(&mut split_number(index))
         } else {
             // TODO: hoist?
-            println!("erring");
             return Err(Syntax::error(
                 "Variable referenced before assignment; it is undefined", span
             ));
@@ -320,8 +307,6 @@ mod test {
         let source = Source::source("heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"");
         let lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
 
-        println!("{:?}", lambda);
-
         let result = vec![
             Data::Boolean(true),
             Data::Unit, // from assignment
@@ -350,15 +335,7 @@ mod test {
         assert_eq!(result, lambda.code);
     }
 
-    #[test]
-    fn closure() {
-        // TODO: replace add1 with actual addition
-        let source = Source::source("q = 1.0; x = (); w = y -> { x }; w ()");
-        let lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
-
-        // I verified the output by hand
-        // TODO: verify manually
-        println!("{:?}", lambda);
-        panic!();
-    }
+    // NOTE: instead of veryfying bytecode output,
+    // write a test in vm::vm::test
+    // and check behaviour that way
 }

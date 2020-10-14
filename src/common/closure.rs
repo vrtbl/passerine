@@ -10,15 +10,15 @@ use crate::common::{
 
 /// Wraps a `Lambda` with some scope context.
 /// > NOTE: currently a work-in-progress.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Closure {
     pub lambda: Lambda,
-    pub captured: Vec<Rc<RefCell<Data>>>,
+    pub captureds: Vec<Rc<RefCell<Data>>>,
 }
 
 impl Closure {
     /// Constructs a new `Closure` by wrapping a `Lambda`.
     pub fn wrap(lambda: Lambda) -> Closure {
-        Closure { lambda, captured: vec![] }
+        Closure { lambda, captureds: vec![] }
     }
 }

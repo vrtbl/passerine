@@ -11,3 +11,4 @@ pub mod data;
 pub mod number;
 pub mod opcode;
 pub mod lambda;
+pub mod closure;
