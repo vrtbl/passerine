@@ -1,6 +1,13 @@
-use std::fmt::{Formatter, Display, Result};
-use std::usize;
-use std::rc::Rc;
+use std::{
+    fmt::{
+        Formatter,
+        Debug,
+        Display,
+        Result
+    },
+    usize,
+    rc::Rc,
+};
 
 use crate::common::source::Source;
 
@@ -8,11 +15,11 @@ use crate::common::source::Source;
 /// much like a `&str`, but with a reference to a `Source` rather than a `String`.
 /// A `Span` is  meant to be paired with other datastructures,
 /// to be used during error reporting.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Span {
-    source: Option<Rc<Source>>,
-    offset: usize,
-    length: usize,
+    pub source: Option<Rc<Source>>,
+    pub offset: usize,
+    pub length: usize,
 }
 
 impl Span {
@@ -41,6 +48,21 @@ impl Span {
         self.source == None
     }
 
+    pub fn end(&self) -> usize {
+        self.offset + self.length
+    }
+
+    /// Compares two Spans.
+    /// returns true if this span starts the latest
+    /// or is the longest in the case of a tie
+    /// but false there is a total tie
+    /// or otherwise
+    pub fn later_than(&self, other: &Span) -> bool {
+        self.offset > other.offset
+           || (self.offset == other.offset
+              && self.end() > other.end())
+    }
+
     /// Creates a new `Span` which spans the space of the previous two.
     /// ```plain
     /// hello this is cool
@@ -57,7 +79,7 @@ impl Span {
         }
 
         let offset = a.offset.min(b.offset);
-        let end    = (a.offset + a.length).max(b.offset + b.length);
+        let end    = a.end().max(b.end());
         let length = end - offset;
 
         // `a` should not be empty at this point
@@ -84,7 +106,31 @@ impl Span {
     /// is empty, the program will panic.
     pub fn contents(&self) -> String {
         if self.is_empty() { panic!("An empty span does not have any contents") }
-        self.source.as_ref().unwrap().contents[self.offset..(self.offset + self.length)].to_string()
+        self.source.as_ref().unwrap().contents[self.offset..(self.end())].to_string()
+    }
+
+    // Used by fmt::Display:
+
+    // NOTE: once split_inclusive is included in rust's stdlib,
+    // just replace this method with the std version.
+    /// Splits a string by the newline character into a Vector of string slices.
+    /// Includes the trailing newline in each slice.
+    fn split_lines_inclusive(string: &str) -> Vec<&str> {
+        let newline = "\n";
+
+        let mut indicies: Vec<usize> = vec![0];
+        indicies.append(&mut string
+            .match_indices(newline).collect::<Vec<(usize, &str)>>()
+            .into_iter().map(|(s, _)| s + newline.len()).collect()
+        );
+        indicies.push(string.len());
+
+        let mut lines = vec![];
+        for i in 0..(indicies.len() - 1) {
+            lines.push(&string[indicies[i]..indicies[i + 1]]);
+        }
+
+        return lines;
     }
 
     /// Returns the start and end lines and columns of the `Span` if the `Span` is not empty.
@@ -92,10 +138,16 @@ impl Span {
         if self.is_empty() { panic!("Can not return the line indicies of an empty span") }
 
         let start = self.offset;
-        let end   = self.offset + self.length;
+        let end   = self.end();
 
-        let start_lines: Vec<&str> = self.source.as_ref().unwrap().contents[..=start].lines().collect();
-        let end_lines:   Vec<&str> = self.source.as_ref().unwrap().contents[..=end].lines().collect();
+        let full_source = &self.source.as_ref().unwrap().contents;
+        let start_lines: Vec<&str> = Span::split_lines_inclusive(&full_source[..=start]);
+        let end_lines:   Vec<&str> = Span::split_lines_inclusive(&full_source[..end]);
+
+        // println!("{} {}", self.offset, self.length);
+        // println!("{:?}", full_source);
+        // println!("{:?}", start_lines);
+        // println!("{:?}", end_lines);
 
         let start_line = start_lines.len() - 1;
         let end_line   = end_lines.len() - 1;
@@ -108,7 +160,18 @@ impl Span {
     }
 }
 
+impl Debug for Span {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        if !self.is_empty() {
+            write!(f, "Span {{ {:?}, ({}, {}) }}", self.contents(), self.offset, self.length)
+        } else {
+            write!(f, "Span {{ Empty }}")
+        }
+    }
+}
+
 // TODO: tests
+// TODO: this can be vastly simplified
 impl Display for Span {
     /// Given a `Span`, `fmt` will print out where the `Span` occurs in its source.
     /// Single-line `Span`s:
@@ -125,11 +188,11 @@ impl Display for Span {
     /// ```
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         if self.is_empty() {
-            panic!("Can't display the section corresponding with an empty Spanotation")
+            panic!("Can't display the section corresponding with an empty Span")
         }
 
         let lines: Vec<&str> = self.source.as_ref().unwrap().contents.lines().collect();
-        let ((start_line, start_col), (end_line, end_col)) = match self.line_indicies() {
+        let ((start_line, start_col), (end_line, _end_col)) = match self.line_indicies() {
             Some(li) => li,
             None     => unreachable!(),
         };
@@ -139,11 +202,17 @@ impl Display for Span {
         let readable_start_col  = (start_col  + 1).to_string();
         let padding = readable_end_line.len();
 
-        let location  = format!("Line {}:{}", readable_start_line, readable_start_col);
+        let location  = format!(
+            "In {}:{}:{}",
+            self.source.clone().unwrap()
+                .path.to_string_lossy(),
+            readable_start_line,
+            readable_start_col
+        );
+
         let separator = format!("{} |", " ".repeat(padding));
 
         if start_line == end_line {
-            // TODO: Error here:
             let l = lines[end_line];
 
             let line = format!("{} | {}", readable_end_line, l);
@@ -159,7 +228,7 @@ impl Display for Span {
             writeln!(f, "{}", line)?;
             writeln!(f, "{}", span)
         } else {
-            let formatted = lines[start_line..end_line]
+            let formatted = lines[start_line..=end_line]
                 .iter()
                 .enumerate()
                 .map(|(i, l)| {
@@ -211,7 +280,7 @@ mod test {
 
     #[test]
     fn combination() {
-        let source = Rc::new(Source::source("heck, that's awesome"));
+        let source = Source::source("heck, that's awesome");
         let a = Span::new(&source, 0, 5);
         let b = Span::new(&source, 11, 2);
 
@@ -220,7 +289,7 @@ mod test {
 
     #[test]
     fn span_and_contents() {
-        let source = Rc::new(Source::source("hello, this is some text!"));
+        let source = Source::source("hello, this is some text!");
         let spans   = vec![
             Span::new(&source, 0,  8),
             Span::new(&source, 7,  5),
@@ -229,5 +298,19 @@ mod test {
         let result = Span::new(&source, 0, 16);
 
         assert_eq!(Span::join(spans).contents(), result.contents());
+    }
+
+    #[test]
+    fn display() {
+        let source = Source::source("hello\nbanana boat\nmagination\n");
+        let span = Span::new(&source, 16, 12);
+        assert_eq!(format!("{}", span), "\
+            In ./source:2:11\n  \
+              |\n\
+            2 > banana boat\n\
+            3 > magination\n  \
+              |\n\
+            "
+        )
     }
 }

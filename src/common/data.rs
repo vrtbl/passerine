@@ -1,25 +1,28 @@
-use std::hash::{Hash, Hasher};
-use std::fmt::{Debug, Error, Formatter};
-use std::ops::Deref;
-use std::mem;
-use std::f64;
-use std::rc::Rc;
+use std::{
+    fmt::Debug,
+    f64,
+    rc::Rc,
+    cell::RefCell,
+};
 
-use crate::compiler::gen::Chunk;
-use crate::vm::local::Local;
+use crate::common::{
+    lambda::Lambda,
+    closure::Closure,
+};
 
+/// Built-in Passerine datatypes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     // VM Stack
     Frame,
-    Local(Local, Box<Data>),
-    Heap(Local, Rc<Data>),
+    Heaped(Rc<RefCell<Data>>),
 
     // Passerine Data (Atomic)
     Real(f64),
     Boolean(bool),
     String(String),
-    Lambda(Chunk),
+    Lambda(Lambda),
+    Closure(Closure),
     Label(String, Box<Data>), // TODO: better type
 
     // Compound Datatypes

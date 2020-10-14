@@ -10,6 +10,7 @@ pub struct Trace {
 }
 
 impl Trace {
+    /// Creates a new traceback
     pub fn error(kind: &str, message: &str, spans: Vec<Span>) -> Trace {
         Trace {
             kind: kind.to_string(),
@@ -17,17 +18,23 @@ impl Trace {
             spans,
         }
     }
+
+    /// Used to add context (i.e. function calls) while unwinding the stack.
+    pub fn add_context(&mut self, span: Span) {
+        self.spans.push(span);
+    }
 }
 
 impl fmt::Display for Trace {
     fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Traceback, most recent call last:")?;
+        // TODO: better message?
+        writeln!(f, "Traceback, most recent is last:")?;
 
-        for span in self.spans.iter() {
+        for span in self.spans.iter().rev() {
             fmt::Display::fmt(span, f)?;
         }
 
-        writeln!(f, "Runtime {}: {}", self.kind, self.message)
+        writeln!(f, "Runtime {} Error: {}", self.kind, self.message)
     }
 }
 
@@ -46,28 +53,29 @@ dub_incr = z -> (incr x) + (incr x)
 forever = a -> a = a + (dub_incr a)
 forever RandomLabel
 "));
-        let target = "Traceback, most recent call last:
-Line 1:13
-  |
-1 | incr = x -> x + 1
-  |             ^^^^^
-Line 2:17
-  |
-2 | dub_incr = z -> (incr x) + (incr x)
-  |                 ^^^^^^^^
-Line 3:24
-  |
-3 | forever = a -> a = a + (dub_incr a)
-  |                        ^^^^^^^^^^^^
-Line 4:1
-  |
-4 | forever RandomLabel
-  | ^^^^^^^^^^^^^^^^^^^
-Runtime Type Error: Can't add Label to Label
-";
+        let target = "\
+            Traceback, most recent is last:\n\
+            In ./source:4:1\n  \
+              |\n\
+            4 | forever RandomLabel\n  \
+              | ^^^^^^^^^^^^^^^^^^^\n\
+            In ./source:3:24\n  \
+              |\n\
+            3 | forever = a -> a = a + (dub_incr a)\n  \
+              |                        ^^^^^^^^^^^^\n\
+            In ./source:2:17\n  \
+              |\n\
+            2 | dub_incr = z -> (incr x) + (incr x)\n  \
+              |                 ^^^^^^^^\n\
+            In ./source:1:13\n  \
+              |\n\
+            1 | incr = x -> x + 1\n  \
+              |             ^^^^^\n\
+            Runtime Type Error: Can\'t add Label to Label\n\
+        ";
 
         let traceback = Trace::error(
-            "Type Error",
+            "Type",
             "Can't add Label to Label",
             vec![
                 (Span::new(&source, 12, 5)),

@@ -1,25 +1,17 @@
-use crate::common::span::Spanned;
-use crate::common::data::Data;
-use crate::vm::local::Local;
+use crate::common::{
+    span::Spanned,
+    data::Data,
+};
 
 // NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)
 // Store class of item in AST, then delegate exact type to external enum?
 
-/// Represents an item in an AST.
-/// Each language-level construct has it's own AST.
-/// note that this has two lifetimes:
-/// `'s` represents the lifetime of the span,
-/// `'i` represents the lifetime of the AST.
-/// Spans live through the whole program just about,
-/// Whereas the AST is discarded during the bytecode generation phase.
-/// Man, explicit lifetime renaming is annoying,
-/// and comes across as a code-smell.
-/// If you're reading this and think you know a better way.
-/// please, at the least, open an issue describing your more optimal methodology.
-#[derive(Debug, Clone)]
+/// Represents an item in an `AST`.
+/// Each language-level construct has it's own `AST` variant.
+#[derive(Debug, Clone, PartialEq)]
 pub enum AST {
+    Symbol,
     Data(Data),
-    Symbol(Local),
     Block(Vec<Spanned<AST>>),
     Assign {
         pattern:    Box<Spanned<AST>>, // Note - should be pattern
@@ -45,19 +37,8 @@ pub enum AST {
     // Form(Vec<AST>) // function call -> (fun a1 a2 .. an)
 }
 
-// TODO: Do annotations and nodes need separate lifetimes?
-// anns live past the generator, nodes shouldn't
-// Additionally, convert to Spanned<AST>?
-
-// TODO: These are semi-reduntant
 impl AST {
-    // Leafs; terminals
-    pub fn data(data: Data)      -> AST { AST::Data(data)     }
-    pub fn symbol(symbol: Local) -> AST { AST::Symbol(symbol) }
-
-    // Recursive
-    pub fn block(exprs: Vec<Spanned<AST>>) -> AST { AST::Block(exprs) }
-
+    /// Shortcut for creating an `AST::Assign` variant.
     pub fn assign(
         pattern:    Spanned<AST>,
         expression: Spanned<AST>
@@ -68,6 +49,7 @@ impl AST {
         }
     }
 
+    /// Shortcut for creating an `AST::Lambda` variant.
     pub fn lambda(
         pattern:    Spanned<AST>,
         expression: Spanned<AST>
@@ -78,6 +60,8 @@ impl AST {
         }
     }
 
+    // TODO: make a call a list of items rather than a left-associated tree?
+    /// Shortcut for creating an `AST::Call` variant.
     pub fn call(
         fun: Spanned<AST>,
         arg: Spanned<AST>

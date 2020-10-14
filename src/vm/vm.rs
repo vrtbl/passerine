@@ -1,22 +1,29 @@
 use std::mem;
 
-use crate::common::number::build_number;
-use crate::common::data::Data;
-use crate::common::opcode::Opcode;
-use crate::vm::trace::Trace;
-use crate::vm::tag::Tagged;
-use crate::vm::stack::{Item, Stack};
-use crate::vm::local::Local;
-use crate::compiler::gen::Chunk; // TODO: Move chunk to a better spot?
+use crate::common::{
+    number::build_number,
+    data::Data,
+    opcode::Opcode,
+    lambda::Lambda,
+    closure::Closure,
+};
 
-/// A `VM` executes bytecode chunks.
-/// Each VM's state is self-contained,
-/// So more than one can be spawned if needed.
+use crate::vm::{
+    trace::Trace,
+    // tag::Tagged,
+    stack::Stack,
+};
+
+/// A `VM` executes bytecode lambda closures.
+/// (That's a mouthful - think bytecode + some context).
+/// VM initialization overhead is tiny,
+/// and each VM's state is self-contained,
+/// so more than one can be spawned if needed.
 #[derive(Debug)]
 pub struct VM {
-    chunk: Chunk,
-    stack: Stack,
-    ip:    usize,
+    closure: Closure,
+    stack:   Stack,
+    ip:      usize,
 }
 
 // NOTE: use Opcode::same and Opcode.to_byte() rather than actual bytes
@@ -26,221 +33,234 @@ pub struct VM {
 // the next impl contains opcode implementations
 impl VM {
     /// Initialize a new VM.
-    /// To run the VM, a chunk must be passed to it through `run`.
+    /// To run the VM, a lambda must be passed to it through `run`.
     pub fn init() -> VM {
         VM {
-            chunk: Chunk::empty(),
-            stack: vec![Item::Frame],
+            closure: Closure::wrap(Lambda::empty()),
+            stack: Stack::init(),
             ip:    0,
         }
     }
 
-
-    fn next(&mut self)                           { self.ip += 1; }
-    fn terminate(&mut self) -> Result<(), Trace> { self.ip = self.chunk.code.len(); Ok(()) }
-    fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
-    fn peek_byte(&mut self) -> u8                { self.chunk.code[self.ip] }
-    fn next_byte(&mut self) -> u8                { self.done().unwrap(); self.peek_byte() }
+    /// Advances to the next instruction.
+    pub fn next(&mut self)                           { self.ip += 1; }
+    /// Jumps past the end of the block, causing the current lambda to return.
+    pub fn terminate(&mut self) -> Result<(), Trace> { self.ip = self.closure.lambda.code.len(); Ok(()) }
+    /// Advances IP, returns `Ok`. Used in Bytecode implementations.
+    pub fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
+    /// Returns the current instruction as a byte.
+    pub fn peek_byte(&mut self) -> u8                { self.closure.lambda.code[self.ip] }
+    /// Advances IP and returns the current instruction as a byte.
+    pub fn next_byte(&mut self) -> u8                { self.next(); self.peek_byte() }
 
     /// Builds the next number in the bytecode stream.
     /// See `utils::number` for more.
-    fn next_number(&mut self) -> usize {
+    pub fn next_number(&mut self) -> usize {
         self.next();
-        let remaining      = self.chunk.code[self.ip..].to_vec();
+        let remaining      = &self.closure.lambda.code[self.ip..];
         let (index, eaten) = build_number(remaining);
         self.ip += eaten - 1; // ip left on next op
-        println!("{}", index);
         return index;
-    }
-
-    /// Finds a local on stack.
-    /// Note that in the future, locals should be pre-indexed when the AST is walked
-    /// so this function won't be necessary then.
-    fn find_local(&mut self, local: &Local) -> Option<usize> {
-        for (index, item) in self.stack.iter().enumerate().rev() {
-            match item {
-                Item::Local { local: l, .. } => if local == l { return Some(index); },
-                Item::Frame                  => break,
-                Item::Data(_)                => (),
-            }
-        }
-
-        return None;
-    }
-
-    /// finds the index of the local on the stack indicated by the bytecode.
-    fn local_index(&mut self) -> (Local, Option<usize>) {
-        let local_index = self.next_number();
-        let local       = self.chunk.locals[local_index].clone();
-        let index       = self.find_local(&local);
-
-        return (local, index);
     }
 
     // core interpreter loop
 
     /// Dissasembles and interprets a single (potentially fallible) bytecode op.
-    /// The op definitions follow in the proceeding impl block.
-    /// To see what each op does, check `pipeline::bytecode.rs`
-    fn step(&mut self) -> Result<(), Trace> {
-        let op_code = Opcode::from_byte(self.peek_byte());
+    /// The op definitions follow in the next `impl` block.
+    /// To see what each op does, check `common::opcode::Opcode`.
+    pub fn step(&mut self) -> Result<(), Trace> {
+        let opcode = Opcode::from_byte(self.peek_byte());
 
-        match op_code {
-            Opcode::Con    => self.con(),
-            Opcode::Save   => self.save(),
-            Opcode::Load   => self.load(),
-            Opcode::Clear  => self.clear(),
-            Opcode::Call   => self.call(),
-            Opcode::Return => self.return_val(),
+        match opcode {
+            Opcode::Con     => self.con(),
+            Opcode::Del     => self.del(),
+            Opcode::Capture => self.capture(),
+            Opcode::Save    => self.save(),
+            Opcode::SaveCap => self.save_cap(),
+            Opcode::Load    => self.load(),
+            Opcode::LoadCap => self.load_cap(),
+            Opcode::Call    => self.call(),
+            Opcode::Return  => self.return_val(),
+            Opcode::Closure => self.closure(),
         }
     }
 
-    /// Suspends the current chunk and runs a new one on the VM.
-    /// Runs until either success, in which it restores the state of the previous chunk,
+    /// Suspends the current lambda and runs a new one on the VM.
+    /// Runs until either success, in which it restores the state of the previous lambda,
     /// Or failure, in which it returns the runtime error.
     /// In the future, fibers will allow for error handling -
     /// right now, error in Passerine are practically panics.
-    fn run(&mut self, chunk: Chunk) -> Result<(), Trace> {
+    pub fn run(&mut self, closure: Closure) -> Result<(), Trace> {
         // cache current state, load new bytecode
-        let old_chunk = mem::replace(&mut self.chunk, chunk);
-        let old_ip    = mem::replace(&mut self.ip,    0);
-        // TODO: should chunks store their own ip?
+        let old_closure = mem::replace(&mut self.closure, closure);
+        let old_ip      = mem::replace(&mut self.ip,    0);
+        // TODO: should lambdas store their own ip?
 
-        while self.ip < self.chunk.code.len() {
-            println!("before: {:?}", self.stack);
-            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
-            println!("---");
-            self.step()?;
+        let mut result = Ok(());
+
+        while self.ip < self.closure.lambda.code.len() {
+            // println!("before: {:?}", self.stack.stack);
+            // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            if let error @ Err(_) = self.step() {
+                // TODO: clean up stack on error
+                result = error;
+                break;
+            };
+            // println!("---");
         }
+        // println!("after: {:?}", self.stack);
+        // println!("---");
 
         // return current state
-        mem::drop(mem::replace(&mut self.chunk, old_chunk));
+        mem::drop(mem::replace(&mut self.closure, old_closure));
         self.ip = old_ip;
 
-        // nothing went wrong!
-        return Result::Ok(());
+        // If something went wrong, the error will be returned.
+        return result;
     }
-}
 
-// TODO: there are a lot of optimizations that can be made
-// I'll list a few here:
-// - searching the stack for variables
-//   A global Hash-table has significantly less overhead for function calls
-// - cloning the heck out of everything - useless copies
-//   instead, lifetime analysis during compilation
-// - replace some panics with Result<()>s
-impl VM {
+    // TODO: there are a lot of optimizations that can be made
+    // I'll list a few here:
+    // - searching the stack for variables
+    //   A global Hash-table has significantly less overhead for function calls
+    // - cloning the heck out of everything - useless copies
+    //   instead, lifetime analysis during compilation
+    // - replace some panics with Result<()>s
+
     /// Load a constant and push it onto the stack.
-    fn con(&mut self) -> Result<(), Trace> {
+    pub fn con(&mut self) -> Result<(), Trace> {
         // get the constant index
         let index = self.next_number();
 
-        self.stack.push(Item::Data(Tagged::new(self.chunk.constants[index].clone())));
+        self.stack.push_data(self.closure.lambda.constants[index].clone());
+        self.done()
+    }
+
+    /// Moves the top value on the stack to the heap,
+    /// replacing it with a reference to the heapified value.
+    /// > NOTE: Behaviour is not stabilized yet.
+    pub fn capture(&mut self) -> Result<(), Trace> {
+        // we need to use lambda captured, not closure captured!
+        let index = self.next_number();
+
+        // TODO: Write this all out efficiently?
+        self.stack.heapify(index);   // move value to the heap
+        self.stack.get_local(index); // make a copy and push to the top of the stack
+        if let Data::Heaped(captured) = self.stack.pop_data() {
+            // yank that copy off the top of the stack, and capture it
+            self.closure.captureds.push(captured);
+        } else {
+            unreachable!("Heaped data wasn't heaped when cloned to top")
+        }
+
         self.done()
     }
 
     /// Save the topmost value on the stack into a variable.
-    fn save(&mut self) -> Result<(), Trace> {
-        let data = match self.stack.pop() { Some(Item::Data(d)) => d.data(), _ => panic!("Expected data") };
-        let (local, index) = self.local_index();
+    pub fn save(&mut self) -> Result<(), Trace> {
+        let index = self.next_number();
+        self.stack.set_local(index);
+        self.done()
+    }
 
-        // NOTE: Does it make a copy or does it make a reference?
-        // It makes a copy of the data
-        match index {
-            // It's been declared
-            Some(i) => mem::drop(
-                mem::replace(
-                    &mut self.stack[i],
-                    Item::Local { local, data },
-                )
-            ),
-            // It hasn't been declared
-            None => self.stack.push(Item::Local { local, data }),
-        }
-
-        // TODO: make separate byte code op?
-        self.stack.push(Item::Data(Tagged::new(Data::Unit)));
-
+    /// Save the topmost value on the stack into a captured variable.
+    /// > NOTE: Not implemented.
+    pub fn save_cap(&mut self) -> Result<(), Trace> {
+        let index = self.next_number();
+        let data  = self.stack.pop_data();
+        mem::drop(self.closure.captureds[index].replace(data));
         self.done()
     }
 
     /// Push a copy of a variable's value onto the stack.
-    fn load(&mut self) -> Result<(), Trace> {
-        let (_, index) = self.local_index();
-
-        match index {
-            Some(i) => {
-                if let Item::Local { data, .. } = &self.stack[i] {
-                    let data = Item::Data(Tagged::new(data.clone()));
-                    self.stack.push(data);
-                }
-            },
-            None => panic!("Local not found on stack!"), // TODO: make it a Passerine error
-        }
-
+    pub fn load(&mut self) -> Result<(), Trace> {
+        let index = self.next_number();
+        self.stack.get_local(index);
         self.done()
     }
 
-    /// Clear all data off the stack.
-    fn clear(&mut self) -> Result<(), Trace> {
-        loop {
-            match self.stack.pop() {
-                Some(Item::Data(_)) => (),
-                Some(l)             => { self.stack.push(l); break; },
-                None                => panic!("There wasn't a frame on the stack.")
-            }
-        }
-
+    /// Load a captured variable from the current closure.
+    pub fn load_cap(&mut self) -> Result<(), Trace> {
+        let index = self.next_number();
+        // NOTE: should heaped data should only be present for variables?
+        // self.closure.captureds[index].borrow().to_owned()
+        self.stack.push_data(Data::Heaped(self.closure.captureds[index].clone()));
         self.done()
     }
 
+    /// Delete the top item of the stack.
+    pub fn del(&mut self) -> Result<(), Trace> {
+        mem::drop(self.stack.pop_data());
+        self.done()
+    }
+
+    // TODO: closures
     /// Call a function on the top of the stack, passing the next value as an argument.
-    fn call(&mut self) -> Result<(), Trace> {
-        let fun = match self.stack.pop() {
-            Some(Item::Data(d)) => match d.data() {
-                Data::Lambda(l) => l,
-                _               => unreachable!(),
-            }
-            _ => unreachable!(),
+    pub fn call(&mut self) -> Result<(), Trace> {
+        let fun = match self.stack.pop_data() {
+            Data::Closure(c) => c,
+            _                => unreachable!(),
         };
-        let arg = match self.stack.pop() {
-            Some(Item::Data(d)) => d,
-            _                   => unreachable!(),
-        };
+        let arg = self.stack.pop_data();
 
-        self.stack.push(Item::Frame);
-        self.stack.push(Item::Data(arg));
-        println!("entering...");
-        self.run(fun)?;
-        println!("exiting...");
+        self.stack.push_frame();
+        self.stack.push_data(arg);
+        // println!("entering...");
+        // TODO: keep the passerine call stack separated from the rust call stack.
+        match self.run(fun) {
+            Ok(()) => (),
+            Err(mut trace) => {
+                trace.add_context(self.closure.lambda.index_span(self.ip));
+                return Err(trace);
+            },
+        };
+        // println!("exiting...");
 
         self.done()
     }
 
     /// Return a value from a function.
-    /// End the execution of the current chunk.
+    /// End the execution of the current lambda.
+    /// Takes the number of locals on the stack
     /// Relpaces the last frame with the value on the top of the stack.
-    fn return_val(&mut self) -> Result<(), Trace> {
-        let val = match self.stack.pop() {
-            Some(Item::Data(d)) => d,
-            _                   => unreachable!(),
+    /// Expects the stack to be a `[..., Frame, Local 1, ..., Local N, Data]`
+    pub fn return_val(&mut self) -> Result<(), Trace> {
+        // the value to be returned
+        let val = self.stack.pop_data();
+
+        // clear all locals
+        let locals = self.next_number();
+        for _ in 0..locals { self.del()?; }
+
+        self.stack.pop_frame();    // remove the frame
+        self.stack.push_data(val); // push the return value
+        self.terminate()
+    }
+
+    pub fn closure(&mut self) -> Result<(), Trace> {
+        let index = self.next_number();
+
+        let lambda = match self.closure.lambda.constants[index].clone() {
+            Data::Lambda(lambda) => lambda,
+            _ => unreachable!("Expected a lambda to be wrapped with a closure"),
         };
 
-        loop {
-            match self.stack.pop() {
-                Some(Item::Frame) => break,
-                None              => unreachable!("There should never not be a frame on the stack"),
-                _                 => (),
-            }
+        let mut closure = Closure::wrap(lambda);
+        for upvalue in closure.lambda.captureds.iter() {
+            closure.captureds.push(self.closure.captureds[*upvalue].clone())
         }
 
-        self.stack.push(Item::Data(val));
-        self.terminate()
+        self.stack.push_data(Data::Closure(closure));
+        self.done()
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::{
+        rc::Rc,
+        cell::RefCell,
+    };
     use super::*;
     use crate::compiler::{
         parse::parse,
@@ -252,84 +272,84 @@ mod test {
     #[test]
     fn init_run() {
         // TODO: check @ each step, write more tests
-        let chunk = gen(parse(lex(
-            Source::source("boop = 37.201; true; dhuiew = true; boop")
-        ).unwrap()).unwrap());
 
+        let lambda = gen(parse(lex(
+            Source::source("heck = 0.0; y = heck")
+        ).unwrap()).unwrap()).unwrap();
+
+        // println!("{:?}", lambda);
         let mut vm = VM::init();
 
-        match vm.run(chunk) {
+        match vm.run(Closure::wrap(lambda)) {
             Ok(_)  => (),
-            Err(e) => eprintln!("{}", e),
+            Err(e) => {
+                eprintln!("{}", e);
+                panic!();
+            },
         }
     }
 
     #[test]
     fn block_expression() {
-        let chunk = gen(parse(lex(
-            Source::source("boop = true; heck = { x = boop; x }; heck")
-        ).unwrap()).unwrap());
+        let lambda = gen(parse(lex(
+            Source::source("x = false; boop = true; heck = { x = boop; x }; heck")
+        ).unwrap()).unwrap()).unwrap();
 
+        // println!("{:?}", lambda);
         let mut vm = VM::init();
 
-        match vm.run(chunk) {
+        match vm.run(Closure::wrap(lambda)) {
             Ok(_)  => (),
-            Err(e) => eprintln!("{}", e),
+            Err(e) => {
+                eprintln!("{}", e);
+                panic!();
+            },
         }
 
-        if let Some(Item::Data(t)) = vm.stack.pop() {
-            match t.data() {
-                Data::Boolean(true) => (),
-                _                   => panic!("Expected true value"),
-            }
-        } else {
-            panic!("Expected data on top of stack");
+        match vm.stack.pop_data() {
+            Data::Boolean(true) => (),
+            _                   => panic!("Expected true value"),
         }
     }
 
     #[test]
     fn functions() {
-        let chunk = gen(parse(lex(
-            Source::source("iden = x -> x; y = true; iden ((iden iden) (iden y))")
-        ).unwrap()).unwrap());
+        let lambda = gen(parse(lex(
+            Source::source("iden = x -> x; y = true; iden ({y = false; iden iden} (iden y))")
+        ).unwrap()).unwrap()).unwrap();
 
         let mut vm = VM::init();
-        match vm.run(chunk) {
+
+        match vm.run(Closure::wrap(lambda)) {
             Ok(_)  => (),
-            Err(e) => eprintln!("{}", e),
+            Err(e) => {
+                eprintln!("{}", e);
+                panic!();
+            },
         }
 
-        if let Some(Item::Data(t)) = vm.stack.pop() {
-            assert_eq!(t.data(), Data::Boolean(true));
-        } else {
-            panic!("Expected float on top of stack");
-        }
+        let t = vm.stack.pop_data();
+        assert_eq!(t, Data::Boolean(true));
     }
 
     #[test]
     fn fun_scope() {
-        let chunk = gen(parse(lex(
-            Source::source("y = (x -> { z = x; z }) 7.0; y")
-        ).unwrap().into()).unwrap());
-
-        println!("{:#?}", chunk);
-
-        let out_of_scope = Local::new("z".to_string());
+        // y = (x -> { y = x; y ) 7.0; y
+        let lambda = gen(parse(lex(Source::source(
+            "one = 1.0\npi = 3.14\ne = 2.72\n\nx = w -> pi\nx 37.6"
+        )).unwrap()).unwrap()).unwrap();
 
         let mut vm = VM::init();
-        match vm.run(chunk) {
+
+        match vm.run(Closure::wrap(lambda)) {
             Ok(_)  => (),
-            Err(e) => eprintln!("{}", e),
+            Err(e) => {
+                eprintln!("{}", e);
+                panic!();
+            },
         }
 
-        // check that z has been dealloced
-        assert_eq!(vm.find_local(&out_of_scope), None);
-
-        // check that y is in fact 7
-        if let Some(Item::Data(t)) = vm.stack.pop() {
-            assert_eq!(t.data(), Data::Real(7.0));
-        } else {
-            panic!("Expected 7.0 on top of stack");
-        }
+        let t = vm.stack.pop_data();
+        assert_eq!(t, Data::Heaped(Rc::new(RefCell::new(Data::Real(3.14)))));
     }
 }

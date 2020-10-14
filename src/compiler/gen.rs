@@ -1,273 +1,297 @@
-use crate::compiler::ast::AST;
-use crate::common::opcode::Opcode;
-use crate::common::data::Data;
-use crate::common::span::Spanned;
-use crate::common::number::split_number;
-use crate::vm::local::Local;
+use std::mem;
 
-// TODO: annotations in bytecode
-// TODO: separate AST compiler from Chunk itself
+use crate::common::{
+    number::split_number,
+    span::{Span, Spanned},
+    lambda::Lambda,
+    opcode::Opcode,
+    data::Data,
+};
 
-/// The bytecode generator (emitter) walks the AST and produces (unoptimized) Bytecode
+use crate::compiler::{
+    ast::AST,
+    syntax::Syntax,
+};
+
+/// Simple function that generates unoptimized bytecode from an `AST`.
+/// Exposes the functionality of the `Compiler`.
+pub fn gen(ast: Spanned<AST>) -> Result<Lambda, Syntax> {
+    let mut compiler = Compiler::base();
+    compiler.walk(&ast)?;
+    return Ok(compiler.lambda);
+}
+
+// TODO: implement equality
+/// Represents a local when compiling.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Local {
+    pub span: Span,
+    pub depth: usize
+}
+
+impl Local {
+    // Creates a new `Local`.
+    pub fn new(span: Span, depth: usize) -> Local {
+        Local { span, depth }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Captured {
+    /// The index on the stack if the variable is local to the current scope
+    Local(usize),
+    /// The index of the upvalue in the enclosing scope
+    Nonlocal(usize),
+}
+
+/// Compiler is a bytecode generator that walks an AST and produces (unoptimized) Bytecode.
 /// There are plans to add a bytecode optimizer in the future.
-pub fn gen(ast: Spanned<AST>) -> Chunk {
-    let mut generator = Chunk::empty();
-    generator.walk(&ast);
-    generator
+/// Note that this struct should not be controlled manually,
+/// use the `gen` function instead.
+pub struct Compiler {
+    /// The previous compiler (when compiling nested scopes).
+    enclosing: Option<Box<Compiler>>,
+    /// The current bytecode emission target.
+    lambda: Lambda,
+    /// The locals in the current scope.
+    locals: Vec<Local>,
+    // /// The captured variables used in the current scope.
+    captureds: Vec<Captured>,
+    /// The nested depth of the current compiler.
+    depth: usize,
 }
 
-/// Represents a single interpretable chunk of bytecode,
-/// Think a function.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Chunk {
-    pub code:      Vec<u8>,    // each byte is an opcode or a number-stream
-    pub offsets:   Vec<usize>, // each usize indexes the bytecode op that begins each line
-    pub constants: Vec<Data>,  // number-stream indexed, used to load constants
-    pub locals:    Vec<Local>, // ''                                  variables
-}
-
-impl Chunk {
-    /// Creates a new empty chunk to be filled.
-    pub fn empty() -> Chunk {
-        Chunk {
-            code:      vec![],
-            offsets:   vec![],
-            constants: vec![],
-            locals:    vec![],
+impl Compiler {
+    /// Construct a new `Compiler`.
+    pub fn base() -> Compiler {
+        Compiler {
+            enclosing: None,
+            lambda: Lambda::empty(),
+            locals: vec![],
+            captureds: vec![],
+            depth: 0,
         }
     }
 
-    // TODO: bytecode chunk dissambler
+    /// Declare a local variable.
+    pub fn declare(&mut self, span: Span) {
+        self.locals.push(
+            Local { span, depth: self.depth }
+        )
+    }
+
+    /// Replace the current compiler with a fresh one,
+    /// keeping a reference to the old one in `self.enclosing`.
+    pub fn enter_scope(&mut self) {
+        let depth = self.depth + 1;
+        let mut nested = Compiler::base();
+        nested.depth = depth;
+        let enclosing = mem::replace(self, nested);
+        self.enclosing = Some(Box::new(enclosing));
+    }
+
+    /// Restore the enclosing compiler,
+    /// returning the nested one for data extraction.
+    pub fn exit_scope(&mut self) -> Compiler {
+        let enclosing = mem::replace(&mut self.enclosing, None);
+        let nested = match enclosing {
+            Some(compiler) => mem::replace(self, *compiler),
+            None => panic!("Can not go back past base compiler"),
+        };
+        return nested;
+    }
 
     /// Walks an AST to generate bytecode.
     /// At this stage, the AST should've been verified, pruned, typechecked, etc.
     /// A malformed AST will cause a panic, as ASTs should be correct at this stage,
     /// and for them to be incorrect is an error in the compiler itself.
-    fn walk(&mut self, ast: &Spanned<AST>) {
+    pub fn walk(&mut self, ast: &Spanned<AST>) -> Result<(), Syntax> {
+        // the entire span of the current node
+        self.lambda.emit_span(&ast.span);
+
         // push left, push right, push center
-        match ast.item.clone() {
+        let result = match ast.item.clone() {
             AST::Data(data) => self.data(data),
-            AST::Symbol(symbol) => self.symbol(symbol),
+            AST::Symbol => self.symbol(ast.span.clone()),
             AST::Block(block) => self.block(block),
             AST::Assign { pattern, expression } => self.assign(*pattern, *expression),
             AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
             AST::Call   { fun,     arg        } => self.call(*fun, *arg),
-        }
-    }
-
-    /// Given some data, this function adds it to the constants table,
-    /// and returns the data's index.
-    /// The constants table is push only, so constants are identified by their index.
-    /// The resulting usize can be split up into a number byte stream,
-    /// and be inserted into the bytecode.
-    pub fn index_data(&mut self, data: Data) -> usize {
-        match self.constants.iter().position(|d| d == &data) {
-            Some(d) => d,
-            None    => {
-                self.constants.push(data);
-                self.constants.len() - 1
-            },
-        }
+        };
+        return result;
     }
 
     /// Takes a `Data` leaf and and produces some code to load the constant
-    fn data(&mut self, data: Data) {
-        self.code.push(Opcode::Con as u8);
-        let mut split = split_number(self.index_data(data));
-        self.code.append(&mut split);
+    pub fn data(&mut self, data: Data) -> Result<(), Syntax> {
+        self.lambda.emit(Opcode::Con);
+        let mut split = split_number(self.lambda.index_data(data));
+        self.lambda.emit_bytes(&mut split);
+        Ok(())
     }
 
-    /// Similar to index constant, but indexes variables instead.
-    fn index_symbol(&mut self, symbol: Local) -> usize {
-        match self.locals.iter().position(|l| l == &symbol) {
-            Some(l) => l,
-            None    => {
-                self.locals.push(symbol);
-                self.locals.len() - 1
-            },
+    /// Returns the relative position on the stack of a declared local,
+    /// if it exists in the current scope.
+    pub fn local(&self, span: Span) -> Option<usize> {
+        for (index, l) in self.locals.iter().enumerate() {
+            if span.contents() == l.span.contents() {
+                return Some(index);
+            }
         }
+
+        return None;
     }
 
-    /// Takes a symbol leaf, and produces some code to load the local.
-    fn symbol(&mut self, symbol: Local) {
-        self.code.push(Opcode::Load as u8);
-        let index = self.index_symbol(symbol);
-        self.code.append(&mut split_number(index));
+    /// Marks a local as captured in a closure,
+    /// which essentially tells the VM to move it to the heap.
+    /// Returns the index of the captured variable.
+    pub fn capture(&mut self, captured: Captured) -> usize {
+        // is already captured
+        for (i, c) in self.captureds.iter().enumerate() {
+            if &captured == c {
+                return i;
+            }
+        }
+
+        // is not yet captured
+        if let Captured::Local(index) = captured {
+            self.lambda.emit(Opcode::Capture);
+            self.lambda.emit_bytes(&mut split_number(index));
+        }
+
+        self.captureds.push(captured);
+        return self.captureds.len() - 1;
+    }
+
+    // Tries to resolve a variable in enclosing scopes
+    // if resolution it successful, it captures the variable in the original scope
+    // then builds a chain of upvalues to hoist that upvalue where it's needed.
+    // This can be made more efficient.
+    pub fn captured(&mut self, span: Span) -> Option<usize> {
+        if let Some(enclosing) = self.enclosing.as_mut() {
+            let upvalue = if let Some(index) = Compiler::local(&enclosing, span.clone()) {
+                // if the scope below us contains the local, we capture it
+                Compiler::capture(enclosing, Captured::Local(index))
+            } else if let Some(index) = Compiler::captured(enclosing.as_mut(), span) {
+                // otherwise, we check the scope below us
+                // TODO: verify that doubly-lifted values work properly
+                Compiler::capture(enclosing, Captured::Nonlocal(index))
+            } else {
+                // if the local wasn't found, we give up
+                return None;
+            };
+
+            self.lambda.captureds.push(upvalue);
+            return Some(upvalue);
+        }
+
+        // if there are no more enclosing scopes, we give up
+        // you can't capture a variable if it doesn't exist, lol
+        return None;
+    }
+
+    // TODO: rewrite according to new local rules
+    /// Takes a symbol leaf, and produces some code to load the local
+    pub fn symbol(&mut self, span: Span) -> Result<(), Syntax> {
+        if let Some(index) = self.local(span.clone()) {
+            // if the variable is locally in scope
+            self.lambda.emit(Opcode::Load);
+            self.lambda.emit_bytes(&mut split_number(index))
+        } else if let Some(index) = self.captured(span.clone()) {
+            // if the variable is captured in a closure
+            self.lambda.emit(Opcode::LoadCap);
+            self.lambda.emit_bytes(&mut split_number(index))
+        } else {
+            // TODO: hoist?
+            return Err(Syntax::error(
+                "Variable referenced before assignment; it is undefined", span
+            ));
+        }
+        Ok(())
     }
 
     /// A block is a series of expressions where the last is returned.
     /// Each sup-expression is walked, the last value is left on the stack.
-    /// (In the future, block should create a new scope.)
-    fn block(&mut self, children: Vec<Spanned<AST>>) {
+    pub fn block(&mut self, children: Vec<Spanned<AST>>) -> Result<(), Syntax> {
         for child in children {
-            self.walk(&child);
-            // TODO: Should `Opcode::Clear` not be a thing?
-            self.code.push(Opcode::Clear as u8);
+            self.walk(&child)?;
+            self.lambda.emit(Opcode::Del);
         }
 
-        // remove the last clear instruction
-        self.code.pop();
+        // remove the last delete instruction
+        self.lambda.demit();
+        Ok(())
     }
 
-    /// Binds a variable to a value in the current scope.
-    /// Note that values are immutable, but variables aren't.
-    /// Passerine uses a special form of reference counting,
-    /// Where each object can only have one reference.
-    /// This allows for lifetime optimizations later on.
-    ///
-    /// When a variable is reassigned, the value it holds is dropped.
-    /// When a variable is loaded, the value it points to is copied,
-    /// Unless it's the last occurance of that variable in it's lifetime.
-    /// This makes passerine strictly pass by value.
-    /// Though mutable objects can be simulated with macros.
-    /// For example:
-    /// ```plain
-    /// --- Increments a variable by 1, returns new value.
-    /// increment = var ~> { var = var + 1; var }
-    ///
-    /// counter = 7
-    /// counter.increment ()
-    /// -- desugars to
-    /// increment counter
-    /// -- desugars to
-    /// { counter = counter + 1; counter }
-    /// ```
-    /// To demonstrate what I mean, let's annotate the vars.
-    /// ```plain
-    /// increment = var<`a> ~> {
-    ///     var<`b> = var<`a> + 1
-    ///     var<`b>
-    /// }
-    /// ```
-    /// `<\`_>` means that the value held by var is the same.
-    /// Because
-    /// ```plain
-    ///     var<`b> = var<`a> + 1
-    ///                  ^^^^
-    /// ```
-    /// is the last use of the value of var<`a>, instead of copying the value,
-    /// the value var points to is used, and var<`a`> is removed from the scope.
-    ///
-    /// There are still many optimizations that can be made,
-    /// but needless to say, Passerine uses dynamically inferred lifetimes
-    /// in lieu of garbage collecting.
-    /// One issue with this strategy is having multiple copies of the same data,
-    /// So for larger datastructures, some sort of persistent ARC implementation might be used.
-    fn assign(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) {
+    /// Assign a value to a variable.
+    pub fn assign(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), Syntax> {
         // eval the expression
-        self.walk(&expression);
+        self.walk(&expression)?;
+
         // load the following symbol ...
-        self.code.push(Opcode::Save as u8);
-        // ... the symbol to be loaded
-        let index = match symbol.item {
-            AST::Symbol(l) => self.index_symbol(l),
-            _              => unreachable!(),
+        let span = match symbol.item {
+            AST::Symbol => symbol.span,
+            _ => unreachable!(),
         };
-        self.code.append(&mut split_number(index));
-        // TODO: load Unit
+
+        // the span of the variable to be assigned to
+        self.lambda.emit_span(&span);
+
+        // abstract out?
+        let index = if let Some(i) = self.local(span.clone()) {
+            self.lambda.emit(Opcode::Save); i
+        } else if let Some(i) = self.captured(span.clone()) {
+            self.lambda.emit(Opcode::SaveCap); i
+        } else {
+            self.lambda.emit(Opcode::Save);
+            self.locals.push(Local::new(span, self.depth));
+            self.locals.len() - 1
+        };
+
+        self.lambda.emit_bytes(&mut split_number(index));
+        self.data(Data::Unit)?;
+
+        Ok(())
     }
 
-    /// Walks a function, creates a chunk, then pushes the resulting chunk onto the stack.
-    /// All functions take and return one value.
-    /// This allows for parital application,
-    /// but is slow if you just want to run a function,
-    /// because a function of three arguments is essentially three function calls.
-    /// In the future, repeated calls should be optimized out.
-    /// TODO: closures
-    /// The issue with closures is that they allow the data to escape
-    /// which makes vaporization less useful as a result.
-    /// There are a few potential solutions:
-    /// - The easiest solution is to disallow closures. This is lame.
-    /// - The second easiest solution is to simply copy the data
-    ///   when creating a closure.
-    ///   While easy to implement, captured values would not represent
-    ///   the same object:
-    ///   ```plain
-    ///   counter = start -> {
-    ///       value = start
-    ///       increment = () -> { value = value + 1 }
-    ///       decrement = () -> { value = value - 1 }
-    ///       (increment, decrement)
-    ///   }
-    ///   ```
-    ///   If a counter was constructed using the above code,
-    ///   increment and decrement would refer to different values.
-    /// - As closures are a poor man's object,
-    ///   an alternative would be adding support for pseudo-objects via macros.
-    ///   this wouldn't clash with naïeve closure implementations;
-    ///   here's what I'm getting at:
-    ///   ```plain
-    ///   counter = start -> {
-    ///       Counter start -- wrap value in Label, creating a type
-    ///   }
-    ///
-    ///   increment = value: Counter _ ~> { value = value + 1 }
-    ///   decrement = value: Counter _ ~> { value = value - 1 }
-    ///   tally     = Counter value -> value
-    ///
-    ///   my_counter = counter 5
-    ///   increment counter; increment counter
-    ///   decrement counter
-    ///   print (tally counter)
-    ///   ```
-    ///   I like this solution, but I think it should be its own thing
-    ///   rather than boot actual closures from the language.
-    ///   Passerine's an impure functional language,
-    ///   so no closures would be a little silly.
-    /// - Another solution would be to store the values on the heap, arc'd.
-    ///   Nah.
-    /// - Ok, I think I've got it.
-    ///   At compile time, each function contains a list of variables
-    ///   of the environment it's created in, ad infinitum.
-    ///   When a function is defined within a function (read closure),
-    ///   during definition, it marks all variables used by that function.
-    ///   At the end of the original function, all unmarked (read uncaptured)
-    ///   variables are removed from the environment,
-    ///   And all functions return containing an ARC to the base function's environment
-    /// - I noticed an issue. Take this example:
-    ///   ```plain
-    ///   escape = huge tiny -> {
-    ///       forget   = () -> huge,
-    ///       remember = () -> tiny
-    ///       remember
-    ///   }
-    ///   ```
-    ///   In this case, `huge` is captured by the `forget closure`
-    ///   But only remember is returned.
-    ///   However, everything is stored in the same struct
-    ///   So huge isn't deallocated until remember is.
-    /// - Here's my Final Solution. We introduce a new type of data,
-    ///   `ReferenceCoutned`.
-    ///   When data is captured, it's converted to reference-counted data
-    ///   if it hasn't been already, and the reference count is increased.
-    ///   The only downside is that this is a bit slower,
-    ///   but it's a small price to pay for salvation.
-    fn lambda(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) {
-        let mut fun = Chunk::empty();
+    // TODO: rewrite according to new symbol rules
+    /// Recursively compiles a lambda declaration in a new scope.
+    pub fn lambda(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), Syntax> {
+        // just so the parallel is visually apparent
+        self.enter_scope();
+        {
+            // save the argument into the given variable
+            if let AST::Symbol = symbol.item {} else { unreachable!() }
+            self.lambda.emit(Opcode::Save);
+            self.locals.push(Local::new(symbol.span, self.depth));
+            self.lambda.emit_bytes(&mut split_number(0)); // will always be zerost item on stack
 
-        // inside the function
-        // save the argument into the given variable
-        fun.code.push(Opcode::Save as u8);
-        let index = fun.index_symbol(match symbol.item {
-            AST::Symbol(l) => l,
-            _               => unreachable!(),
-        });
-        fun.code.append(&mut split_number(index));
+            // enter a new scope and walk the function body
+            // let mut nested = Compiler::over(&mut);
+            self.walk(&expression)?;    // run the function
+            self.lambda.emit(Opcode::Return); // return the result
+            self.lambda.emit_bytes(&mut split_number(self.locals.len()));
 
-        fun.code.push(Opcode::Clear as u8);  // clear the stack
-        fun.walk(&expression);               // run the function
-        fun.code.push(Opcode::Return as u8); // return the result
+            // TODO: lift locals off stack if captured
+        }
+        let lambda = self.exit_scope().lambda;
 
         // push the lambda object onto the callee's stack.
-        self.data(Data::Lambda(fun));
+        let lambda_index = self.lambda.index_data(Data::Lambda(lambda));
+        self.lambda.emit(Opcode::Closure);
+        self.lambda.emit_bytes(&mut split_number(lambda_index));
+
+        Ok(())
     }
 
     /// When a function is called, the top two items are taken off the stack,
     /// The topmost item is expected to be a function.
-    fn call(&mut self, fun: Spanned<AST>, arg: Spanned<AST>) {
-        self.walk(&arg);
-        self.walk(&fun);
-        self.code.push(Opcode::Call as u8);
+    pub fn call(&mut self, fun: Spanned<AST>, arg: Spanned<AST>) -> Result<(), Syntax> {
+        self.walk(&arg)?;
+        self.walk(&fun)?;
+
+        self.lambda.emit_span(&Span::combine(&fun.span, &arg.span));
+        self.lambda.emit(Opcode::Call);
+        Ok(())
     }
 }
 
@@ -280,38 +304,38 @@ mod test {
 
     #[test]
     fn constants() {
-        // TODO: flesh out as more datatypes are added
         let source = Source::source("heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"");
-        let ast    = parse(
-            lex(source).unwrap()
-        ).unwrap();
-        let chunk = gen(ast);
+        let lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
 
         let result = vec![
             Data::Boolean(true),
+            Data::Unit, // from assignment
             Data::Real(0.0),
             Data::Boolean(false),
             Data::String("GOod MoRNiNg, SiR".to_string()),
         ];
 
-        assert_eq!(chunk.constants, result);
+        assert_eq!(lambda.constants, result);
     }
 
     #[test]
     fn bytecode() {
         let source = Source::source("heck = true; lol = heck; lmao = false");
-        let ast    = parse(lex(source).unwrap()).unwrap();
+        let lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
 
-        let chunk = gen(ast);
         let result = vec![
-            // con true, save to heck, clear
-            (Opcode::Con as u8), 128, (Opcode::Save as u8), 128, (Opcode::Clear as u8),
-            // load heck, save to lol, clear
-            (Opcode::Load as u8), 128, (Opcode::Save as u8), 129, (Opcode::Clear as u8),
-            // con false, save to lmao
-            (Opcode::Con as u8), 129, (Opcode::Save as u8), 130,
+            (Opcode::Con as u8), 128, (Opcode::Save as u8), 128,  // con true, save to heck,
+                (Opcode::Con as u8), 129, (Opcode::Del as u8),    // load unit, delete
+            (Opcode::Load as u8), 128, (Opcode::Save as u8), 129, // load heck, save to lol,
+                (Opcode::Con as u8), 129, (Opcode::Del as u8),    // load unit, delete
+            (Opcode::Con as u8), 130, (Opcode::Save as u8), 130,  // con false, save to lmao
+                (Opcode::Con as u8), 129,                         // load unit
         ];
 
-        assert_eq!(result, chunk.code);
+        assert_eq!(result, lambda.code);
     }
+
+    // NOTE: instead of veryfying bytecode output,
+    // write a test in vm::vm::test
+    // and check behaviour that way
 }

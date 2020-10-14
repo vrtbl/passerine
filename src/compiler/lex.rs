@@ -1,16 +1,24 @@
-use std::str::FromStr;
-use std::f64;
-use std::rc::Rc;
+use std::{
+    str::FromStr,
+    f64,
+    rc::Rc,
+};
 
-use crate::compiler::token::Token;
-use crate::compiler::syntax::Syntax;
-use crate::common::source::Source;
-use crate::common::span::{ Span, Spanned };
-use crate::common::data::Data;
-use crate::vm::local::Local;
+use crate::common::{
+    source::Source,
+    span::{ Span, Spanned },
+    data::Data,
+};
+
+use crate::compiler::{
+    token::Token,
+    syntax::Syntax,
+};
 
 type Bite = (Token, usize);
 
+/// Simple function that lexes a source file into a token stream.
+/// Exposes the functionality of the `Lexer`.
 pub fn lex(source: Rc<Source>) -> Result<Vec<Spanned<Token>>, Syntax> {
     let mut lexer = Lexer::new(&source);
     return lexer.all();
@@ -18,17 +26,23 @@ pub fn lex(source: Rc<Source>) -> Result<Vec<Spanned<Token>>, Syntax> {
 
 /// This represents a lexer object.
 /// A lexer takes a source file and lexes it into tokens.
-struct Lexer {
+/// Note that this struct should not be controlled manually,
+/// use the `lex` function instead.
+pub struct Lexer {
+    /// A reference to the source being lexed.
     source: Rc<Source>,
+    /// The current lexing offset.
     offset: usize,
 }
 
 impl Lexer {
+    /// Create a new empty lexer.
     pub fn new(source: &Rc<Source>) -> Lexer {
         Lexer { source: Rc::clone(source), offset: 0 }
     }
 
-    fn all(&mut self) -> Result<Vec<Spanned<Token>>, Syntax> {
+    /// Run the lexer, generating the entire token stream.
+    pub fn all(&mut self) -> Result<Vec<Spanned<Token>>, Syntax> {
         let mut tokens = vec![];
 
         while self.remaining().len() != 0 {
@@ -51,17 +65,21 @@ impl Lexer {
             self.offset += consumed;
         }
 
+        tokens.push(Spanned::new(Token::End, Span::empty()));
+
         return Ok(tokens);
     }
 
+    /// Step the lexer, returning the next token.
     pub fn step(&self) -> Result<Bite, String> {
         let source = self.remaining();
 
         let rules: Vec<Box<dyn Fn(&str) -> Result<Bite, String>>> = vec![
             // higher up in order = higher precedence
-            // think 'or' as symbol or 'or' as operator
+            // think 'or' as literal or 'or' as operator
 
             // static
+            Box::new(|s| Lexer::unit(s)         ),
             Box::new(|s| Lexer::open_bracket(s) ),
             Box::new(|s| Lexer::close_bracket(s)),
             Box::new(|s| Lexer::open_paren(s)   ),
@@ -101,11 +119,14 @@ impl Lexer {
 
     // helpers
 
-    fn remaining(&self) -> &str {
+    /// Helper function that returns the remaining source to be lexed as a `&str`.
+    pub fn remaining(&self) -> &str {
         return &self.source.contents[self.offset..]
     }
 
-    fn strip(&mut self) {
+    /// Helper function that Strips leading whitespace.
+    /// Note that a newline is not leading whitespace, it's a separator token.
+    pub fn strip(&mut self) {
         let mut len = 0;
 
         for char in self.remaining().chars() {
@@ -119,7 +140,8 @@ impl Lexer {
         self.offset += len;
     }
 
-    fn expect(source: &str, literal: &str) -> Result<usize, String> {
+    /// Helper function that expects an exact literal.
+    pub fn expect(source: &str, literal: &str) -> Result<usize, String> {
         if literal.len() > source.len() {
             return Err("Unexpected EOF while lexing".to_string());
         }
@@ -130,7 +152,9 @@ impl Lexer {
         }
     }
 
-    fn eat_digits(source: &str) -> Result<usize, String> {
+    /// Helper function that eats numeric digits,
+    /// returning how many lead.
+    pub fn eat_digits(source: &str) -> Result<usize, String> {
         let mut len = 0;
 
         for char in source.chars() {
@@ -143,14 +167,51 @@ impl Lexer {
         return if len == 0 { Err("Expected digits".to_string()) } else { Ok(len) };
     }
 
-    fn literal(source: &str, literal: &str, kind: Token) -> Result<Bite, String> {
+    /// Helper function that expects a literal, returning an error otherwise.
+    pub fn literal(source: &str, literal: &str, kind: Token) -> Result<Bite, String> {
         Ok((kind, Lexer::expect(source, literal)?))
     }
 
     // token classifiers
 
-    fn symbol(source: &str) -> Result<Bite, String> {
-        // for now, a symbol is one or more ascii alphanumerics
+    /// Matches a literal opening bracket `{`.
+    pub fn open_bracket(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "{", Token::OpenBracket)
+    }
+
+    /// Matches a literal closing bracket `{``.
+    pub fn close_bracket(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "}", Token::CloseBracket)
+    }
+
+    /// Matches a literal opening parenthesis `(`.
+    pub fn open_paren(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "(", Token::OpenParen)
+    }
+
+    /// Matches a literal closing parenthesis `)`.
+    pub fn close_paren(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, ")", Token::CloseParen)
+    }
+
+    /// Matches a literal closing parenthesis `)`.
+    pub fn unit(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "()", Token::Unit)
+    }
+
+    /// Matches a literal assignment equal sign `=`.
+    pub fn assign(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "=", Token::Assign)
+    }
+
+    /// Matches a literal lambda arrow `->`.
+    pub fn lambda(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "->", Token::Lambda)
+    }
+
+    /// Classifis a symbol (i.e. variable name).
+    /// for now, a symbol is one or more ascii alphanumerics
+    pub fn symbol(source: &str) -> Result<Bite, String> {
         // TODO: extend to full unicode
         let mut len = 0;
 
@@ -163,36 +224,12 @@ impl Lexer {
 
         return match len {
             0 => Err("Expected a symbol".to_string()),
-            // TODO: make sure that symbol name is correct
-            l => Ok((Token::Symbol(Local::new(source[..l].to_string())), l)),
+            l => Ok((Token::Symbol, l)),
         };
     }
 
-    fn open_bracket(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "{", Token::OpenBracket)
-    }
-
-    fn close_bracket(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "}", Token::CloseBracket)
-    }
-
-    fn open_paren(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "(", Token::OpenParen)
-    }
-
-    fn close_paren(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, ")", Token::CloseParen)
-    }
-
-    fn assign(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "=", Token::Assign)
-    }
-
-    fn lambda(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "->", Token::Lambda)
-    }
-
-    fn real(source: &str) -> Result<Bite, String> {
+    /// Matches a number with a decimal point.
+    pub fn real(source: &str) -> Result<Bite, String> {
         // TODO: NaNs, Infinity, the whole shebang
         // look at how f64::from_str is implemented, maybe?
         let mut len = 0;
@@ -210,7 +247,8 @@ impl Lexer {
         return Ok((Token::Number(Data::Real(number)), len));
     }
 
-    fn string(source: &str) -> Result<Bite, String> {
+    /// Matches a string, converting escapes.
+    pub fn string(source: &str) -> Result<Bite, String> {
         // TODO: read through the rust compiler and figure our how they do this
         // look into parse_str_lit
 
@@ -221,13 +259,12 @@ impl Lexer {
         len += Lexer::expect(source, "\"")?;
 
         for c in source[len..].chars() {
-            print!("{}|", c);
             len += 1;
             if escape {
                 escape = false;
                 // TODO: add more escape codes
                 string.push(match c {
-                    '\"' => '\"',
+                    '"'  => '"',
                     '\\' => '\\',
                     'n'  => '\n',
                     't'  => '\t',
@@ -245,7 +282,8 @@ impl Lexer {
         return Err("Unexpected EOF while parsing string literal".to_string());
     }
 
-    fn boolean(source: &str) -> Result<Bite, String> {
+    /// Matches a literal boolean.
+    pub fn boolean(source: &str) -> Result<Bite, String> {
         for (lit, val) in [
             ("true",  true),
             ("false", false),
@@ -258,7 +296,15 @@ impl Lexer {
         return Err("Expected a boolean".to_string());
     }
 
-    fn sep(source: &str) -> Result<Bite, String> {
+    /// Matches a separator.
+    /// Note that separators are special, as they're mostly ignored
+    /// They're used to denote lines in functions blocks.
+    /// A separator is either a newline or semicolon.
+    /// They're grouped, so something like ';\n' is only one separator.
+    /// Although the parser makes no assumptions,
+    /// there should be only at most one separator
+    /// between any two non-separator tokens.
+    pub fn sep(source: &str) -> Result<Bite, String> {
         let mut chars = source.chars();
         let c = chars.next()
             .ok_or("Unexpected EOF while parsing")?;
@@ -285,7 +331,6 @@ impl Lexer {
 mod test {
     use super::*;
     use crate::common::data::Data;
-    use crate::vm::local::Local;
 
     // NOTE: lexing individual tokens is tested in pipeline::token
 
@@ -293,7 +338,9 @@ mod test {
     fn empty() {
         // no source code? no tokens!
         let result = lex(Source::source(""));
-        let target: Result<Vec<Spanned<Token>>, Syntax> = Ok(vec![]);
+        let target: Result<Vec<Spanned<Token>>, Syntax> =
+            Ok(vec![Spanned::new(Token::End, Span::empty())]);
+
         assert_eq!(result, target);
     }
 
@@ -302,9 +349,10 @@ mod test {
         let source = Source::source("heck = true");
 
         let result = vec![
-            Spanned::new(Token::Symbol(Local::new("heck".to_string())), Span::new(&source, 0, 4)),
-            Spanned::new(Token::Assign,                                 Span::new(&source, 5, 1)),
-            Spanned::new(Token::Boolean(Data::Boolean(true)),           Span::new(&source, 7, 4)),
+            Spanned::new(Token::Symbol,                       Span::new(&source, 0, 4)),
+            Spanned::new(Token::Assign,                       Span::new(&source, 5, 1)),
+            Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 7, 4)),
+            Spanned::new(Token::End,                          Span::empty()),
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -317,6 +365,8 @@ mod test {
         let result = vec![
             Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 2, 4)),
             Spanned::new(Token::Sep,                          Span::new(&source, 8, 3)),
+            Spanned::new(Token::End,                          Span::empty()),
+
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -329,15 +379,16 @@ mod test {
         // TODO: finish test
 
         let result = vec![
-            Spanned::new(Token::OpenBracket,                             Span::new(&source, 0, 1)),
-            Spanned::new(Token::Sep,                                     Span::new(&source, 1, 2)),
-            Spanned::new(Token::Symbol(Local::new("hello".to_string())), Span::new(&source, 3, 5)),
-            Spanned::new(Token::Assign,                                  Span::new(&source,  9, 1)),
-            Spanned::new(Token::Boolean(Data::Boolean(true)),            Span::new(&source, 11, 4)),
-            Spanned::new(Token::Sep,                                     Span::new(&source, 15, 2)),
-            Spanned::new(Token::Symbol(Local::new("hello".to_string())), Span::new(&source, 17, 5)),
-            Spanned::new(Token::Sep,                                     Span::new(&source, 22, 1)),
-            Spanned::new(Token::CloseBracket,                            Span::new(&source, 23, 1)),
+            Spanned::new(Token::OpenBracket,                  Span::new(&source, 0, 1)),
+            Spanned::new(Token::Sep,                          Span::new(&source, 1, 2)),
+            Spanned::new(Token::Symbol,                       Span::new(&source, 3, 5)),
+            Spanned::new(Token::Assign,                       Span::new(&source,  9, 1)),
+            Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 11, 4)),
+            Spanned::new(Token::Sep,                          Span::new(&source, 15, 2)),
+            Spanned::new(Token::Symbol,                       Span::new(&source, 17, 5)),
+            Spanned::new(Token::Sep,                          Span::new(&source, 22, 1)),
+            Spanned::new(Token::CloseBracket,                 Span::new(&source, 23, 1)),
+            Spanned::new(Token::End,                          Span::empty()),
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -347,17 +398,18 @@ mod test {
     fn function() {
         let source = Source::source("identity = x -> x\nidentity (identity \"heck\")");
         let result = vec![
-            Spanned::new(Token::Symbol(Local::new("identity".to_string())), Span::new(&source, 0, 8)),
-            Spanned::new(Token::Assign,                                     Span::new(&source, 9, 1)),
-            Spanned::new(Token::Symbol(Local::new("x".to_string())),        Span::new(&source, 11, 1)),
-            Spanned::new(Token::Lambda,                                     Span::new(&source, 13, 2)),
-            Spanned::new(Token::Symbol(Local::new("x".to_string())),        Span::new(&source, 16, 1)),
-            Spanned::new(Token::Sep,                                        Span::new(&source, 17, 1)),
-            Spanned::new(Token::Symbol(Local::new("identity".to_string())), Span::new(&source, 18, 8)),
-            Spanned::new(Token::OpenParen,                                  Span::new(&source, 27, 1)),
-            Spanned::new(Token::Symbol(Local::new("identity".to_string())), Span::new(&source, 28, 8)),
-            Spanned::new(Token::String(Data::String("heck".to_string())),   Span::new(&source, 37, 6)),
-            Spanned::new(Token::CloseParen,                                 Span::new(&source, 43, 1)),
+            Spanned::new(Token::Symbol,                                   Span::new(&source, 0, 8)),
+            Spanned::new(Token::Assign,                                   Span::new(&source, 9, 1)),
+            Spanned::new(Token::Symbol,                                   Span::new(&source, 11, 1)),
+            Spanned::new(Token::Lambda,                                   Span::new(&source, 13, 2)),
+            Spanned::new(Token::Symbol,                                   Span::new(&source, 16, 1)),
+            Spanned::new(Token::Sep,                                      Span::new(&source, 17, 1)),
+            Spanned::new(Token::Symbol,                                   Span::new(&source, 18, 8)),
+            Spanned::new(Token::OpenParen,                                Span::new(&source, 27, 1)),
+            Spanned::new(Token::Symbol,                                   Span::new(&source, 28, 8)),
+            Spanned::new(Token::String(Data::String("heck".to_string())), Span::new(&source, 37, 6)),
+            Spanned::new(Token::CloseParen,                               Span::new(&source, 43, 1)),
+            Spanned::new(Token::End,                          Span::empty()),
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -367,8 +419,6 @@ mod test {
 
     fn test_literal(literal: &str, token: Token, length: usize) -> bool {
         let result = Lexer::new(&Source::source(literal)).step();
-
-        println!("{:?}", result);
 
         match result {
             Ok(v) => v == (token, length),
@@ -391,11 +441,7 @@ mod test {
 
     #[test]
     fn symbol() {
-        if !test_literal(
-            "orchard",
-            Token::Symbol(Local::new("orchard".to_string())),
-            7,
-        ) { panic!() }
+        if !test_literal("orchard", Token::Symbol, 7) { panic!() }
     }
 
     #[test]
@@ -445,11 +491,17 @@ mod test {
         ) { panic!() }
 
         let unicode = "\"Yo 👋! Ünícode µ works just fine 🚩! うん、気持ちいい！\"";
-        println!("{}", unicode.len());
         if !test_literal(
             unicode,
             Token::String(Data::String("Yo 👋! Ünícode µ works just fine 🚩! うん、気持ちいい！".to_string())),
             unicode.chars().collect::<Vec<char>>().len(),
         ) { panic!() }
+    }
+
+    #[test]
+    fn comma() {
+        let source = Source::source("heck\\ man");
+        let tokens = lex(source.clone());
+        assert_eq!(tokens, Err(Syntax::error("Unexpected token", Span::new(&source, 4, 1))));
     }
 }
