@@ -4,24 +4,26 @@
 #[repr(u8)]
 #[derive(Debug)]
 pub enum Opcode {
-    /// Load a constant
+    /// Load a constant.
     Con = 0,
-    /// Delete a value off the stack
+    /// Delete a value off the stack.
     Del,
-    /// Moves a variable onto the heap
+    /// Moves a variable onto the heap.
     Capture,
-    /// Save a constant into a variable
+    /// Save a constant into a variable.
     Save,
-    /// Save a value to a captured variable
+    /// Save a value to a captured variable.
     SaveCap,
-    /// Push a copy of a variable onto the stack
+    /// Push a copy of a variable onto the stack.
     Load,
-    /// Load a copy of a captured variable
+    /// Load a copy of a captured variable.
     LoadCap,
-    /// Call a function
+    /// Call a function.
     Call,
-    /// Return from a function
+    /// Return from a function.
     Return,
+    /// Creates a closure over the current local environment.
+    Closure,
 }
 
 impl Opcode {

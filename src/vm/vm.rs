@@ -82,6 +82,7 @@ impl VM {
             Opcode::LoadCap => self.load_cap(),
             Opcode::Call    => self.call(),
             Opcode::Return  => self.return_val(),
+            Opcode::Closure => todo!("Implement closures"),
         }
     }
 
@@ -140,15 +141,23 @@ impl VM {
     /// replacing it with a reference to the heapified value.
     /// > NOTE: Behaviour is not stabilized yet.
     pub fn capture(&mut self) -> Result<(), Trace> {
+        // we need to use lambda captured, not closure captured!
+        let is_local = if self.next_number() == 1 { true } else { false };
         let index = self.next_number();
-        // TODO: Write this all out efficiently?
-        self.stack.heapify(index);
-        self.stack.get_local(index);
-        if let Data::Heaped(captured) = self.stack.pop_data() {
-            self.closure.captured.push(captured);
+
+        if is_local {
+            // TODO: Write this all out efficiently?
+            self.stack.heapify(index);
+            self.stack.get_local(index);
+            if let Data::Heaped(captured) = self.stack.pop_data() {
+                self.closure.captured.push(captured);
+            } else {
+                unreachable!("Heaped data wasn't heaped when cloned to top")
+            }
         } else {
-            unreachable!("Heaped data wasn't heaped when cloned to top")
+            panic!("capturing nonlocal values isn't implemented yet")
         }
+
         self.done()
     }
 
@@ -162,12 +171,10 @@ impl VM {
     /// Save the topmost value on the stack into a captured variable.
     /// > NOTE: Not implemented.
     pub fn save_cap(&mut self) -> Result<(), Trace> {
-        Err(Trace::error(
-            "Impl.",
-            "Mutating captured variables is not yet implemented",
-            vec![Span::empty()]
-        ))
-        // unimplemented!();
+        let index = self.next_number();
+        let data  = self.stack.pop_data();
+        mem::drop(self.closure.captured[index].replace(data));
+        self.done()
     }
 
     /// Push a copy of a variable's value onto the stack.
@@ -182,14 +189,6 @@ impl VM {
     pub fn load_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         self.stack.push_data(Data::Heaped(self.closure.captured[index].clone()));
-
-        // Err(Trace::error(
-        //     "Impl.",
-        //     "Referencing captured variables is not yet implemented",
-        //     vec![self.closure.lambda.index_span(self.ip)],
-        // ));
-        // unimplemented!();
-
         self.done()
     }
 
@@ -245,6 +244,10 @@ impl VM {
 
 #[cfg(test)]
 mod test {
+    use std::{
+        rc::Rc,
+        cell::RefCell,
+    };
     use super::*;
     use crate::compiler::{
         parse::parse,
@@ -313,9 +316,11 @@ mod test {
         // y = (x -> { y = x; y ) 7.0; y
         let lambda = gen(
             parse(
-                lex(Source::source("pi = 3.15; x = w -> pi; x 37.6")).unwrap()
+                lex(Source::source("e = 2.72; pi = 3.15; x = w -> pi; x 37.6")).unwrap()
             ).unwrap()
         ).unwrap();
+
+        print!("{:?}", lambda);
 
         let mut vm = VM::init();
 
@@ -324,12 +329,9 @@ mod test {
             Err(e) => eprintln!("{}", e),
         }
 
-        println!("{:?}", vm.stack.stack);
+        // println!("{:?}", vm.stack.stack);
 
-        panic!();
-
-        // // check that y is in fact 7
-        // let t = vm.stack.pop_data();
-        // assert_eq!(t, Data::Real(7.0));
+        let t = vm.stack.pop_data();
+        assert_eq!(t, Data::Heaped(Rc::new(RefCell::new(Data::Real(3.14)))));
     }
 }

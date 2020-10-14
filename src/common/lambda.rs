@@ -14,7 +14,7 @@ pub struct Lambda {
     pub code:      Vec<u8>,            // each byte is an opcode or a number-stream
     pub spans:     Vec<(usize, Span)>, // each usize indexes the bytecode op that begins each line
     pub constants: Vec<Data>,          // number-stream indexed, used to load constants
-    pub captured:  Vec<usize>          // TODO: see CLOSURES.md
+    pub captureds:  Vec<usize>          // TODO: see CLOSURES.md
 }
 
 impl Lambda {
@@ -24,7 +24,7 @@ impl Lambda {
             code:      vec![],
             spans:     vec![],
             constants: vec![],
-            captured:  vec![],
+            captureds:  vec![],
         }
     }
 
@@ -84,8 +84,19 @@ impl fmt::Debug for Lambda {
         for constant in self.constants.iter() {
             writeln!(f, "{:?}", constant)?;
         }
+
+        writeln!(f, "-- Dumping Spans:")?;
+        for span in self.spans.iter() {
+            writeln!(f, "{:?}", span)?;
+        }
+
+        writeln!(f, "-- Dumping Captureds:")?;
+        for captured in self.captureds.iter() {
+            writeln!(f, "{:?}", captured)?;
+        }
+
         writeln!(f, "-- Dumping Bytecode:")?;
-        writeln!(f, "Inst.   \tArg?\tValue?")?;
+        writeln!(f, "Inst.   \tArgs\tValue?")?;
         let mut index = 0;
 
         while index < self.code.len() {
@@ -96,8 +107,9 @@ impl fmt::Debug for Lambda {
                     index += consumed;
                     writeln!(f, "Load Con\t{}\t{:?}", constant_index, self.constants[constant_index])?;
                 },
-                Opcode::Del => { writeln!(f, "Delete  \t--\t--")?; },
+                Opcode::Del => { writeln!(f, "Delete  \t\t--")?; },
                 Opcode::Capture => {
+
                     let (local_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "Capture \t{}\tIndexed local moved to heap", local_index)?;
@@ -122,12 +134,17 @@ impl fmt::Debug for Lambda {
                     index += consumed;
                     writeln!(f, "Load Cap\t{}\tIndexed upvalue on heap", upvalue_index)?;
                 },
-                Opcode::Call => { writeln!(f, "Call    \t--\tRun top function using next stack value")?; }
+                Opcode::Call => { writeln!(f, "Call    \t\tRun top function using next stack value")?; }
                 Opcode::Return => {
                     let (num_locals, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "Return  \t{}\tLocals on stack deleted", num_locals)?;
-                }
+                },
+                Opcode::Closure => {
+                    let (todo_index, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    writeln!(f, "Closure  \t{}\tIndex of lambda to be wrapped", todo_index)?;
+                },
             }
         }
 

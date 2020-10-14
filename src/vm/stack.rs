@@ -20,6 +20,7 @@ use crate::vm::{
 /// followed by *n* temporaries, ad infinitum.
 #[derive(Debug)]
 pub struct Stack {
+    // TODO: just use a Vec<usize>?
     pub frames: Linked,
     pub stack: Vec<Tagged>
 }

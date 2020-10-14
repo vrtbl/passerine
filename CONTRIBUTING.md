@@ -46,8 +46,8 @@ When you write well-written long-lasting code (read: lines of code in current re
 ## Passerine-Specific Guidelines for Getting Started
 > Note: this project is in the rapid initial stages of development, and as such, breaking changes or radical changes in project structure may occur. After the 1.0.0 release, this behavior will stabilize.
 
-Passerine strives to implement a modern compiler pipeline. 
-Passerine is currently broken up into three small projects: 
+Passerine strives to implement a modern compiler pipeline.
+Passerine is currently broken up into three small projects:
 
 - The core compiler, which resides in this repository.
 - The command line interface and the package repository, [Aspen](https://github.com/vrtbl/aspen).
@@ -59,7 +59,7 @@ Programs start as source files, after which they are then lexed into tokens, par
 The pipes themselves (i.e., the lexer, the parser, and the bytecode generator), can be found in `src/compiler`.
 The datastructures associated with these pipes can be found in `src/common`.
 
-Note that pipes can only reference datastructures in pipeline - the pipeline should never reference anything found in pipes.
+Note that `src/compiler` can only reference datastructures in `src/common` - `src/common` should never reference anything found in `src/compiler` or `src/vm`.
 Additionally, pipes should *not* rely on other pipes to get their job done.
 We follow the philosophy of Unix\*\*: Each pipe should do one thing, and do it well.
 
@@ -67,7 +67,7 @@ Both the VM and Compiler can, however, rely on datastructures in `src/common`.
 For instance, all datastructures are annotated with `Spans`, which point to which part of the source file each each structure represents.
 This includes utilities for printing errors, building the Passerine standard library, annotating source files, and passing data through multiple pipes sequentially, and so on.
 
-The powerhouse of this operation, the VM and its associated datastructures, can be found in `src/VM`. The VM is expected to only rely on bytecode and a constants table. Pipes should not to rely on the VM.
+The powerhouse of this operation, the VM and its associated datastructures, can be found in `src/vm`. The VM is expected to only rely on bytecode and a constants table. Pipes should not rely on the VM.
 
 As for testing, each non-trivial file is expected to have unit tests at the bottom of it.
 As a rule of thumb, at least a third of a file should be dedicated to testing.
@@ -80,16 +80,11 @@ Due to the structure of this project, it's fairly easy to implement new features
 If you've got a new feature in mind, roughly follow these steps:
 
 1. Fork the repo, start a new branch.
-2. If the feature requires a syntactic change to the language, edit `grammar.ebnf`.
-3. Implement lexing for any new tokens introduced.
-4. Implement parsing to lex those tokens into the correct AST.
-5. Determine the behavior of the feature - if it requires a new opcode, implement said opcode.
-6. Implement bytecode generation.
-7. Run all tests - if passing, bump version, submit a PR.
+2. Determine the behavior and scope of the feature.
+3. Implement the feature, staying in scope of the goal.
+4. Fix any tests that fail, write new tests to cement behavior.
+5. When all tests pass, bump version, submit a PR.
 
-Remember to write adequate tests during each step where applicable.
-A brilliant feature with 0 tests is like a Saturn V built with duct-tape.
-Impressive, but bound to explode.
 
 ### CLI and Package Repository
 > NOTE: this phase of the project has not wholly started yet.

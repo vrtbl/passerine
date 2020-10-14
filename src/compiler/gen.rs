@@ -5,7 +5,6 @@ use crate::common::{
     span::{Span, Spanned},
     lambda::Lambda,
     opcode::Opcode,
-    captured::Captured,
     data::Data,
 };
 
@@ -23,7 +22,6 @@ pub fn gen(ast: Spanned<AST>) -> Result<Lambda, Syntax> {
 }
 
 // TODO: implement equality
-// TODO: maybe just move into compiler?
 /// Represents a local when compiling.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Local {
@@ -38,7 +36,13 @@ impl Local {
     }
 }
 
-// TODO: annotations in bytecode
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Captured {
+    /// The index on the stack if the variable is local to the current scope
+    Local(usize),
+    /// The index of the upvalue in the enclosing scope
+    Nonlocal(usize),
+}
 
 /// Compiler is a bytecode generator that walks an AST and produces (unoptimized) Bytecode.
 /// There are plans to add a bytecode optimizer in the future.
@@ -51,7 +55,7 @@ pub struct Compiler {
     lambda: Lambda,
     /// The locals in the current scope.
     locals: Vec<Local>,
-    /// The captured variables used in the current scope.
+    // /// The captured variables used in the current scope.
     captureds: Vec<Captured>,
     /// The nested depth of the current compiler.
     depth: usize,
@@ -125,7 +129,8 @@ impl Compiler {
         Ok(())
     }
 
-    /// Returns the relative position on the stack of a declared local, if it exists.
+    /// Returns the relative position on the stack of a declared local,
+    /// if it exists in the current scope.
     pub fn local(&self, span: Span) -> Option<usize> {
         for (index, l) in self.locals.iter().enumerate() {
             if span.contents() == l.span.contents() {
@@ -147,31 +152,52 @@ impl Compiler {
             }
         }
 
-        // the index of the local on the stack
-        // relative to the current stack frame
-        let index = captured.index;
-
         // is not captured
-        self.captureds.push(captured);
-        self.lambda.emit(Opcode::Capture);
-        self.lambda.emit_bytes(&mut split_number(index));
+        let upvalue = match captured {
+            // move the variable onto the heap
+            Captured::Local(index) => {
+                self.lambda.emit(Opcode::Capture);
+                self.lambda.emit_bytes(&mut split_number(index));
+                index
+            },
+            // reference the previously heap'd variable
+            // in the closure's captureds vec
+            Captured::Nonlocal(upvalue) => upvalue,
+        };
 
-        return self.captureds.len() - 1;
+        self.captureds.push(captured);
+        return upvalue;
     }
 
     // TODO: rewrite
     /// NOTE: Function is not yet stable.
     pub fn captured(&mut self, span: Span) -> Option<usize> {
+        println!("resolving {}", span);
         if let Some(enclosing) = self.enclosing.as_mut() {
-            if let Some(index) = Compiler::local(&enclosing, span.clone()) {
-                return Some(self.capture(Captured::local(index)));
-            }
+            println!("entering...");
+            println!("{:?}", Compiler::local(&enclosing, span.clone()));
 
-            if let Some(index) = Compiler::captured(enclosing.as_mut(), span) {
-                return Some(self.capture(Captured::nonlocal(index)));
-            }
+            let upvalue = if let Some(index) = Compiler::local(&enclosing, span.clone()) {
+                // if the scope below us contains the local, we capture it
+                Compiler::capture(enclosing, Captured::Local(index))
+            } else if let Some(index) = Compiler::captured(enclosing.as_mut(), span) {
+                // otherwise, we check the scope below us
+                Compiler::capture(enclosing, Captured::Nonlocal(index))
+            } else {
+                // if the local wasn't found, we give up
+                println!("giving up ...");
+                return None;
+            };
+
+            self.lambda.captureds.push(upvalue);
+            return Some(upvalue);
+        } else {
+            println!("base scope...");
         }
 
+        // if there are no more enclosing scopes, we give up
+        // you can't capture a variable if it doesn't exist
+        println!("nothing found!");
         return None;
     }
 
@@ -188,6 +214,7 @@ impl Compiler {
             self.lambda.emit_bytes(&mut split_number(index))
         } else {
             // TODO: hoist?
+            println!("erring");
             return Err(Syntax::error(
                 "Variable referenced before assignment; it is undefined", span
             ));
@@ -262,7 +289,10 @@ impl Compiler {
         let lambda = self.exit_scope().lambda;
 
         // push the lambda object onto the callee's stack.
-        self.data(Data::Lambda(lambda))?;
+        let lambda_index = self.lambda.index_data(Data::Lambda(lambda));
+        self.lambda.emit(Opcode::Closure);
+        self.lambda.emit_bytes(&mut split_number(lambda_index));
+
         Ok(())
     }
 
@@ -324,10 +354,11 @@ mod test {
     fn closure() {
         // TODO: replace add1 with actual addition
         let source = Source::source("q = 1.0; x = (); w = y -> { x }; w ()");
-        let _lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
+        let lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
 
         // I verified the output by hand
         // TODO: verify manually
-        // println!("{:?}", lambda);
+        println!("{:?}", lambda);
+        panic!();
     }
 }
