@@ -126,6 +126,7 @@ impl Parser {
             Token::OpenParen   => self.group(),
             Token::OpenBracket => self.block(),
             Token::Symbol      => self.symbol(),
+            Token::Print       => self.print(),
             Token::Unit
             | Token::Number(_)
             | Token::String(_)
@@ -163,6 +164,7 @@ impl Parser {
               Token::OpenParen
             | Token::OpenBracket
             | Token::Unit
+            | Token::Print
             | Token::Symbol
             | Token::Number(_)
             | Token::String(_)
@@ -252,6 +254,21 @@ impl Parser {
         let ast = self.body(Token::CloseBracket)?;
         let end = self.consume(Token::CloseBracket)?.span.clone();
         return Ok(Spanned::new(ast, Span::combine(&start, &end)));
+    }
+
+    /// Parse a print statement.
+    /// A print statement takes the form `print <expression>`
+    /// Where expression is exactly one expression
+    /// Note that this is just a temporaty workaround;
+    /// Once the FFI is solidified, printing will be a function like any other.
+    pub fn print(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let start = self.consume(Token::Print)?.span.clone();
+        let ast = self.expression(Prec::Call)?;
+        let end = ast.span.clone();
+        return Ok(Spanned::new(
+            AST::Print(Box::new(ast)),
+            Span::combine(&start, &end),
+        ))
     }
 
     // Infix:

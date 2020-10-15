@@ -114,6 +114,7 @@ impl Compiler {
             AST::Data(data) => self.data(data),
             AST::Symbol => self.symbol(ast.span.clone()),
             AST::Block(block) => self.block(block),
+            AST::Print(expression) => self.print(*expression),
             AST::Assign { pattern, expression } => self.assign(*pattern, *expression),
             AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
             AST::Call   { fun,     arg        } => self.call(*fun, *arg),
@@ -231,6 +232,13 @@ impl Compiler {
 
         // remove the last delete instruction
         self.lambda.demit();
+        Ok(())
+    }
+
+    pub fn print(&mut self, expression: Spanned<AST>) -> Result<(), Syntax> {
+        self.walk(&expression)?;
+        self.lambda.emit(Opcode::Print);
+        self.data(Data::Unit)?;
         Ok(())
     }
 

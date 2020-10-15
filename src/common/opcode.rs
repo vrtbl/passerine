@@ -24,6 +24,8 @@ pub enum Opcode {
     Return,
     /// Creates a closure over the current local environment.
     Closure,
+    /// Prints a value.
+    Print,
 }
 
 impl Opcode {

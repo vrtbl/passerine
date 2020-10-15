@@ -16,6 +16,7 @@ pub enum Token {
 
     Assign,
     Lambda,
+    Print,
 
     // Datatypes
     Unit,
@@ -41,6 +42,7 @@ impl Display for Token {
             Token::Assign       => "an assignment",
             Token::Lambda       => "a lambda",
             Token::Unit         => "unit",
+            Token::Print        => "a print keyword",
             Token::Symbol       => "a symbol",
             Token::Number(_)    => "a number",
             Token::String(_)    => "a string",

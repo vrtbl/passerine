@@ -24,7 +24,8 @@ pub enum AST {
     Call {
         fun: Box<Spanned<AST>>,
         arg: Box<Spanned<AST>>,
-    }
+    },
+    Print(Box<Spanned<AST>>),
     // TODO: support following constructs as they are implemented
     // Lambda {
     //     pattern:    Box<AST>, // Note - should be pattern

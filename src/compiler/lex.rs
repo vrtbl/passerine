@@ -86,6 +86,7 @@ impl Lexer {
             Box::new(|s| Lexer::close_paren(s)  ),
             Box::new(|s| Lexer::assign(s)       ),
             Box::new(|s| Lexer::lambda(s)       ),
+            Box::new(|s| Lexer::print(s)        ), // remove print statements after FFI
 
             // variants
             Box::new(|s| Lexer::sep(s)    ),
@@ -184,6 +185,11 @@ impl Lexer {
         Lexer::literal(source, "}", Token::CloseBracket)
     }
 
+    /// Matches a literal closing parenthesis `)`.
+    pub fn unit(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "()", Token::Unit)
+    }
+
     /// Matches a literal opening parenthesis `(`.
     pub fn open_paren(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "(", Token::OpenParen)
@@ -194,11 +200,6 @@ impl Lexer {
         Lexer::literal(source, ")", Token::CloseParen)
     }
 
-    /// Matches a literal closing parenthesis `)`.
-    pub fn unit(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "()", Token::Unit)
-    }
-
     /// Matches a literal assignment equal sign `=`.
     pub fn assign(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "=", Token::Assign)
@@ -207,6 +208,11 @@ impl Lexer {
     /// Matches a literal lambda arrow `->`.
     pub fn lambda(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "->", Token::Lambda)
+    }
+
+    /// Matches a `print` expression.
+    pub fn print(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "print", Token::Print)
     }
 
     /// Classifis a symbol (i.e. variable name).

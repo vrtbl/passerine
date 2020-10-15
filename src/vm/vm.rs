@@ -82,6 +82,7 @@ impl VM {
             Opcode::Call    => self.call(),
             Opcode::Return  => self.return_val(),
             Opcode::Closure => self.closure(),
+            Opcode::Print   => self.print(),
         }
     }
 
@@ -187,15 +188,22 @@ impl VM {
         self.done()
     }
 
+    pub fn print(&mut self) -> Result<(), Trace> {
+        let data = self.stack.pop_data();
+        println!("{}", data);
+        self.done()
+    }
+
     // TODO: closures
     /// Call a function on the top of the stack, passing the next value as an argument.
     pub fn call(&mut self) -> Result<(), Trace> {
         let fun = match self.stack.pop_data() {
             Data::Closure(c) => c,
-            o                => {
-                println!("{:?}", o);
-                unreachable!("Expected to call a closure, but it wasn't a closure")
-            },
+            o                => return Err(Trace::error(
+                "Call",
+                &format!("The data '{}' is not a function and can not be called", o),
+                vec![self.closure.lambda.index_span(self.ip)],
+            )),
         };
         let arg = self.stack.pop_data();
 

@@ -19,7 +19,7 @@ impl Syntax {
 impl fmt::Display for Syntax {
     fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if !self.span.is_empty() { fmt::Display::fmt(&self.span, f)? };
-        writeln!(f, "Static Error: {}", self.message)
+        write!(f, "Static Error: {}", self.message)
     }
 }
 
@@ -43,7 +43,7 @@ mod test {
   |
 1 | x = \"Hello, world\" -> y + 1
   |     ^^^^^^^^^^^^^^
-Static Error: Unexpected token '\"Hello, world!\"'
+Static Error: Unexpected token '\"Hello, world!\"'\
 ";
 
         let result = format!("{}", error);

@@ -28,13 +28,13 @@ impl Trace {
 impl fmt::Display for Trace {
     fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // TODO: better message?
-        writeln!(f, "Traceback, most recent is last:")?;
+        writeln!(f, "Traceback, most recent call last:")?;
 
         for span in self.spans.iter().rev() {
             fmt::Display::fmt(span, f)?;
         }
 
-        writeln!(f, "Runtime {} Error: {}", self.kind, self.message)
+        write!(f, "Runtime {} Error: {}", self.kind, self.message)
     }
 }
 
@@ -54,7 +54,7 @@ forever = a -> a = a + (dub_incr a)
 forever RandomLabel
 "));
         let target = "\
-            Traceback, most recent is last:\n\
+            Traceback, most recent call last:\n\
             In ./source:4:1\n  \
               |\n\
             4 | forever RandomLabel\n  \
@@ -71,7 +71,7 @@ forever RandomLabel
               |\n\
             1 | incr = x -> x + 1\n  \
               |             ^^^^^\n\
-            Runtime Type Error: Can\'t add Label to Label\n\
+            Runtime Type Error: Can\'t add Label to Label\
         ";
 
         let traceback = Trace::error(

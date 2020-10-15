@@ -109,7 +109,6 @@ impl fmt::Debug for Lambda {
                 },
                 Opcode::Del => { writeln!(f, "Delete  \t\t--")?; },
                 Opcode::Capture => {
-
                     let (local_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "Capture \t{}\tIndexed local moved to heap", local_index)?;
@@ -145,6 +144,7 @@ impl fmt::Debug for Lambda {
                     index += consumed;
                     writeln!(f, "Closure  \t{}\tIndex of lambda to be wrapped", todo_index)?;
                 },
+                Opcode::Print => { writeln!(f, "Print    \t\t--")?;}
             }
         }
 
