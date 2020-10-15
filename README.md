@@ -46,21 +46,26 @@ print "Liftoff!"
 ```
 
 ## Getting Started
-If you just want to see what Passerine can do:
+Passerine is still very much so a work in progress.
+We've done a lot more, but there's still a lot left.
 
-> NOTE: Passerine is in an early stage of development.
-It's just barely reached the stage of theoretically being Turing-complete,
-but don't @ me yet.
+For those pioneers out there,
+The best way to get a feel for Passerine is to install [Aspen](https://github.com/vrtbl/aspen),
+Passerine's CLI and package manager.
+We're working on an installation script for the passerine development toolchain;
+until then, we suggest just cloning this repository and aspen,
+and reading through [the documentation](https://docs.rs/passerine).
 
-1. Clone this git repository.
-2. Build Passerine with cargo.
-3. Run the tests.
+## Contributing
+Contributors welcome!
+Read our [Contribution Guidelines](https://github.com/vrtbl/passerine/blob/master/CONTRIBUTING.md)
+and join the [Discord server](https://discord.gg/yMhUyhw)
+to get started.
 
-If you'd like to contribute:
+## Who's behind this
+This is maiden project of The Veritable Computation Foundation.
 
-1. Get Passerine.
-2. Start developing.
-   `CONTRIBUTING.md` has general guidelines and discusses project structure
+> TODO: expand...
 
 ## Roadmap
 See the [Project Roadmap](https://github.com/vrtbl/passerine/projects/1).

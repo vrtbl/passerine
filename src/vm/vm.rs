@@ -144,15 +144,8 @@ impl VM {
         let index = self.next_number();
 
         // TODO: Write this all out efficiently?
-        self.stack.heapify(index);   // move value to the heap
-        self.stack.get_local(index); // make a copy and push to the top of the stack
-        if let Data::Heaped(captured) = self.stack.pop_data() {
-            // yank that copy off the top of the stack, and capture it
-            self.closure.captureds.push(captured);
-        } else {
-            unreachable!("Heaped data wasn't heaped when cloned to top")
-        }
-
+        let reference = self.stack.heapify(index);   // move value to the heap
+        self.closure.captureds.push(reference);
         self.done()
     }
 
@@ -199,7 +192,10 @@ impl VM {
     pub fn call(&mut self) -> Result<(), Trace> {
         let fun = match self.stack.pop_data() {
             Data::Closure(c) => c,
-            _                => unreachable!(),
+            o                => {
+                println!("{:?}", o);
+                unreachable!("Expected to call a closure, but it wasn't a closure")
+            },
         };
         let arg = self.stack.pop_data();
 
@@ -257,10 +253,6 @@ impl VM {
 
 #[cfg(test)]
 mod test {
-    use std::{
-        rc::Rc,
-        cell::RefCell,
-    };
     use super::*;
     use crate::compiler::{
         parse::parse,
@@ -269,87 +261,52 @@ mod test {
     };
     use crate::common::source::Source;
 
-    #[test]
-    fn init_run() {
-        // TODO: check @ each step, write more tests
-
-        let lambda = gen(parse(lex(
-            Source::source("heck = 0.0; y = heck")
-        ).unwrap()).unwrap()).unwrap();
+    fn inspect(source: &str) -> VM {
+        let lambda = lex(Source::source(source))
+            .and_then(parse)
+            .and_then(gen)
+            .map_err(|e| eprintln!("{}", e))
+            .unwrap();
 
         // println!("{:?}", lambda);
         let mut vm = VM::init();
 
         match vm.run(Closure::wrap(lambda)) {
-            Ok(_)  => (),
+            Ok(()) => vm,
             Err(e) => {
                 eprintln!("{}", e);
                 panic!();
             },
         }
+    }
+
+    #[test]
+    fn init_run() {
+        inspect("x = 0.0");
     }
 
     #[test]
     fn block_expression() {
-        let lambda = gen(parse(lex(
-            Source::source("x = false; boop = true; heck = { x = boop; x }; heck")
-        ).unwrap()).unwrap()).unwrap();
-
-        // println!("{:?}", lambda);
-        let mut vm = VM::init();
-
-        match vm.run(Closure::wrap(lambda)) {
-            Ok(_)  => (),
-            Err(e) => {
-                eprintln!("{}", e);
-                panic!();
-            },
-        }
-
-        match vm.stack.pop_data() {
-            Data::Boolean(true) => (),
-            _                   => panic!("Expected true value"),
-        }
+        inspect("x = false; boop = true; heck = { x = boop; x }; heck");
     }
 
     #[test]
     fn functions() {
-        let lambda = gen(parse(lex(
-            Source::source("iden = x -> x; y = true; iden ({y = false; iden iden} (iden y))")
-        ).unwrap()).unwrap()).unwrap();
-
-        let mut vm = VM::init();
-
-        match vm.run(Closure::wrap(lambda)) {
-            Ok(_)  => (),
-            Err(e) => {
-                eprintln!("{}", e);
-                panic!();
-            },
-        }
-
-        let t = vm.stack.pop_data();
-        assert_eq!(t, Data::Boolean(true));
+        let mut vm = inspect("iden = x -> x; y = true; iden ({y = false; iden iden} (iden y))");
+        let identity = vm.stack.pop_data();
+        assert_eq!(identity, Data::Boolean(true));
     }
 
     #[test]
     fn fun_scope() {
         // y = (x -> { y = x; y ) 7.0; y
-        let lambda = gen(parse(lex(Source::source(
-            "one = 1.0\npi = 3.14\ne = 2.72\n\nx = w -> pi\nx 37.6"
-        )).unwrap()).unwrap()).unwrap();
+        let mut vm = inspect("one = 1.0\npi = 3.14\ne = 2.72\n\nx = w -> pi\nx 37.6");
+        let pi = vm.stack.pop_data();
+        assert_eq!(pi, Data::Real(3.14));
+    }
 
-        let mut vm = VM::init();
-
-        match vm.run(Closure::wrap(lambda)) {
-            Ok(_)  => (),
-            Err(e) => {
-                eprintln!("{}", e);
-                panic!();
-            },
-        }
-
-        let t = vm.stack.pop_data();
-        assert_eq!(t, Data::Heaped(Rc::new(RefCell::new(Data::Real(3.14)))));
+    #[test]
+    fn mutate_capture() {
+        inspect("odd = (); even = x -> odd; odd = 1.0; even (); odd");
     }
 }

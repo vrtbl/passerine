@@ -129,12 +129,24 @@ impl Compiler {
         Ok(())
     }
 
+    // TODO: nested too deep :(
     /// Returns the relative position on the stack of a declared local,
     /// if it exists in the current scope.
     pub fn local(&self, span: Span) -> Option<usize> {
         for (index, l) in self.locals.iter().enumerate() {
+            // if we find the local
             if span.contents() == l.span.contents() {
-                return Some(index);
+                // // we check whether it's been captured
+                // for captured in self.captureds.iter() {
+                //     // if it's been captured, we can't load it like a normal local
+                //     if let Captured::Local(c) = captured {
+                //         if c == &index { return None; }
+                //         // TODO: Valid optimization:
+                //         // else { break; }
+                //         // ?
+                //     }
+                // }
+                return Some(index)
             }
         }
 

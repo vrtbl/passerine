@@ -47,14 +47,16 @@ impl Stack {
     }
 
     /// Pops some `Data` of the `Stack`, panicking if what it pops is not `Data`.
+    /// Note that this will never return a `Heaped` value, rather cloning the value inside.
     #[inline]
     pub fn pop_data(&mut self) -> Data {
         let value = self.stack.pop()
             .expect("VM tried to pop empty stack, stack should never be empty");
 
         match value.data() {
-            Data::Frame => unreachable!("tried to pop data, Frame is not data"),
-            data        => data,
+            Data::Frame     => unreachable!("tried to pop data, Frame is not data"),
+            Data::Heaped(r) => r.borrow().clone(),
+            data            => data,
         }
     }
 
@@ -81,12 +83,15 @@ impl Stack {
     /// Wraps the top data value on the stack in `Data::Heaped`,
     /// if it is not already on the heap.
     #[inline]
-    pub fn heapify(&mut self, index: usize) {
+    pub fn heapify(&mut self, index: usize) -> Rc<RefCell<Data>> {
         let local_index = self.frames.peek() + index + 1;
 
         let data = mem::replace(&mut self.stack[local_index], Tagged::frame()).data();
-        let heaped = Data::Heaped(Rc::new(RefCell::new(data)));
+        let reference = Rc::new(RefCell::new(data));
+        let heaped = Data::Heaped(reference.clone());
         mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(heaped)));
+
+        return reference;
     }
 
     /// Gets a local and pushes it onto the top of the `Stack`
@@ -115,11 +120,23 @@ impl Stack {
         } else if self.stack.len() <= local_index {
             unreachable!("Can not set local that is not yet on stack");
         } else {
-            // replace the old value with the new one
-            // doesn't check that the new value is data
-            // TODO: rewrite to check for data when frame representation is implemented
-            let top = self.stack.pop().unwrap();
-            mem::drop(mem::replace(&mut self.stack[local_index], top))
+            // get the old local
+            let data = mem::replace(&mut self.stack[local_index], Tagged::frame()).data();
+
+            // replace the old value with the new one if on the heap
+            let tagged = match data {
+                Data::Frame => unreachable!(),
+                // if it is on the heap, we replace in the old value
+                Data::Heaped(ref cell) => {
+                    mem::drop(cell.replace(self.pop_data()));
+                    Tagged::new(data)
+                }
+                // if it's not on the heap, we assume it's data,
+                // and do a quick swap-and-drop
+                _ => self.stack.pop().unwrap(),
+            };
+
+            mem::drop(mem::replace(&mut self.stack[local_index], tagged))
         }
     }
 }
