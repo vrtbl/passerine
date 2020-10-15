@@ -4,7 +4,7 @@
     </a>
 </p>
 <h3 align="center">The Passerine Programming Language</h3>
-<p align="center">Made with ♥ by Isaac Clayton and the Passerine Community — a cornerstone of the Veritable Computation Initiative.</p>
+<p align="center">Made with ♡ by Isaac Clayton and the Passerine Community — a cornerstone of the Veritable Computation Initiative.</p>
 <p align="center">
     <a href="https://github.com/vrtbl/passerine/actions">
         <img src="https://github.com/vrtbl/passerine/workflows/Rust/badge.svg">
