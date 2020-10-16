@@ -2,4 +2,4 @@
 # It is not intended for manual editing.
 [[package]]
 name = "passerine"
-version = "0.7.0"
+version = "0.7.1"
