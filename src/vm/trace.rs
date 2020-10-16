@@ -55,22 +55,26 @@ forever RandomLabel
 "));
         let target = "\
             Traceback, most recent call last:\n\
-            In ./source:4:1\n  \
-              |\n\
-            4 | forever RandomLabel\n  \
-              | ^^^^^^^^^^^^^^^^^^^\n\
-            In ./source:3:24\n  \
-              |\n\
-            3 | forever = a -> a = a + (dub_incr a)\n  \
-              |                        ^^^^^^^^^^^^\n\
-            In ./source:2:17\n  \
-              |\n\
-            2 | dub_incr = z -> (incr x) + (incr x)\n  \
-              |                 ^^^^^^^^\n\
-            In ./source:1:13\n  \
-              |\n\
-            1 | incr = x -> x + 1\n  \
-              |             ^^^^^\n\
+            In ./source:4:1\n   \
+               |\n \
+             4 | forever RandomLabel\n   \
+               | ^^^^^^^^^^^^^^^^^^^\n   \
+               |\n\
+            In ./source:3:24\n   \
+               |\n \
+             3 | forever = a -> a = a + (dub_incr a)\n   \
+               |                        ^^^^^^^^^^^^\n   \
+               |\n\
+            In ./source:2:17\n   \
+               |\n \
+             2 | dub_incr = z -> (incr x) + (incr x)\n   \
+               |                 ^^^^^^^^\n   \
+               |\n\
+            In ./source:1:13\n   \
+               |\n \
+             1 | incr = x -> x + 1\n   \
+               |             ^^^^^\n   \
+               |\n\
             Runtime Type Error: Can\'t add Label to Label\
         ";
 

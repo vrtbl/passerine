@@ -7,25 +7,25 @@ pub enum Opcode {
     /// Load a constant.
     Con = 0,
     /// Delete a value off the stack.
-    Del,
+    Del = 1,
     /// Moves a variable onto the heap.
-    Capture,
+    Capture = 2,
     /// Save a constant into a variable.
-    Save,
+    Save = 3,
     /// Save a value to a captured variable.
-    SaveCap,
+    SaveCap = 4,
     /// Push a copy of a variable onto the stack.
-    Load,
+    Load = 5,
     /// Load a copy of a captured variable.
-    LoadCap,
+    LoadCap = 6,
     /// Call a function.
-    Call,
+    Call = 7,
     /// Return from a function.
-    Return,
+    Return = 8,
     /// Creates a closure over the current local environment.
-    Closure,
+    Closure = 9,
     /// Prints a value.
-    Print,
+    Print = 10,
 }
 
 impl Opcode {

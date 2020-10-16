@@ -210,14 +210,14 @@ impl Display for Span {
             readable_start_col
         );
 
-        let separator = format!("{} |", " ".repeat(padding));
+        let separator = format!(" {} |", " ".repeat(padding));
 
         if start_line == end_line {
             let l = lines[end_line];
 
-            let line = format!("{} | {}", readable_end_line, l);
+            let line = format!(" {} | {}", readable_end_line, l);
             let span = format!(
-                "{} | {}{}",
+                " {} | {}{}",
                 " ".repeat(padding),
                 " ".repeat(start_col),
                 "^".repeat(self.length),
@@ -226,7 +226,8 @@ impl Display for Span {
             writeln!(f, "{}", location)?;
             writeln!(f, "{}", separator)?;
             writeln!(f, "{}", line)?;
-            writeln!(f, "{}", span)
+            writeln!(f, "{}", span)?;
+            writeln!(f, "{}", separator)
         } else {
             let formatted = lines[start_line..=end_line]
                 .iter()
@@ -234,7 +235,7 @@ impl Display for Span {
                 .map(|(i, l)| {
                     let readable_line_no = (start_line + i + 1).to_string();
                     let partial_padding = " ".repeat(padding - readable_line_no.len());
-                    format!("{}{} > {}", partial_padding, readable_line_no, l)
+                    format!(" {}{} > {}", partial_padding, readable_line_no, l)
                 })
                 .collect::<Vec<String>>()
                 .join("\n");
@@ -305,11 +306,11 @@ mod test {
         let source = Source::source("hello\nbanana boat\nmagination\n");
         let span = Span::new(&source, 16, 12);
         assert_eq!(format!("{}", span), "\
-            In ./source:2:11\n  \
-              |\n\
-            2 > banana boat\n\
-            3 > magination\n  \
-              |\n\
+            In ./source:2:11\n   \
+               |\n \
+             2 > banana boat\n \
+             3 > magination\n   \
+               |\n\
             "
         )
     }

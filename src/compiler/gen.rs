@@ -135,18 +135,7 @@ impl Compiler {
     /// if it exists in the current scope.
     pub fn local(&self, span: Span) -> Option<usize> {
         for (index, l) in self.locals.iter().enumerate() {
-            // if we find the local
             if span.contents() == l.span.contents() {
-                // // we check whether it's been captured
-                // for captured in self.captureds.iter() {
-                //     // if it's been captured, we can't load it like a normal local
-                //     if let Captured::Local(c) = captured {
-                //         if c == &index { return None; }
-                //         // TODO: Valid optimization:
-                //         // else { break; }
-                //         // ?
-                //     }
-                // }
                 return Some(index)
             }
         }
@@ -229,6 +218,11 @@ impl Compiler {
     /// A block is a series of expressions where the last is returned.
     /// Each sup-expression is walked, the last value is left on the stack.
     pub fn block(&mut self, children: Vec<Spanned<AST>>) -> Result<(), Syntax> {
+        if children.is_empty() {
+            self.data(Data::Unit)?;
+            return Ok(());
+        }
+
         for child in children {
             self.walk(&child)?;
             self.lambda.emit(Opcode::Del);
@@ -242,7 +236,6 @@ impl Compiler {
     pub fn print(&mut self, expression: Spanned<AST>) -> Result<(), Syntax> {
         self.walk(&expression)?;
         self.lambda.emit(Opcode::Print);
-        self.data(Data::Unit)?;
         Ok(())
     }
 
@@ -285,13 +278,12 @@ impl Compiler {
         {
             // save the argument into the given variable
             if let AST::Symbol = symbol.item {} else { unreachable!() }
+            self.declare(symbol.span);
             self.lambda.emit(Opcode::Save);
-            self.locals.push(Local::new(symbol.span, self.depth));
             self.lambda.emit_bytes(&mut split_number(0)); // will always be zerost item on stack
 
             // enter a new scope and walk the function body
-            // let mut nested = Compiler::over(&mut);
-            self.walk(&expression)?;    // run the function
+            self.walk(&expression)?;          // run the function
             self.lambda.emit(Opcode::Return); // return the result
             self.lambda.emit_bytes(&mut split_number(self.locals.len()));
 

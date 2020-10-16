@@ -16,7 +16,7 @@ use crate::common::{
 };
 
 /// Built-in Passerine datatypes.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Data {
     // VM Stack
     Frame,
@@ -53,10 +53,26 @@ impl Display for Data {
             Data::Real(n)     => write!(f, "Real {}", n),
             Data::Boolean(b)  => write!(f, "Boolean {}", if *b { "true" } else { "false" }),
             Data::String(s)   => write!(f, "{}", s),
-            Data::Lambda(_)   => write!(f, "Function"),
-            Data::Closure(_)  => write!(f, "Closure"),
+            Data::Lambda(_)   => unreachable!("Can not display naked functions"),
+            Data::Closure(_)  => write!(f, "Function"),
             Data::Label(n, v) => write!(f, "{} {}", n, v),
             Data::Unit        => write!(f, "()"),
+        }
+    }
+}
+
+impl Debug for Data {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Data::Frame       => write!(f, "Frame"),
+            Data::Heaped(h)   => write!(f, "Heaped({:?})", h.borrow()),
+            Data::Real(n)     => write!(f, "Real({:?})", n),
+            Data::Boolean(b)  => write!(f, "Boolean({:?})", b),
+            Data::String(s)   => write!(f, "String({:?})", s),
+            Data::Lambda(_)   => write!(f, "Function(...)"),
+            Data::Closure(_)  => write!(f, "Closure(...)"),
+            Data::Label(n, v) => write!(f, "Label({}, {:?})", n, v),
+            Data::Unit        => write!(f, "Unit"),
         }
     }
 }

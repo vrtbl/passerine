@@ -105,11 +105,12 @@ impl VM {
             if let error @ Err(_) = self.step() {
                 // TODO: clean up stack on error
                 result = error;
+                // println!("Error!");
                 break;
             };
             // println!("---");
         }
-        // println!("after: {:?}", self.stack);
+        // println!("after: {:?}", self.stack.stack);
         // println!("---");
 
         // return current state
@@ -158,7 +159,6 @@ impl VM {
     }
 
     /// Save the topmost value on the stack into a captured variable.
-    /// > NOTE: Not implemented.
     pub fn save_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         let data  = self.stack.pop_data();
@@ -176,6 +176,7 @@ impl VM {
     /// Load a captured variable from the current closure.
     pub fn load_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
+        println!("{:?}", self.closure.captureds);
         // NOTE: should heaped data should only be present for variables?
         // self.closure.captureds[index].borrow().to_owned()
         self.stack.push_data(Data::Heaped(self.closure.captureds[index].clone()));
@@ -191,15 +192,17 @@ impl VM {
     pub fn print(&mut self) -> Result<(), Trace> {
         let data = self.stack.pop_data();
         println!("{}", data);
+        self.stack.push_data(data);
         self.done()
     }
 
     // TODO: closures
     /// Call a function on the top of the stack, passing the next value as an argument.
     pub fn call(&mut self) -> Result<(), Trace> {
+        // print!("BOOPY\n{}", self.closure.lambda);
         let fun = match self.stack.pop_data() {
             Data::Closure(c) => c,
-            o                => return Err(Trace::error(
+            o => return Err(Trace::error(
                 "Call",
                 &format!("The data '{}' is not a function and can not be called", o),
                 vec![self.closure.lambda.index_span(self.ip)],
@@ -250,7 +253,7 @@ impl VM {
         };
 
         let mut closure = Closure::wrap(lambda);
-        for upvalue in closure.lambda.captureds.iter() {
+        for upvalue in closure.lambda.captureds.iter().rev() {
             closure.captureds.push(self.closure.captureds[*upvalue].clone())
         }
 
@@ -282,7 +285,7 @@ mod test {
         match vm.run(Closure::wrap(lambda)) {
             Ok(()) => vm,
             Err(e) => {
-                eprintln!("{}", e);
+                println!("{}", e);
                 panic!();
             },
         }
@@ -332,4 +335,15 @@ mod test {
             redef printpi\n\
         ");
     }
+
+    // TODO: figure out how to make the following passerine code into a test
+    // without entering into an infinite loop (which is the intended behaviour)
+    // loop = ()
+    // loop = y -> x -> {
+    //     print y
+    //     print x
+    //     loop x y
+    // }
+    //
+    // loop true false
 }

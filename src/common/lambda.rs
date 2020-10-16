@@ -9,7 +9,7 @@ use std::fmt;
 
 /// Represents a single interpretable chunk of bytecode,
 /// Think a function.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Lambda {
     pub code:      Vec<u8>,            // each byte is an opcode or a number-stream
     pub spans:     Vec<(usize, Span)>, // each usize indexes the bytecode op that begins each line
@@ -78,17 +78,17 @@ impl Lambda {
     }
 }
 
-impl fmt::Debug for Lambda {
+impl fmt::Display for Lambda {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "\n-- Dumping Constants:")?;
         for constant in self.constants.iter() {
             writeln!(f, "{:?}", constant)?;
         }
 
-        writeln!(f, "-- Dumping Spans:")?;
-        for span in self.spans.iter() {
-            writeln!(f, "{:?}", span)?;
-        }
+        // writeln!(f, "-- Dumping Spans:")?;
+        // for span in self.spans.iter() {
+        //     writeln!(f, "{:?}", span)?;
+        // }
 
         writeln!(f, "-- Dumping Captureds:")?;
         for captured in self.captureds.iter() {
@@ -142,7 +142,7 @@ impl fmt::Debug for Lambda {
                 Opcode::Closure => {
                     let (todo_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
-                    writeln!(f, "Closure  \t{}\tIndex of lambda to be wrapped", todo_index)?;
+                    writeln!(f, "Closure \t{}\tIndex of lambda to be wrapped", todo_index)?;
                 },
                 Opcode::Print => { writeln!(f, "Print    \t\t--")?;}
             }
