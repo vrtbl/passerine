@@ -178,7 +178,6 @@ impl VM {
         let index = self.next_number();
         // NOTE: should heaped data should only be present for variables?
         // self.closure.captureds[index].borrow().to_owned()
-        println!("{:#?}", self);
         self.stack.push_data(Data::Heaped(self.closure.captureds[index].clone()));
         self.done()
     }
