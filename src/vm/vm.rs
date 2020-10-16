@@ -176,7 +176,6 @@ impl VM {
     /// Load a captured variable from the current closure.
     pub fn load_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
-        println!("{:?}", self.closure.captureds);
         // NOTE: should heaped data should only be present for variables?
         // self.closure.captureds[index].borrow().to_owned()
         self.stack.push_data(Data::Heaped(self.closure.captureds[index].clone()));
@@ -199,7 +198,6 @@ impl VM {
     // TODO: closures
     /// Call a function on the top of the stack, passing the next value as an argument.
     pub fn call(&mut self) -> Result<(), Trace> {
-        // print!("BOOPY\n{}", self.closure.lambda);
         let fun = match self.stack.pop_data() {
             Data::Closure(c) => c,
             o => return Err(Trace::error(
@@ -276,7 +274,7 @@ mod test {
         let lambda = lex(Source::source(source))
             .and_then(parse)
             .and_then(gen)
-            .map_err(|e| eprintln!("{}", e))
+            .map_err(|e| println!("{}", e))
             .unwrap();
 
         // println!("{:?}", lambda);
