@@ -166,9 +166,14 @@ impl Compiler {
         }
 
         // is not yet captured
-        if let Captured::Local(index) = captured {
-            self.lambda.emit(Opcode::Capture);
-            self.lambda.emit_bytes(&mut split_number(index));
+        match captured {
+            Captured::Local(index) => {
+                self.lambda.emit(Opcode::Capture);
+                self.lambda.emit_bytes(&mut split_number(index));
+            },
+            Captured::Nonlocal(upvalue) => {
+                self.lambda.captureds.push(upvalue);
+            },
         }
 
         self.captureds.push(captured);
@@ -180,25 +185,24 @@ impl Compiler {
     // then builds a chain of upvalues to hoist that upvalue where it's needed.
     // This can be made more efficient.
     pub fn captured(&mut self, span: Span) -> Option<usize> {
-        if let Some(enclosing) = self.enclosing.as_mut() {
-            let upvalue = if let Some(index) = Compiler::local(&enclosing, span.clone()) {
-                // if the scope below us contains the local, we capture it
-                Compiler::capture(enclosing, Captured::Local(index))
-            } else if let Some(index) = Compiler::captured(enclosing.as_mut(), span) {
-                // otherwise, we check the scope below us
-                // TODO: verify that doubly-lifted values work properly
-                Compiler::capture(enclosing, Captured::Nonlocal(index))
-            } else {
-                // if the local wasn't found, we give up
-                return None;
-            };
+        // return index in compiler captureds - 1
 
-            self.lambda.captureds.push(upvalue);
-            return Some(upvalue);
+        if let Some(index) = self.local(span.clone()) {
+            // if the variable exists in this scope:
+            // capture that variable (i.e. emit opcode)
+            // add to compiler captureds
+            return Some(self.capture(Captured::Local(index)));
         }
 
-        // if there are no more enclosing scopes, we give up
-        // you can't capture a variable if it doesn't exist, lol
+        if let Some(enclosing) = self.enclosing.as_mut() {
+            if let Some(upvalue) = enclosing.captured(span) {
+                // if the variable exists in an enclosing scope and has been captured:
+                // add to compiler captureds
+                // add to lambda captureds
+                return Some(self.capture(Captured::Nonlocal(upvalue)))
+            }
+        }
+
         return None;
     }
 

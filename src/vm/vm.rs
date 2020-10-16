@@ -178,6 +178,7 @@ impl VM {
         let index = self.next_number();
         // NOTE: should heaped data should only be present for variables?
         // self.closure.captureds[index].borrow().to_owned()
+        println!("{:#?}", self);
         self.stack.push_data(Data::Heaped(self.closure.captureds[index].clone()));
         self.done()
     }
@@ -316,5 +317,20 @@ mod test {
     #[test]
     fn mutate_capture() {
         inspect("odd = (); even = x -> odd; odd = 1.0; even (); odd");
+    }
+
+    #[test]
+    fn mutate_capture_fn() {
+        inspect("\
+            pi = 3.14\n\
+            printpi = x -> print pi\n\
+            \n\
+            redef = ()\n\
+            redef = w -> {\n    \
+                w (printpi ())\n\
+            }\n\
+            \n\
+            redef printpi\n\
+        ");
     }
 }
