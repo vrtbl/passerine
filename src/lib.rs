@@ -72,19 +72,19 @@
 //!
 //! The next phase of compilation is parsing.
 //! The parser takes a spanned token stream,
-//! and builts a spanned Abstract Syntax Tree (AST).
+//! and builts a spanned Abstract Syntax Tree (CST).
 //! The parser used is a modified Pratt parser.
 //! (It's modified to handle the special function-call syntax used.)
 //! To parse a token stream, use the `compiler::parse::parse` function.
 //!
-//! After constructing the AST, bytecode is generated.
+//! After constructing the CST, bytecode is generated.
 //! Bytecode is just a vector of u8s, interlaced with split numbers.
 //! All the opcodes are defined in `common::opcode`,
 //! And implemented in `compiler::vm::vm`.
 //! A bytecode object is a called a `Lambda`.
-//! The bytecode generator works by walking the AST,
+//! The bytecode generator works by walking the CST,
 //! Recursively nesting itself when a new scope is encountered.
-//! To generate bytecode for an AST, use the `compiler::gen::gen` function.
+//! To generate bytecode for an CST, use the `compiler::gen::gen` function.
 //!
 //! ### Execution
 //! The VM can raise `Err(Trace)` if it encounters

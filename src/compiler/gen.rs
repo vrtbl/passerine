@@ -9,13 +9,13 @@ use crate::common::{
 };
 
 use crate::compiler::{
-    ast::AST,
+    cst::CST,
     syntax::Syntax,
 };
 
-/// Simple function that generates unoptimized bytecode from an `AST`.
+/// Simple function that generates unoptimized bytecode from an `CST`.
 /// Exposes the functionality of the `Compiler`.
-pub fn gen(ast: Spanned<AST>) -> Result<Lambda, Syntax> {
+pub fn gen(ast: Spanned<CST>) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base();
     compiler.walk(&ast)?;
     return Ok(compiler.lambda);
@@ -44,7 +44,7 @@ pub enum Captured {
     Nonlocal(usize),
 }
 
-/// Compiler is a bytecode generator that walks an AST and produces (unoptimized) Bytecode.
+/// Compiler is a bytecode generator that walks an CST and produces (unoptimized) Bytecode.
 /// There are plans to add a bytecode optimizer in the future.
 /// Note that this struct should not be controlled manually,
 /// use the `gen` function instead.
@@ -101,23 +101,23 @@ impl Compiler {
         return nested;
     }
 
-    /// Walks an AST to generate bytecode.
-    /// At this stage, the AST should've been verified, pruned, typechecked, etc.
-    /// A malformed AST will cause a panic, as ASTs should be correct at this stage,
+    /// Walks an CST to generate bytecode.
+    /// At this stage, the CST should've been verified, pruned, typechecked, etc.
+    /// A malformed CST will cause a panic, as CSTs should be correct at this stage,
     /// and for them to be incorrect is an error in the compiler itself.
-    pub fn walk(&mut self, ast: &Spanned<AST>) -> Result<(), Syntax> {
+    pub fn walk(&mut self, ast: &Spanned<CST>) -> Result<(), Syntax> {
         // the entire span of the current node
         self.lambda.emit_span(&ast.span);
 
         // push left, push right, push center
         let result = match ast.item.clone() {
-            AST::Data(data) => self.data(data),
-            AST::Symbol => self.symbol(ast.span.clone()),
-            AST::Block(block) => self.block(block),
-            AST::Print(expression) => self.print(*expression),
-            AST::Assign { pattern, expression } => self.assign(*pattern, *expression),
-            AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
-            AST::Call   { fun,     arg        } => self.call(*fun, *arg),
+            CST::Data(data) => self.data(data),
+            CST::Symbol => self.symbol(ast.span.clone()),
+            CST::Block(block) => self.block(block),
+            CST::Print(expression) => self.print(*expression),
+            CST::Assign { pattern, expression } => self.assign(*pattern, *expression),
+            CST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
+            CST::Call   { fun,     arg        } => self.call(*fun, *arg),
         };
         return result;
     }
@@ -217,7 +217,7 @@ impl Compiler {
 
     /// A block is a series of expressions where the last is returned.
     /// Each sup-expression is walked, the last value is left on the stack.
-    pub fn block(&mut self, children: Vec<Spanned<AST>>) -> Result<(), Syntax> {
+    pub fn block(&mut self, children: Vec<Spanned<CST>>) -> Result<(), Syntax> {
         if children.is_empty() {
             self.data(Data::Unit)?;
             return Ok(());
@@ -233,20 +233,20 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn print(&mut self, expression: Spanned<AST>) -> Result<(), Syntax> {
+    pub fn print(&mut self, expression: Spanned<CST>) -> Result<(), Syntax> {
         self.walk(&expression)?;
         self.lambda.emit(Opcode::Print);
         Ok(())
     }
 
     /// Assign a value to a variable.
-    pub fn assign(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), Syntax> {
+    pub fn assign(&mut self, symbol: Spanned<CST>, expression: Spanned<CST>) -> Result<(), Syntax> {
         // eval the expression
         self.walk(&expression)?;
 
         // load the following symbol ...
         let span = match symbol.item {
-            AST::Symbol => symbol.span,
+            CST::Symbol => symbol.span,
             _ => unreachable!(),
         };
 
@@ -272,12 +272,12 @@ impl Compiler {
 
     // TODO: rewrite according to new symbol rules
     /// Recursively compiles a lambda declaration in a new scope.
-    pub fn lambda(&mut self, symbol: Spanned<AST>, expression: Spanned<AST>) -> Result<(), Syntax> {
+    pub fn lambda(&mut self, symbol: Spanned<CST>, expression: Spanned<CST>) -> Result<(), Syntax> {
         // just so the parallel is visually apparent
         self.enter_scope();
         {
             // save the argument into the given variable
-            if let AST::Symbol = symbol.item {} else { unreachable!() }
+            if let CST::Symbol = symbol.item {} else { unreachable!() }
             self.declare(symbol.span);
             self.lambda.emit(Opcode::Save);
             self.lambda.emit_bytes(&mut split_number(0)); // will always be zerost item on stack
@@ -301,7 +301,7 @@ impl Compiler {
 
     /// When a function is called, the top two items are taken off the stack,
     /// The topmost item is expected to be a function.
-    pub fn call(&mut self, fun: Spanned<AST>, arg: Spanned<AST>) -> Result<(), Syntax> {
+    pub fn call(&mut self, fun: Spanned<CST>, arg: Spanned<CST>) -> Result<(), Syntax> {
         self.walk(&arg)?;
         self.walk(&fun)?;
 
