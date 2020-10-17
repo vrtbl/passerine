@@ -306,7 +306,14 @@ impl Parser {
     pub fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let argument = self.expression(Prec::Call.associate_left())?;
         let combined = Span::combine(&left.span, &argument.span);
-        return Ok(Spanned::new(AST::call(left, argument), combined));
+
+        let mut form = match left.item {
+            AST::Form(f) => f,
+            _ => vec![left],
+        };
+        form.push(argument);
+
+        return Ok(Spanned::new(AST::Form(form), combined));
     }
 }
 

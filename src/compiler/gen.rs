@@ -15,9 +15,9 @@ use crate::compiler::{
 
 /// Simple function that generates unoptimized bytecode from an `CST`.
 /// Exposes the functionality of the `Compiler`.
-pub fn gen(ast: Spanned<CST>) -> Result<Lambda, Syntax> {
+pub fn gen(cst: Spanned<CST>) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base();
-    compiler.walk(&ast)?;
+    compiler.walk(&cst)?;
     return Ok(compiler.lambda);
 }
 
@@ -105,14 +105,14 @@ impl Compiler {
     /// At this stage, the CST should've been verified, pruned, typechecked, etc.
     /// A malformed CST will cause a panic, as CSTs should be correct at this stage,
     /// and for them to be incorrect is an error in the compiler itself.
-    pub fn walk(&mut self, ast: &Spanned<CST>) -> Result<(), Syntax> {
+    pub fn walk(&mut self, cst: &Spanned<CST>) -> Result<(), Syntax> {
         // the entire span of the current node
-        self.lambda.emit_span(&ast.span);
+        self.lambda.emit_span(&cst.span);
 
         // push left, push right, push center
-        let result = match ast.item.clone() {
+        let result = match cst.item.clone() {
             CST::Data(data) => self.data(data),
-            CST::Symbol => self.symbol(ast.span.clone()),
+            CST::Symbol => self.symbol(cst.span.clone()),
             CST::Block(block) => self.block(block),
             CST::Print(expression) => self.print(*expression),
             CST::Assign { pattern, expression } => self.assign(*pattern, *expression),
@@ -314,14 +314,17 @@ impl Compiler {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::compiler::lex::lex;
-    use crate::compiler::parse::parse;
+    use crate::compiler::{
+        lex::lex,
+        parse::parse,
+        desugar::desugar,
+    };
     use crate::common::source::Source;
 
     #[test]
     fn constants() {
         let source = Source::source("heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"");
-        let lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
+        let lambda = gen(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap();
 
         let result = vec![
             Data::Boolean(true),
@@ -337,7 +340,7 @@ mod test {
     #[test]
     fn bytecode() {
         let source = Source::source("heck = true; lol = heck; lmao = false");
-        let lambda = gen(parse(lex(source).unwrap()).unwrap()).unwrap();
+        let lambda = gen(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap();
 
         let result = vec![
             (Opcode::Con as u8), 128, (Opcode::Save as u8), 128,  // con true, save to heck,

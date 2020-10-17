@@ -265,6 +265,7 @@ mod test {
     use super::*;
     use crate::compiler::{
         parse::parse,
+        desugar::desugar,
         lex::lex,
         gen::gen,
     };
@@ -273,6 +274,7 @@ mod test {
     fn inspect(source: &str) -> VM {
         let lambda = lex(Source::source(source))
             .and_then(parse)
+            .and_then(desugar)
             .and_then(gen)
             .map_err(|e| println!("{}", e))
             .unwrap();

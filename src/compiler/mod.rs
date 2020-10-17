@@ -6,7 +6,8 @@
 //! loosely, starting with `Source` (string + path):
 //!
 //! 1. Tokens:   `lex.rs`
-//! 2. CST:      `parse.rs`
+//! 1. Absrtact ST: `parse.rs`
+//! 2. Concrete ST: `desugar.rs`
 //! 3. Bytecode: `gen.rs`
 //!
 //! Note that more steps (e.g. ones applying macro transformations, optimization passes, etc.)
@@ -14,6 +15,7 @@
 
 pub mod lex;
 pub mod parse;
+pub mod desugar;
 pub mod gen;
 
 pub mod token;
@@ -24,4 +26,5 @@ pub mod syntax;
 
 pub use lex::lex;
 pub use parse::parse;
+pub use desugar::desugar;
 pub use gen::gen;
