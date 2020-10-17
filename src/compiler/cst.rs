@@ -37,39 +37,3 @@ pub enum CST {
     // }
     // Form(Vec<CST>) // function call -> (fun a1 a2 .. an)
 }
-
-impl CST {
-    /// Shortcut for creating an `CST::Assign` variant.
-    pub fn assign(
-        pattern:    Spanned<CST>,
-        expression: Spanned<CST>
-    ) -> CST {
-        CST::Assign {
-            pattern:    Box::new(pattern),
-            expression: Box::new(expression)
-        }
-    }
-
-    /// Shortcut for creating an `CST::Lambda` variant.
-    pub fn lambda(
-        pattern:    Spanned<CST>,
-        expression: Spanned<CST>
-    ) -> CST {
-        CST::Lambda {
-            pattern:    Box::new(pattern),
-            expression: Box::new(expression)
-        }
-    }
-
-    // TODO: make a call a list of items rather than a left-associated tree?
-    /// Shortcut for creating an `CST::Call` variant.
-    pub fn call(
-        fun: Spanned<CST>,
-        arg: Spanned<CST>
-    ) -> CST {
-        CST::Call {
-            fun: Box::new(fun),
-            arg: Box::new(arg)
-        }
-    }
-}

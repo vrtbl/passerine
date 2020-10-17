@@ -17,7 +17,8 @@ pub mod parse;
 pub mod gen;
 
 pub mod token;
-pub mod cst;
+pub mod ast; // high level pre-macro IR
+pub mod cst; // post-macro IR
 
 pub mod syntax;
 

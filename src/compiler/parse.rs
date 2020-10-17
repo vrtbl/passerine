@@ -7,12 +7,12 @@ use crate::common::{
 use crate::compiler::{
     syntax::Syntax,
     token::Token,
-    cst::CST,
+    ast::AST,
 };
 
-/// Simple function that parses a token stream into an CST.
+/// Simple function that parses a token stream into an AST.
 /// Exposes the functionality of the `Parser`.
-pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<CST>, Syntax> {
+pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     let mut parser = Parser::new(tokens);
     let ast = parser.body(Token::End)?;
     parser.consume(Token::End)?;
@@ -47,7 +47,7 @@ impl Prec {
     }
 }
 
-/// Constructs an `CST` from a token stream.
+/// Constructs an `AST` from a token stream.
 /// Note that this struct should not be controlled manually,
 /// use the `parse` function instead.
 #[derive(Debug)]
@@ -119,9 +119,9 @@ impl Parser {
     // Core Pratt Parser:
 
     /// Looks at the current token and parses an infix expression
-    pub fn rule_prefix(&mut self) -> Result<Spanned<CST>, Syntax> {
+    pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
         match self.current().item {
-            Token::End         => Ok(Spanned::new(CST::Block(vec![]), Span::empty())),
+            Token::End         => Ok(Spanned::new(AST::Block(vec![]), Span::empty())),
 
             Token::OpenParen   => self.group(),
             Token::OpenBracket => self.block(),
@@ -138,7 +138,7 @@ impl Parser {
     }
 
     /// Looks at the current token and parses the right side of any infix expressions.
-    pub fn rule_infix(&mut self, left: Spanned<CST>) -> Result<Spanned<CST>, Syntax> {
+    pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         match self.current().item {
             Token::Assign => self.assign(left),
             Token::Lambda => self.lambda(left),
@@ -179,7 +179,7 @@ impl Parser {
     /// It's essentially a fold-left over tokens
     /// based on the precedence and content.
     /// Cool stuff.
-    pub fn expression(&mut self, prec: Prec) -> Result<Spanned<CST>, Syntax> {
+    pub fn expression(&mut self, prec: Prec) -> Result<Spanned<AST>, Syntax> {
         let mut left = self.rule_prefix()?;
 
         while self.prec()? >= prec
@@ -195,21 +195,21 @@ impl Parser {
 
     // Prefix:
 
-    /// Constructs an CST for a symbol.
-    pub fn symbol(&mut self) -> Result<Spanned<CST>, Syntax> {
+    /// Constructs an AST for a symbol.
+    pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
         let symbol = self.consume(Token::Symbol)?;
-        Ok(Spanned::new(CST::Symbol, symbol.span.clone()))
+        Ok(Spanned::new(AST::Symbol, symbol.span.clone()))
     }
 
-    /// Constructs the CST for a literal, such as a number or string.
-    pub fn literal(&mut self) -> Result<Spanned<CST>, Syntax> {
+    /// Constructs the AST for a literal, such as a number or string.
+    pub fn literal(&mut self) -> Result<Spanned<AST>, Syntax> {
         let Spanned { item: token, span } = self.advance();
 
         let leaf = match token {
-            Token::Unit       => CST::Data(Data::Unit),
-            Token::Number(n)  => CST::Data(n.clone()),
-            Token::String(s)  => CST::Data(s.clone()),
-            Token::Boolean(b) => CST::Data(b.clone()),
+            Token::Unit       => AST::Data(Data::Unit),
+            Token::Number(n)  => AST::Data(n.clone()),
+            Token::String(s)  => AST::Data(s.clone()),
+            Token::Boolean(b) => AST::Data(b.clone()),
             unexpected => return Err(Syntax::error(
                 &format!("Expected a literal, found {}", unexpected),
                 span.clone()
@@ -221,7 +221,7 @@ impl Parser {
 
     /// Constructs the ast for a group,
     /// i.e. an expression between parenthesis.
-    pub fn group(&mut self) -> Result<Spanned<CST>, Syntax> {
+    pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
         self.consume(Token::OpenParen)?;
         let ast = self.expression(Prec::None.associate_left())?;
         self.consume(Token::CloseParen)?;
@@ -232,7 +232,7 @@ impl Parser {
     /// A block is one or more expressions, separated by separators.
     /// This is more of a helper function, as it serves as both the
     /// parser entrypoint while still being recursively nestable.
-    pub fn body(&mut self, end: Token) -> Result<CST, Syntax> {
+    pub fn body(&mut self, end: Token) -> Result<AST, Syntax> {
         let mut expressions = vec![];
 
         while self.skip().item != end {
@@ -243,13 +243,13 @@ impl Parser {
             }
         }
 
-        return Ok(CST::Block(expressions));
+        return Ok(AST::Block(expressions));
     }
 
     /// Parse a block as an expression,
-    /// Building the appropriate `CST`.
+    /// Building the appropriate `AST`.
     /// Just a body between curlies.
-    pub fn block(&mut self) -> Result<Spanned<CST>, Syntax> {
+    pub fn block(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::OpenBracket)?.span.clone();
         let ast = self.body(Token::CloseBracket)?;
         let end = self.consume(Token::CloseBracket)?.span.clone();
@@ -261,12 +261,12 @@ impl Parser {
     /// Where expression is exactly one expression
     /// Note that this is just a temporaty workaround;
     /// Once the FFI is solidified, printing will be a function like any other.
-    pub fn print(&mut self) -> Result<Spanned<CST>, Syntax> {
+    pub fn print(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::Print)?.span.clone();
         let ast = self.expression(Prec::Call)?;
         let end = ast.span.clone();
         return Ok(Spanned::new(
-            CST::Print(Box::new(ast)),
+            AST::Print(Box::new(ast)),
             Span::combine(&start, &end),
         ))
     }
@@ -276,25 +276,25 @@ impl Parser {
     // TODO: assign and lambda are similar... combine?
 
     /// Parses an assignment, associates right.
-    pub fn assign(&mut self, left: Spanned<CST>) -> Result<Spanned<CST>, Syntax> {
-        let symbol = if let CST::Symbol = left.item { left }
+    pub fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        let symbol = if let AST::Symbol = left.item { left }
             else { return Err(Syntax::error("Expected a symbol", left.span))? };
 
         self.consume(Token::Assign)?;
         let expression = self.expression(Prec::Assign)?;
         let combined   = Span::combine(&symbol.span, &expression.span);
-        Result::Ok(Spanned::new(CST::assign(symbol, expression), combined))
+        Result::Ok(Spanned::new(AST::assign(symbol, expression), combined))
     }
 
     /// Parses a lambda definition, associates right.
-    pub fn lambda(&mut self, left: Spanned<CST>) -> Result<Spanned<CST>, Syntax> {
-        let symbol = if let CST::Symbol = left.item { left }
+    pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        let symbol = if let AST::Symbol = left.item { left }
             else { return Err(Syntax::error("Expected a symbol", left.span))? };
 
         self.consume(Token::Lambda)?;
         let expression = self.expression(Prec::Lambda)?;
         let combined   = Span::combine(&symbol.span, &expression.span);
-        Result::Ok(Spanned::new(CST::lambda(symbol, expression), combined))
+        Result::Ok(Spanned::new(AST::lambda(symbol, expression), combined))
     }
 
     /// Parses a function call.
@@ -303,10 +303,10 @@ impl Parser {
     /// There's a bit of magic involved -
     /// we interpret anything that isn't an operator as a function call operator.
     /// Then pull a fast one and not parse it like an operator at all.
-    pub fn call(&mut self, left: Spanned<CST>) -> Result<Spanned<CST>, Syntax> {
+    pub fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let argument = self.expression(Prec::Call.associate_left())?;
         let combined = Span::combine(&left.span, &argument.span);
-        return Ok(Spanned::new(CST::call(left, argument), combined));
+        return Ok(Spanned::new(AST::call(left, argument), combined));
     }
 }
 
@@ -324,7 +324,7 @@ mod test {
     pub fn empty() {
         let source = Source::source("");
         let ast = parse(lex(source.clone()).unwrap()).unwrap();
-        assert_eq!(ast, Spanned::new(CST::Block(vec![]), Span::empty()));
+        assert_eq!(ast, Spanned::new(AST::Block(vec![]), Span::empty()));
     }
 
     #[test]
@@ -334,13 +334,13 @@ mod test {
         assert_eq!(
             ast,
             Spanned::new(
-                CST::Block(
+                AST::Block(
                     vec![
                         Spanned::new(
-                            CST::assign(
-                                Spanned::new(CST::Symbol, Span::new(&source, 0, 1)),
+                            AST::assign(
+                                Spanned::new(AST::Symbol, Span::new(&source, 0, 1)),
                                 Spanned::new(
-                                    CST::Data(Data::Real(55.0)),
+                                    AST::Data(Data::Real(55.0)),
                                     Span::new(&source, 4, 4),
                                 ),
                             ),
@@ -361,16 +361,16 @@ mod test {
         assert_eq!(
             ast,
             Spanned::new(
-                CST::Block(
+                AST::Block(
                     vec![
                         Spanned::new(
-                            CST::assign(
-                                Spanned::new(CST::Symbol, Span::new(&source, 0, 1)),
+                            AST::assign(
+                                Spanned::new(AST::Symbol, Span::new(&source, 0, 1)),
                                 Spanned::new(
-                                    CST::lambda(
-                                        Spanned::new(CST::Symbol, Span::new(&source, 4, 1)),
+                                    AST::lambda(
+                                        Spanned::new(AST::Symbol, Span::new(&source, 4, 1)),
                                         Spanned::new(
-                                            CST::Data(Data::Real(3.141592)),
+                                            AST::Data(Data::Real(3.141592)),
                                             Span::new(&source, 9, 8),
                                         ),
                                     ),
