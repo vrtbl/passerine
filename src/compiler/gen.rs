@@ -115,6 +115,7 @@ impl Compiler {
             CST::Symbol => self.symbol(cst.span.clone()),
             CST::Block(block) => self.block(block),
             CST::Print(expression) => self.print(*expression),
+            CST::Label(name, expression) => self.label(name, *expression),
             CST::Assign { pattern, expression } => self.assign(*pattern, *expression),
             CST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
             CST::Call   { fun,     arg        } => self.call(*fun, *arg),
@@ -236,6 +237,13 @@ impl Compiler {
     pub fn print(&mut self, expression: Spanned<CST>) -> Result<(), Syntax> {
         self.walk(&expression)?;
         self.lambda.emit(Opcode::Print);
+        Ok(())
+    }
+
+    pub fn label(&mut self, name: String, expression: Spanned<CST>) -> Result<(), Syntax> {
+        self.walk(&expression)?;
+        self.data(Data::Kind(name))?;
+        self.lambda.emit(Opcode::Label);
         Ok(())
     }
 

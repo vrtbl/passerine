@@ -20,10 +20,13 @@ pub enum Token {
 
     // Datatypes
     Unit,
-    Symbol, // is specified by Span rather than an actual value
     Number(Data),
     String(Data),
     Boolean(Data),
+
+    // specified by Span rather than an actual value
+    Symbol,
+    Kind,
 
     // EoS
     End
@@ -41,9 +44,10 @@ impl Display for Token {
             Token::Sep          => "a separator",
             Token::Assign       => "an assignment",
             Token::Lambda       => "a lambda",
-            Token::Unit         => "unit",
+            Token::Unit         => "the Unit, '()'",
             Token::Print        => "a print keyword",
             Token::Symbol       => "a symbol",
+            Token::Kind         => "a Label", // capitilized to mimic actual labels
             Token::Number(_)    => "a number",
             Token::String(_)    => "a string",
             Token::Boolean(_)   => "a boolean, like 'true' or 'false'",

@@ -28,6 +28,7 @@ pub enum AST {
         expression: Box<Spanned<AST>>,
     },
     Print(Box<Spanned<AST>>),
+    Label(String, Box<Spanned<AST>>),
     // TODO: support following constructs as they are implemented
     // Macro {
     //     pattern:    Box<AST>,

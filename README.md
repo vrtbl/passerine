@@ -67,7 +67,7 @@ and join the [Discord server](https://discord.gg/yMhUyhw)
 to get started.
 
 ### Who started this?
-This is maiden project of The Veritable Computation Initiative.
+This is first project of The Veritable Computation Initiative.
 Our goal is to improve the tools developers use to write software.
 
 So far, all of Passerine has been developed by a

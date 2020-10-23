@@ -40,6 +40,7 @@ pub fn desugar(ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
         AST::Assign { pattern, expression } => CST::assign(desugar(*pattern)?, desugar(*expression)?),
         AST::Lambda { pattern, expression } => CST::lambda(desugar(*pattern)?, desugar(*expression)?),
         AST::Print(e) => CST::Print(Box::new(desugar(*e)?)),
+        AST::Label(n, e) => CST::Label(n, Box::new(desugar(*e)?)),
     };
 
     return Ok(Spanned::new(cst, ast.span))

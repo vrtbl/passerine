@@ -28,7 +28,10 @@ pub enum Data {
     String(String),
     Lambda(Lambda),
     Closure(Closure),
-    Label(String, Box<Data>), // TODO: better type
+
+    // Kind is the base component of an unconstructed label
+    Kind(String),
+    Label(String, Box<Data>),
 
     // Compound Datatypes
     Unit, // an empty typle
@@ -55,6 +58,7 @@ impl Display for Data {
             Data::String(s)   => write!(f, "{}", s),
             Data::Lambda(_)   => unreachable!("Can not display naked functions"),
             Data::Closure(_)  => write!(f, "Function"),
+            Data::Kind(_)     => unreachable!("Can not display naked labels"),
             Data::Label(n, v) => write!(f, "{} {}", n, v),
             Data::Unit        => write!(f, "()"),
         }
@@ -71,6 +75,7 @@ impl Debug for Data {
             Data::String(s)   => write!(f, "String({:?})", s),
             Data::Lambda(_)   => write!(f, "Function(...)"),
             Data::Closure(_)  => write!(f, "Closure(...)"),
+            Data::Kind(n)     => write!(f, "Kind({})", n),
             Data::Label(n, v) => write!(f, "Label({}, {:?})", n, v),
             Data::Unit        => write!(f, "Unit"),
         }

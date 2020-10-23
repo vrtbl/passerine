@@ -83,6 +83,8 @@ impl VM {
             Opcode::Return  => self.return_val(),
             Opcode::Closure => self.closure(),
             Opcode::Print   => self.print(),
+            _ => todo!(),
+            // Opcode::Label   => self.label(),
         }
     }
 

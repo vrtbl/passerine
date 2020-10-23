@@ -127,6 +127,8 @@ impl Parser {
             Token::OpenBracket => self.block(),
             Token::Symbol      => self.symbol(),
             Token::Print       => self.print(),
+            // TODO: rename kind to label?
+            Token::Kind        => self.label(),
             Token::Unit
             | Token::Number(_)
             | Token::String(_)
@@ -166,6 +168,7 @@ impl Parser {
             | Token::Unit
             | Token::Print
             | Token::Symbol
+            | Token::Kind
             | Token::Number(_)
             | Token::String(_)
             | Token::Boolean(_) => Prec::Call,
@@ -269,6 +272,18 @@ impl Parser {
             AST::Print(Box::new(ast)),
             Span::combine(&start, &end),
         ))
+    }
+
+    /// Parse a label.
+    /// A label takes the form of `<Label> <expression>`
+    pub fn label(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let start = self.consume(Token::Kind)?.span.clone();
+        let ast = self.expression(Prec::Call)?;
+        let end = ast.span.clone();
+        return Ok(Spanned::new(
+            AST::Label(start.contents(), Box::new(ast)),
+            Span::combine(&start, &end),
+        ));
     }
 
     // Infix:

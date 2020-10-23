@@ -28,6 +28,7 @@ pub enum CST {
         arg: Box<Spanned<CST>>,
     },
     Print(Box<Spanned<CST>>),
+    Label(String, Box<Spanned<CST>>),
     // TODO: support following constructs as they are implemented
     // Macro {
     //     pattern:    Box<CST>,

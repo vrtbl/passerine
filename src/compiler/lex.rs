@@ -79,26 +79,26 @@ impl Lexer {
             // think 'or' as literal or 'or' as operator
 
             // static
-            Box::new(|s| Lexer::unit(s)         ),
-            Box::new(|s| Lexer::open_bracket(s) ),
-            Box::new(|s| Lexer::close_bracket(s)),
-            Box::new(|s| Lexer::open_paren(s)   ),
-            Box::new(|s| Lexer::close_paren(s)  ),
-            Box::new(|s| Lexer::assign(s)       ),
-            Box::new(|s| Lexer::lambda(s)       ),
-            Box::new(|s| Lexer::print(s)        ), // remove print statements after FFI
+            Box::new(Lexer::unit),
+            Box::new(Lexer::open_bracket),
+            Box::new(Lexer::close_bracket),
+            Box::new(Lexer::open_paren),
+            Box::new(Lexer::close_paren),
+            Box::new(Lexer::assign),
+            Box::new(Lexer::lambda),
+            Box::new(Lexer::print), // remove print statements after FFI
 
             // variants
-            Box::new(|s| Lexer::sep(s)    ),
-            Box::new(|s| Lexer::boolean(s)),
+            Box::new(Lexer::sep),
+            Box::new(Lexer::boolean),
 
             // dynamic
-            Box::new(|s| Lexer::real(s)  ),
-            Box::new(|s| Lexer::string(s)),
-            // Box::new(|s| Lexer::int(s)),
+            Box::new(Lexer::real),
+            Box::new(Lexer::string),
 
             // keep this @ the bottom, lmao
-            Box::new(|s| Lexer::symbol(s) ),
+            Box::new(Lexer::label),
+            Box::new(Lexer::symbol),
         ];
 
         // maybe some sort of map reduce?
@@ -215,23 +215,52 @@ impl Lexer {
         Lexer::literal(source, "print", Token::Print)
     }
 
-    /// Classifis a symbol (i.e. variable name).
-    /// for now, a symbol is one or more ascii alphanumerics
-    pub fn symbol(source: &str) -> Result<Bite, String> {
-        // TODO: extend to full unicode
+    /// Classifies a symbol or a label.
+    /// A series of alphanumerics and certain ascii punctuation (see `Lexer::is_alpha`).
+    /// Can not start with a numeric character.
+    pub fn identifier(source: &str) -> Result<Bite, String> {
         let mut len = 0;
 
         for char in source.chars() {
-            if !char.is_ascii_alphanumeric() {
-                break;
+            match char {
+                a if a.is_alphanumeric()
+                  || "_".contains(a)
+                  => { len += 1 },
+                _ => { break;   },
             }
-            len += 1;
         }
 
-        return match len {
-            0 => Err("Expected a symbol".to_string()),
-            l => Ok((Token::Symbol, l)),
-        };
+        if len == 0 {
+            return Err("Expected an alphanumeric character".to_string());
+        }
+
+        let first = source.chars().next().unwrap();
+        match first {
+            n if n.is_numeric() => Err(
+                "Can not start with a numeric character".to_string()
+            ),
+            s if s.is_uppercase() => Ok((Token::Kind, len)), // label
+            _ => Ok((Token::Symbol, len)), // symbol
+        }
+    }
+
+    /// Classifies a symbol (i.e. variable name).
+    pub fn symbol(source: &str) -> Result<Bite, String> {
+        if let symbol @ (Token::Symbol, _) = Lexer::identifier(source)? {
+            Ok(symbol)
+        } else {
+            Err("Expected a symbol".to_string())
+        }
+    }
+
+    /// Classifis a label (i.e. data wrapper).
+    /// Must start with an uppercase character.
+    pub fn label(source: &str) -> Result<Bite, String> {
+        if let symbol @ (Token::Kind, _) = Lexer::identifier(source)? {
+            Ok(symbol)
+        } else {
+            Err("Expected a Label".to_string())
+        }
     }
 
     /// Matches a number with a decimal point.

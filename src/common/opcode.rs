@@ -26,6 +26,8 @@ pub enum Opcode {
     Closure = 9,
     /// Prints a value.
     Print = 10,
+    /// Constructs a label.
+    Label = 11,
 }
 
 impl Opcode {
