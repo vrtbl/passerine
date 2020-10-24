@@ -128,7 +128,7 @@ impl Parser {
             Token::Symbol      => self.symbol(),
             Token::Print       => self.print(),
             // TODO: rename kind to label?
-            Token::Kind        => self.label(),
+            Token::Label       => self.label(),
             Token::Unit
             | Token::Number(_)
             | Token::String(_)
@@ -168,7 +168,7 @@ impl Parser {
             | Token::Unit
             | Token::Print
             | Token::Symbol
-            | Token::Kind
+            | Token::Label
             | Token::Number(_)
             | Token::String(_)
             | Token::Boolean(_) => Prec::Call,
@@ -225,10 +225,10 @@ impl Parser {
     /// Constructs the ast for a group,
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
-        self.consume(Token::OpenParen)?;
-        let ast = self.expression(Prec::None.associate_left())?;
-        self.consume(Token::CloseParen)?;
-        Ok(ast)
+        let start = self.consume(Token::OpenParen)?.span.clone();
+        let ast   = self.expression(Prec::None.associate_left())?.item;
+        let end   = self.consume(Token::CloseParen)?.span.clone();
+        Ok(Spanned::new(ast, Span::combine(&start, &end)))
     }
 
     /// Parses the body of a block.
@@ -277,8 +277,8 @@ impl Parser {
     /// Parse a label.
     /// A label takes the form of `<Label> <expression>`
     pub fn label(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start = self.consume(Token::Kind)?.span.clone();
-        let ast = self.expression(Prec::Call)?;
+        let start = self.consume(Token::Label)?.span.clone();
+        let ast = self.expression(Prec::End)?;
         let end = ast.span.clone();
         return Ok(Spanned::new(
             AST::Label(start.contents(), Box::new(ast)),

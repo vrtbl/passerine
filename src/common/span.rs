@@ -116,33 +116,20 @@ impl Span {
     /// Splits a string by the newline character into a Vector of string slices.
     /// Includes the trailing newline in each slice.
     fn lines_newline(string: &str) -> Vec<String> {
-        return string.lines().map(|l| l.to_string() + "\n").collect();
+        return string.split("\n").map(|l| l.to_string() + "\n").collect();
+    }
+
+    fn lines(string: &str) -> Vec<String> {
+        return string.split("\n").map(|l| l.to_string()).collect();
     }
 
     /// Returns the start and end lines and columns of the `Span` if the `Span` is not empty.
-    fn line_indicies(&self) -> Option<((usize, usize), (usize, usize))> {
-        if self.is_empty() { panic!("Can not return the line indicies of an empty span") }
+    fn line_index(string: &str, index: usize) -> Option<(usize, usize)> {
+        let lines = Span::lines_newline(&string[..index]);
+        let line = lines.len() - 1;
+        let col = lines.last()?.len() - 1;
 
-        let start = self.offset;
-        let end   = self.end();
-
-        let full_source = &self.source.as_ref().unwrap().contents;
-        let start_lines = Span::lines_newline(&full_source[..start]);
-        let end_lines   = Span::lines_newline(&full_source[..end]);
-
-        // println!("{} {}", self.offset, self.length);
-        // println!("{:?}", full_source);
-        // println!("{:?}", start_lines);
-        // println!("{:?}", end_lines);
-
-        let start_line = start_lines.len() - 1;
-        let end_line   = end_lines.len() - 1;
-
-        let start_col = start_lines.last()?.len() - 1;
-        let end_col   = end_lines.last()?.len() - 1;
-
-        return Some(((start_line, start_col), (end_line, end_col)));
-
+        return Some((line, col));
     }
 }
 
@@ -177,8 +164,14 @@ impl Display for Span {
             panic!("Can't display the section corresponding with an empty Span")
         }
 
-        let lines: Vec<&str> = self.source.as_ref().unwrap().contents.lines().collect();
-        let ((start_line, start_col), (end_line, _end_col)) = match self.line_indicies() {
+        let full_source = &self.source.as_ref().unwrap().contents;
+        let lines = Span::lines(&full_source);
+
+        let (start_line, start_col) = match Span::line_index(full_source, self.offset) {
+            Some(li) => li,
+            None     => unreachable!(),
+        };
+        let (end_line, _end_col) = match Span::line_index(full_source, self.end()) {
             Some(li) => li,
             None     => unreachable!(),
         };

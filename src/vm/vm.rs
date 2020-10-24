@@ -83,8 +83,7 @@ impl VM {
             Opcode::Return  => self.return_val(),
             Opcode::Closure => self.closure(),
             Opcode::Print   => self.print(),
-            _ => todo!(),
-            // Opcode::Label   => self.label(),
+            Opcode::Label   => self.label(),
         }
     }
 
@@ -197,7 +196,16 @@ impl VM {
         self.done()
     }
 
-    // TODO: closures
+    pub fn label(&mut self) -> Result<(), Trace> {
+        let kind = match self.stack.pop_data() {
+            Data::Kind(n) => n,
+            _ => unreachable!(),
+        };
+        let data = self.stack.pop_data();
+        self.stack.push_data(Data::Label(kind, Box::new(data)));
+        self.done()
+    }
+
     /// Call a function on the top of the stack, passing the next value as an argument.
     pub fn call(&mut self) -> Result<(), Trace> {
         let fun = match self.stack.pop_data() {

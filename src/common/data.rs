@@ -53,8 +53,8 @@ impl Display for Data {
         match self {
             Data::Frame       => unreachable!("Can not display stack frame"),
             Data::Heaped(_)   => unreachable!("Can not display heaped data"),
-            Data::Real(n)     => write!(f, "Real {}", n),
-            Data::Boolean(b)  => write!(f, "Boolean {}", if *b { "true" } else { "false" }),
+            Data::Real(n)     => write!(f, "{}", n),
+            Data::Boolean(b)  => write!(f, "{}", if *b { "true" } else { "false" }),
             Data::String(s)   => write!(f, "{}", s),
             Data::Lambda(_)   => unreachable!("Can not display naked functions"),
             Data::Closure(_)  => write!(f, "Function"),

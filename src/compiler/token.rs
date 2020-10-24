@@ -26,7 +26,7 @@ pub enum Token {
 
     // specified by Span rather than an actual value
     Symbol,
-    Kind,
+    Label,
 
     // EoS
     End
@@ -47,7 +47,7 @@ impl Display for Token {
             Token::Unit         => "the Unit, '()'",
             Token::Print        => "a print keyword",
             Token::Symbol       => "a symbol",
-            Token::Kind         => "a Label", // capitilized to mimic actual labels
+            Token::Label        => "a Label", // capitilized to mimic actual labels
             Token::Number(_)    => "a number",
             Token::String(_)    => "a string",
             Token::Boolean(_)   => "a boolean, like 'true' or 'false'",

@@ -239,7 +239,7 @@ impl Lexer {
             n if n.is_numeric() => Err(
                 "Can not start with a numeric character".to_string()
             ),
-            s if s.is_uppercase() => Ok((Token::Kind, len)), // label
+            s if s.is_uppercase() => Ok((Token::Label, len)), // label
             _ => Ok((Token::Symbol, len)), // symbol
         }
     }
@@ -256,7 +256,7 @@ impl Lexer {
     /// Classifis a label (i.e. data wrapper).
     /// Must start with an uppercase character.
     pub fn label(source: &str) -> Result<Bite, String> {
-        if let symbol @ (Token::Kind, _) = Lexer::identifier(source)? {
+        if let symbol @ (Token::Label, _) = Lexer::identifier(source)? {
             Ok(symbol)
         } else {
             Err("Expected a Label".to_string())
