@@ -115,22 +115,8 @@ impl Span {
     // just replace this method with the std version.
     /// Splits a string by the newline character into a Vector of string slices.
     /// Includes the trailing newline in each slice.
-    fn split_lines_inclusive(string: &str) -> Vec<&str> {
-        let newline = "\n";
-
-        let mut indicies: Vec<usize> = vec![0];
-        indicies.append(&mut string
-            .match_indices(newline).collect::<Vec<(usize, &str)>>()
-            .into_iter().map(|(s, _)| s + newline.len()).collect()
-        );
-        indicies.push(string.len());
-
-        let mut lines = vec![];
-        for i in 0..(indicies.len() - 1) {
-            lines.push(&string[indicies[i]..indicies[i + 1]]);
-        }
-
-        return lines;
+    fn lines_newline(string: &str) -> Vec<String> {
+        return string.lines().map(|l| l.to_string() + "\n").collect();
     }
 
     /// Returns the start and end lines and columns of the `Span` if the `Span` is not empty.
@@ -141,8 +127,8 @@ impl Span {
         let end   = self.end();
 
         let full_source = &self.source.as_ref().unwrap().contents;
-        let start_lines: Vec<&str> = Span::split_lines_inclusive(&full_source[..=start]);
-        let end_lines:   Vec<&str> = Span::split_lines_inclusive(&full_source[..end]);
+        let start_lines = Span::lines_newline(&full_source[..start]);
+        let end_lines   = Span::lines_newline(&full_source[..end]);
 
         // println!("{} {}", self.offset, self.length);
         // println!("{:?}", full_source);
@@ -213,7 +199,7 @@ impl Display for Span {
         let separator = format!(" {} |", " ".repeat(padding));
 
         if start_line == end_line {
-            let l = lines[end_line];
+            let l = &lines[end_line];
 
             let line = format!(" {} | {}", readable_end_line, l);
             let span = format!(
