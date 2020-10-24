@@ -3,6 +3,8 @@ use crate::common::{
     data::Data,
 };
 
+use crate::compiler::pattern::Pattern;
+
 // NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)
 // Store class of item in AST, then delegate exact type to external enum?
 
@@ -17,14 +19,13 @@ pub enum AST {
     Symbol,
     Data(Data),
     Block(Vec<Spanned<AST>>),
-    Pattern(Vec<Spanned<AST>>),
     Form(Vec<Spanned<AST>>),
     Assign {
-        pattern:    Box<Spanned<AST>>, // Note - should be pattern
+        pattern:    Box<Spanned<Pattern>>, // Note - should be pattern
         expression: Box<Spanned<AST>>,
     },
     Lambda {
-        pattern:    Box<Spanned<AST>>,
+        patterns:    Box<Vec<Spanned<Pattern>>>,
         expression: Box<Spanned<AST>>,
     },
     Print(Box<Spanned<AST>>),
@@ -57,5 +58,9 @@ impl AST {
             pattern:    Box::new(pattern),
             expression: Box::new(expression)
         }
+    }
+
+    pub fn pattern(ast: AST) -> Result<Pattern, Syntax> {
+        
     }
 }

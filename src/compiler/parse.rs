@@ -8,6 +8,7 @@ use crate::compiler::{
     syntax::Syntax,
     token::Token,
     ast::AST,
+    pattern::Pattern,
 };
 
 /// Simple function that parses a token stream into an AST.
@@ -287,6 +288,11 @@ impl Parser {
     }
 
     // Infix:
+
+    pub fn pattern(ast: Spanned<AST>) -> Result<Spanned<Pattern>, Syntax> {
+        // TODO: convert ast to pattern, erring if ast can not be converted to pattern.
+        todo!()
+    }
 
     // TODO: assign and lambda are similar... combine?
 
