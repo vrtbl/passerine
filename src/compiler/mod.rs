@@ -19,7 +19,6 @@ pub mod desugar;
 pub mod gen;
 
 pub mod token;
-pub mod pattern;
 pub mod ast; // high level pre-macro IR
 pub mod cst; // post-macro IR
 

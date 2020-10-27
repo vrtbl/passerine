@@ -7,8 +7,7 @@ use crate::common::{
 use crate::compiler::{
     syntax::Syntax,
     token::Token,
-    ast::AST,
-    pattern::Pattern,
+    ast::{AST, Pattern},
 };
 
 /// Simple function that parses a token stream into an AST.
@@ -169,6 +168,7 @@ impl Parser {
             | Token::Unit
             | Token::Print
             | Token::Symbol
+            | Token::Keyword(_)
             | Token::Label
             | Token::Number(_)
             | Token::String(_)
@@ -290,32 +290,37 @@ impl Parser {
     // Infix:
 
     pub fn pattern(ast: Spanned<AST>) -> Result<Spanned<Pattern>, Syntax> {
-        // TODO: convert ast to pattern, erring if ast can not be converted to pattern.
-        todo!()
+        let item = match ast.item {
+            AST::Symbol => Pattern::Symbol,
+            AST::Data(d) => Pattern::Data(d),
+            AST::Label(k, a) => Pattern::Label(k, Box::new(Parser::pattern(*a)?)),
+            AST::Pattern(p) => p,
+            _ => Err(Syntax::error("Unexpected construct inside pattern", ast.span.clone()))?,
+        };
+
+        return Ok(Spanned::new(item, ast.span));
     }
 
     // TODO: assign and lambda are similar... combine?
 
     /// Parses an assignment, associates right.
     pub fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let symbol = if let AST::Symbol = left.item { left }
-            else { return Err(Syntax::error("Expected a symbol", left.span))? };
+        let pattern = Parser::pattern(left)?;
 
         self.consume(Token::Assign)?;
         let expression = self.expression(Prec::Assign)?;
-        let combined   = Span::combine(&symbol.span, &expression.span);
-        Result::Ok(Spanned::new(AST::assign(symbol, expression), combined))
+        let combined   = Span::combine(&pattern.span, &expression.span);
+        Result::Ok(Spanned::new(AST::assign(pattern, expression), combined))
     }
 
     /// Parses a lambda definition, associates right.
     pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let symbol = if let AST::Symbol = left.item { left }
-            else { return Err(Syntax::error("Expected a symbol", left.span))? };
+        let pattern = Parser::pattern(left)?;
 
         self.consume(Token::Lambda)?;
         let expression = self.expression(Prec::Lambda)?;
-        let combined   = Span::combine(&symbol.span, &expression.span);
-        Result::Ok(Spanned::new(AST::lambda(symbol, expression), combined))
+        let combined   = Span::combine(&pattern.span, &expression.span);
+        Result::Ok(Spanned::new(AST::lambda(pattern, expression), combined))
     }
 
     /// Parses a function call.
@@ -366,7 +371,7 @@ mod test {
                     vec![
                         Spanned::new(
                             AST::assign(
-                                Spanned::new(AST::Symbol, Span::new(&source, 0, 1)),
+                                Spanned::new(Pattern::Symbol, Span::new(&source, 0, 1)),
                                 Spanned::new(
                                     AST::Data(Data::Real(55.0)),
                                     Span::new(&source, 4, 4),
@@ -393,10 +398,10 @@ mod test {
                     vec![
                         Spanned::new(
                             AST::assign(
-                                Spanned::new(AST::Symbol, Span::new(&source, 0, 1)),
+                                Spanned::new(Pattern::Symbol, Span::new(&source, 0, 1)),
                                 Spanned::new(
                                     AST::lambda(
-                                        Spanned::new(AST::Symbol, Span::new(&source, 4, 1)),
+                                        Spanned::new(Pattern::Symbol, Span::new(&source, 4, 1)),
                                         Spanned::new(
                                             AST::Data(Data::Real(3.141592)),
                                             Span::new(&source, 9, 8),

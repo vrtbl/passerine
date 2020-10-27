@@ -12,7 +12,7 @@ use crate::common::{
 /// Whereas it's originally parsed as a `AST::Form`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CST {
-    Symbol,
+    Symbol(String),
     Data(Data),
     Block(Vec<Spanned<CST>>),
     Assign {

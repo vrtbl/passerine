@@ -3,7 +3,16 @@ use crate::common::{
     data::Data,
 };
 
-use crate::compiler::pattern::Pattern;
+#[derive(Debug, Clone, PartialEq)]
+pub enum Pattern {
+    Symbol,
+    Data(Data),
+    Label(String, Box<Spanned<Pattern>>),
+    Where {
+        pattern: Box<Spanned<Pattern>>,
+        conditions: Box<Spanned<AST>>,
+    }
+}
 
 // NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)
 // Store class of item in AST, then delegate exact type to external enum?
@@ -20,12 +29,13 @@ pub enum AST {
     Data(Data),
     Block(Vec<Spanned<AST>>),
     Form(Vec<Spanned<AST>>),
+    Pattern(Pattern),
     Assign {
-        pattern:    Box<Spanned<Pattern>>, // Note - should be pattern
+        pattern:    Box<Spanned<Pattern>>,
         expression: Box<Spanned<AST>>,
     },
     Lambda {
-        patterns:    Box<Vec<Spanned<Pattern>>>,
+        pattern:    Box<Spanned<Pattern>>,
         expression: Box<Spanned<AST>>,
     },
     Print(Box<Spanned<AST>>),
@@ -40,7 +50,7 @@ pub enum AST {
 impl AST {
     /// Shortcut for creating an `AST::Assign` variant.
     pub fn assign(
-        pattern:    Spanned<AST>,
+        pattern:    Spanned<Pattern>,
         expression: Spanned<AST>
     ) -> AST {
         AST::Assign {
@@ -51,16 +61,12 @@ impl AST {
 
     /// Shortcut for creating an `AST::Lambda` variant.
     pub fn lambda(
-        pattern:    Spanned<AST>,
+        pattern:    Spanned<Pattern>,
         expression: Spanned<AST>
     ) -> AST {
         AST::Lambda {
             pattern:    Box::new(pattern),
             expression: Box::new(expression)
         }
-    }
-
-    pub fn pattern(ast: AST) -> Result<Pattern, Syntax> {
-        
     }
 }

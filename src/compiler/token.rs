@@ -17,6 +17,8 @@ pub enum Token {
     Assign,
     Lambda,
     Print,
+    // pseudokeywords
+    Keyword(String),
 
     // Datatypes
     Unit,
@@ -24,7 +26,7 @@ pub enum Token {
     String(Data),
     Boolean(Data),
 
-    // specified by Span rather than an actual value
+    // defined by span rather than be contents
     Symbol,
     Label,
 
@@ -50,8 +52,10 @@ impl Display for Token {
             Token::Label        => "a Label", // capitilized to mimic actual labels
             Token::Number(_)    => "a number",
             Token::String(_)    => "a string",
-            Token::Boolean(_)   => "a boolean, like 'true' or 'false'",
-            Token::End          => "end of source"
+            Token::End          => "end of source",
+            Token::Keyword(k) => { return write!(f, "the pseudokeyword '{}'", k); },
+            Token::Boolean(b) => { return write!(f, "the boolean {}",         b); },
+
         };
         write!(f, "{}", message)
     }

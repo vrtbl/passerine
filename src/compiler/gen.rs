@@ -25,14 +25,14 @@ pub fn gen(cst: Spanned<CST>) -> Result<Lambda, Syntax> {
 /// Represents a local when compiling.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Local {
-    pub span: Span,
+    pub name: String,
     pub depth: usize
 }
 
 impl Local {
     // Creates a new `Local`.
-    pub fn new(span: Span, depth: usize) -> Local {
-        Local { span, depth }
+    pub fn new(name: String, depth: usize) -> Local {
+        Local { name, depth }
     }
 }
 
@@ -74,9 +74,9 @@ impl Compiler {
     }
 
     /// Declare a local variable.
-    pub fn declare(&mut self, span: Span) {
+    pub fn declare(&mut self, name: String) {
         self.locals.push(
-            Local { span, depth: self.depth }
+            Local { name, depth: self.depth }
         )
     }
 
@@ -112,7 +112,7 @@ impl Compiler {
         // push left, push right, push center
         let result = match cst.item.clone() {
             CST::Data(data) => self.data(data),
-            CST::Symbol => self.symbol(cst.span.clone()),
+            CST::Symbol(name) => self.symbol(&name, cst.span.clone()),
             CST::Block(block) => self.block(block),
             CST::Print(expression) => self.print(*expression),
             CST::Label(name, expression) => self.label(name, *expression),
@@ -134,9 +134,9 @@ impl Compiler {
     // TODO: nested too deep :(
     /// Returns the relative position on the stack of a declared local,
     /// if it exists in the current scope.
-    pub fn local(&self, span: Span) -> Option<usize> {
+    pub fn local(&self, name: &str) -> Option<usize> {
         for (index, l) in self.locals.iter().enumerate() {
-            if span.contents() == l.span.contents() {
+            if name == l.name {
                 return Some(index)
             }
         }
@@ -174,10 +174,10 @@ impl Compiler {
     // if resolution it successful, it captures the variable in the original scope
     // then builds a chain of upvalues to hoist that upvalue where it's needed.
     // This can be made more efficient.
-    pub fn captured(&mut self, span: Span) -> Option<usize> {
+    pub fn captured(&mut self, name: &str) -> Option<usize> {
         // return index in compiler captureds - 1
 
-        if let Some(index) = self.local(span.clone()) {
+        if let Some(index) = self.local(name) {
             // if the variable exists in this scope:
             // capture that variable (i.e. emit opcode)
             // add to compiler captureds
@@ -185,7 +185,7 @@ impl Compiler {
         }
 
         if let Some(enclosing) = self.enclosing.as_mut() {
-            if let Some(upvalue) = enclosing.captured(span) {
+            if let Some(upvalue) = enclosing.captured(name) {
                 // if the variable exists in an enclosing scope and has been captured:
                 // add to compiler captureds
                 // add to lambda captureds
@@ -198,12 +198,12 @@ impl Compiler {
 
     // TODO: rewrite according to new local rules
     /// Takes a symbol leaf, and produces some code to load the local
-    pub fn symbol(&mut self, span: Span) -> Result<(), Syntax> {
-        if let Some(index) = self.local(span.clone()) {
+    pub fn symbol(&mut self, name: &str, span: Span) -> Result<(), Syntax> {
+        if let Some(index) = self.local(name) {
             // if the variable is locally in scope
             self.lambda.emit(Opcode::Load);
             self.lambda.emit_bytes(&mut split_number(index))
-        } else if let Some(index) = self.captured(span.clone()) {
+        } else if let Some(index) = self.captured(name) {
             // if the variable is captured in a closure
             self.lambda.emit(Opcode::LoadCap);
             self.lambda.emit_bytes(&mut split_number(index))
@@ -253,22 +253,22 @@ impl Compiler {
         self.walk(&expression)?;
 
         // load the following symbol ...
-        let span = match symbol.item {
-            CST::Symbol => symbol.span,
+        let name = match symbol.item {
+            CST::Symbol(name) => name,
             _ => unreachable!(),
         };
 
         // the span of the variable to be assigned to
-        self.lambda.emit_span(&span);
+        self.lambda.emit_span(&symbol.span);
 
         // abstract out?
-        let index = if let Some(i) = self.local(span.clone()) {
+        let index = if let Some(i) = self.local(&name) {
             self.lambda.emit(Opcode::Save); i
-        } else if let Some(i) = self.captured(span.clone()) {
+        } else if let Some(i) = self.captured(&name) {
             self.lambda.emit(Opcode::SaveCap); i
         } else {
             self.lambda.emit(Opcode::Save);
-            self.locals.push(Local::new(span, self.depth));
+            self.locals.push(Local::new(name, self.depth));
             self.locals.len() - 1
         };
 
@@ -285,8 +285,12 @@ impl Compiler {
         self.enter_scope();
         {
             // save the argument into the given variable
-            if let CST::Symbol = symbol.item {} else { unreachable!() }
-            self.declare(symbol.span);
+            if let CST::Symbol(name) = symbol.item {
+                self.declare(name);
+            } else {
+                unreachable!()
+            }
+
             self.lambda.emit(Opcode::Save);
             self.lambda.emit_bytes(&mut split_number(0)); // will always be zerost item on stack
 

@@ -253,13 +253,27 @@ impl Lexer {
         }
     }
 
-    /// Classifis a label (i.e. data wrapper).
+    /// Classifies a label (i.e. data wrapper).
     /// Must start with an uppercase character.
     pub fn label(source: &str) -> Result<Bite, String> {
-        if let symbol @ (Token::Label, _) = Lexer::identifier(source)? {
-            Ok(symbol)
+        if let label @ (Token::Label, _) = Lexer::identifier(source)? {
+            Ok(label)
         } else {
             Err("Expected a Label".to_string())
+        }
+    }
+
+    /// Classifies a pseudokeyword, used in syntax macros.
+    /// Must start with a single quote `'`.
+    pub fn keyword(source: &str) -> Result<Bite, String> {
+        let mut len = 0;
+        len += Lexer::expect(&source, "'")?;
+
+        if let (Token::Symbol, l) = Lexer::identifier(source)? {
+            let keyword = source[len..len+l].to_string();
+            Ok((Token::Keyword(keyword), len + l))
+        } else {
+            Err("Expected a pseudokeyword".to_string())
         }
     }
 
