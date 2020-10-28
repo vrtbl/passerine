@@ -3,9 +3,12 @@ use crate::common::{
     data::Data,
 };
 
+// TODO: separate patterns and argument patterns?
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
     Symbol,
+    Keyword(String),
     Data(Data),
     Label(String, Box<Spanned<Pattern>>),
     Where {
@@ -40,11 +43,10 @@ pub enum AST {
     },
     Print(Box<Spanned<AST>>),
     Label(String, Box<Spanned<AST>>),
-    // TODO: support following constructs as they are implemented
-    // Macro {
-    //     pattern:    Box<AST>,
-    //     expression: Box<AST>,
-    // }
+    Syntax {
+        pattern:    Box<Spanned<Pattern>>,
+        expression: Box<Spanned<AST>>,
+    }
 }
 
 impl AST {
@@ -67,6 +69,18 @@ impl AST {
         AST::Lambda {
             pattern:    Box::new(pattern),
             expression: Box::new(expression)
+        }
+    }
+
+    /// Shortcut for creating an `AST::Syntax` variant.
+    /// i.e. a macro definition
+    pub fn syntax(
+        pattern: Spanned<Pattern>,
+        expression: Spanned<AST>,
+    ) -> AST {
+        AST::Syntax {
+            pattern:    Box::new(pattern),
+            expression: Box::new(expression),
         }
     }
 }

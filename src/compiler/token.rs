@@ -14,6 +14,7 @@ pub enum Token {
     CloseParen,
     Sep,
 
+    Syntax,
     Assign,
     Lambda,
     Print,
@@ -44,6 +45,7 @@ impl Display for Token {
             Token::OpenParen    => "an openening paren",
             Token::CloseParen   => "a closing paren",
             Token::Sep          => "a separator",
+            Token::Syntax       => "a syntax definition",
             Token::Assign       => "an assignment",
             Token::Lambda       => "a lambda",
             Token::Unit         => "the Unit, '()'",

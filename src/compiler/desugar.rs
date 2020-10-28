@@ -7,6 +7,7 @@ use crate::compiler::{
 
 // TODO: move branches into separate functions
 // TODO: add context for macro application
+// TODO: move to impl Transformer
 
 pub fn depattern(pattern: Spanned<Pattern>) -> Result<Spanned<CST>, Syntax> {
     let cst = match pattern.item {
@@ -26,7 +27,8 @@ pub fn desugar(ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
         AST::Data(d) => CST::Data(d),
         AST::Block(b) => block(b)?,
         AST::Form(f) => form(f)?,
-        AST::Pattern(_) => unreachable!("Raw Pattern should not be in AST after parsing"),
+        AST::Pattern(_) => unreachable!("Raw Pattern should not be in AST after desugaring"),
+        AST::Syntax { .. } => unreachable!("Unexpanded Syntax rules should not be in AST after desugaring"),
         AST::Assign { pattern, expression } => assign(*pattern, *expression)?,
         AST::Lambda { pattern, expression } => lambda(*pattern, *expression)?,
         AST::Print(e) => CST::Print(Box::new(desugar(*e)?)),
@@ -41,6 +43,7 @@ pub struct Rule {
     tree: Spanned<AST>,
 }
 
+/// Applies compile-time transformations to the AST
 pub struct Transformer {
     rules: Vec<Rule>,
 }

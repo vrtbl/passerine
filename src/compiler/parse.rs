@@ -123,12 +123,14 @@ impl Parser {
         match self.current().item {
             Token::End         => Ok(Spanned::new(AST::Block(vec![]), Span::empty())),
 
+            Token::Syntax      => self.syntax(),
             Token::OpenParen   => self.group(),
             Token::OpenBracket => self.block(),
             Token::Symbol      => self.symbol(),
             Token::Print       => self.print(),
-            // TODO: rename kind to label?
             Token::Label       => self.label(),
+            Token::Keyword(_)  => self.keyword(),
+
             Token::Unit
             | Token::Number(_)
             | Token::String(_)
@@ -159,6 +161,7 @@ impl Parser {
             Token::Lambda => Prec::Lambda,
 
               Token::End
+            | Token::Sep
             | Token::CloseParen
             | Token::CloseBracket => Prec::End,
 
@@ -166,6 +169,7 @@ impl Parser {
               Token::OpenParen
             | Token::OpenBracket
             | Token::Unit
+            | Token::Syntax
             | Token::Print
             | Token::Symbol
             | Token::Keyword(_)
@@ -173,8 +177,6 @@ impl Parser {
             | Token::Number(_)
             | Token::String(_)
             | Token::Boolean(_) => Prec::Call,
-
-            Token::Sep => Prec::End,
         };
         Ok(prec)
     }
@@ -203,6 +205,17 @@ impl Parser {
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
         let symbol = self.consume(Token::Symbol)?;
         Ok(Spanned::new(AST::Symbol, symbol.span.clone()))
+    }
+
+    /// Parses a keyword.
+    /// Note that this is wrapped in a Pattern node.
+    pub fn keyword(&mut self) -> Result<Spanned<AST>, Syntax> {
+        if let Spanned { item: Token::Keyword(name), span } = self.advance() {
+            let wrapped = AST::Pattern(Pattern::Keyword(name.clone()));
+            Ok(Spanned::new(wrapped, span.clone()))
+        } else {
+            unreachable!("Expected a keyword");
+        }
     }
 
     /// Constructs the AST for a literal, such as a number or string.
@@ -258,6 +271,17 @@ impl Parser {
         let ast = self.body(Token::CloseBracket)?;
         let end = self.consume(Token::CloseBracket)?.span.clone();
         return Ok(Spanned::new(ast, Span::combine(&start, &end)));
+    }
+
+    /// Parse a macro definition.
+    /// `syntax`, followed by a pattern, followed by a `block`
+    pub fn syntax(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let start = self.consume(Token::Syntax)?.span.clone();
+        let pattern = Parser::pattern(self.expression(Prec::Call)?)?;
+        let expression = self.block()?;
+        let span = Span::join(vec![start, pattern.span.clone(), expression.span.clone()]);
+
+        return Ok(Spanned::new(AST::syntax(pattern, expression), span))
     }
 
     /// Parse a print statement.

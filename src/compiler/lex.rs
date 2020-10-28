@@ -84,6 +84,7 @@ impl Lexer {
             Box::new(Lexer::close_bracket),
             Box::new(Lexer::open_paren),
             Box::new(Lexer::close_paren),
+            Box::new(Lexer::syntax),
             Box::new(Lexer::assign),
             Box::new(Lexer::lambda),
             Box::new(Lexer::print), // remove print statements after FFI
@@ -97,6 +98,7 @@ impl Lexer {
             Box::new(Lexer::string),
 
             // keep this @ the bottom, lmao
+            Box::new(Lexer::keyword),
             Box::new(Lexer::label),
             Box::new(Lexer::symbol),
         ];
@@ -200,6 +202,11 @@ impl Lexer {
         Lexer::literal(source, ")", Token::CloseParen)
     }
 
+    /// Matches a macro definition, `syntax`.
+    pub fn syntax(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "syntax", Token::Syntax)
+    }
+
     /// Matches a literal assignment equal sign `=`.
     pub fn assign(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "=", Token::Assign)
@@ -269,7 +276,7 @@ impl Lexer {
         let mut len = 0;
         len += Lexer::expect(&source, "'")?;
 
-        if let (Token::Symbol, l) = Lexer::identifier(source)? {
+        if let (Token::Symbol, l) = Lexer::identifier(&source[len..])? {
             let keyword = source[len..len+l].to_string();
             Ok((Token::Keyword(keyword), len + l))
         } else {
