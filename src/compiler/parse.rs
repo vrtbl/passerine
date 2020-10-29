@@ -204,7 +204,10 @@ impl Parser {
     /// Constructs an AST for a symbol.
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
         let symbol = self.consume(Token::Symbol)?;
-        Ok(Spanned::new(AST::Symbol, symbol.span.clone()))
+        let spanned = Spanned::new(AST::Symbol(symbol.span.contents()), symbol.span.clone());
+        // wrap it in a form so single-valued macros can be applied.
+        let wrapped = Spanned::new(AST::Form(vec![spanned]), symbol.span.clone());
+        Ok(wrapped)
     }
 
     /// Parses a keyword.
@@ -344,10 +347,11 @@ impl Parser {
 
     pub fn pattern(ast: Spanned<AST>) -> Result<Spanned<Pattern>, Syntax> {
         let item = match ast.item {
-            AST::Symbol => Pattern::Symbol,
+            AST::Symbol(s) => Pattern::Symbol(s),
             AST::Data(d) => Pattern::Data(d),
             AST::Label(k, a) => Pattern::Label(k, Box::new(Parser::pattern(*a)?)),
             AST::Pattern(p) => p,
+            AST::Form(f) if f.len() == 1 => { return Parser::pattern(f[0].clone()) },
             _ => Err(Syntax::error("Unexpected construct inside pattern", ast.span.clone()))?,
         };
 
@@ -424,7 +428,7 @@ mod test {
                     vec![
                         Spanned::new(
                             AST::assign(
-                                Spanned::new(Pattern::Symbol, Span::new(&source, 0, 1)),
+                                Spanned::new(Pattern::Symbol("x".to_string()), Span::new(&source, 0, 1)),
                                 Spanned::new(
                                     AST::Data(Data::Real(55.0)),
                                     Span::new(&source, 4, 4),
@@ -451,10 +455,10 @@ mod test {
                     vec![
                         Spanned::new(
                             AST::assign(
-                                Spanned::new(Pattern::Symbol, Span::new(&source, 0, 1)),
+                                Spanned::new(Pattern::Symbol("x".to_string()), Span::new(&source, 0, 1)),
                                 Spanned::new(
                                     AST::lambda(
-                                        Spanned::new(Pattern::Symbol, Span::new(&source, 4, 1)),
+                                        Spanned::new(Pattern::Symbol("y".to_string()), Span::new(&source, 4, 1)),
                                         Spanned::new(
                                             AST::Data(Data::Real(3.141592)),
                                             Span::new(&source, 9, 8),

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::common::span::{Span, Spanned};
 use crate::compiler::{
@@ -56,8 +56,7 @@ impl Rule {
 
         while let (Some(pattern), Some(ast)) = (patterns.next(), asts.next()) {
             match &pattern.item {
-                Pattern::Symbol => {
-                    let name = pattern.span.contents();
+                Pattern::Symbol(name) => {
                     if let Some(_) = bindings.insert(name.clone(), ast.item.clone()) {
                         return Err(Syntax::error(
                             &format!("Variable '{}' has already been declared in pattern", name),
@@ -66,8 +65,8 @@ impl Rule {
                     }
                 },
                 Pattern::Keyword(expected) => {
-                    match ast.item {
-                        AST::Symbol if &pattern.span.contents() == expected => (),
+                    match &ast.item {
+                        AST::Symbol(name) if name == expected => (),
                         _ => return Err(Syntax::error(
                             &format!("Expected the pseudokeyword '{}", expected),
                             pattern.span.clone(),
@@ -101,8 +100,6 @@ impl Rule {
             ));
         }
 
-        
-
         let bindings = self.create_bindings(form)?;
         todo!();
     }
@@ -122,7 +119,7 @@ impl Transformer {
     /// This function takes a pattern and converts it into an AST.
     pub fn depattern(pattern: Spanned<Pattern>) -> Result<Spanned<CST>, Syntax> {
         let cst = match pattern.item {
-            Pattern::Symbol => CST::Symbol(pattern.span.contents()),
+            Pattern::Symbol(s) => CST::Symbol(s),
             _ => Err(Syntax::error(
                 "Pattern used that has not yet been implemented",
                 pattern.span.clone(),
@@ -137,7 +134,7 @@ impl Transformer {
     /// once macros are introduced, but right now it's basically a 1 to 1 translation
     pub fn walk(&mut self, ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
         let cst: CST = match ast.item {
-            AST::Symbol => CST::Symbol(ast.span.contents()),
+            AST::Symbol(s) => CST::Symbol(s),
             AST::Data(d) => CST::Data(d),
             AST::Block(b) => self.block(b)?,
             AST::Form(f) => self.form(f)?,
@@ -155,8 +152,10 @@ impl Transformer {
     /// Recursively build up a call from a flat form.
     /// Basically turns `(a b c d)` into `(((a b) c) d)`.
     pub fn call(&mut self, mut f: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
-        if f.len() < 2 {
+        if f.len() < 1 {
             unreachable!("A call must have at least two values - a function and an expression")
+        } else if f.len() == 1 {
+            return Ok(self.walk(f[0].clone())?.item);
         }
 
         if f.len() == 2 {
@@ -174,14 +173,55 @@ impl Transformer {
     // TODO: Make it possible for forms with less than one value to exist
     pub fn form(&mut self, f: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
         // build loose signature
+        let mut loose_signature = vec![];
+        for ast in f.iter() {
+            if let AST::Symbol(name) = &ast.item {
+                loose_signature.push(name.to_string());
+            }
+        }
 
+        // find all rules that match loose signature
+        let mut matches = vec![];
+        for rule in self.rules.iter() {
+            let mut index = 0;
+            let signature = &rule.item.signature;
 
-        // - find all rules that match
+            for pseudokeyword in loose_signature.iter() {
+                if pseudokeyword == &signature[index] {
+                    index += 1;
+                }
+                if index == signature.len() {
+                    matches.push(rule);
+                    break;
+                }
+            }
+        }
+
+        // check that there is only one match.
+        if matches.len() == 0 { return self.call(f); }
+        if matches.len() > 1 {
+            return Err(Syntax::error(
+                &format!(
+                    "The form ({}) matched {} macros: \n   - {}\n\
+                    A form may only match one macro, this must be unambiguious\n\
+                    Use parenthesis '( ... )' to group nested macros",
+                    loose_signature.join(" "),
+                    matches.len(),
+                    matches.iter()
+                        .map(|s| s.item.display_signature())
+                        .collect::<Vec<String>>()
+                        .join("\n   - "),
+
+                ),
+                Spanned::build(&f),
+            ))
+        }
+
+        panic!("Macros not yet implemented");
+
         // - try to apply that rule
         // - if the rule matches, apply the transformation and schloop in the new AST.
         // - multiple rules should never match
-
-        return self.call(f);
     }
 
     pub fn block(&mut self, b: Vec<Spanned<AST>>) -> Result<CST, Syntax> {

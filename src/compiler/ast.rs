@@ -7,7 +7,7 @@ use crate::common::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
-    Symbol,
+    Symbol(String),
     Keyword(String),
     Data(Data),
     Label(String, Box<Spanned<Pattern>>),
@@ -28,7 +28,7 @@ pub enum Pattern {
 /// and represents language-level constructs
 #[derive(Debug, Clone, PartialEq)]
 pub enum AST {
-    Symbol,
+    Symbol(String),
     Data(Data),
     Block(Vec<Spanned<AST>>),
     Form(Vec<Spanned<AST>>),

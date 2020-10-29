@@ -252,6 +252,13 @@ impl<T> Spanned<T> {
 
     /// a destructive alias for `self.item`
     pub fn into(self) -> T { self.item }
+
+    pub fn build(spanneds: &Vec<Spanned<T>>) -> Span {
+        let spans = spanneds.iter()
+            .map(|s| s.span.clone())
+            .collect::<Vec<Span>>();
+        Span::join(spans)
+    }
 }
 
 #[cfg(test)]
