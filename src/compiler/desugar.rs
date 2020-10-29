@@ -12,15 +12,42 @@ pub fn desugar(ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
 }
 
 // TODO: add context for macro application
+// NOTE: add spans?
 
 pub struct Rule {
-    arg_pat: Vec<Spanned<Pattern>>,
+    signature: Vec<String>,
+    arg_pat: Spanned<Vec<Spanned<Pattern>>>,
     tree: Spanned<AST>,
+}
+
+impl Rule {
+    /// Builds a new rule, making sure the rule's signature is valid
+    pub fn new(
+        arg_pat: Spanned<Vec<Spanned<Pattern>>>,
+        tree: Spanned<AST>,
+    ) -> Option<Rule> {
+        let mut signature = vec![];
+        for pat in arg_pat.item.iter() {
+            if let Pattern::Keyword(name) = &pat.item {
+                signature.push(name.clone())
+            }
+        }
+
+        if signature.is_empty() { return None; }
+        return Some(Rule { signature, arg_pat, tree })
+    }
+
+    pub fn display_signature(&self) -> String {
+        self.signature.iter()
+            .map(|s| format!("'{}", s))
+            .collect::<Vec<String>>()
+            .join(" ")
+    }
 }
 
 /// Applies compile-time transformations to the AST
 pub struct Transformer {
-    rules: Vec<Rule>,
+    rules: Vec<Spanned<Rule>>,
 }
 
 impl Transformer {
@@ -92,18 +119,21 @@ impl Transformer {
         todo!()
     }
 
-    pub fn rule(&mut self, arg_pat: Vec<Spanned<Pattern>>, tree: Spanned<AST>) -> Result<CST, Syntax> {
-        return Err(Syntax::error(
-            "Syntactic macros are not yet supported",
-            tree.span.clone(),
-        ));
+    pub fn rule(&mut self, arg_pat: Spanned<Vec<Spanned<Pattern>>>, tree: Spanned<AST>) -> Result<CST, Syntax> {
+        let rule = Rule::new(arg_pat, tree)
+            .ok_or(Syntax::error(
+                "Syntactic macros must have at least one pseudokeyword",
+                arg_pat.span.clone(),
+            ));
 
-        let rule = Rule { arg_pat, tree };
-        self.rules.push(rule);
+        for defined in self.rules.iter() {
+            if defined.item.signature == signature {
+            }
+        }
+
+        self.rules.push(Spanned::new(rule, arg_pat.span));
+
         // TODO: return nothing?
-        // TODO: check that pattern is correct.
-        // i.e. contains at least one keyword,
-        // and keywords are not already in use.
         Ok(CST::Block(vec![]))
     }
 }

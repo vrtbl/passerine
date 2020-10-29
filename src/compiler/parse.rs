@@ -273,7 +273,7 @@ impl Parser {
         return Ok(Spanned::new(ast, Span::combine(&start, &end)));
     }
 
-    // TODO unwrap from outside in to prevent nesting
+    // TODO: unwrap from outside in to prevent nesting
     /// Parse a macro definition.
     /// `syntax`, followed by a pattern, followed by a `block`
     pub fn syntax(&mut self) -> Result<Spanned<AST>, Syntax> {
@@ -304,8 +304,13 @@ impl Parser {
             patterns.push(Parser::pattern(ast)?);
         }
 
-        let span = Span::join(vec![start, patterns_span, block.span.clone()]);
-        return Ok(Spanned::new(AST::syntax(patterns, block), span))
+        let span = Span::join(vec![
+            start,
+            patterns_span.clone(),
+            block.span.clone()
+        ]);
+
+        return Ok(Spanned::new(AST::syntax(Spanned::new(patterns, patterns_span), block), span))
     }
 
     /// Parse a print statement.

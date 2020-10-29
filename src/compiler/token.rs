@@ -55,7 +55,7 @@ impl Display for Token {
             Token::Number(_)    => "a number",
             Token::String(_)    => "a string",
             Token::End          => "end of source",
-            Token::Keyword(k) => { return write!(f, "the pseudokeyword '{}'", k); },
+            Token::Keyword(k) => { return write!(f, "the pseudokeyword '{}", k); },
             Token::Boolean(b) => { return write!(f, "the boolean {}",         b); },
 
         };
