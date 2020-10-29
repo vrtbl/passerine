@@ -273,15 +273,39 @@ impl Parser {
         return Ok(Spanned::new(ast, Span::combine(&start, &end)));
     }
 
+    // TODO unwrap from outside in to prevent nesting
     /// Parse a macro definition.
     /// `syntax`, followed by a pattern, followed by a `block`
     pub fn syntax(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::Syntax)?.span.clone();
-        let pattern = Parser::pattern(self.expression(Prec::Call)?)?;
-        let expression = self.block()?;
-        let span = Span::join(vec![start, pattern.span.clone(), expression.span.clone()]);
+        let after = self.expression(Prec::Call)?;
 
-        return Ok(Spanned::new(AST::syntax(pattern, expression), span))
+        let mut form = match after.item {
+            AST::Form(p) => p,
+            _ => return Err(Syntax::error(
+                "Expected a pattern and a block after 'syntax'",
+                after.span,
+            )),
+        };
+
+        let last = form.pop().unwrap();
+        let block = match (last.item, last.span) {
+            (b @ AST::Block(_), s) => Spanned::new(b, s),
+            _ => return Err(Syntax::error(
+                "Expected a block after the syntax pattern",
+                after.span,
+            )),
+        };
+
+        let mut patterns = vec![];
+        let mut patterns_span = Span::empty();
+        for ast in form.into_iter() {
+            patterns_span = Span::combine(&patterns_span, &ast.span.clone());
+            patterns.push(Parser::pattern(ast)?);
+        }
+
+        let span = Span::join(vec![start, patterns_span, block.span.clone()]);
+        return Ok(Spanned::new(AST::syntax(patterns, block), span))
     }
 
     /// Parse a print statement.

@@ -44,7 +44,7 @@ pub enum AST {
     Print(Box<Spanned<AST>>),
     Label(String, Box<Spanned<AST>>),
     Syntax {
-        pattern:    Box<Spanned<Pattern>>,
+        patterns:   Box<Vec<Spanned<Pattern>>>,
         expression: Box<Spanned<AST>>,
     }
 }
@@ -75,11 +75,11 @@ impl AST {
     /// Shortcut for creating an `AST::Syntax` variant.
     /// i.e. a macro definition
     pub fn syntax(
-        pattern: Spanned<Pattern>,
+        pattern: Vec<Spanned<Pattern>>,
         expression: Spanned<AST>,
     ) -> AST {
         AST::Syntax {
-            pattern:    Box::new(pattern),
+            patterns:    Box::new(pattern),
             expression: Box::new(expression),
         }
     }
