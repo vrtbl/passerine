@@ -8,13 +8,18 @@ use crate::common::{
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
     Symbol(String),
-    Keyword(String),
     Data(Data),
     Label(String, Box<Spanned<Pattern>>),
     Where {
         pattern: Box<Spanned<Pattern>>,
         conditions: Box<Spanned<AST>>,
     }
+}
+
+pub enum ArgPattern {
+    Keyword(String),
+    Symbol(String),
+    
 }
 
 // NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)

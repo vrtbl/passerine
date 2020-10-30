@@ -387,15 +387,20 @@ impl Parser {
     /// we interpret anything that isn't an operator as a function call operator.
     /// Then pull a fast one and not parse it like an operator at all.
     pub fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let argument = self.expression(Prec::Call.associate_left())?;
-        let combined = Span::combine(&left.span, &argument.span);
+        let right = self.expression(Prec::Call.associate_left())?;
+        let combined = Span::combine(&left.span, &right.span);
 
         let mut form = match left.item {
             AST::Form(f) => f,
             _ => vec![left],
         };
-        form.push(argument);
+        let argument = match right.item {
+            // form can only be of length one if it's just a symbol
+            AST::Form(f) if f.len() == 1 => { f[0] },
+            other => right,
+        };
 
+        form.push(argument);
         return Ok(Spanned::new(AST::Form(form), combined));
     }
 }

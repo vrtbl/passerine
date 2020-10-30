@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::common::span::{Span, Spanned};
 use crate::compiler::{
@@ -20,7 +20,6 @@ pub fn desugar(ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
 
 #[derive(Debug, Clone)]
 pub struct Rule {
-    signature: Vec<String>,
     arg_pat: Vec<Spanned<Pattern>>,
     tree: Spanned<AST>,
 }
@@ -42,66 +41,11 @@ impl Rule {
         return Some(Rule { signature, arg_pat, tree })
     }
 
-    pub fn display_signature(&self) -> String {
-        self.signature.iter()
-            .map(|s| format!("'{}", s))
-            .collect::<Vec<String>>()
-            .join(" ")
-    }
+    pub fn match_form(
+        &self,
+        tree: Vec<Spanned<AST>>
+    ) -> Option<Result<HashMap<String, Spanned<AST>>, Syntax>> {
 
-    pub fn create_bindings(&self, form: Vec<Spanned<AST>>) -> Result<HashMap<String, AST>, Syntax> {
-        let mut patterns = self.arg_pat.iter();
-        let mut asts     = form.iter();
-        let mut bindings = HashMap::<String, AST>::new();
-
-        while let (Some(pattern), Some(ast)) = (patterns.next(), asts.next()) {
-            match &pattern.item {
-                Pattern::Symbol(name) => {
-                    if let Some(_) = bindings.insert(name.clone(), ast.item.clone()) {
-                        return Err(Syntax::error(
-                            &format!("Variable '{}' has already been declared in pattern", name),
-                            pattern.span.clone(),
-                        ));
-                    }
-                },
-                Pattern::Keyword(expected) => {
-                    match &ast.item {
-                        AST::Symbol(name) if name == expected => (),
-                        _ => return Err(Syntax::error(
-                            &format!("Expected the pseudokeyword '{}", expected),
-                            pattern.span.clone(),
-                        )),
-                    }
-                },
-
-                _ => return Err(Syntax::error(
-                    "This pattern is not supported in syntactic macros yet",
-                    pattern.span.clone(),
-                )),
-            }
-        }
-
-        return Ok(bindings);
-    }
-
-    // TODO: make symbols carry their names in AST like CST
-    // TODO: refactor out into multiple functions
-    // TODO: update to work more like a finite state machine,
-    // and add support for variable length macros
-    pub fn try_apply(&self, form: Vec<Spanned<AST>>) -> Result<AST, Syntax> {
-        if form.len() != self.arg_pat.len() {
-            return Err(Syntax::error(
-                &format!(
-                    "Expected form to be same length as macro while expanding {}",
-                    self.display_signature(),
-                ),
-                // TODO: abstract out
-                Span::join(form.iter().map(|sp| sp.span.clone()).collect()),
-            ));
-        }
-
-        let bindings = self.create_bindings(form)?;
-        todo!();
     }
 }
 
@@ -138,7 +82,7 @@ impl Transformer {
             AST::Data(d) => CST::Data(d),
             AST::Block(b) => self.block(b)?,
             AST::Form(f) => self.form(f)?,
-            AST::Pattern(_) => unreachable!("Raw Pattern should not be in AST after desugaring"),
+            AST::Pattern(_) => unreachable!("Raw Pattern should not be in AST after parsing"),
             AST::Syntax { patterns, expression } => self.rule(*patterns, *expression)?,
             AST::Assign { pattern, expression } => self.assign(*pattern, *expression)?,
             AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression)?,
@@ -171,57 +115,15 @@ impl Transformer {
 
     // TODO: do raw apply and check once macros get more complicated.
     // TODO: Make it possible for forms with less than one value to exist
-    pub fn form(&mut self, f: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
-        // build loose signature
-        let mut loose_signature = vec![];
-        for ast in f.iter() {
-            if let AST::Symbol(name) = &ast.item {
-                loose_signature.push(name.to_string());
-            }
-        }
+    pub fn form(&mut self, mut form: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
+        // collect all in-scope pseudokeywords
 
-        // find all rules that match loose signature
-        let mut matches = vec![];
-        for rule in self.rules.iter() {
-            let mut index = 0;
-            let signature = &rule.item.signature;
 
-            for pseudokeyword in loose_signature.iter() {
-                if pseudokeyword == &signature[index] {
-                    index += 1;
-                }
-                if index == signature.len() {
-                    matches.push(rule);
-                    break;
-                }
-            }
-        }
-
-        // check that there is only one match.
-        if matches.len() == 0 { return self.call(f); }
-        if matches.len() > 1 {
-            return Err(Syntax::error(
-                &format!(
-                    "The form ({}) matched {} macros: \n   - {}\n\
-                    A form may only match one macro, this must be unambiguious\n\
-                    Use parenthesis '( ... )' to group nested macros",
-                    loose_signature.join(" "),
-                    matches.len(),
-                    matches.iter()
-                        .map(|s| s.item.display_signature())
-                        .collect::<Vec<String>>()
-                        .join("\n   - "),
-
-                ),
-                Spanned::build(&f),
-            ))
-        }
-
-        panic!("Macros not yet implemented");
-
-        // - try to apply that rule
-        // - if the rule matches, apply the transformation and schloop in the new AST.
-        // - multiple rules should never match
+        // convert symbols to in-scope pseudokeywords
+        form = form.iter()
+            .map(|branch| match branch.item {
+                AST::Symbol(name)
+            })
     }
 
     pub fn block(&mut self, b: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
