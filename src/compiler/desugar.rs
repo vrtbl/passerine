@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::common::span::{Span, Spanned};
 use crate::compiler::{
-    ast::{AST, Pattern},
+    ast::{AST, Pattern, ArgPat},
     cst::CST,
     syntax::Syntax
 };
@@ -18,34 +18,81 @@ pub fn desugar(ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
 // TODO: add context for macro application
 // NOTE: add spans?
 
+pub enum Bind {
+    // name, bound sub-tree
+    Pair(String, Spanned<AST>),
+    // bindings, unmatched sub-trees
+    Group(HashMap<String, Spanned<AST>>, Vec<Spanned<AST>>),
+}
+
+// type BindRemaining = (Vec<(String, Spanned<AST>)>, Option<Spanned<AST>>);
+
 #[derive(Debug, Clone)]
 pub struct Rule {
-    arg_pat: Vec<Spanned<Pattern>>,
+    arg_pat: Spanned<ArgPat>,
     tree: Spanned<AST>,
 }
 
 impl Rule {
     /// Builds a new rule, making sure the rule's signature is valid
     pub fn new(
-        arg_pat: Vec<Spanned<Pattern>>,
+        arg_pat: Spanned<ArgPat>,
         tree: Spanned<AST>,
-    ) -> Option<Rule> {
-        let mut signature = vec![];
-        for pat in arg_pat.iter() {
-            if let Pattern::Keyword(name) = &pat.item {
-                signature.push(name.clone())
+    ) -> Rule {
+        return Rule { arg_pat, tree }
+    }
+
+    /// Binds a form subgroup without recursively matching the form itself.
+    pub fn bind_group(
+        pats: Vec<Spanned<ArgPat>>,
+        mut remaining: Vec<Spanned<AST>>,
+    ) -> Result<Option<Bind>, Syntax> {
+        let bindings = HashMap::new();
+        for pat in pats {
+            let next = remaining.pop().unwrap();
+
+            let bind = if let AST::Form(_) = next.item {
+                Rule::bind(pat, Spanned::new(AST::Form(remaining), Spanned::build(&remaining)))?
+            } else {
+                Rule::bind(pat, next)?
+            }
+
+            match bind {
+                None => (),
+                Some(Bind::Pair(n, t)) => { todo!() },
+                Some(Bind::Group()),
             }
         }
 
-        if signature.is_empty() { return None; }
-        return Some(Rule { signature, arg_pat, tree })
+        Ok(Some(Bind::Group(bindings, remaining)))
     }
 
-    pub fn match_form(
-        &self,
-        tree: Vec<Spanned<AST>>
-    ) -> Option<Result<HashMap<String, Spanned<AST>>, Syntax>> {
+    /// Binds an AST to a macro.
+    pub fn bind(
+        arg_pat: Spanned<ArgPat>,
+        tree: Spanned<AST>,
+    ) -> Result<Option<Bind>, Syntax> {
+        match arg_pat.item {
+            ArgPat::Symbol(name) => Ok(Some(Bind::Pair(name, tree))),
 
+            ArgPat::Keyword(expected) => {
+                match tree.item {
+                    AST::Symbol(name) if name == expected => Ok(None),
+                    _ => return Err(Syntax::error(
+                        &format!("Expected the pseudokeyword '{} while binding macro", expected),
+                        tree.span.clone(),
+                    )),
+                }
+            },
+
+            ArgPat::Group(pats) => {
+                let mut remaining: Vec<Spanned<AST>> = match tree.item {
+                    AST::Form(f) => f.into_iter().rev().collect(),
+                    _ => unreachable!("Expected a form"),
+                };
+                Rule::bind_group(pats, remaining)
+            },
+        }
     }
 }
 
@@ -83,7 +130,8 @@ impl Transformer {
             AST::Block(b) => self.block(b)?,
             AST::Form(f) => self.form(f)?,
             AST::Pattern(_) => unreachable!("Raw Pattern should not be in AST after parsing"),
-            AST::Syntax { patterns, expression } => self.rule(*patterns, *expression)?,
+            AST::ArgPat(_) => unreachable!("Raw Argument Pattern should not be in AST after parsing"),
+            AST::Syntax { arg_pat, expression } => self.rule(*arg_pat, *expression)?,
             AST::Assign { pattern, expression } => self.assign(*pattern, *expression)?,
             AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression)?,
             AST::Print(e) => CST::Print(Box::new(self.walk(*e)?)),
@@ -120,10 +168,11 @@ impl Transformer {
 
 
         // convert symbols to in-scope pseudokeywords
-        form = form.iter()
-            .map(|branch| match branch.item {
-                AST::Symbol(name)
-            })
+        // form = form.iter()
+        //     .map(|branch| match branch.item {
+        //         AST::Symbol(name)
+        //     })
+        todo!()
     }
 
     pub fn block(&mut self, b: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
@@ -143,28 +192,13 @@ impl Transformer {
         todo!()
     }
 
-    pub fn rule(&mut self, arg_pat: Spanned<Vec<Spanned<Pattern>>>, tree: Spanned<AST>) -> Result<CST, Syntax> {
+    pub fn rule(&mut self, arg_pat: Spanned<ArgPat>, tree: Spanned<AST>) -> Result<CST, Syntax> {
         let patterns_span = arg_pat.span.clone();
 
-        let rule = Rule::new(arg_pat.item, tree)
-            .ok_or(Syntax::error(
-                "Syntactic macros must have at least one pseudokeyword",
-                patterns_span.clone(),
-            ))?;
+        // TODO: check that rule is valid
+        let rule = Rule::new(arg_pat, tree);
 
-        for defined in self.rules.iter() {
-            if defined.item.signature == rule.signature {
-                return Err(Syntax::error(
-                    &format!(
-                        "Syntactic macro with the signature {} has already been defined:\n{}",
-                        rule.display_signature(),
-                        defined.span,
-                    ),
-                    patterns_span,
-                ));
-            }
-        }
-
+        // TODO: check for conflicting macros
         self.rules.push(Spanned::new(rule, patterns_span));
 
         // TODO: return nothing?

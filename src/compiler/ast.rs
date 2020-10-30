@@ -16,10 +16,11 @@ pub enum Pattern {
     }
 }
 
-pub enum ArgPattern {
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArgPat {
     Keyword(String),
     Symbol(String),
-    
+    Group(Vec<Spanned<ArgPat>>),
 }
 
 // NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)
@@ -38,6 +39,7 @@ pub enum AST {
     Block(Vec<Spanned<AST>>),
     Form(Vec<Spanned<AST>>),
     Pattern(Pattern),
+    ArgPat(ArgPat),
     Assign {
         pattern:    Box<Spanned<Pattern>>,
         expression: Box<Spanned<AST>>,
@@ -49,7 +51,7 @@ pub enum AST {
     Print(Box<Spanned<AST>>),
     Label(String, Box<Spanned<AST>>),
     Syntax {
-        patterns:   Box<Spanned<Vec<Spanned<Pattern>>>>,
+        arg_pat:    Box<Spanned<ArgPat>>,
         expression: Box<Spanned<AST>>,
     }
 }
@@ -80,11 +82,11 @@ impl AST {
     /// Shortcut for creating an `AST::Syntax` variant.
     /// i.e. a macro definition
     pub fn syntax(
-        pattern: Spanned<Vec<Spanned<Pattern>>>,
+        arg_pat: Spanned<ArgPat>,
         expression: Spanned<AST>,
     ) -> AST {
         AST::Syntax {
-            patterns:   Box::new(pattern),
+            arg_pat:   Box::new(arg_pat),
             expression: Box::new(expression),
         }
     }

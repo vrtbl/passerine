@@ -7,7 +7,7 @@ use crate::common::{
 use crate::compiler::{
     syntax::Syntax,
     token::Token,
-    ast::{AST, Pattern},
+    ast::{AST, Pattern, ArgPat},
 };
 
 /// Simple function that parses a token stream into an AST.
@@ -204,17 +204,14 @@ impl Parser {
     /// Constructs an AST for a symbol.
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
         let symbol = self.consume(Token::Symbol)?;
-        let spanned = Spanned::new(AST::Symbol(symbol.span.contents()), symbol.span.clone());
-        // wrap it in a form so single-valued macros can be applied.
-        let wrapped = Spanned::new(AST::Form(vec![spanned]), symbol.span.clone());
-        Ok(wrapped)
+        Ok(Spanned::new(AST::Symbol(symbol.span.contents()), symbol.span.clone()))
     }
 
     /// Parses a keyword.
     /// Note that this is wrapped in a Pattern node.
     pub fn keyword(&mut self) -> Result<Spanned<AST>, Syntax> {
         if let Spanned { item: Token::Keyword(name), span } = self.advance() {
-            let wrapped = AST::Pattern(Pattern::Keyword(name.clone()));
+            let wrapped = AST::ArgPat(ArgPat::Keyword(name.clone()));
             Ok(Spanned::new(wrapped, span.clone()))
         } else {
             unreachable!("Expected a keyword");
@@ -292,6 +289,7 @@ impl Parser {
         };
 
         let last = form.pop().unwrap();
+        after.item = AST::Form(form);
         let block = match (last.item, last.span) {
             (b @ AST::Block(_), s) => Spanned::new(b, s),
             _ => return Err(Syntax::error(
@@ -300,20 +298,15 @@ impl Parser {
             )),
         };
 
-        let mut patterns = vec![];
-        let mut patterns_span = Span::empty();
-        for ast in form.into_iter() {
-            patterns_span = Span::combine(&patterns_span, &ast.span.clone());
-            patterns.push(Parser::pattern(ast)?);
-        }
+        let mut arg_pat = Parser::arg_pat(after)?;
 
         let span = Span::join(vec![
             start,
-            patterns_span.clone(),
+            arg_pat.span.clone(),
             block.span.clone()
         ]);
 
-        return Ok(Spanned::new(AST::syntax(Spanned::new(patterns, patterns_span), block), span))
+        return Ok(Spanned::new(AST::syntax(arg_pat, block), span));
     }
 
     /// Parse a print statement.
@@ -358,6 +351,24 @@ impl Parser {
         return Ok(Spanned::new(item, ast.span));
     }
 
+    pub fn arg_pat(ast: Spanned<AST>) -> Result<Spanned<ArgPat>, Syntax> {
+        let item = match ast.item {
+            AST::Symbol(s) => ArgPat::Symbol(s),
+            AST::ArgPat(p) => p,
+            AST::Form(f) => {
+                let mapped = vec![];
+                for a in f { mapped.push(Parser::arg_pat(a)?); }
+                ArgPat::Group(mapped)
+            }
+            _ => Err(Syntax::error(
+                "Unexpected construct inside argument pattern",
+                ast.span.clone()
+            ))?,
+        };
+
+        return Ok(Spanned::new(item, ast.span));
+    }
+
     // TODO: assign and lambda are similar... combine?
 
     /// Parses an assignment, associates right.
@@ -387,17 +398,12 @@ impl Parser {
     /// we interpret anything that isn't an operator as a function call operator.
     /// Then pull a fast one and not parse it like an operator at all.
     pub fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let right = self.expression(Prec::Call.associate_left())?;
-        let combined = Span::combine(&left.span, &right.span);
+        let argument = self.expression(Prec::Call.associate_left())?;
+        let combined = Span::combine(&left.span, &argument.span);
 
         let mut form = match left.item {
             AST::Form(f) => f,
             _ => vec![left],
-        };
-        let argument = match right.item {
-            // form can only be of length one if it's just a symbol
-            AST::Form(f) if f.len() == 1 => { f[0] },
-            other => right,
         };
 
         form.push(argument);
