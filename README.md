@@ -23,8 +23,10 @@
 </p>
 
 **Welcome to Passerine!**
-Passerine is a small, concise, extensible programming language, powered by a VM written in Rust.
-It was inspired by Scheme, OCaml, Rust, and Wren.
+Passerine is a small, concise, extensible programming language,
+powered by a VM written in Rust.
+It's taken inspiration from many languages,
+including Scheme, OCaml, Rust, and Wren.
 Here's a small taste:
 
 ```

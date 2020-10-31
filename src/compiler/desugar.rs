@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::common::span::{Span, Spanned};
 use crate::compiler::{
@@ -18,16 +18,7 @@ pub fn desugar(ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
 // TODO: add context for macro application
 // NOTE: add spans?
 
-#[derive(Debug, Clone)]
-pub enum Bind {
-    Nothing,
-    // name, bound sub-tree
-    Pair(String, Spanned<AST>),
-    // bindings, unmatched sub-trees
-    Group(HashMap<String, Spanned<AST>>, Vec<Spanned<AST>>),
-}
-
-// type BindRemaining = (Vec<(String, Spanned<AST>)>, Option<Spanned<AST>>);
+type Bindings = HashMap<String, Spanned<AST>>;
 
 #[derive(Debug, Clone)]
 pub struct Rule {
@@ -36,99 +27,90 @@ pub struct Rule {
 }
 
 impl Rule {
-    /// Builds a new rule, making sure the rule's signature is valid
+    /// Builds a new rule, making sure the rule's signature is valid.
     pub fn new(
         arg_pat: Spanned<ArgPat>,
         tree: Spanned<AST>,
-    ) -> Rule {
-        return Rule { arg_pat, tree }
-    }
-
-    /// Binds a form subgroup without recursively matching the form itself.
-    pub fn bind_group(
-        pats: Vec<Spanned<ArgPat>>,
-        mut remaining: Vec<Spanned<AST>>,
-    ) -> Result<Bind, Syntax> {
-        println!("binding group");
-        let mut bindings = HashMap::new();
-
-        for pat in pats {
-            let span = pat.span.clone();
-            let next = remaining.pop().unwrap();
-
-            let bind = if let AST::Form(_) = next.item {
-                Rule::bind(pat, Spanned::new(
-                    AST::Form(remaining.to_vec()),
-                    Spanned::build(&remaining))
-                )?
-            } else {
-                Rule::bind(pat, next)?
-            };
-
-            let collision = match bind {
-                Bind::Nothing => None,
-                Bind::Pair(k, v) => bindings.insert(k, v),
-                Bind::Group(new_bindings, r) => {
-                    // TODO: maybe use .extend? we need to err on collisions,
-                    // but .extend seems to silently ignore these.
-                    remaining = r;
-                    let mut collision = None;
-                    for (k, v) in new_bindings {
-                        if let c @ Some(_) = bindings.insert(k, v) {
-                            collision = c;
-                            break;
-                        }
-                    }
-                    collision
-                },
-            };
-
-            if let Some(ast) = collision {
-                return Err(Syntax::error(
-                    &format!(
-                        "While expanding macro\n\
-                        {}\n\
-                        Variable has already been declared in syntactic macro argument pattern",
-                        span
-                    ),
-                    ast.span,
-                ));
-            }
+    ) -> Result<Rule, Syntax> {
+        if Rule::keywords(&arg_pat).len() == 0 {
+            return Err(Syntax::error(
+                "Syntactic macro must have at least one pseudokeyword",
+                arg_pat.span,
+            ));
         }
-
-        Ok(Bind::Group(bindings, remaining))
+        Ok(Rule { arg_pat, tree })
     }
 
-    /// Binds an AST to a macro.
-    pub fn bind(
-        arg_pat: Spanned<ArgPat>,
-        tree: Spanned<AST>,
-    ) -> Result<Bind, Syntax> {
-        println!("binding");
-        match arg_pat.item {
-            ArgPat::Symbol(name) => Ok(Bind::Pair(name, tree)),
-
-            ArgPat::Keyword(expected) => {
-                match tree.item {
-                    AST::Symbol(name) if name == expected => Ok(Bind::Nothing),
-                    _ => return Err(Syntax::error(
-                        &format!("Expected the pseudokeyword '{} while binding macro", expected),
-                        tree.span.clone(),
-                    )),
-                }
-            },
-
+    /// Returns all keywords, as strings, used by the macro, in order of usage.
+    /// Does not filter for duplicates.
+    pub fn keywords(arg_pat: &Spanned<ArgPat>) -> Vec<String> {
+        match &arg_pat.item {
             ArgPat::Group(pats) => {
-                let remaining: Vec<Spanned<AST>> = match tree.item {
-                    AST::Form(f) => f.into_iter().rev().collect(),
-                    _ => {
-                        println!("{:#?}", tree.item);
-                        unreachable!("Expected a form");
-                    },
-                };
-                Rule::bind_group(pats, remaining)
+                let mut keywords = vec![];
+                for pat in pats { keywords.append(&mut Rule::keywords(&pat)) }
+                keywords
+            },
+            ArgPat::Keyword(name) => vec![name.clone()],
+            _ => vec![],
+        }
+    }
+
+    /// Merges two maps of bindings.
+    /// If there is a collision, i.e. a name bound in both bindings,
+    /// An error highlighting the duplicate binding is returned.
+    pub fn merge_safe(base: &mut Bindings, new: Bindings, def: Span) -> Result<(), Syntax> {
+        let collision = Syntax::error(
+            "Variable has already been declared in syntactic macro argument pattern", def
+        );
+
+        for (n, t) in new {
+            if base.contains_key(&n) { return Err(collision); }
+            else                     { base.insert(n, t);     }
+        }
+
+        Ok(())
+    }
+
+    /// Traverses a form, creating bindings for subsequent transformation.
+    /// Returns `None` if the form does not match the argument pattern.
+    /// `Some(Ok(_))` if it matches successfully,
+    /// and `Some(Err(_))` if it matches but something is incorrect.
+    /// Note that this function takes the form unwrapped and in reverse -
+    /// This is to make processing the bindings more efficient,
+    /// As this function works with the head of the form.
+    pub fn bind(arg_pat: &Spanned<ArgPat>, mut reversed_form: &mut Vec<Spanned<AST>>)
+    -> Option<Result<Bindings, Syntax>> {
+        match &arg_pat.item {
+            ArgPat::Keyword(expected) => {
+                if let AST::Symbol(name) = reversed_form.pop()?.item {
+                    if &name == expected { Some(Ok(HashMap::new())) }
+                    else                { None                     }
+                } else                  { None                     }
+            },
+            ArgPat::Symbol(symbol) => Some(Ok(
+                vec![(symbol.clone(), reversed_form.pop()?)]
+                    .into_iter().collect()
+            )),
+            ArgPat::Group(pats) => {
+                let mut bindings = HashMap::new();
+                for pat in pats {
+                    let span = pat.span.clone();
+                    let new = match Rule::bind(&pat, &mut reversed_form)? {
+                        Ok(matched) => matched,
+                        mismatch @ Err(_) => return Some(mismatch),
+                    };
+                    if let Err(collision) = Rule::merge_safe(&mut bindings, new, span) {
+                        return Some(Err(collision));
+                    }
+                }
+                Some(Ok(bindings))
             },
         }
+    }
+
+    pub fn expand(tree: Spanned<AST>, mut bindings: &mut Bindings)
+    -> Result<Spanned<AST>, Syntax> {
+        todo!()
     }
 }
 
@@ -201,18 +183,57 @@ impl Transformer {
     // TODO: Make it possible for forms with less than one value to exist
     pub fn form(&mut self, mut form: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
         // collect all in-scope pseudokeywords
+        let mut keywords = HashSet::new();
+        for rule in self.rules.iter() {
+            for keyword in Rule::keywords(&rule.item.arg_pat) {
+                keywords.insert(keyword);
+            }
+        }
 
-
-        // convert symbols to in-scope pseudokeywords
+        // TODO: convert symbols to in-scope pseudokeywords
+        // This allows us to error on an imperfect macro match.
         // form = form.iter()
         //     .map(|branch| match branch.item {
         //         AST::Symbol(name)
         //     })
 
+        // build up a list of rules that matched the current form
+        // note that this should be 1
+        // 0 means that there's a function call
+        // more than 1 means there's some macro ambiguity that needs to be resolved
+        let mut matches = vec![];
         for rule in self.rules.iter() {
-            let binding = Rule::bind(rule.item.arg_pat.clone(), Spanned::new(AST::Form(form.clone()), Spanned::build(&form)))?;
-            println!("{:#?}", binding);
+            let possibility = Rule::bind(
+                &rule.item.arg_pat,
+                &mut form.clone().into_iter().rev().collect()
+            );
+            if let Some(bindings) = possibility {
+                matches.push((rule, bindings?))
+            }
         }
+
+        if matches.len() == 0 { return self.call(form); }
+        if matches.len() > 1 {
+            // TODO: make the error prettier
+            // might have to rework Syntax a bit...
+            return Err(Syntax::error(
+                &format!(
+                    "This form matched multiple macros:\n\n{}\
+                    Note: A form may only match one macro, this must be unambiguious;\n\
+                    Try using variable names different than those of pseudokeywords currently in scope,\n\
+                    Adjusting the definitions of locally-defined macros,\n\
+                    or using parenthesis '( ... )' or curlies '{{ ... }}' to group nested macros",
+                    matches.iter()
+                        .map(|s| format!("{}", s.0.span))
+                        .collect::<Vec<String>>()
+                        .join(""),
+                ),
+                Spanned::build(&form),
+            ))
+        }
+
+        let (rule, bindings) = &matches[0];
+        Rule::expand(rule.item.tree, bindings);
 
         todo!()
     }
@@ -236,11 +257,7 @@ impl Transformer {
 
     pub fn rule(&mut self, arg_pat: Spanned<ArgPat>, tree: Spanned<AST>) -> Result<CST, Syntax> {
         let patterns_span = arg_pat.span.clone();
-
-        // TODO: check that rule is valid
-        let rule = Rule::new(arg_pat, tree);
-
-        // TODO: check for conflicting macros
+        let rule = Rule::new(arg_pat, tree)?;
         self.rules.push(Spanned::new(rule, patterns_span));
 
         // TODO: return nothing?

@@ -289,6 +289,7 @@ impl Parser {
         };
 
         let last = form.pop().unwrap();
+        after.span = Spanned::build(&form);
         after.item = AST::Form(form);
         let block = match (last.item, last.span) {
             (b @ AST::Block(_), s) => Spanned::new(b, s),
@@ -298,8 +299,7 @@ impl Parser {
             )),
         };
 
-        let mut arg_pat = Parser::arg_pat(after)?;
-
+        let arg_pat = Parser::arg_pat(after)?;
         let span = Span::join(vec![
             start,
             arg_pat.span.clone(),
