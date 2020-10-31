@@ -108,9 +108,48 @@ impl Rule {
         }
     }
 
+    pub fn expand_pattern(pattern: Pattern, mut bindings: &mut Bindings)
+    -> Result<Spanned<ArgPat>, Syntax> {
+        todo!()
+    }
+
+    // Macros inside of macros is a bit too meta for me to think about atm.
+    pub fn expand_arg_pat(arg_pat: ArgPat, mut bindings: &mut Bindings)
+    -> Result<Spanned<ArgPat>, Syntax> {
+        todo!()
+    }
+
     pub fn expand(tree: Spanned<AST>, mut bindings: &mut Bindings)
     -> Result<Spanned<AST>, Syntax> {
-        todo!()
+        let expanded: AST = match tree.item {
+            // looks up symbol name in table of bindings
+            // if it's found, it's replaced -
+            // if it's not found, it's added to the table of bindings,
+            // and replaced with a random symbol that does not collide with any other bindings
+            // so that the next time the symbol is located,
+            // it's consistently replaced, hygenically.
+            AST::Symbol(name) => todo!(),
+            AST::Block(forms) => for form in forms {
+                todo!()
+            },
+            AST::Form(branches) => for branch in branches {
+                todo!()
+            },
+            AST::Pattern(pattern) => Rule::expand_pattern(pattern, bindings),
+            AST::ArgPat(arg_pat)  => Rule::expand_arg_pat(arg_pat, bindings),
+            AST::Assign { pattern, expression } => {
+                let p = Rule::expand_pattern(pattern.item, bindings)?;
+                let e = Rule::expand(*expression, bindings)?;
+                AST::assign(p, e)
+            },
+            AST::Lambda { pattern, expression } => {},
+            AST::Print(expression) => {},
+            AST::Label(kind, expression) => {},
+            AST::Syntax { arg_pat, expression } => {},
+            other => other,
+        };
+
+        Ok(Spanned::new(expanded, tree.span))
     }
 }
 
