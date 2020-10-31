@@ -18,7 +18,9 @@ pub fn desugar(ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
 // TODO: add context for macro application
 // NOTE: add spans?
 
+#[derive(Debug, Clone)]
 pub enum Bind {
+    Nothing,
     // name, bound sub-tree
     Pair(String, Spanned<AST>),
     // bindings, unmatched sub-trees
@@ -46,38 +48,69 @@ impl Rule {
     pub fn bind_group(
         pats: Vec<Spanned<ArgPat>>,
         mut remaining: Vec<Spanned<AST>>,
-    ) -> Result<Option<Bind>, Syntax> {
-        let bindings = HashMap::new();
+    ) -> Result<Bind, Syntax> {
+        println!("binding group");
+        let mut bindings = HashMap::new();
+
         for pat in pats {
+            let span = pat.span.clone();
             let next = remaining.pop().unwrap();
 
             let bind = if let AST::Form(_) = next.item {
-                Rule::bind(pat, Spanned::new(AST::Form(remaining), Spanned::build(&remaining)))?
+                Rule::bind(pat, Spanned::new(
+                    AST::Form(remaining.to_vec()),
+                    Spanned::build(&remaining))
+                )?
             } else {
                 Rule::bind(pat, next)?
-            }
+            };
 
-            match bind {
-                None => (),
-                Some(Bind::Pair(n, t)) => { todo!() },
-                Some(Bind::Group()),
+            let collision = match bind {
+                Bind::Nothing => None,
+                Bind::Pair(k, v) => bindings.insert(k, v),
+                Bind::Group(new_bindings, r) => {
+                    // TODO: maybe use .extend? we need to err on collisions,
+                    // but .extend seems to silently ignore these.
+                    remaining = r;
+                    let mut collision = None;
+                    for (k, v) in new_bindings {
+                        if let c @ Some(_) = bindings.insert(k, v) {
+                            collision = c;
+                            break;
+                        }
+                    }
+                    collision
+                },
+            };
+
+            if let Some(ast) = collision {
+                return Err(Syntax::error(
+                    &format!(
+                        "While expanding macro\n\
+                        {}\n\
+                        Variable has already been declared in syntactic macro argument pattern",
+                        span
+                    ),
+                    ast.span,
+                ));
             }
         }
 
-        Ok(Some(Bind::Group(bindings, remaining)))
+        Ok(Bind::Group(bindings, remaining))
     }
 
     /// Binds an AST to a macro.
     pub fn bind(
         arg_pat: Spanned<ArgPat>,
         tree: Spanned<AST>,
-    ) -> Result<Option<Bind>, Syntax> {
+    ) -> Result<Bind, Syntax> {
+        println!("binding");
         match arg_pat.item {
-            ArgPat::Symbol(name) => Ok(Some(Bind::Pair(name, tree))),
+            ArgPat::Symbol(name) => Ok(Bind::Pair(name, tree)),
 
             ArgPat::Keyword(expected) => {
                 match tree.item {
-                    AST::Symbol(name) if name == expected => Ok(None),
+                    AST::Symbol(name) if name == expected => Ok(Bind::Nothing),
                     _ => return Err(Syntax::error(
                         &format!("Expected the pseudokeyword '{} while binding macro", expected),
                         tree.span.clone(),
@@ -86,9 +119,12 @@ impl Rule {
             },
 
             ArgPat::Group(pats) => {
-                let mut remaining: Vec<Spanned<AST>> = match tree.item {
+                let remaining: Vec<Spanned<AST>> = match tree.item {
                     AST::Form(f) => f.into_iter().rev().collect(),
-                    _ => unreachable!("Expected a form"),
+                    _ => {
+                        println!("{:#?}", tree.item);
+                        unreachable!("Expected a form");
+                    },
                 };
                 Rule::bind_group(pats, remaining)
             },
@@ -172,6 +208,12 @@ impl Transformer {
         //     .map(|branch| match branch.item {
         //         AST::Symbol(name)
         //     })
+
+        for rule in self.rules.iter() {
+            let binding = Rule::bind(rule.item.arg_pat.clone(), Spanned::new(AST::Form(form.clone()), Spanned::build(&form)))?;
+            println!("{:#?}", binding);
+        }
+
         todo!()
     }
 

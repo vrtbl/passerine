@@ -278,7 +278,7 @@ impl Parser {
     /// `syntax`, followed by a pattern, followed by a `block`
     pub fn syntax(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::Syntax)?.span.clone();
-        let after = self.expression(Prec::Call)?;
+        let mut after = self.expression(Prec::Call)?;
 
         let mut form = match after.item {
             AST::Form(p) => p,
@@ -356,7 +356,7 @@ impl Parser {
             AST::Symbol(s) => ArgPat::Symbol(s),
             AST::ArgPat(p) => p,
             AST::Form(f) => {
-                let mapped = vec![];
+                let mut mapped = vec![];
                 for a in f { mapped.push(Parser::arg_pat(a)?); }
                 ArgPat::Group(mapped)
             }
