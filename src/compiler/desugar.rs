@@ -113,17 +113,23 @@ impl Rule {
 
     pub fn expand_pattern(
         pattern: Pattern,
-        mut bindings: &mut Bindings,
+        bindings: &mut Bindings,
     ) -> Result<Pattern, Syntax> {
-        todo!()
+        Err(Syntax::error(
+            "Patterns in macros are not yet implemented",
+            Span::empty(),
+        ))
     }
 
     // Macros inside of macros is a bit too meta for me to think about atm.
     pub fn expand_arg_pat(
         arg_pat: ArgPat,
-        mut bindings: &mut Bindings
+        bindings: &mut Bindings
     ) -> Result<ArgPat, Syntax> {
-        todo!()
+        Err(Syntax::error(
+            "Macros in macros are not yet implemented",
+            Span::empty(),
+        ))
     }
 
     /// Returns a pseudorandom byte formatted as a hexadecimal string.
@@ -151,22 +157,25 @@ impl Rule {
     /// Gauranteed not to exist in bindings.
     pub fn unique_identifier(base: String, bindings: &Bindings) -> String {
         let mut tries = 0;
-        loop {
+        for _ in 0..1024 {
             let stamp = Rule::stamp(tries);
             // for example, `foo` may become `#_foo_d56aea12`
             // this should not be constructible as a symbol.
-            let modified = format!("#-{}-{}", base, stamp);
+            let modified = format!("#_{}_{}", base, stamp);
             if !bindings.contains_key(&modified) {
+                println!("{}", modified);
                 return modified;
             }
             tries += 1;
         }
+        panic!("Generated 1024 new unique identifiers for macro expansion, but all were already in use");
     }
 
     /// Takes a macro's tree and a set of bindings and produces a new hygenic tree.
-    pub fn expand(tree: Spanned<AST>, mut bindings: &mut Bindings)
+    pub fn expand(tree: Spanned<AST>, bindings: &mut Bindings)
     -> Result<Spanned<AST>, Syntax> {
         // TODO: should macros evaluate arguments as thunks before insertions?
+        // TODO: allow macros to reference external definitions
         let expanded: AST = match tree.item {
             // looks up symbol name in table of bindings
             // if it's found, it's replaced -
@@ -176,11 +185,11 @@ impl Rule {
             // it's consistently replaced, hygenically.
             AST::Symbol(name) => {
                 if let Some(bound_tree) = bindings.get(&name) {
-                    bound_tree.clone().item
+                    return Ok(bound_tree.clone());
                 } else {
-                    let unique = Rule::unique_identifier(name, bindings);
+                    let unique = Rule::unique_identifier(name.clone(), bindings);
                     let spanned = Spanned::new(AST::Symbol(unique.clone()), tree.span.clone());
-                    bindings.insert(unique.clone(), spanned);
+                    bindings.insert(name, spanned);
                     AST::Symbol(unique)
                 }
             },
@@ -290,7 +299,7 @@ impl Transformer {
 
     // TODO: do raw apply and check once macros get more complicated.
     // TODO: Make it possible for forms with less than one value to exist
-    pub fn form(&mut self, mut form: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
+    pub fn form(&mut self, form: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
         // collect all in-scope pseudokeywords
         let mut keywords = HashSet::new();
         for rule in self.rules.iter() {
@@ -355,12 +364,14 @@ impl Transformer {
         Ok(CST::Block(expressions))
     }
 
+    /// TODO: implement full pattern matching
     pub fn assign(&mut self, p: Spanned<Pattern>, e: Spanned<AST>) -> Result<CST, Syntax> {
-        todo!()
+        Ok(CST::assign(Transformer::depattern(p)?, self.walk(e)?))
     }
 
+    /// TODO: implement full pattern matching
     pub fn lambda(&mut self, p: Spanned<Pattern>, e: Spanned<AST>) -> Result<CST, Syntax> {
-        todo!()
+        Ok(CST::lambda(Transformer::depattern(p)?, self.walk(e)?))
     }
 
     pub fn rule(&mut self, arg_pat: Spanned<ArgPat>, tree: Spanned<AST>) -> Result<CST, Syntax> {
