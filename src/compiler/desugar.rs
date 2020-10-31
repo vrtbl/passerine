@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use crate::common::span::{Span, Spanned};
 use crate::compiler::{
@@ -108,19 +111,62 @@ impl Rule {
         }
     }
 
-    pub fn expand_pattern(pattern: Pattern, mut bindings: &mut Bindings)
-    -> Result<Spanned<ArgPat>, Syntax> {
+    pub fn expand_pattern(
+        pattern: Pattern,
+        mut bindings: &mut Bindings,
+    ) -> Result<Pattern, Syntax> {
         todo!()
     }
 
     // Macros inside of macros is a bit too meta for me to think about atm.
-    pub fn expand_arg_pat(arg_pat: ArgPat, mut bindings: &mut Bindings)
-    -> Result<Spanned<ArgPat>, Syntax> {
+    pub fn expand_arg_pat(
+        arg_pat: ArgPat,
+        mut bindings: &mut Bindings
+    ) -> Result<ArgPat, Syntax> {
         todo!()
     }
 
+    /// Returns a pseudorandom byte formatted as a hexadecimal string.
+    fn shuffle(seed: u128) -> String {
+        let now = SystemTime::now();
+        let time = now.duration_since(UNIX_EPOCH)
+            .expect("Could not determine time since epoch");
+        let mash_up = time.as_millis() ^ time.as_nanos() ^ time.as_micros() ^ seed;
+        let folded = mash_up.to_be_bytes().iter()
+            .fold(0, |a, b| a ^ b);
+        return format!("{:02x?}", folded);
+    }
+
+    // Returns a pseudorandom 8 character hexadecimal string.
+    fn stamp(seed: u128) -> String {
+        let mut combined = "".to_string();
+        for i in 0..4 {
+            combined += &Rule::shuffle(i + seed);
+        }
+        return combined;
+    }
+
+    /// Turns a base identifier into a random identifier
+    /// of the format `#_<base>_XXXXXXXX`,
+    /// Gauranteed not to exist in bindings.
+    pub fn unique_identifier(base: String, bindings: &Bindings) -> String {
+        let mut tries = 0;
+        loop {
+            let stamp = Rule::stamp(tries);
+            // for example, `foo` may become `#_foo_d56aea12`
+            // this should not be constructible as a symbol.
+            let modified = format!("#-{}-{}", base, stamp);
+            if !bindings.contains_key(&modified) {
+                return modified;
+            }
+            tries += 1;
+        }
+    }
+
+    /// Takes a macro's tree and a set of bindings and produces a new hygenic tree.
     pub fn expand(tree: Spanned<AST>, mut bindings: &mut Bindings)
     -> Result<Spanned<AST>, Syntax> {
+        // TODO: should macros evaluate arguments as thunks before insertions?
         let expanded: AST = match tree.item {
             // looks up symbol name in table of bindings
             // if it's found, it's replaced -
@@ -128,25 +174,49 @@ impl Rule {
             // and replaced with a random symbol that does not collide with any other bindings
             // so that the next time the symbol is located,
             // it's consistently replaced, hygenically.
-            AST::Symbol(name) => todo!(),
-            AST::Block(forms) => for form in forms {
-                todo!()
+            AST::Symbol(name) => {
+                if let Some(bound_tree) = bindings.get(&name) {
+                    bound_tree.clone().item
+                } else {
+                    let unique = Rule::unique_identifier(name, bindings);
+                    let spanned = Spanned::new(AST::Symbol(unique.clone()), tree.span.clone());
+                    bindings.insert(unique.clone(), spanned);
+                    AST::Symbol(unique)
+                }
             },
-            AST::Form(branches) => for branch in branches {
-                todo!()
-            },
-            AST::Pattern(pattern) => Rule::expand_pattern(pattern, bindings),
-            AST::ArgPat(arg_pat)  => Rule::expand_arg_pat(arg_pat, bindings),
+            AST::Data(data) => AST::Data(data),
+            AST::Block(forms) => AST::Block(
+                forms.into_iter()
+                    .map(|f| Rule::expand(f, bindings))
+                    .collect::<Result<Vec<_>, _>>()?
+            ),
+            AST::Form(branches) => AST::Form(
+                branches.into_iter()
+                    .map(|b| Rule::expand(b, bindings))
+                    .collect::<Result<Vec<_>, _>>()?
+            ),
+            AST::Pattern(pattern) => AST::Pattern(Rule::expand_pattern(pattern, bindings)?),
+            AST::ArgPat(arg_pat)  => AST::ArgPat(Rule::expand_arg_pat(arg_pat, bindings)?),
             AST::Assign { pattern, expression } => {
                 let p = Rule::expand_pattern(pattern.item, bindings)?;
                 let e = Rule::expand(*expression, bindings)?;
-                AST::assign(p, e)
+                AST::assign(Spanned::new(p, pattern.span), e)
             },
-            AST::Lambda { pattern, expression } => {},
-            AST::Print(expression) => {},
-            AST::Label(kind, expression) => {},
-            AST::Syntax { arg_pat, expression } => {},
-            other => other,
+            AST::Lambda { pattern, expression } => {
+                let p = Rule::expand_pattern(pattern.item, bindings)?;
+                let e = Rule::expand(*expression, bindings)?;
+                AST::lambda(Spanned::new(p, pattern.span), e)
+            },
+            AST::Print(expression) => AST::Print(Box::new(Rule::expand(*expression, bindings)?)),
+            // TODO: Should labels be bindable in macros?
+            AST::Label(kind, expression) => AST::Label(
+                kind, Box::new(Rule::expand(*expression, bindings)?)
+            ),
+            AST::Syntax { arg_pat, expression } => {
+                let p = Rule::expand_arg_pat(arg_pat.item, bindings)?;
+                let e = Rule::expand(*expression, bindings)?;
+                AST::syntax(Spanned::new(p, arg_pat.span), e)
+            },
         };
 
         Ok(Spanned::new(expanded, tree.span))
@@ -271,10 +341,9 @@ impl Transformer {
             ))
         }
 
-        let (rule, bindings) = &matches[0];
-        Rule::expand(rule.item.tree, bindings);
-
-        todo!()
+        let (rule, mut bindings) = matches.pop().unwrap();
+        let expanded = Rule::expand(rule.item.tree.clone(), &mut bindings)?;
+        return Ok(self.walk(expanded)?.item);
     }
 
     pub fn block(&mut self, b: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
