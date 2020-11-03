@@ -78,6 +78,8 @@ impl Rule {
     /// Returns `None` if the form does not match the argument pattern.
     /// `Some(Ok(_))` if it matches successfully,
     /// and `Some(Err(_))` if it matches but something is incorrect.
+    /// **You must check that the passed `&mut reversed_form` is empty
+    /// to gaurantee the match occured in full**
     /// Note that this function takes the form unwrapped and in reverse -
     /// This is to make processing the bindings more efficient,
     /// As this function works with the head of the form.
@@ -115,10 +117,7 @@ impl Rule {
         pattern: Pattern,
         bindings: &mut Bindings,
     ) -> Result<Pattern, Syntax> {
-        Err(Syntax::error(
-            "Patterns in macros are not yet implemented",
-            Span::empty(),
-        ))
+        todo!()
     }
 
     // Macros inside of macros is a bit too meta for me to think about atm.
@@ -261,7 +260,7 @@ impl Transformer {
     /// once macros are introduced, but right now it's basically a 1 to 1 translation
     pub fn walk(&mut self, ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
         let cst: CST = match ast.item {
-            AST::Symbol(s) => CST::Symbol(s),
+            AST::Symbol(_) => self.symbol(ast.clone())?,
             AST::Data(d) => CST::Data(d),
             AST::Block(b) => self.block(b)?,
             AST::Form(f) => self.form(f)?,
@@ -277,13 +276,17 @@ impl Transformer {
         return Ok(Spanned::new(cst, ast.span))
     }
 
+    pub fn symbol(&mut self, ast: Spanned<AST>) -> Result<CST, Syntax> {
+        self.form(vec![ast])
+    }
+
     /// Recursively build up a call from a flat form.
     /// Basically turns `(a b c d)` into `(((a b) c) d)`.
     pub fn call(&mut self, mut f: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
         if f.len() < 1 {
             unreachable!("A call must have at least two values - a function and an expression")
         } else if f.len() == 1 {
-            return Ok(self.walk(f[0].clone())?.item);
+            if let AST::Symbol(todo!()) = todo!() {}
         }
 
         if f.len() == 2 {
@@ -321,12 +324,13 @@ impl Transformer {
         // more than 1 means there's some macro ambiguity that needs to be resolved
         let mut matches = vec![];
         for rule in self.rules.iter() {
-            let possibility = Rule::bind(
-                &rule.item.arg_pat,
-                &mut form.clone().into_iter().rev().collect()
-            );
+            let mut reversed_remaining = form.clone().into_iter().rev().collect();
+            let possibility = Rule::bind(&rule.item.arg_pat, &mut reversed_remaining);
+
             if let Some(bindings) = possibility {
-                matches.push((rule, bindings?))
+                if reversed_remaining.is_empty() {
+                    matches.push((rule, bindings?))
+                }
             }
         }
 
