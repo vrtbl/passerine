@@ -286,7 +286,7 @@ impl Transformer {
         if f.len() < 1 {
             unreachable!("A call must have at least two values - a function and an expression")
         } else if f.len() == 1 {
-            if let AST::Symbol(todo!()) = todo!() {}
+            if let AST::Symbol(_) = todo!() {}
         }
 
         if f.len() == 2 {
