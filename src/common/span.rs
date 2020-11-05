@@ -1,9 +1,9 @@
 use std::{
     fmt::{
+        self,
         Formatter,
         Debug,
         Display,
-        Result
     },
     usize,
     rc::Rc,
@@ -134,7 +134,7 @@ impl Span {
 }
 
 impl Debug for Span {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if !self.is_empty() {
             write!(f, "Span {{ {:?}, ({}, {}) }}", self.contents(), self.offset, self.length)
         } else {
@@ -159,7 +159,7 @@ impl Display for Span {
     /// 14 >    another { error }
     /// 15 > }
     /// ```
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if self.is_empty() {
             panic!("Can't display the section corresponding with an empty Span")
         }
@@ -250,14 +250,15 @@ impl<T> Spanned<T> {
         Spanned { item, span }
     }
 
-    /// a destructive alias for `self.item`
-    pub fn into(self) -> T { self.item }
-
     pub fn build(spanneds: &Vec<Spanned<T>>) -> Span {
         let spans = spanneds.iter()
             .map(|s| s.span.clone())
             .collect::<Vec<Span>>();
         Span::join(spans)
+    }
+
+    pub fn map<B, E>(self, f: fn(T) -> Result<B, E>) -> Result<Spanned<B>, E> {
+        Ok(Spanned::new(f(self.item)?, self.span))
     }
 }
 

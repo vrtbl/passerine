@@ -2,6 +2,8 @@
     # A complete overview of Passerine, in Passerine
     Passerine intends to be a fast, extensible, modern programming language.
     Passerine is structurally typed, and has support for traits and the like.
+    Passerine is still a work in progress.
+    This file does not match the current state of Passerine.
 }-
 
 -{

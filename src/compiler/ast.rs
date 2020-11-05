@@ -1,7 +1,11 @@
+use std::convert::TryFrom;
+
 use crate::common::{
     span::Spanned,
     data::Data,
 };
+
+use crate::compiler::syntax::Syntax;
 
 // TODO: separate patterns and argument patterns?
 
@@ -12,11 +16,54 @@ pub enum Pattern {
     Label(String, Box<Spanned<Pattern>>),
 }
 
+impl Pattern {
+    // Shortcut for creating a `Pattern::Label` variant
+    pub fn label(name: String, pattern: Spanned<Pattern>) -> Pattern {
+        Pattern::Label(name, Box::new(pattern))
+    }
+}
+
+impl TryFrom<AST> for Pattern {
+    type Error = String;
+
+    fn try_from(ast: AST) -> Result<Self, Self::Error> {
+        Ok(
+            match ast {
+                AST::Symbol(s) => Pattern::Symbol(s),
+                AST::Data(d) => Pattern::Data(d),
+                AST::Label(k, a) => Pattern::Label(k, Box::new(a.map(Pattern::try_from)?)),
+                AST::Pattern(p) => p,
+                AST::Form(f) if f.len() == 1 => Pattern::try_from(f[0].clone().item)?,
+                _ => Err("Unexpected construct inside pattern")?,
+            }
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArgPat {
     Keyword(String),
     Symbol(String),
     Group(Vec<Spanned<ArgPat>>),
+}
+
+impl TryFrom<AST> for ArgPat {
+    type Error = String;
+
+    fn try_from(ast: AST) -> Result<Self, Self::Error> {
+        Ok(
+            match ast {
+                AST::Symbol(s) => ArgPat::Symbol(s),
+                AST::ArgPat(p) => p,
+                AST::Form(f) => {
+                    let mut mapped = vec![];
+                    for a in f { mapped.push(a.map(ArgPat::try_from)?); }
+                    ArgPat::Group(mapped)
+                }
+                _ => Err("Unexpected construct inside argument pattern")?,
+            }
+        )
+    }
 }
 
 // NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)

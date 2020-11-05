@@ -1,4 +1,8 @@
-use std::mem;
+use std::{
+    mem,
+    convert::TryFrom,
+};
+
 use crate::common::{
     span::{Span, Spanned},
     data::Data,
@@ -338,19 +342,6 @@ impl Parser {
 
     // Infix:
 
-    pub fn pattern(ast: Spanned<AST>) -> Result<Spanned<Pattern>, Syntax> {
-        let item = match ast.item {
-            AST::Symbol(s) => Pattern::Symbol(s),
-            AST::Data(d) => Pattern::Data(d),
-            AST::Label(k, a) => Pattern::Label(k, Box::new(Parser::pattern(*a)?)),
-            AST::Pattern(p) => p,
-            AST::Form(f) if f.len() == 1 => { return Parser::pattern(f[0].clone()) },
-            _ => Err(Syntax::error("Unexpected construct inside pattern", ast.span.clone()))?,
-        };
-
-        return Ok(Spanned::new(item, ast.span));
-    }
-
     pub fn arg_pat(ast: Spanned<AST>) -> Result<Spanned<ArgPat>, Syntax> {
         let item = match ast.item {
             AST::Symbol(s) => ArgPat::Symbol(s),
@@ -373,7 +364,9 @@ impl Parser {
 
     /// Parses an assignment, associates right.
     pub fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let pattern = Parser::pattern(left)?;
+        let left_span = left.span.clone();
+        let pattern = left.map(Pattern::try_from)
+            .map_err(|e| Syntax::error(&e, left_span))?;
 
         self.consume(Token::Assign)?;
         let expression = self.expression(Prec::Assign)?;
@@ -383,7 +376,9 @@ impl Parser {
 
     /// Parses a lambda definition, associates right.
     pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let pattern = Parser::pattern(left)?;
+        let left_span = left.span.clone();
+        let pattern = left.map(Pattern::try_from)
+            .map_err(|e| Syntax::error(&e, left_span))?;
 
         self.consume(Token::Lambda)?;
         let expression = self.expression(Prec::Lambda)?;

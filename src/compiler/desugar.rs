@@ -1,4 +1,5 @@
 use std::{
+    convert::TryFrom,
     collections::{HashMap, HashSet},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -144,7 +145,7 @@ impl Rule {
             // this should not be constructible as a symbol.
             let modified = format!("#_{}_{}", base, stamp);
             if !bindings.contains_key(&modified) {
-                println!("{}", modified);
+                // println!("{}", modified);
                 return modified;
             }
             tries += 1;
@@ -163,25 +164,32 @@ impl Rule {
         }
     }
 
+    // TODO: move expansions to ast?
+
     pub fn expand_pattern(
         pattern: Spanned<Pattern>,
         bindings: &mut Bindings,
     ) -> Result<Spanned<Pattern>, Syntax> {
-        match pattern.item {
-            Pattern::Symbol(name) => {
-                Parser::Pattern(Rule::resolve_symbol(name, pattern.span, bindings))
-
+        Ok(
+            match pattern.item {
+                Pattern::Symbol(name) => Rule::resolve_symbol(name, pattern.span, bindings)
+                    .map(Pattern::try_from).unwrap(),
+                Pattern::Data(_) => pattern,
+                // treat name as symbol?
+                Pattern::Label(name, pattern) => {
+                    let span = pattern.span.clone();
+                    Spanned::new(
+                        Pattern::label(name, Rule::expand_pattern(*pattern, bindings)?), span,
+                    )
+                },
             }
-            Pattern::Data(d) => Pattern::Data(d),
-            // treat name as symbol?
-            Pattern::Label(name, pattern) => Patt,
-        }
+        )
     }
 
     // Macros inside of macros is a bit too meta for me to think about atm.
     pub fn expand_arg_pat(
         arg_pat: Spanned<ArgPat>,
-        bindings: &mut Bindings
+        bindings: &mut Bindings,
     ) -> Result<Spanned<ArgPat>, Syntax> {
         Err(Syntax::error(
             "Macros in macros are not yet implemented",
@@ -190,19 +198,19 @@ impl Rule {
     }
 
     /// Takes a macro's tree and a set of bindings and produces a new hygenic tree.
-    pub fn expand(tree: Spanned<AST>, bindings: &mut Bindings)
+    pub fn expand(tree: Spanned<AST>, mut bindings: &mut Bindings)
     -> Result<Spanned<AST>, Syntax> {
         // TODO: should macros evaluate arguments as thunks before insertions?
         // TODO: allow macros to reference external definitions
-        let expanded: AST = match tree.item {
+        let item: AST = match tree.item {
             // looks up symbol name in table of bindings
             // if it's found, it's replaced -
             // if it's not found, it's added to the table of bindings,
             // and replaced with a random symbol that does not collide with any other bindings
             // so that the next time the symbol is located,
             // it's consistently replaced, hygenically.
-            AST::Symbol(name) => return Ok(Rule::resolve_symbol(name, tree.span, &mut bindings)),
-            AST::Data(data) => AST::Data(data),
+            AST::Symbol(name) => return Ok(Rule::resolve_symbol(name, tree.span.clone(), &mut bindings)),
+            AST::Data(_) => return Ok(tree),
 
             // Apply the transformation to each form
             AST::Block(forms) => AST::Block(
@@ -220,27 +228,30 @@ impl Rule {
 
             // replace the variables in (argument) patterns
             AST::Pattern(pattern) => {
-                let spanned = Spanned::new(pattern, tree.span);
-                AST::Pattern(Rule::expand_pattern(spanned, bindings)?)
-            }
+                let spanned = Spanned::new(pattern, tree.span.clone());
+                AST::Pattern(Rule::expand_pattern(spanned, bindings)?.item)
+            },
             AST::ArgPat(arg_pat) => {
-                let spanned = Spanned::new(arg_pat, tree.span);
-                AST::ArgPat(Rule::expand_arg_pat(spanned, bindings)?)
-            }
+                let spanned = Spanned::new(arg_pat, tree.span.clone());
+                AST::ArgPat(Rule::expand_arg_pat(spanned, bindings)?.item)
+            },
 
             // replace the variables in the patterns and the expression
             AST::Assign { pattern, expression } => {
                 let p = Rule::expand_pattern(*pattern, bindings)?;
                 let e = Rule::expand(*expression, bindings)?;
-                AST::assign(Spanned::new(p, pattern.span), e)
+                AST::assign(p, e)
             },
             AST::Lambda { pattern, expression } => {
                 let p = Rule::expand_pattern(*pattern, bindings)?;
                 let e = Rule::expand(*expression, bindings)?;
-                AST::lambda(Spanned::new(p, pattern.span), e)
+                AST::lambda(p, e)
             },
 
-            AST::Print(expression) => AST::Print(Box::new(Rule::expand(*expression, bindings)?)),
+            AST::Print(expression) => AST::Print(
+                Box::new(Rule::expand(*expression, bindings)?)
+            ),
+
             // TODO: Should labels be bindable in macros?
             AST::Label(kind, expression) => AST::Label(
                 kind, Box::new(Rule::expand(*expression, bindings)?)
@@ -248,13 +259,13 @@ impl Rule {
 
             // a macro inside a macro. not sure how this should work yet
             AST::Syntax { arg_pat, expression } => {
-                let p = Rule::expand_arg_pat(*arg_pat, bindings)?;
+                let ap = Rule::expand_arg_pat(*arg_pat, bindings)?;
                 let e = Rule::expand(*expression, bindings)?;
-                AST::syntax(Spanned::new(p, arg_pat.span), e)
+                AST::syntax(ap, e)
             },
         };
 
-        Ok(Spanned::new(expanded, tree.span))
+        return Ok(Spanned::new(item, tree.span));
     }
 }
 
