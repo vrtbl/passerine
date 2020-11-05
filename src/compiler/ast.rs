@@ -10,10 +10,6 @@ pub enum Pattern {
     Symbol(String),
     Data(Data),
     Label(String, Box<Spanned<Pattern>>),
-    Where {
-        pattern: Box<Spanned<Pattern>>,
-        conditions: Box<Spanned<AST>>,
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -113,24 +113,6 @@ impl Rule {
         }
     }
 
-    pub fn expand_pattern(
-        pattern: Pattern,
-        bindings: &mut Bindings,
-    ) -> Result<Pattern, Syntax> {
-        todo!()
-    }
-
-    // Macros inside of macros is a bit too meta for me to think about atm.
-    pub fn expand_arg_pat(
-        arg_pat: ArgPat,
-        bindings: &mut Bindings
-    ) -> Result<ArgPat, Syntax> {
-        Err(Syntax::error(
-            "Macros in macros are not yet implemented",
-            Span::empty(),
-        ))
-    }
-
     /// Returns a pseudorandom byte formatted as a hexadecimal string.
     fn shuffle(seed: u128) -> String {
         let now = SystemTime::now();
@@ -170,6 +152,43 @@ impl Rule {
         panic!("Generated 1024 new unique identifiers for macro expansion, but all were already in use");
     }
 
+    pub fn resolve_symbol(name: String, span: Span, bindings: &mut Bindings) -> Spanned<AST> {
+        if let Some(bound_tree) = bindings.get(&name) {
+            bound_tree.clone()
+        } else {
+            let unique = Rule::unique_identifier(name.clone(), bindings);
+            let spanned = Spanned::new(AST::Symbol(unique.clone()), span.clone());
+            bindings.insert(name, spanned);
+            Spanned::new(AST::Symbol(unique), span)
+        }
+    }
+
+    pub fn expand_pattern(
+        pattern: Spanned<Pattern>,
+        bindings: &mut Bindings,
+    ) -> Result<Spanned<Pattern>, Syntax> {
+        match pattern.item {
+            Pattern::Symbol(name) => {
+                Parser::Pattern(Rule::resolve_symbol(name, pattern.span, bindings))
+
+            }
+            Pattern::Data(d) => Pattern::Data(d),
+            // treat name as symbol?
+            Pattern::Label(name, pattern) => Patt,
+        }
+    }
+
+    // Macros inside of macros is a bit too meta for me to think about atm.
+    pub fn expand_arg_pat(
+        arg_pat: Spanned<ArgPat>,
+        bindings: &mut Bindings
+    ) -> Result<Spanned<ArgPat>, Syntax> {
+        Err(Syntax::error(
+            "Macros in macros are not yet implemented",
+            Span::empty(),
+        ))
+    }
+
     /// Takes a macro's tree and a set of bindings and produces a new hygenic tree.
     pub fn expand(tree: Spanned<AST>, bindings: &mut Bindings)
     -> Result<Spanned<AST>, Syntax> {
@@ -182,46 +201,54 @@ impl Rule {
             // and replaced with a random symbol that does not collide with any other bindings
             // so that the next time the symbol is located,
             // it's consistently replaced, hygenically.
-            AST::Symbol(name) => {
-                if let Some(bound_tree) = bindings.get(&name) {
-                    return Ok(bound_tree.clone());
-                } else {
-                    let unique = Rule::unique_identifier(name.clone(), bindings);
-                    let spanned = Spanned::new(AST::Symbol(unique.clone()), tree.span.clone());
-                    bindings.insert(name, spanned);
-                    AST::Symbol(unique)
-                }
-            },
+            AST::Symbol(name) => return Ok(Rule::resolve_symbol(name, tree.span, &mut bindings)),
             AST::Data(data) => AST::Data(data),
+
+            // Apply the transformation to each form
             AST::Block(forms) => AST::Block(
                 forms.into_iter()
                     .map(|f| Rule::expand(f, bindings))
                     .collect::<Result<Vec<_>, _>>()?
             ),
+
+            // Apply the transformation to each item in the form
             AST::Form(branches) => AST::Form(
                 branches.into_iter()
                     .map(|b| Rule::expand(b, bindings))
                     .collect::<Result<Vec<_>, _>>()?
             ),
-            AST::Pattern(pattern) => AST::Pattern(Rule::expand_pattern(pattern, bindings)?),
-            AST::ArgPat(arg_pat)  => AST::ArgPat(Rule::expand_arg_pat(arg_pat, bindings)?),
+
+            // replace the variables in (argument) patterns
+            AST::Pattern(pattern) => {
+                let spanned = Spanned::new(pattern, tree.span);
+                AST::Pattern(Rule::expand_pattern(spanned, bindings)?)
+            }
+            AST::ArgPat(arg_pat) => {
+                let spanned = Spanned::new(arg_pat, tree.span);
+                AST::ArgPat(Rule::expand_arg_pat(spanned, bindings)?)
+            }
+
+            // replace the variables in the patterns and the expression
             AST::Assign { pattern, expression } => {
-                let p = Rule::expand_pattern(pattern.item, bindings)?;
+                let p = Rule::expand_pattern(*pattern, bindings)?;
                 let e = Rule::expand(*expression, bindings)?;
                 AST::assign(Spanned::new(p, pattern.span), e)
             },
             AST::Lambda { pattern, expression } => {
-                let p = Rule::expand_pattern(pattern.item, bindings)?;
+                let p = Rule::expand_pattern(*pattern, bindings)?;
                 let e = Rule::expand(*expression, bindings)?;
                 AST::lambda(Spanned::new(p, pattern.span), e)
             },
+
             AST::Print(expression) => AST::Print(Box::new(Rule::expand(*expression, bindings)?)),
             // TODO: Should labels be bindable in macros?
             AST::Label(kind, expression) => AST::Label(
                 kind, Box::new(Rule::expand(*expression, bindings)?)
             ),
+
+            // a macro inside a macro. not sure how this should work yet
             AST::Syntax { arg_pat, expression } => {
-                let p = Rule::expand_arg_pat(arg_pat.item, bindings)?;
+                let p = Rule::expand_arg_pat(*arg_pat, bindings)?;
                 let e = Rule::expand(*expression, bindings)?;
                 AST::syntax(Spanned::new(p, arg_pat.span), e)
             },
@@ -283,20 +310,23 @@ impl Transformer {
     /// Recursively build up a call from a flat form.
     /// Basically turns `(a b c d)` into `(((a b) c) d)`.
     pub fn call(&mut self, mut f: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
-        if f.len() < 1 {
-            unreachable!("A call must have at least two values - a function and an expression")
-        } else if f.len() == 1 {
-            if let AST::Symbol(_) = todo!() {}
-        }
-
-        if f.len() == 2 {
-            let arg = f.pop().unwrap();
-            let fun = f.pop().unwrap();
-            Ok(CST::call(self.walk(fun)?, self.walk(arg)?))
-        } else {
-            let arg = self.walk(f.pop().unwrap())?;
-            let f_span = Span::join(f.iter().map(|e| e.span.clone()).collect::<Vec<Span>>());
-            Ok(CST::call(Spanned::new(self.call(f)?, f_span), arg))
+        // TODO: clean up nested logic.
+        match f.len() {
+            0 => unreachable!("A call must have at least two values - a function and an expression"),
+            1 => match f.pop().unwrap().item {
+                AST::Symbol(name) => Ok(CST::Symbol(name)),
+                _ => unreachable!("A non-symbol call of length 1 is can not be constructed")
+            },
+            2 => {
+                let arg = f.pop().unwrap();
+                let fun = f.pop().unwrap();
+                Ok(CST::call(self.walk(fun)?, self.walk(arg)?))
+            },
+            _higher => {
+                let arg = self.walk(f.pop().unwrap())?;
+                let f_span = Span::join(f.iter().map(|e| e.span.clone()).collect::<Vec<Span>>());
+                Ok(CST::call(Spanned::new(self.call(f)?, f_span), arg))
+            },
         }
     }
 
