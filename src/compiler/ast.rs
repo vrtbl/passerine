@@ -5,8 +5,6 @@ use crate::common::{
     data::Data,
 };
 
-use crate::compiler::syntax::Syntax;
-
 // TODO: separate patterns and argument patterns?
 
 #[derive(Debug, Clone, PartialEq)]

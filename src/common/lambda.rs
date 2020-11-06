@@ -14,7 +14,7 @@ pub struct Lambda {
     pub code:      Vec<u8>,            // each byte is an opcode or a number-stream
     pub spans:     Vec<(usize, Span)>, // each usize indexes the bytecode op that begins each line
     pub constants: Vec<Data>,          // number-stream indexed, used to load constants
-    pub captureds:  Vec<usize>          // TODO: see CLOSURES.md
+    pub upvalues:  Vec<usize>          // TODO: see CLOSURES.md
 }
 
 impl Lambda {
@@ -24,7 +24,7 @@ impl Lambda {
             code:      vec![],
             spans:     vec![],
             constants: vec![],
-            captureds:  vec![],
+            upvalues:  vec![],
         }
     }
 
@@ -90,9 +90,9 @@ impl fmt::Display for Lambda {
         //     writeln!(f, "{:?}", span)?;
         // }
 
-        writeln!(f, "-- Dumping Captureds:")?;
-        for captured in self.captureds.iter() {
-            writeln!(f, "{:?}", captured)?;
+        writeln!(f, "-- Dumping Upvalues:")?;
+        for upvalue in self.upvalues.iter() {
+            writeln!(f, "{:?}", upvalue)?;
         }
 
         writeln!(f, "-- Dumping Bytecode:")?;

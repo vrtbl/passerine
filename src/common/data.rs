@@ -29,6 +29,7 @@ pub enum Data {
     Lambda(Lambda),
     Closure(Closure),
 
+    // TODO: rework how labels and tags work
     // Kind is the base component of an unconstructed label
     Kind(String),
     Label(String, Box<Data>),
@@ -74,7 +75,7 @@ impl Debug for Data {
             Data::Boolean(b)  => write!(f, "Boolean({:?})", b),
             Data::String(s)   => write!(f, "String({:?})", s),
             Data::Lambda(_)   => write!(f, "Function(...)"),
-            Data::Closure(_)  => write!(f, "Closure(...)"),
+            Data::Closure(c)  => write!(f, "Closure({})", c.id),
             Data::Kind(n)     => write!(f, "Kind({})", n),
             Data::Label(n, v) => write!(f, "Label({}, {:?})", n, v),
             Data::Unit        => write!(f, "Unit"),

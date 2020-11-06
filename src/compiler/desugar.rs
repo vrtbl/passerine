@@ -1,10 +1,13 @@
 use std::{
     convert::TryFrom,
     collections::{HashMap, HashSet},
-    time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::common::span::{Span, Spanned};
+use crate::common::{
+    stamp::stamp,
+    span::{Span, Spanned},
+};
+
 use crate::compiler::{
     ast::{AST, Pattern, ArgPat},
     cst::CST,
@@ -19,6 +22,7 @@ pub fn desugar(ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
     return Ok(cst);
 }
 
+// TODO: immutably capture external values used by macro
 // TODO: add context for macro application
 // NOTE: add spans?
 
@@ -114,33 +118,13 @@ impl Rule {
         }
     }
 
-    /// Returns a pseudorandom byte formatted as a hexadecimal string.
-    fn shuffle(seed: u128) -> String {
-        let now = SystemTime::now();
-        let time = now.duration_since(UNIX_EPOCH)
-            .expect("Could not determine time since epoch");
-        let mash_up = time.as_millis() ^ time.as_nanos() ^ time.as_micros() ^ seed;
-        let folded = mash_up.to_be_bytes().iter()
-            .fold(0, |a, b| a ^ b);
-        return format!("{:02x?}", folded);
-    }
-
-    // Returns a pseudorandom 8 character hexadecimal string.
-    fn stamp(seed: u128) -> String {
-        let mut combined = "".to_string();
-        for i in 0..4 {
-            combined += &Rule::shuffle(i + seed);
-        }
-        return combined;
-    }
-
     /// Turns a base identifier into a random identifier
     /// of the format `#_<base>_XXXXXXXX`,
     /// Gauranteed not to exist in bindings.
     pub fn unique_identifier(base: String, bindings: &Bindings) -> String {
         let mut tries = 0;
         for _ in 0..1024 {
-            let stamp = Rule::stamp(tries);
+            let stamp = stamp(tries);
             // for example, `foo` may become `#_foo_d56aea12`
             // this should not be constructible as a symbol.
             let modified = format!("#_{}_{}", base, stamp);
@@ -188,8 +172,8 @@ impl Rule {
 
     // Macros inside of macros is a bit too meta for me to think about atm.
     pub fn expand_arg_pat(
-        arg_pat: Spanned<ArgPat>,
-        bindings: &mut Bindings,
+        _arg_pat: Spanned<ArgPat>,
+        _bindings: &mut Bindings,
     ) -> Result<Spanned<ArgPat>, Syntax> {
         Err(Syntax::error(
             "Macros in macros are not yet implemented",

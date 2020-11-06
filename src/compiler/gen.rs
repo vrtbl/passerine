@@ -13,11 +13,18 @@ use crate::compiler::{
     syntax::Syntax,
 };
 
+fn unwrap_fn(l: Data) -> Lambda {
+    if let Data::Lambda(l) = l.clone() { l } else { panic!() }
+}
+
 /// Simple function that generates unoptimized bytecode from an `CST`.
 /// Exposes the functionality of the `Compiler`.
 pub fn gen(cst: Spanned<CST>) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base();
     compiler.walk(&cst)?;
+    println!("{}", compiler.lambda);
+    println!("{}", unwrap_fn(compiler.lambda.constants[2].clone()));
+    println!("{}", unwrap_fn(unwrap_fn(compiler.lambda.constants[2].clone()).constants[0].clone()));
     return Ok(compiler.lambda);
 }
 
@@ -75,6 +82,7 @@ impl Compiler {
 
     /// Declare a local variable.
     pub fn declare(&mut self, name: String) {
+        println!("local {} {}", name, self.depth);
         self.locals.push(
             Local { name, depth: self.depth }
         )
@@ -151,6 +159,7 @@ impl Compiler {
         // is already captured
         for (i, c) in self.captureds.iter().enumerate() {
             if &captured == c {
+                println!("{}: already captured with upvalue {}", self.depth, i);
                 return i;
             }
         }
@@ -162,7 +171,7 @@ impl Compiler {
                 self.lambda.emit_bytes(&mut split_number(index));
             },
             Captured::Nonlocal(upvalue) => {
-                self.lambda.captureds.push(upvalue);
+                self.lambda.upvalues.push(upvalue);
             },
         }
 
@@ -175,17 +184,22 @@ impl Compiler {
     // then builds a chain of upvalues to hoist that upvalue where it's needed.
     // This can be made more efficient.
     pub fn captured(&mut self, name: &str) -> Option<usize> {
+        println!("{}: trying to capture {}", self.depth, name);
         // return index in compiler captureds - 1
 
         if let Some(index) = self.local(name) {
+            println!("{}: {} exists in this scope with index {}", self.depth, name, index);
             // if the variable exists in this scope:
             // capture that variable (i.e. emit opcode)
             // add to compiler captureds
             return Some(self.capture(Captured::Local(index)));
         }
+        println!("{}: {} does not exist in this scope", self.depth, name);
 
         if let Some(enclosing) = self.enclosing.as_mut() {
+            println!("{}: checking the enclosing scope for {}",  enclosing.depth, name);
             if let Some(upvalue) = enclosing.captured(name) {
+                println!("{}: {} exists in an enclosing scope; it is the {}th upvalue", self.depth, name, upvalue);
                 // if the variable exists in an enclosing scope and has been captured:
                 // add to compiler captureds
                 // add to lambda captureds
@@ -193,6 +207,7 @@ impl Compiler {
             }
         }
 
+        println!("{}: enclosing scope does not exist; local {} not resolved",  self.depth, name);
         return None;
     }
 
@@ -268,7 +283,7 @@ impl Compiler {
             self.lambda.emit(Opcode::SaveCap); i
         } else {
             self.lambda.emit(Opcode::Save);
-            self.locals.push(Local::new(name, self.depth));
+            self.declare(name);
             self.locals.len() - 1
         };
 
@@ -298,8 +313,6 @@ impl Compiler {
             self.walk(&expression)?;          // run the function
             self.lambda.emit(Opcode::Return); // return the result
             self.lambda.emit_bytes(&mut split_number(self.locals.len()));
-
-            // TODO: lift locals off stack if captured
         }
         let lambda = self.exit_scope().lambda;
 
