@@ -231,7 +231,7 @@ when a new scope is entered, i.e. a new closure is constructed, it needs to refe
 
 the way we currently do this is by moving all local variables into stack frames, then builting a chain of references through stack frames until we reach the scope that uses it.
 
-in essence, the upvalue array points at the captureds array of the scope above it:
+in essence, the upvalue array points at the captures array of the scope above it:
 
 ```
 0:
@@ -320,7 +320,7 @@ let's make this division apparent:
 
 so c becomes n and n.
 
-> c is compiler.captureds
+> c is compiler.captures
 > u is compiler.lambda.upvalues
 >
 > we'll change c to

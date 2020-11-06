@@ -3,7 +3,7 @@ use std::mem;
 use crate::common::{
     number::split_number,
     span::{Span, Spanned},
-    lambda::Lambda,
+    lambda::{Captured, Lambda},
     opcode::Opcode,
     data::Data,
 };
@@ -43,14 +43,6 @@ impl Local {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Captured {
-    /// The index on the stack if the variable is local to the current scope
-    Local(usize),
-    /// The index of the upvalue in the enclosing scope
-    Nonlocal(usize),
-}
-
 /// Compiler is a bytecode generator that walks an CST and produces (unoptimized) Bytecode.
 /// There are plans to add a bytecode optimizer in the future.
 /// Note that this struct should not be controlled manually,
@@ -62,8 +54,6 @@ pub struct Compiler {
     lambda: Lambda,
     /// The locals in the current scope.
     locals: Vec<Local>,
-    // /// The captured variables used in the current scope.
-    captureds: Vec<Captured>,
     /// The nested depth of the current compiler.
     depth: usize,
 }
@@ -75,7 +65,6 @@ impl Compiler {
             enclosing: None,
             lambda: Lambda::empty(),
             locals: vec![],
-            captureds: vec![],
             depth: 0,
         }
     }
@@ -157,26 +146,20 @@ impl Compiler {
     /// Returns the index of the captured variable.
     pub fn capture(&mut self, captured: Captured) -> usize {
         // is already captured
-        for (i, c) in self.captureds.iter().enumerate() {
+        for (i, c) in self.lambda.captures.iter().enumerate() {
             if &captured == c {
                 println!("{}: already captured with upvalue {}", self.depth, i);
                 return i;
             }
         }
 
-        // is not yet captured
-        match captured {
-            Captured::Local(index) => {
-                self.lambda.emit(Opcode::Capture);
-                self.lambda.emit_bytes(&mut split_number(index));
-            },
-            Captured::Nonlocal(upvalue) => {
-                self.lambda.upvalues.push(upvalue);
-            },
+        if let Captured::Local(index) = captured {
+            self.lambda.emit(Opcode::Capture);
+            self.lambda.emit_bytes(&mut split_number(index));
         }
 
-        self.captureds.push(captured);
-        return self.captureds.len() - 1;
+        self.lambda.captures.push(captured);
+        return self.lambda.captures.len() - 1;
     }
 
     // Tries to resolve a variable in enclosing scopes
@@ -185,13 +168,13 @@ impl Compiler {
     // This can be made more efficient.
     pub fn captured(&mut self, name: &str) -> Option<usize> {
         println!("{}: trying to capture {}", self.depth, name);
-        // return index in compiler captureds - 1
+        // return index in compiler captures - 1
 
         if let Some(index) = self.local(name) {
             println!("{}: {} exists in this scope with index {}", self.depth, name, index);
             // if the variable exists in this scope:
             // capture that variable (i.e. emit opcode)
-            // add to compiler captureds
+            // add to compiler captures
             return Some(self.capture(Captured::Local(index)));
         }
         println!("{}: {} does not exist in this scope", self.depth, name);
@@ -201,8 +184,8 @@ impl Compiler {
             if let Some(upvalue) = enclosing.captured(name) {
                 println!("{}: {} exists in an enclosing scope; it is the {}th upvalue", self.depth, name, upvalue);
                 // if the variable exists in an enclosing scope and has been captured:
-                // add to compiler captureds
-                // add to lambda captureds
+                // add to compiler captures
+                // add to lambda captures
                 return Some(self.capture(Captured::Nonlocal(upvalue)))
             }
         }
