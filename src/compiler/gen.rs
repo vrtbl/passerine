@@ -20,7 +20,6 @@ use crate::compiler::{
 pub fn gen(cst: Spanned<CST>) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base();
     compiler.walk(&cst)?;
-    println!("{}", compiler.lambda);
     return Ok(compiler.lambda);
 }
 
@@ -227,17 +226,13 @@ impl Compiler {
     }
 
     pub fn resolve_assign(&mut self, name: &str) {
-        println!("resolve assigning {}", name);
         let index = if let Some(i) = self.local(name) {
-            println!("is declared local {}", i);
             self.lambda.emit(Opcode::Save); i
         } else if let Some(i) = self.captured_upvalue(name) {
-            println!("is hoisted with upvalue {}", i);
             self.lambda.emit(Opcode::SaveCap); i
         } else {
             self.declare(name.to_string());
             self.lambda.emit(Opcode::Save);
-            println!("is not declared; local {}", self.locals.len() - 1);
             self.locals.len() - 1
         };
 
@@ -247,7 +242,7 @@ impl Compiler {
     /// Destructures a pattern into
     /// a series of unpack and assign instructions.
     /// Instructions match against the topmost stack item.
-    /// TODO: how to use
+    /// Does not delete the data that is matched against.
     pub fn destructure(&mut self, pattern: Spanned<Pattern>) {
         self.lambda.emit_span(&pattern.span);
 
@@ -266,9 +261,9 @@ impl Compiler {
                 self.lambda.emit(Opcode::UnData);
             }
             Pattern::Label(name, pattern) => {
-                self.destructure(*pattern);
                 self.data(Data::Kind(name));
                 self.lambda.emit(Opcode::UnLabel);
+                self.destructure(*pattern);
             }
         }
 
@@ -289,12 +284,9 @@ impl Compiler {
         let mut hoists = mem::replace(&mut self.lambda.code, vec![]);
 
         // join all bytecode together
-        self.lambda.code.append(&mut hoists);
         self.lambda.code.append(&mut old);
+        self.lambda.code.append(&mut hoists);
         self.lambda.code.append(&mut destructures);
-
-        // delete the data that was destructured against.
-        self.lambda.emit(Opcode::Del);
     }
 
     /// Assign a value to a variable.
@@ -306,6 +298,7 @@ impl Compiler {
         // eval the expression
         self.walk(&expression)?;
         self.destructure(pattern);
+        self.lambda.emit(Opcode::Del);
         self.data(Data::Unit);
         Ok(())
     }
@@ -322,6 +315,7 @@ impl Compiler {
         {
             // match the argument against the pattern, binding variables
             self.destructure(pattern);
+            self.lambda.emit(Opcode::Del);
 
             // enter a new scope and walk the function body
             self.walk(&expression)?;          // run the function

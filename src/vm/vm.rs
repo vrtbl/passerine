@@ -86,7 +86,7 @@ impl VM {
             Opcode::Print   => self.print(),
             Opcode::Label   => self.label(),
             Opcode::UnLabel => self.un_label(),
-            Opcode::UnData  => todo!(),
+            Opcode::UnData  => self.un_data(),
         }
     }
 
@@ -104,8 +104,8 @@ impl VM {
         let mut result = Ok(());
 
         while self.ip < self.closure.lambda.code.len() {
-            println!("before: {:?}", self.stack.stack);
-            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            // println!("before: {:?}", self.stack.stack);
+            // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             if let error @ Err(_) = self.step() {
                 // TODO: clean up stack on error
                 result = error;
@@ -114,7 +114,7 @@ impl VM {
             };
             // println!("---");
         }
-        println!("after: {:?}", self.stack.stack);
+        // println!("after: {:?}", self.stack.stack);
         // println!("---");
 
         // return current state
@@ -229,6 +229,7 @@ impl VM {
             Data::Kind(n) => n,
             _ => unreachable!(),
         };
+
         let d = match self.stack.pop_data() {
             Data::Label(n, d) if n == kind => d,
             other => return Err(Trace::error(
@@ -238,7 +239,24 @@ impl VM {
             )),
         };
 
-        todo!()
+        self.stack.push_data(*d);
+        self.done()
+    }
+
+    fn un_data(&mut self) -> Result<(), Trace> {
+        let expected = self.stack.pop_data();
+        let data = self.stack.pop_data();
+
+        if data != expected {
+            return Err(Trace::error(
+                "Pattern Matching",
+                &format!("The data '{}' does not match the expected data '{}'", data, expected),
+                vec![self.closure.lambda.index_span(self.ip)],
+            ));
+        }
+
+        self.stack.push_data(data);
+        self.done()
     }
 
     /// Call a function on the top of the stack, passing the next value as an argument.
