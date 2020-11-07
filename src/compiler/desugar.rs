@@ -43,7 +43,7 @@ impl Rule {
         if Rule::keywords(&arg_pat).len() == 0 {
             return Err(Syntax::error(
                 "Syntactic macro must have at least one pseudokeyword",
-                arg_pat.span,
+                &arg_pat.span,
             ));
         }
         Ok(Rule { arg_pat, tree })
@@ -68,7 +68,7 @@ impl Rule {
     /// An error highlighting the duplicate binding is returned.
     pub fn merge_safe(base: &mut Bindings, new: Bindings, def: Span) -> Result<(), Syntax> {
         let collision = Syntax::error(
-            "Variable has already been declared in syntactic macro argument pattern", def
+            "Variable has already been declared in syntactic macro argument pattern", &def
         );
 
         for (n, t) in new {
@@ -177,7 +177,7 @@ impl Rule {
     ) -> Result<Spanned<ArgPat>, Syntax> {
         Err(Syntax::error(
             "Macros in macros are not yet implemented",
-            Span::empty(),
+            &Span::empty(),
         ))
     }
 
@@ -261,20 +261,6 @@ pub struct Transformer {
 impl Transformer {
     pub fn new() -> Transformer {
         Transformer { rules: vec![] }
-    }
-
-    // TODO: just pass the pattern and destructure during the gen pass?
-    /// This function takes a pattern and converts it into an AST.
-    pub fn depattern(pattern: Spanned<Pattern>) -> Result<Spanned<CST>, Syntax> {
-        let cst = match pattern.item {
-            Pattern::Symbol(s) => CST::Symbol(s),
-            _ => Err(Syntax::error(
-                "Pattern used that has not yet been implemented",
-                pattern.span.clone(),
-            ))?,
-        };
-
-        return Ok(Spanned::new(cst, pattern.span))
     }
 
     /// desugars an AST into a CST
@@ -375,7 +361,7 @@ impl Transformer {
                         .collect::<Vec<String>>()
                         .join(""),
                 ),
-                Spanned::build(&form),
+                &Spanned::build(&form),
             ))
         }
 
@@ -395,12 +381,12 @@ impl Transformer {
 
     /// TODO: implement full pattern matching
     pub fn assign(&mut self, p: Spanned<Pattern>, e: Spanned<AST>) -> Result<CST, Syntax> {
-        Ok(CST::assign(Transformer::depattern(p)?, self.walk(e)?))
+        Ok(CST::assign(p, self.walk(e)?))
     }
 
     /// TODO: implement full pattern matching
     pub fn lambda(&mut self, p: Spanned<Pattern>, e: Spanned<AST>) -> Result<CST, Syntax> {
-        Ok(CST::lambda(Transformer::depattern(p)?, self.walk(e)?))
+        Ok(CST::lambda(p, self.walk(e)?))
     }
 
     pub fn rule(&mut self, arg_pat: Spanned<ArgPat>, tree: Spanned<AST>) -> Result<CST, Syntax> {

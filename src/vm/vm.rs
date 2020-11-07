@@ -74,6 +74,8 @@ impl VM {
         match opcode {
             Opcode::Con     => self.con(),
             Opcode::Del     => self.del(),
+            Opcode::Copy    => self.copy_val(),
+            Opcode::Swap    => self.swap(),
             Opcode::Capture => self.capture(),
             Opcode::Save    => self.save(),
             Opcode::SaveCap => self.save_cap(),
@@ -84,6 +86,8 @@ impl VM {
             Opcode::Closure => self.closure(),
             Opcode::Print   => self.print(),
             Opcode::Label   => self.label(),
+            Opcode::UnLabel => todo!(),
+            Opcode::UnData  => todo!(),
         }
     }
 
@@ -101,8 +105,8 @@ impl VM {
         let mut result = Ok(());
 
         while self.ip < self.closure.lambda.code.len() {
-            // println!("before: {:?}", self.stack.stack);
-            // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            println!("before: {:?}", self.stack.stack);
+            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             if let error @ Err(_) = self.step() {
                 // TODO: clean up stack on error
                 result = error;
@@ -111,7 +115,7 @@ impl VM {
             };
             // println!("---");
         }
-        // println!("after: {:?}", self.stack.stack);
+        println!("after: {:?}", self.stack.stack);
         // println!("---");
 
         // return current state
@@ -189,6 +193,27 @@ impl VM {
     #[inline]
     pub fn del(&mut self) -> Result<(), Trace> {
         mem::drop(self.stack.pop_data());
+        self.done()
+    }
+
+    /// Copy the top data of the stack, i.e.
+    /// `[F, D]` becomes `[F, D, D]`.
+    #[inline]
+    pub fn copy_val(&mut self) -> Result<(), Trace> {
+        let data = self.stack.pop_data();
+        self.stack.push_data(data.clone());
+        self.stack.push_data(data);
+        self.done()
+    }
+
+    /// Swap the two topmost data on the stack, i.e.
+    /// `[F, A, B]` becomes `[F, B, A]`.
+    #[inline]
+    pub fn swap(&mut self) -> Result<(), Trace> {
+        let top = self.stack.pop_data();
+        let bottom = self.stack.pop_data();
+        self.stack.push_data(top);
+        self.stack.push_data(bottom);
         self.done()
     }
 

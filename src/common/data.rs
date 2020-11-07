@@ -20,6 +20,7 @@ use crate::common::{
 pub enum Data {
     // VM Stack
     Frame,
+    NotInit,
     Heaped(Rc<RefCell<Data>>),
 
     // Passerine Data (Atomic)
@@ -53,6 +54,7 @@ impl Display for Data {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Data::Frame       => unreachable!("Can not display stack frame"),
+            Data::NotInit     => unreachable!("Can not display unitialized data"),
             Data::Heaped(_)   => unreachable!("Can not display heaped data"),
             Data::Real(n)     => write!(f, "{}", n),
             Data::Boolean(b)  => write!(f, "{}", if *b { "true" } else { "false" }),
@@ -70,6 +72,7 @@ impl Debug for Data {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Data::Frame       => write!(f, "Frame"),
+            Data::NotInit     => write!(f, "NotInit"),
             Data::Heaped(h)   => write!(f, "Heaped({:?})", h.borrow()),
             Data::Real(n)     => write!(f, "Real({:?})", n),
             Data::Boolean(b)  => write!(f, "Boolean({:?})", b),

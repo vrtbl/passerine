@@ -10,6 +10,8 @@ use crate::common::{
 
 use crate::compiler::{
     cst::CST,
+    // TODO: CST specific pattern once where?
+    ast::Pattern,
     syntax::Syntax,
 };
 
@@ -18,6 +20,7 @@ use crate::compiler::{
 pub fn gen(cst: Spanned<CST>) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base();
     compiler.walk(&cst)?;
+    println!("{}", compiler.lambda);
     return Ok(compiler.lambda);
 }
 
@@ -102,8 +105,8 @@ impl Compiler {
         self.lambda.emit_span(&cst.span);
 
         // push left, push right, push center
-        let result = match cst.item.clone() {
-            CST::Data(data) => self.data(data),
+        return match cst.item.clone() {
+            CST::Data(data) => Ok(self.data(data)),
             CST::Symbol(name) => self.symbol(&name, cst.span.clone()),
             CST::Block(block) => self.block(block),
             CST::Print(expression) => self.print(*expression),
@@ -112,15 +115,13 @@ impl Compiler {
             CST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
             CST::Call   { fun,     arg        } => self.call(*fun, *arg),
         };
-        return result;
     }
 
     /// Takes a `Data` leaf and and produces some code to load the constant
-    pub fn data(&mut self, data: Data) -> Result<(), Syntax> {
+    pub fn data(&mut self, data: Data) {
         self.lambda.emit(Opcode::Con);
         let mut split = split_number(self.lambda.index_data(data));
         self.lambda.emit_bytes(&mut split);
-        Ok(())
     }
 
     // TODO: nested too deep :(
@@ -188,7 +189,7 @@ impl Compiler {
         } else {
             // TODO: hoist?
             return Err(Syntax::error(
-                "Variable referenced before assignment; it is undefined", span
+                "Variable referenced before assignment; it is undefined", &span
             ));
         }
         Ok(())
@@ -198,7 +199,7 @@ impl Compiler {
     /// Each sup-expression is walked, the last value is left on the stack.
     pub fn block(&mut self, children: Vec<Spanned<CST>>) -> Result<(), Syntax> {
         if children.is_empty() {
-            self.data(Data::Unit)?;
+            self.data(Data::Unit);
             return Ok(());
         }
 
@@ -220,57 +221,106 @@ impl Compiler {
 
     pub fn label(&mut self, name: String, expression: Spanned<CST>) -> Result<(), Syntax> {
         self.walk(&expression)?;
-        self.data(Data::Kind(name))?;
+        self.data(Data::Kind(name));
         self.lambda.emit(Opcode::Label);
         Ok(())
     }
 
-    /// Assign a value to a variable.
-    pub fn assign(&mut self, symbol: Spanned<CST>, expression: Spanned<CST>) -> Result<(), Syntax> {
-        // eval the expression
-        self.walk(&expression)?;
-
-        // load the following symbol ...
-        let name = match symbol.item {
-            CST::Symbol(name) => name,
-            _ => unreachable!(),
-        };
-
-        // the span of the variable to be assigned to
-        self.lambda.emit_span(&symbol.span);
-
-        // abstract out?
-        let index: usize = if let Some(i) = self.local(&name) {
+    pub fn resolve_assign(&mut self, name: &str) {
+        println!("resolve assigning {}", name);
+        let index = if let Some(i) = self.local(name) {
+            println!("is declared local {}", i);
             self.lambda.emit(Opcode::Save); i
-        } else if let Some(i) = self.captured_upvalue(&name) {
+        } else if let Some(i) = self.captured_upvalue(name) {
+            println!("is hoisted with upvalue {}", i);
             self.lambda.emit(Opcode::SaveCap); i
         } else {
+            self.declare(name.to_string());
             self.lambda.emit(Opcode::Save);
-            self.declare(name);
+            println!("is not declared; local {}", self.locals.len() - 1);
             self.locals.len() - 1
         };
 
         self.lambda.emit_bytes(&mut split_number(index));
-        self.data(Data::Unit)?;
+    }
 
+    /// Destructures a pattern into
+    /// a series of unpack and assign instructions.
+    /// Instructions match against the topmost stack item.
+    /// TODO: how to use
+    pub fn destructure(&mut self, pattern: Spanned<Pattern>) {
+        self.lambda.emit_span(&pattern.span);
+
+        // remember and remove old bytecode.
+        let mut old = mem::replace(&mut self.lambda.code, vec![]);
+        let mut symbols = vec![];
+
+        match pattern.item {
+            Pattern::Symbol(name) => {
+                self.lambda.emit(Opcode::Copy);
+                self.resolve_assign(&name);
+                symbols.push(name);
+            }
+            Pattern::Data(expected) => {
+                self.data(expected);
+                self.lambda.emit(Opcode::UnData);
+            }
+            Pattern::Label(name, pattern) => {
+                self.destructure(*pattern);
+                self.data(Data::Kind(name));
+                self.lambda.emit(Opcode::UnLabel);
+            }
+        }
+
+        // remember bytecode used to destructure data
+        let mut destructures = mem::replace(&mut self.lambda.code, vec![]);
+        // if symbols.is_empty() {
+        //     return Err(Syntax::error("Expected at least one variable to bind", &pattern.span))
+        // }
+
+        for symbol in symbols {
+            self.data(Data::NotInit);
+            self.resolve_assign(&symbol);
+        }
+
+        // remember bytecode used to hoist variables
+        // note that self.lambda.code is now empty
+        let mut hoists = mem::replace(&mut self.lambda.code, vec![]);
+
+        // join all bytecode together
+        self.lambda.code.append(&mut hoists);
+        self.lambda.code.append(&mut old);
+        self.lambda.code.append(&mut destructures);
+
+        // delete the data that was destructured against.
+        self.lambda.emit(Opcode::Del);
+    }
+
+    /// Assign a value to a variable.
+    pub fn assign(
+        &mut self,
+        pattern: Spanned<Pattern>,
+        expression: Spanned<CST>
+    ) -> Result<(), Syntax> {
+        // eval the expression
+        self.walk(&expression)?;
+        self.destructure(pattern);
+        self.data(Data::Unit);
         Ok(())
     }
 
     // TODO: rewrite according to new symbol rules
     /// Recursively compiles a lambda declaration in a new scope.
-    pub fn lambda(&mut self, symbol: Spanned<CST>, expression: Spanned<CST>) -> Result<(), Syntax> {
+    pub fn lambda(
+        &mut self,
+        pattern: Spanned<Pattern>,
+        expression: Spanned<CST>
+    ) -> Result<(), Syntax> {
         // just so the parallel is visually apparent
         self.enter_scope();
         {
-            // save the argument into the given variable
-            if let CST::Symbol(name) = symbol.item {
-                self.declare(name);
-            } else {
-                unreachable!()
-            }
-
-            self.lambda.emit(Opcode::Save);
-            self.lambda.emit_bytes(&mut split_number(0)); // will always be zerost item on stack
+            // match the argument against the pattern, binding variables
+            self.destructure(pattern);
 
             // enter a new scope and walk the function body
             self.walk(&expression)?;          // run the function

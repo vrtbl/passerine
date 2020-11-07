@@ -53,7 +53,7 @@ impl Lexer {
             let (kind, consumed) = match self.step() {
                 Ok(k)  => k,
                 Err(e) => return Err(
-                    Syntax::error(&e, Span::point(&self.source, self.offset))
+                    Syntax::error(&e, &Span::point(&self.source, self.offset))
                 ),
             };
 
@@ -558,6 +558,6 @@ mod test {
     fn comma() {
         let source = Source::source("heck\\ man");
         let tokens = lex(source.clone());
-        assert_eq!(tokens, Err(Syntax::error("Unexpected token", Span::new(&source, 4, 1))));
+        assert_eq!(tokens, Err(Syntax::error("Unexpected token", &Span::new(&source, 4, 1))));
     }
 }

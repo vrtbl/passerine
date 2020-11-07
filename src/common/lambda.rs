@@ -158,8 +158,12 @@ impl fmt::Display for Lambda {
                     index += consumed;
                     writeln!(f, "Closure \t{}\tIndex of lambda to be wrapped", todo_index)?;
                 },
-                Opcode::Print => { writeln!(f, "Print    \t\t--")?;}
-                Opcode::Label => { writeln!(f, "Label    \t\t--")?;}
+                Opcode::Print   => { writeln!(f, "Print    \t\t--")?; },
+                Opcode::Label   => { writeln!(f, "Label    \t\t--")?; },
+                Opcode::UnLabel => { writeln!(f, "UnLabel  \t\t--")?; },
+                Opcode::UnData  => { writeln!(f, "UnData   \t\t--")?; },
+                Opcode::Copy    => { writeln!(f, "Copy     \t\t--")?; },
+                Opcode::Swap    => { writeln!(f, "Swap     \t\t--")?; },
             }
         }
 

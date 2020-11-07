@@ -8,26 +8,34 @@ pub enum Opcode {
     Con = 0,
     /// Delete a value off the stack.
     Del = 1,
+    /// Copies topmost value on the stack.
+    Copy = 2,
+    /// Swaps the two topmost values,
+    Swap = 3,
     /// Moves a variable onto the heap.
-    Capture = 2,
+    Capture = 4,
     /// Save a constant into a variable.
-    Save = 3,
+    Save = 5,
     /// Save a value to a captured variable.
-    SaveCap = 4,
+    SaveCap = 6,
     /// Push a copy of a variable onto the stack.
-    Load = 5,
+    Load = 7,
     /// Load a copy of a captured variable.
-    LoadCap = 6,
+    LoadCap = 8,
     /// Call a function.
-    Call = 7,
+    Call = 9,
     /// Return from a function.
-    Return = 8,
+    Return = 10,
     /// Creates a closure over the current local environment.
-    Closure = 9,
+    Closure = 11,
     /// Prints a value.
-    Print = 10,
+    Print = 12,
     /// Constructs a label.
-    Label = 11,
+    Label = 13,
+    /// Destructures a label.
+    UnLabel = 14,
+    /// Destructures atomic data by asserting it matches exactly
+    UnData = 15,
 }
 
 impl Opcode {

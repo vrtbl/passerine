@@ -3,6 +3,10 @@ use crate::common::{
     data::Data,
 };
 
+// TODO: create a pattern specific to the CST?
+// Once where (i.e. `x | x > 0`) is added?
+use crate::compiler::ast::Pattern;
+
 // NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)
 // Store class of item in CST, then delegate exact type to external enum?
 
@@ -16,11 +20,11 @@ pub enum CST {
     Data(Data),
     Block(Vec<Spanned<CST>>),
     Assign {
-        pattern:    Box<Spanned<CST>>, // Note - should be pattern
+        pattern:    Box<Spanned<Pattern>>,
         expression: Box<Spanned<CST>>,
     },
     Lambda {
-        pattern:    Box<Spanned<CST>>, // Note - should be pattern
+        pattern:    Box<Spanned<Pattern>>,
         expression: Box<Spanned<CST>>,
     },
     Call {
@@ -40,7 +44,7 @@ pub enum CST {
 impl CST {
     /// Shortcut for creating an `CST::Assign` variant.
     pub fn assign(
-        pattern:    Spanned<CST>,
+        pattern:    Spanned<Pattern>,
         expression: Spanned<CST>
     ) -> CST {
         CST::Assign {
@@ -51,7 +55,7 @@ impl CST {
 
     /// Shortcut for creating an `CST::Lambda` variant.
     pub fn lambda(
-        pattern:    Spanned<CST>,
+        pattern:    Spanned<Pattern>,
         expression: Spanned<CST>
     ) -> CST {
         CST::Lambda {

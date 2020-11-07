@@ -103,7 +103,7 @@ impl Parser {
         let token = self.current();
         Syntax::error(
             &format!("Oopsie woopsie, what's {} doing here?", token.item),
-            token.span.clone()
+            &token.span
         )
     }
 
@@ -114,7 +114,7 @@ impl Parser {
         let current = &self.tokens[self.index - 1];
         if current.item != token {
             self.index -= 1;
-            Err(Syntax::error(&format!("Expected {}, found {}", token, current.item), current.span.clone()))
+            Err(Syntax::error(&format!("Expected {}, found {}", token, current.item), &current.span))
         } else {
             Ok(current)
         }
@@ -141,7 +141,7 @@ impl Parser {
             | Token::Boolean(_) => self.literal(),
 
             Token::Sep => Err(self.unexpected()),
-             _ => Err(Syntax::error("Expected an expression", self.current().span.clone())),
+             _ => Err(Syntax::error("Expected an expression", &self.current().span)),
         }
     }
 
@@ -233,7 +233,7 @@ impl Parser {
             Token::Boolean(b) => AST::Data(b.clone()),
             unexpected => return Err(Syntax::error(
                 &format!("Expected a literal, found {}", unexpected),
-                span.clone()
+                &span
             )),
         };
 
@@ -288,7 +288,7 @@ impl Parser {
             AST::Form(p) => p,
             _ => return Err(Syntax::error(
                 "Expected a pattern and a block after 'syntax'",
-                after.span,
+                &after.span,
             )),
         };
 
@@ -299,7 +299,7 @@ impl Parser {
             (b @ AST::Block(_), s) => Spanned::new(b, s),
             _ => return Err(Syntax::error(
                 "Expected a block after the syntax pattern",
-                after.span,
+                &after.span,
             )),
         };
 
@@ -353,7 +353,7 @@ impl Parser {
             }
             _ => Err(Syntax::error(
                 "Unexpected construct inside argument pattern",
-                ast.span.clone()
+                &ast.span
             ))?,
         };
 
@@ -366,7 +366,7 @@ impl Parser {
     pub fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
         let pattern = left.map(Pattern::try_from)
-            .map_err(|e| Syntax::error(&e, left_span))?;
+            .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Assign)?;
         let expression = self.expression(Prec::Assign)?;
@@ -378,7 +378,7 @@ impl Parser {
     pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
         let pattern = left.map(Pattern::try_from)
-            .map_err(|e| Syntax::error(&e, left_span))?;
+            .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Lambda)?;
         let expression = self.expression(Prec::Lambda)?;

@@ -109,10 +109,11 @@ impl Stack {
     pub fn set_local(&mut self, index: usize) {
         let local_index = self.frames.peek() + index + 1;
 
-        if self.stack.len() - 1 == local_index {
+        if (self.stack.len() - 1) == local_index {
             // local is already in the correct spot; we declare it
             return;
-        } else if self.stack.len() <= local_index {
+        } else if (self.stack.len() - 1) < local_index {
+            println!("{} < {}", self.stack.len() - 1, local_index);
             unreachable!("Can not set local that is not yet on stack");
         } else {
             // get the old local
