@@ -85,7 +85,7 @@ impl VM {
             Opcode::Closure => self.closure(),
             Opcode::Print   => self.print(),
             Opcode::Label   => self.label(),
-            Opcode::UnLabel => todo!(),
+            Opcode::UnLabel => self.un_label(),
             Opcode::UnData  => todo!(),
         }
     }
@@ -104,8 +104,8 @@ impl VM {
         let mut result = Ok(());
 
         while self.ip < self.closure.lambda.code.len() {
-            // println!("before: {:?}", self.stack.stack);
-            // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            println!("before: {:?}", self.stack.stack);
+            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             if let error @ Err(_) = self.step() {
                 // TODO: clean up stack on error
                 result = error;
@@ -114,7 +114,7 @@ impl VM {
             };
             // println!("---");
         }
-        // println!("after: {:?}", self.stack.stack);
+        println!("after: {:?}", self.stack.stack);
         // println!("---");
 
         // return current state
@@ -222,6 +222,23 @@ impl VM {
         let data = self.stack.pop_data();
         self.stack.push_data(Data::Label(kind, Box::new(data)));
         self.done()
+    }
+
+    fn un_label(&mut self) -> Result<(), Trace> {
+        let kind = match self.stack.pop_data() {
+            Data::Kind(n) => n,
+            _ => unreachable!(),
+        };
+        let d = match self.stack.pop_data() {
+            Data::Label(n, d) if n == kind => d,
+            other => return Err(Trace::error(
+                "Pattern Matching",
+                &format!("The data '{}' does not match the Label {}", other, kind),
+                vec![self.closure.lambda.index_span(self.ip)],
+            )),
+        };
+
+        todo!()
     }
 
     /// Call a function on the top of the stack, passing the next value as an argument.

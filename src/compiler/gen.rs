@@ -279,6 +279,7 @@ impl Compiler {
         // }
 
         for symbol in symbols {
+            self.lambda.emit(Opcode::Copy);
             self.data(Data::NotInit);
             self.resolve_assign(&symbol);
         }
