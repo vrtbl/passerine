@@ -234,7 +234,7 @@ impl VM {
             Data::Label(n, d) if n == kind => d,
             other => return Err(Trace::error(
                 "Pattern Matching",
-                &format!("The data '{}' does not match the Label {}", other, kind),
+                &format!("The data '{}' does not match the Label '{}'", other, kind),
                 vec![self.closure.lambda.index_span(self.ip)],
             )),
         };
