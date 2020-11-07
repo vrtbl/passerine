@@ -13,18 +13,11 @@ use crate::compiler::{
     syntax::Syntax,
 };
 
-fn unwrap_fn(l: Data) -> Lambda {
-    if let Data::Lambda(l) = l.clone() { l } else { panic!() }
-}
-
 /// Simple function that generates unoptimized bytecode from an `CST`.
 /// Exposes the functionality of the `Compiler`.
 pub fn gen(cst: Spanned<CST>) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base();
     compiler.walk(&cst)?;
-    println!("{}", compiler.lambda);
-    println!("{}", unwrap_fn(compiler.lambda.constants[2].clone()));
-    println!("{}", unwrap_fn(unwrap_fn(compiler.lambda.constants[2].clone()).constants[0].clone()));
     return Ok(compiler.lambda);
 }
 
@@ -54,6 +47,8 @@ pub struct Compiler {
     lambda: Lambda,
     /// The locals in the current scope.
     locals: Vec<Local>,
+    /// The indicies of captured locals in the current scope
+    captures: Vec<usize>,
     /// The nested depth of the current compiler.
     depth: usize,
 }
@@ -63,15 +58,15 @@ impl Compiler {
     pub fn base() -> Compiler {
         Compiler {
             enclosing: None,
-            lambda: Lambda::empty(),
-            locals: vec![],
-            depth: 0,
+            lambda:    Lambda::empty(),
+            locals:    vec![],
+            captures:  vec![],
+            depth:     0,
         }
     }
 
     /// Declare a local variable.
     pub fn declare(&mut self, name: String) {
-        println!("local {} {}", name, self.depth);
         self.locals.push(
             Local { name, depth: self.depth }
         )
@@ -141,57 +136,42 @@ impl Compiler {
         return None;
     }
 
-    /// Marks a local as captured in a closure,
-    /// which essentially tells the VM to move it to the heap.
-    /// Returns the index of the captured variable.
-    pub fn capture(&mut self, captured: Captured) -> usize {
-        // is already captured
-        for (i, c) in self.lambda.captures.iter().enumerate() {
-            if &captured == c {
-                println!("{}: already captured with upvalue {}", self.depth, i);
-                return i;
-            }
-        }
 
-        if let Captured::Local(index) = captured {
-            self.lambda.emit(Opcode::Capture);
-            self.lambda.emit_bytes(&mut split_number(index));
-        }
-
-        self.lambda.captures.push(captured);
-        return self.lambda.captures.len() - 1;
-    }
-
-    // Tries to resolve a variable in enclosing scopes
-    // if resolution it successful, it captures the variable in the original scope
-    // then builds a chain of upvalues to hoist that upvalue where it's needed.
-    // This can be made more efficient.
-    pub fn captured(&mut self, name: &str) -> Option<usize> {
-        println!("{}: trying to capture {}", self.depth, name);
-        // return index in compiler captures - 1
-
+    /// Tries to resolve a variable in enclosing scopes
+    /// if resolution it successful, it captures the variable in the original scope
+    /// then builds a chain of upvalues to hoist that upvalue where it's needed.
+    pub fn captured(&mut self, name: &str) -> Option<(Captured, bool)> {
         if let Some(index) = self.local(name) {
-            println!("{}: {} exists in this scope with index {}", self.depth, name, index);
-            // if the variable exists in this scope:
-            // capture that variable (i.e. emit opcode)
-            // add to compiler captures
-            return Some(self.capture(Captured::Local(index)));
+            let already = self.captures.contains(&index);
+            if !already {
+                self.captures.push(index);
+                self.lambda.emit(Opcode::Capture);
+                self.lambda.emit_bytes(&mut split_number(index));
+            }
+            return Some((Captured::Local(index), already));
         }
-        println!("{}: {} does not exist in this scope", self.depth, name);
 
         if let Some(enclosing) = self.enclosing.as_mut() {
-            println!("{}: checking the enclosing scope for {}",  enclosing.depth, name);
-            if let Some(upvalue) = enclosing.captured(name) {
-                println!("{}: {} exists in an enclosing scope; it is the {}th upvalue", self.depth, name, upvalue);
-                // if the variable exists in an enclosing scope and has been captured:
-                // add to compiler captures
-                // add to lambda captures
-                return Some(self.capture(Captured::Nonlocal(upvalue)))
+            if let Some((captured, already)) = enclosing.captured(name) {
+                let upvalue = if !already {
+                    self.lambda.captures.push(captured);
+                    self.lambda.captures.len() - 1
+                } else {
+                    self.lambda.captures.iter().position(|c| c == &captured).unwrap()
+                };
+                return Some((Captured::Nonlocal(upvalue), already));
             }
         }
 
-        println!("{}: enclosing scope does not exist; local {} not resolved",  self.depth, name);
-        return None;
+        return None
+    }
+
+    /// returns the index of a captured non-local.
+    pub fn captured_upvalue(&mut self, name: &str) -> Option<usize> {
+        match self.captured(name) {
+            Some((Captured::Nonlocal(upvalue), _)) => Some(upvalue),
+            _ => None,
+        }
     }
 
     // TODO: rewrite according to new local rules
@@ -201,10 +181,10 @@ impl Compiler {
             // if the variable is locally in scope
             self.lambda.emit(Opcode::Load);
             self.lambda.emit_bytes(&mut split_number(index))
-        } else if let Some(index) = self.captured(name) {
+        } else if let Some(upvalue) = self.captured_upvalue(name) {
             // if the variable is captured in a closure
             self.lambda.emit(Opcode::LoadCap);
-            self.lambda.emit_bytes(&mut split_number(index))
+            self.lambda.emit_bytes(&mut split_number(upvalue))
         } else {
             // TODO: hoist?
             return Err(Syntax::error(
@@ -260,9 +240,9 @@ impl Compiler {
         self.lambda.emit_span(&symbol.span);
 
         // abstract out?
-        let index = if let Some(i) = self.local(&name) {
+        let index: usize = if let Some(i) = self.local(&name) {
             self.lambda.emit(Opcode::Save); i
-        } else if let Some(i) = self.captured(&name) {
+        } else if let Some(i) = self.captured_upvalue(&name) {
             self.lambda.emit(Opcode::SaveCap); i
         } else {
             self.lambda.emit(Opcode::Save);

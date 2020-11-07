@@ -432,3 +432,45 @@ Here's what I'm getting at.
 ```
 
 that's a simpler solution. let's implement it.
+
+let's walk through it:
+
+```
+w
+y
+y
+loop
+```
+
+start:
+
+```
+0: u[] c[]
+1: u[] c[]
+2: u[] c[]
+```
+
+see w, find in l0
+
+```
+0: u[] c[w]
+1: u[l_w] c[]
+2: u[w] c[]
+```
+
+see y, find in layer 1:
+
+```
+0: u[] c[w]
+1: u[l_w] c[y]
+2: u[w, l_y] c[]
+```
+
+see y, do nothing,
+see loop, find in l0:
+
+```
+0: u[] c[w, loop]
+1: u[l_w, l_loop] c[y]
+2: u[w, l_y, loop] c[]
+```

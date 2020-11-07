@@ -101,9 +101,8 @@ impl VM {
         let mut result = Ok(());
 
         while self.ip < self.closure.lambda.code.len() {
-            println!("before: {:?}", self.stack.stack);
-            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
-            { let span = self.closure.lambda.index_span(self.ip); if !span.is_empty() { println!("{}", span) } else { () }}
+            // println!("before: {:?}", self.stack.stack);
+            // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             if let error @ Err(_) = self.step() {
                 // TODO: clean up stack on error
                 result = error;
@@ -112,7 +111,7 @@ impl VM {
             };
             // println!("---");
         }
-        println!("after: {:?}", self.stack.stack);
+        // println!("after: {:?}", self.stack.stack);
         // println!("---");
 
         // return current state
@@ -180,8 +179,6 @@ impl VM {
     #[inline]
     pub fn load_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
-        println!("Load Cap {}", index);
-        println!("{:#?}", self.closure.captures);
         // NOTE: should heaped data should only be present for variables?
         // self.closure.captures[index].borrow().to_owned()
         self.stack.push_data(self.closure.captures[index].borrow().to_owned());
@@ -197,18 +194,8 @@ impl VM {
 
     #[inline]
     pub fn print(&mut self) -> Result<(), Trace> {
-        // w = "hello"
-        //
-        // loop = ()
-        // loop = y -> x -> {
-        //     y w
-        //     loop y ()
-        // }
-        //
-        // loop (x -> print x) ()
         let data = self.stack.pop_data();
         println!("{}", data);
-        // thread::sleep(time::Duration::from_millis(100));
         self.stack.push_data(data);
         self.done()
     }
@@ -292,9 +279,6 @@ impl VM {
             };
             closure.captures.push(reference)
         }
-
-        println!("Variables: {:#?}", closure.captures.clone());
-        println!("Closure is at {}", closure.id);
 
         self.stack.push_data(Data::Closure(closure));
         self.done()
