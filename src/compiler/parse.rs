@@ -412,6 +412,8 @@ impl Parser {
         Ok(Spanned::new(AST::assign(pattern, expression), combined))
     }
 
+    // TODO: move to desugar?
+
     /// Parses a lambda definition, associates right.
     pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
