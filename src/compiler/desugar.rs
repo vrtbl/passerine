@@ -94,8 +94,8 @@ impl Rule {
             ArgPat::Keyword(expected) => {
                 if let AST::Symbol(name) = reversed_form.pop()?.item {
                     if &name == expected { Some(Ok(HashMap::new())) }
-                    else                { None                     }
-                } else                  { None                     }
+                    else                 { None                     }
+                } else                   { None                     }
             },
             ArgPat::Symbol(symbol) => Some(Ok(
                 vec![(symbol.clone(), reversed_form.pop()?)]
@@ -134,7 +134,7 @@ impl Rule {
             }
             tries += 1;
         }
-        panic!("Generated 1024 new unique identifiers for macro expansion, but all were already in use");
+        panic!("Generated 1024 new unique identifiers for macro expansion, but all were already in use!");
     }
 
     pub fn resolve_symbol(name: String, span: Span, bindings: &mut Bindings) -> Spanned<AST> {
@@ -272,8 +272,8 @@ impl Transformer {
             AST::Data(d) => CST::Data(d),
             AST::Block(b) => self.block(b)?,
             AST::Form(f) => self.form(f)?,
-            AST::Pattern(_) => unreachable!("Raw Pattern should not be in AST after parsing"),
-            AST::ArgPat(_) => unreachable!("Raw Argument Pattern should not be in AST after parsing"),
+            AST::Pattern(_) => return Err(Syntax::error("Unexpected pattern", &ast.span)),
+            AST::ArgPat(_)  => return Err(Syntax::error("Unexpected argument pattern", &ast.span)),
             AST::Syntax { arg_pat, expression } => self.rule(*arg_pat, *expression)?,
             AST::Assign { pattern, expression } => self.assign(*pattern, *expression)?,
             AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression)?,

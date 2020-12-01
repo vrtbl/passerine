@@ -20,6 +20,7 @@ pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     let mut parser = Parser::new(tokens);
     let ast = parser.body(Token::End)?;
     parser.consume(Token::End)?;
+    println!("{:#?}", ast);
     return Ok(Spanned::new(ast, Span::empty()));
 }
 
@@ -90,6 +91,14 @@ impl Parser {
         &self.tokens[self.index]
     }
 
+    /// Returns the next non-sep token.
+    pub fn draw(&mut self) -> &Spanned<Token> {
+        while let Token::Sep = self.current().item {
+            self.index += 1;
+        }
+        self.current()
+    }
+
     /// Returns the first non-Sep token.
     pub fn skip(&mut self) -> &Spanned<Token> {
         self.sep();
@@ -120,11 +129,36 @@ impl Parser {
         }
     }
 
+    // TODO:
+    // right now, passerine supports breaking on infix operators, i.e.
+    // ```
+    // hello =
+    //     "hi"
+    // ```
+    // but the infix operator must be on the same line, so the following is not valid:
+    // ```
+    // hello
+    //     = "hi"
+    // ```
+    // I'd like for the second case to be supported
+    // Additionally, within parenthesis, everything should be treated as a call.
+    // so:
+    // ```
+    // (
+    //     foo
+    //     bar
+    // )
+    // ```
+    // is the same as:
+    // ```
+    // foo bar
+    // ```
+
     // Core Pratt Parser:
 
     /// Looks at the current token and parses an infix expression
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
-        match self.current().item {
+        match self.draw().item {
             Token::End         => Ok(Spanned::new(AST::Block(vec![]), Span::empty())),
 
             Token::Syntax      => self.syntax(),
@@ -140,8 +174,8 @@ impl Parser {
             | Token::String(_)
             | Token::Boolean(_) => self.literal(),
 
-            Token::Sep => Err(self.unexpected()),
-             _ => Err(Syntax::error("Expected an expression", &self.current().span)),
+            // Token::Sep => Err(self.unexpected()),
+            _ => Err(Syntax::error("Expected an expression", &self.current().span)),
         }
     }
 
@@ -198,6 +232,8 @@ impl Parser {
             left = self.rule_infix(left)?;
         }
 
+        println!("breaking on {:?}", self.current());
+
         return Ok(left);
     }
 
@@ -237,14 +273,16 @@ impl Parser {
             )),
         };
 
-        Result::Ok(Spanned::new(leaf, span.clone()))
+        Ok(Spanned::new(leaf, span.clone()))
     }
 
     /// Constructs the ast for a group,
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::OpenParen)?.span.clone();
+        println!("and 1");
         let ast   = self.expression(Prec::None.associate_left())?.item;
+        println!("oop");
         let end   = self.consume(Token::CloseParen)?.span.clone();
         Ok(Spanned::new(ast, Span::combine(&start, &end)))
     }
@@ -371,19 +409,27 @@ impl Parser {
         self.consume(Token::Assign)?;
         let expression = self.expression(Prec::Assign)?;
         let combined   = Span::combine(&pattern.span, &expression.span);
-        Result::Ok(Spanned::new(AST::assign(pattern, expression), combined))
+        Ok(Spanned::new(AST::assign(pattern, expression), combined))
     }
 
     /// Parses a lambda definition, associates right.
     pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
-        let pattern = left.map(Pattern::try_from)
-            .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Lambda)?;
-        let expression = self.expression(Prec::Lambda)?;
-        let combined   = Span::combine(&pattern.span, &expression.span);
-        Result::Ok(Spanned::new(AST::lambda(pattern, expression), combined))
+        let mut expression = self.expression(Prec::Lambda)?;
+
+        let arguments = if let AST::Form(f) = left.item { f } else { vec![left] };
+
+        for argument in arguments.into_iter().rev() {
+            let pattern = argument.map(Pattern::try_from)
+                .map_err(|e| Syntax::error(&e, &left_span))?;
+
+            let combined = Span::combine(&pattern.span, &expression.span);
+            expression   = Spanned::new(AST::lambda(pattern, expression), combined);
+        }
+
+        return Ok(expression);
     }
 
     /// Parses a function call.

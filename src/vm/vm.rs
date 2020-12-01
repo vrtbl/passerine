@@ -376,7 +376,7 @@ mod test {
 
     #[test]
     fn functions() {
-        let mut vm = inspect("iden = x -> x; y = true; iden ({y = false; iden iden} (iden y))");
+        let mut vm = inspect("iden = x -> x; y = true; iden ({ y = false; iden iden } (iden y))");
         let identity = vm.stack.pop_data();
         assert_eq!(identity, Data::Boolean(true));
     }
