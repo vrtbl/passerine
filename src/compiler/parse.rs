@@ -90,14 +90,6 @@ impl Parser {
         &self.tokens[self.index]
     }
 
-    /// Returns the next non-sep token.
-    pub fn draw(&mut self) -> &Spanned<Token> {
-        while let Token::Sep = self.current().item {
-            self.index += 1;
-        }
-        self.current()
-    }
-
     /// Returns the first non-Sep token.
     pub fn skip(&mut self) -> &Spanned<Token> {
         self.sep();
@@ -157,7 +149,7 @@ impl Parser {
 
     /// Looks at the current token and parses an infix expression
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
-        match self.draw().item {
+        match self.current().item {
             Token::End         => Ok(Spanned::new(AST::Block(vec![]), Span::empty())),
 
             Token::Syntax      => self.syntax(),
@@ -185,7 +177,7 @@ impl Parser {
             Token::Lambda => self.lambda(left),
 
             Token::End => Err(self.unexpected()),
-            Token::Sep => Err(self.unexpected()),
+            // Token::Sep => Err(self.unexpected()),
 
             _ => self.call(left),
         }
@@ -406,10 +398,6 @@ impl Parser {
         let combined   = Span::combine(&pattern.span, &expression.span);
         Ok(Spanned::new(AST::assign(pattern, expression), combined))
     }
-
-    // TODO: move to desugar?
-    // and allow for patterns to contain forms?
-    // This allows, for instance, macros to take chains of arguments and use them in functions.
 
     /// Parses a lambda definition, associates right.
     pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
