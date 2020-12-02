@@ -9,9 +9,8 @@ use crate::common::{
 };
 
 use crate::compiler::{
-    cst::CST,
+    cst::{CST, CSTPattern},
     // TODO: CST specific pattern once where?
-    ast::Pattern,
     syntax::Syntax,
 };
 
@@ -243,7 +242,7 @@ impl Compiler {
     /// a series of unpack and assign instructions.
     /// Instructions match against the topmost stack item.
     /// Does not delete the data that is matched against.
-    pub fn destructure(&mut self, pattern: Spanned<Pattern>) {
+    pub fn destructure(&mut self, pattern: Spanned<CSTPattern>) {
         self.lambda.emit_span(&pattern.span);
 
         // remember and remove old bytecode.
@@ -251,16 +250,16 @@ impl Compiler {
         let mut symbols = vec![];
 
         match pattern.item {
-            Pattern::Symbol(name) => {
+            CSTPattern::Symbol(name) => {
                 self.lambda.emit(Opcode::Copy);
                 self.resolve_assign(&name);
                 symbols.push(name);
             }
-            Pattern::Data(expected) => {
+            CSTPattern::Data(expected) => {
                 self.data(expected);
                 self.lambda.emit(Opcode::UnData);
             }
-            Pattern::Label(name, pattern) => {
+            CSTPattern::Label(name, pattern) => {
                 self.data(Data::Kind(name));
                 self.lambda.emit(Opcode::UnLabel);
                 self.destructure(*pattern);
@@ -292,7 +291,7 @@ impl Compiler {
     /// Assign a value to a variable.
     pub fn assign(
         &mut self,
-        pattern: Spanned<Pattern>,
+        pattern: Spanned<CSTPattern>,
         expression: Spanned<CST>
     ) -> Result<(), Syntax> {
         // eval the expression
@@ -307,7 +306,7 @@ impl Compiler {
     /// Recursively compiles a lambda declaration in a new scope.
     pub fn lambda(
         &mut self,
-        pattern: Spanned<Pattern>,
+        pattern: Spanned<CSTPattern>,
         expression: Spanned<CST>
     ) -> Result<(), Syntax> {
         // just so the parallel is visually apparent

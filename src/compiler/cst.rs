@@ -1,11 +1,36 @@
+use std::convert::TryFrom;
+
 use crate::common::{
     span::Spanned,
     data::Data,
 };
 
+use crate::compiler::ast::ASTPattern;
+
 // TODO: create a pattern specific to the CST?
 // Once where (i.e. `x | x > 0`) is added?
-use crate::compiler::ast::Pattern;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CSTPattern {
+    Symbol(String),
+    Data(Data),
+    Label(String, Box<Spanned<CSTPattern>>),
+}
+
+impl TryFrom<ASTPattern> for CSTPattern {
+    type Error = String;
+
+    fn try_from(ast_pattern: ASTPattern) -> Result<Self, Self::Error> {
+        Ok(
+            match ast_pattern {
+                ASTPattern::Symbol(s)   => CSTPattern::Symbol(s),
+                ASTPattern::Data(d)     => CSTPattern::Data(d),
+                ASTPattern::Label(k, a) => CSTPattern::Label(k, Box::new(a.map(CSTPattern::try_from)?)),
+                ASTPattern::Chain(_)    => Err("Unexpected chained construct inside pattern")?,
+            }
+        )
+    }
+}
 
 // NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)
 // Store class of item in CST, then delegate exact type to external enum?
@@ -20,11 +45,11 @@ pub enum CST {
     Data(Data),
     Block(Vec<Spanned<CST>>),
     Assign {
-        pattern:    Box<Spanned<Pattern>>,
+        pattern:    Box<Spanned<CSTPattern>>,
         expression: Box<Spanned<CST>>,
     },
     Lambda {
-        pattern:    Box<Spanned<Pattern>>,
+        pattern:    Box<Spanned<CSTPattern>>,
         expression: Box<Spanned<CST>>,
     },
     Call {
@@ -44,7 +69,7 @@ pub enum CST {
 impl CST {
     /// Shortcut for creating an `CST::Assign` variant.
     pub fn assign(
-        pattern:    Spanned<Pattern>,
+        pattern:    Spanned<CSTPattern>,
         expression: Spanned<CST>
     ) -> CST {
         CST::Assign {
@@ -55,7 +80,7 @@ impl CST {
 
     /// Shortcut for creating an `CST::Lambda` variant.
     pub fn lambda(
-        pattern:    Spanned<Pattern>,
+        pattern:    Spanned<CSTPattern>,
         expression: Spanned<CST>
     ) -> CST {
         CST::Lambda {

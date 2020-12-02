@@ -11,7 +11,7 @@ use crate::common::{
 use crate::compiler::{
     syntax::Syntax,
     token::Token,
-    ast::{AST, Pattern, ArgPat},
+    ast::{AST, ASTPattern, ArgPat},
 };
 
 /// Simple function that parses a token stream into an AST.
@@ -398,7 +398,7 @@ impl Parser {
     /// Parses an assignment, associates right.
     pub fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
-        let pattern = left.map(Pattern::try_from)
+        let pattern = left.map(ASTPattern::try_from)
             .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Assign)?;
@@ -414,21 +414,13 @@ impl Parser {
     /// Parses a lambda definition, associates right.
     pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
+        let pattern = left.map(ASTPattern::try_from)
+            .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Lambda)?;
-        let mut expression = self.expression(Prec::Lambda)?;
-
-        let arguments = if let AST::Form(f) = left.item { f } else { vec![left] };
-
-        for argument in arguments.into_iter().rev() {
-            let pattern = argument.map(Pattern::try_from)
-                .map_err(|e| Syntax::error(&e, &left_span))?;
-
-            let combined = Span::combine(&pattern.span, &expression.span);
-            expression   = Spanned::new(AST::lambda(pattern, expression), combined);
-        }
-
-        return Ok(expression);
+        let expression = self.expression(Prec::Lambda)?;
+        let combined   = Span::combine(&pattern.span, &expression.span);
+        Ok(Spanned::new(AST::lambda(pattern, expression), combined))
     }
 
     /// Parses a function call.
@@ -479,7 +471,7 @@ mod test {
                     vec![
                         Spanned::new(
                             AST::assign(
-                                Spanned::new(Pattern::Symbol("x".to_string()), Span::new(&source, 0, 1)),
+                                Spanned::new(ASTPattern::Symbol("x".to_string()), Span::new(&source, 0, 1)),
                                 Spanned::new(
                                     AST::Data(Data::Real(55.0)),
                                     Span::new(&source, 4, 4),
@@ -506,10 +498,10 @@ mod test {
                     vec![
                         Spanned::new(
                             AST::assign(
-                                Spanned::new(Pattern::Symbol("x".to_string()), Span::new(&source, 0, 1)),
+                                Spanned::new(ASTPattern::Symbol("x".to_string()), Span::new(&source, 0, 1)),
                                 Spanned::new(
                                     AST::lambda(
-                                        Spanned::new(Pattern::Symbol("y".to_string()), Span::new(&source, 4, 1)),
+                                        Spanned::new(ASTPattern::Symbol("y".to_string()), Span::new(&source, 4, 1)),
                                         Spanned::new(
                                             AST::Data(Data::Real(3.141592)),
                                             Span::new(&source, 9, 8),

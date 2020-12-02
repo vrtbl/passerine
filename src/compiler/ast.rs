@@ -5,33 +5,38 @@ use crate::common::{
     data::Data,
 };
 
-// TODO: separate patterns and argument patterns?
-
 #[derive(Debug, Clone, PartialEq)]
-pub enum Pattern {
+pub enum ASTPattern {
     Symbol(String),
     Data(Data),
-    Label(String, Box<Spanned<Pattern>>),
+    Chain(Vec<Spanned<ASTPattern>>),
+    Label(String, Box<Spanned<ASTPattern>>),
 }
 
-impl Pattern {
+impl ASTPattern {
     // Shortcut for creating a `Pattern::Label` variant
-    pub fn label(name: String, pattern: Spanned<Pattern>) -> Pattern {
-        Pattern::Label(name, Box::new(pattern))
+    pub fn label(name: String, pattern: Spanned<ASTPattern>) -> ASTPattern {
+        ASTPattern::Label(name, Box::new(pattern))
     }
 }
 
-impl TryFrom<AST> for Pattern {
+impl TryFrom<AST> for ASTPattern {
     type Error = String;
 
     fn try_from(ast: AST) -> Result<Self, Self::Error> {
         Ok(
             match ast {
-                AST::Symbol(s) => Pattern::Symbol(s),
-                AST::Data(d) => Pattern::Data(d),
-                AST::Label(k, a) => Pattern::Label(k, Box::new(a.map(Pattern::try_from)?)),
+                AST::Symbol(s) => ASTPattern::Symbol(s),
+                AST::Data(d) => ASTPattern::Data(d),
+                AST::Label(k, a) => ASTPattern::Label(k, Box::new(a.map(ASTPattern::try_from)?)),
                 AST::Pattern(p) => p,
-                AST::Form(f) if f.len() == 1 => Pattern::try_from(f[0].clone().item)?,
+                AST::Form(f) => {
+                    let mut patterns = vec![];
+                    for item in f {
+                        patterns.push(item.map(ASTPattern::try_from)?);
+                    }
+                    ASTPattern::Chain(patterns)
+                },
                 _ => Err("Unexpected construct inside pattern")?,
             }
         )
@@ -79,14 +84,14 @@ pub enum AST {
     Data(Data),
     Block(Vec<Spanned<AST>>),
     Form(Vec<Spanned<AST>>),
-    Pattern(Pattern),
+    Pattern(ASTPattern),
     ArgPat(ArgPat),
     Assign {
-        pattern:    Box<Spanned<Pattern>>,
+        pattern:    Box<Spanned<ASTPattern>>,
         expression: Box<Spanned<AST>>,
     },
     Lambda {
-        pattern:    Box<Spanned<Pattern>>,
+        pattern:    Box<Spanned<ASTPattern>>,
         expression: Box<Spanned<AST>>,
     },
     Print(Box<Spanned<AST>>),
@@ -100,7 +105,7 @@ pub enum AST {
 impl AST {
     /// Shortcut for creating an `AST::Assign` variant.
     pub fn assign(
-        pattern:    Spanned<Pattern>,
+        pattern:    Spanned<ASTPattern>,
         expression: Spanned<AST>
     ) -> AST {
         AST::Assign {
@@ -111,7 +116,7 @@ impl AST {
 
     /// Shortcut for creating an `AST::Lambda` variant.
     pub fn lambda(
-        pattern:    Spanned<Pattern>,
+        pattern:    Spanned<ASTPattern>,
         expression: Spanned<AST>
     ) -> AST {
         AST::Lambda {
