@@ -20,7 +20,6 @@ pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     let mut parser = Parser::new(tokens);
     let ast = parser.body(Token::End)?;
     parser.consume(Token::End)?;
-    println!("{:#?}", ast);
     return Ok(Spanned::new(ast, Span::empty()));
 }
 
@@ -232,8 +231,6 @@ impl Parser {
             left = self.rule_infix(left)?;
         }
 
-        println!("breaking on {:?}", self.current());
-
         return Ok(left);
     }
 
@@ -280,9 +277,7 @@ impl Parser {
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::OpenParen)?.span.clone();
-        println!("and 1");
         let ast   = self.expression(Prec::None.associate_left())?.item;
-        println!("oop");
         let end   = self.consume(Token::CloseParen)?.span.clone();
         Ok(Spanned::new(ast, Span::combine(&start, &end)))
     }
@@ -413,6 +408,8 @@ impl Parser {
     }
 
     // TODO: move to desugar?
+    // and allow for patterns to contain forms?
+    // This allows, for instance, macros to take chains of arguments and use them in functions.
 
     /// Parses a lambda definition, associates right.
     pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
