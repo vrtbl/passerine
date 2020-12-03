@@ -132,31 +132,6 @@ impl Parser {
         }
     }
 
-    // TODO:
-    // right now, passerine supports breaking on infix operators, i.e.
-    // ```
-    // hello =
-    //     "hi"
-    // ```
-    // but the infix operator must be on the same line, so the following is not valid:
-    // ```
-    // hello
-    //     = "hi"
-    // ```
-    // I'd like for the second case to be supported
-    // Additionally, within parenthesis, everything should be treated as a call.
-    // so:
-    // ```
-    // (
-    //     foo
-    //     bar
-    // )
-    // ```
-    // is the same as:
-    // ```
-    // foo bar
-    // ```
-
     // Core Pratt Parser:
 
     /// Looks at the current token and parses an infix expression
@@ -204,7 +179,6 @@ impl Parser {
             Token::Lambda => Prec::Lambda,
 
               Token::End
-            | Token::Sep
             | Token::CloseParen
             | Token::CloseBracket => Prec::End,
 
@@ -220,6 +194,8 @@ impl Parser {
             | Token::Number(_)
             | Token::String(_)
             | Token::Boolean(_) => Prec::Call,
+
+            Token::Sep => unreachable!(),
         };
 
         if sep && prec == Prec::Call {
@@ -229,14 +205,16 @@ impl Parser {
         }
     }
 
+    // TODO: factor out? only group uses the skip sep flag...
     /// Uses some pratt parser magic to parse an expression.
     /// It's essentially a fold-left over tokens
     /// based on the precedence and content.
     /// Cool stuff.
-    pub fn expression(&mut self, prec: Prec) -> Result<Spanned<AST>, Syntax> {
+    pub fn expression(&mut self, prec: Prec, skip_sep: bool) -> Result<Spanned<AST>, Syntax> {
         let mut left = self.rule_prefix()?;
 
         while {
+            if skip_sep { self.sep(); }
             let p = self.prec()?;
             p >= prec && p != Prec::End
         } {
@@ -289,7 +267,7 @@ impl Parser {
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::OpenParen)?.span.clone();
-        let ast   = self.expression(Prec::None.associate_left())?.item;
+        let ast   = self.expression(Prec::None.associate_left(), true)?.item;
         let end   = self.consume(Token::CloseParen)?.span.clone();
         Ok(Spanned::new(ast, Span::combine(&start, &end)))
     }
@@ -302,7 +280,7 @@ impl Parser {
         let mut expressions = vec![];
 
         while self.skip().item != end {
-            let ast = self.expression(Prec::None)?;
+            let ast = self.expression(Prec::None, false)?;
             expressions.push(ast);
             if let Err(_) = self.consume(Token::Sep) {
                 break;
@@ -327,7 +305,7 @@ impl Parser {
     /// `syntax`, followed by a pattern, followed by a `block`
     pub fn syntax(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::Syntax)?.span.clone();
-        let mut after = self.expression(Prec::Call)?;
+        let mut after = self.expression(Prec::Call, false)?;
 
         let mut form = match after.item {
             AST::Form(p) => p,
@@ -365,7 +343,7 @@ impl Parser {
     /// Once the FFI is solidified, printing will be a function like any other.
     pub fn print(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::Print)?.span.clone();
-        let ast = self.expression(Prec::Call)?;
+        let ast = self.expression(Prec::Call, false)?;
         let end = ast.span.clone();
         return Ok(Spanned::new(
             AST::Print(Box::new(ast)),
@@ -377,7 +355,7 @@ impl Parser {
     /// A label takes the form of `<Label> <expression>`
     pub fn label(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::Label)?.span.clone();
-        let ast = self.expression(Prec::End)?;
+        let ast = self.expression(Prec::End, false)?;
         let end = ast.span.clone();
         return Ok(Spanned::new(
             AST::Label(start.contents(), Box::new(ast)),
@@ -414,7 +392,7 @@ impl Parser {
             .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Assign)?;
-        let expression = self.expression(Prec::Assign)?;
+        let expression = self.expression(Prec::Assign, false)?;
         let combined   = Span::combine(&pattern.span, &expression.span);
         Ok(Spanned::new(AST::assign(pattern, expression), combined))
     }
@@ -426,7 +404,7 @@ impl Parser {
             .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Lambda)?;
-        let expression = self.expression(Prec::Lambda)?;
+        let expression = self.expression(Prec::Lambda, false)?;
         let combined   = Span::combine(&pattern.span, &expression.span);
         Ok(Spanned::new(AST::lambda(pattern, expression), combined))
     }
@@ -438,7 +416,7 @@ impl Parser {
     /// we interpret anything that isn't an operator as a function call operator.
     /// Then pull a fast one and not parse it like an operator at all.
     pub fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let argument = self.expression(Prec::Call.associate_left())?;
+        let argument = self.expression(Prec::Call.associate_left(), false)?;
         let combined = Span::combine(&left.span, &argument.span);
 
         let mut form = match left.item {

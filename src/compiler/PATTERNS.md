@@ -244,3 +244,60 @@ d: 3.0
 ```
 
 this does make some unnecessary copies, but this can be fixed later on.
+
+---
+
+## Addendum: floating expressions:
+
+TODO:
+right now, passerine supports breaking on infix operators, i.e.
+```
+hello =
+    "hi"
+```
+but the infix operator must be on the same line, so the following is not valid:
+```
+hello
+    = "hi"
+```
+I'd like for the second case to be supported
+Additionally, within parenthesis, everything should be treated as a call.
+so:
+```
+(
+    foo
+    bar
+)
+```
+is the same as:
+```
+foo bar
+```
+
+hello = goodbye
+
+-{
+    Tokens:
+    Symbol(hello)
+    Assign
+    Goodbye
+}-
+
+hello =
+    goodbye
+
+-{
+    Tokens:
+    Symbol(hello)
+    Assign
+    Sep
+    Goodbye
+}-
+
+When we're checking for an infix symbol:
+
+- If the next non-sep symbol is an infix operator, we skip to that operator
+- If the next non-sep symbol is not an infix operator, we parse as a call
+- After we parse an infix operator, we skip the next Sep
+
+This has been implemented
