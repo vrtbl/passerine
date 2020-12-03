@@ -68,6 +68,7 @@ impl Stack {
         if self.stack.len() - 1 == index {
             self.stack.pop();
         } else {
+            println!("{:#?}", self);
             unreachable!("Expected frame on top of stack, found data")
         }
     }

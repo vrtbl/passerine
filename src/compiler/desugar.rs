@@ -1,6 +1,6 @@
 use std::{
     convert::TryFrom,
-    collections::{HashMap, HashSet},
+    collections::HashSet,
 };
 
 use crate::common::span::{Span, Spanned};

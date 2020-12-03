@@ -20,6 +20,7 @@ pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     let mut parser = Parser::new(tokens);
     let ast = parser.body(Token::End)?;
     parser.consume(Token::End)?;
+    println!("{:#?}", ast);
     return Ok(Spanned::new(ast, Span::empty()));
 }
 
@@ -77,6 +78,17 @@ impl Parser {
             };
             true
         }
+    }
+
+    // // TODO: merge with sep?
+    pub fn draw(&self) -> &Spanned<Token> {
+        let mut offset = 0;
+
+        while self.tokens[self.index + offset].item == Token::Sep {
+            offset += 1;
+        }
+
+        return &self.tokens[self.index + offset];
     }
 
     /// Returns the current token then advances the parser.
@@ -149,7 +161,7 @@ impl Parser {
 
     /// Looks at the current token and parses an infix expression
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
-        match self.current().item {
+        match self.skip().item {
             Token::End         => Ok(Spanned::new(AST::Block(vec![]), Span::empty())),
 
             Token::Syntax      => self.syntax(),
@@ -165,27 +177,29 @@ impl Parser {
             | Token::String(_)
             | Token::Boolean(_) => self.literal(),
 
-            // Token::Sep => Err(self.unexpected()),
-            _ => Err(Syntax::error("Expected an expression", &self.current().span)),
+            Token::Sep => unreachable!(),
+            _          => Err(Syntax::error("Expected an expression", &self.current().span)),
         }
     }
 
     /// Looks at the current token and parses the right side of any infix expressions.
     pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        match self.current().item {
+        match self.skip().item {
             Token::Assign => self.assign(left),
             Token::Lambda => self.lambda(left),
-
-            Token::End => Err(self.unexpected()),
-            // Token::Sep => Err(self.unexpected()),
-
-            _ => self.call(left),
+            Token::End    => Err(self.unexpected()),
+            Token::Sep    => unreachable!(),
+            _             => self.call(left),
         }
     }
 
     /// Looks at the current operator token and determines the precedence
     pub fn prec(&mut self) -> Result<Prec, Syntax> {
-        let prec = match self.current().item {
+        let next = self.draw().item.clone();
+        let current = self.current().item.clone();
+        let sep = next != current;
+
+        let prec = match next {
             Token::Assign => Prec::Assign,
             Token::Lambda => Prec::Lambda,
 
@@ -207,7 +221,12 @@ impl Parser {
             | Token::String(_)
             | Token::Boolean(_) => Prec::Call,
         };
-        Ok(prec)
+
+        if sep && prec == Prec::Call {
+            Ok(Prec::End)
+        } else {
+            Ok(prec)
+        }
     }
 
     /// Uses some pratt parser magic to parse an expression.
@@ -217,9 +236,10 @@ impl Parser {
     pub fn expression(&mut self, prec: Prec) -> Result<Spanned<AST>, Syntax> {
         let mut left = self.rule_prefix()?;
 
-        while self.prec()? >= prec
-           && self.prec()? != Prec::End
-        {
+        while {
+            let p = self.prec()?;
+            p >= prec && p != Prec::End
+        } {
             left = self.rule_infix(left)?;
         }
 
