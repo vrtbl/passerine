@@ -255,7 +255,6 @@ impl VM {
             ));
         }
 
-        self.stack.push_data(data);
         self.done()
     }
 
