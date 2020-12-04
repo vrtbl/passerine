@@ -104,8 +104,8 @@ impl VM {
         let mut result = Ok(());
 
         while self.ip < self.closure.lambda.code.len() {
-            println!("before: {:?}", self.stack.stack);
-            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            // println!("before: {:?}", self.stack.stack);
+            // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             if let error @ Err(_) = self.step() {
                 // TODO: clean up stack on error
                 result = error;
@@ -114,7 +114,7 @@ impl VM {
             };
             // println!("---");
         }
-        println!("after: {:?}", self.stack.stack);
+        // println!("after: {:?}", self.stack.stack);
         // println!("---");
 
         // return current state

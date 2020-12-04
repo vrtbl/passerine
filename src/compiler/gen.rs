@@ -19,8 +19,6 @@ use crate::compiler::{
 pub fn gen(cst: Spanned<CST>) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base();
     compiler.walk(&cst)?;
-    println!("{}", compiler.lambda);
-    // println!("{}", if let Data::Lambda(l) = &compiler.lambda.constants[1] { l } else { panic!() });
     return Ok(compiler.lambda);
 }
 
@@ -226,25 +224,12 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn is_declared(&mut self, name: &str) -> bool {
-        if let Some(_) = self.local(name) {
-            true
-        } else if let Some(_) = self.captured_upvalue(name) {
-            true
-        } else {
-            false
-        }
-    }
-
     pub fn resolve_assign(&mut self, name: &str) {
         let index = if let Some(i) = self.local(name) {
-            println!("saving {}", name);
             self.lambda.emit(Opcode::Save); i
         } else if let Some(i) = self.captured_upvalue(name) {
-            println!("save capping {}", name);
             self.lambda.emit(Opcode::SaveCap); i
         } else {
-            println!("declaring {}", name);
             self.declare(name.to_string());
             self.lambda.emit(Opcode::Save);
             self.locals.len() - 1
@@ -260,15 +245,9 @@ impl Compiler {
     pub fn destructure(&mut self, pattern: Spanned<CSTPattern>) {
         self.lambda.emit_span(&pattern.span);
 
-        // remember and remove old bytecode.
-        let mut old = mem::replace(&mut self.lambda.code, vec![]);
-        let mut symbols = vec![];
-
         match pattern.item {
             CSTPattern::Symbol(name) => {
-                // self.lambda.emit(Opcode::Copy);
                 self.resolve_assign(&name);
-                symbols.push(name);
             }
             CSTPattern::Data(expected) => {
                 self.data(expected);
@@ -280,31 +259,6 @@ impl Compiler {
                 self.destructure(*pattern);
             }
         }
-
-        // remember bytecode used to destructure data
-        let mut destructures = mem::replace(&mut self.lambda.code, vec![]);
-        // if symbols.is_empty() {
-        //     return Err(Syntax::error("Expected at least one variable to bind", &pattern.span))
-        // }
-
-        for symbol in symbols {
-            if !self.is_declared(&symbol) { self.lambda.emit(Opcode::Copy) };
-            self.data(Data::NotInit);
-            self.resolve_assign(&symbol);
-        }
-
-        // remember bytecode used to hoist variables
-        // note that self.lambda.code is now empty
-        let mut hoists = mem::replace(&mut self.lambda.code, vec![]);
-
-        // join all bytecode together
-        self.lambda.code.append(&mut old);
-        println!("old: {}", self.lambda);
-        self.lambda.code.append(&mut hoists);
-        println!("hoists: {}", self.lambda);
-        self.lambda.code.append(&mut destructures);
-        println!("destructures: {}", self.lambda);
-        println!("returning");
     }
 
     /// Assign a value to a variable.
