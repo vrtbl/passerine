@@ -19,6 +19,8 @@ use crate::compiler::{
 pub fn gen(cst: Spanned<CST>) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base();
     compiler.walk(&cst)?;
+    println!("{}", compiler.lambda);
+    // println!("{}", if let Data::Lambda(l) = &compiler.lambda.constants[1] { l } else { panic!() });
     return Ok(compiler.lambda);
 }
 
@@ -224,12 +226,25 @@ impl Compiler {
         Ok(())
     }
 
+    pub fn is_declared(&mut self, name: &str) -> bool {
+        if let Some(_) = self.local(name) {
+            true
+        } else if let Some(_) = self.captured_upvalue(name) {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn resolve_assign(&mut self, name: &str) {
         let index = if let Some(i) = self.local(name) {
+            println!("saving {}", name);
             self.lambda.emit(Opcode::Save); i
         } else if let Some(i) = self.captured_upvalue(name) {
+            println!("save capping {}", name);
             self.lambda.emit(Opcode::SaveCap); i
         } else {
+            println!("declaring {}", name);
             self.declare(name.to_string());
             self.lambda.emit(Opcode::Save);
             self.locals.len() - 1
@@ -241,7 +256,7 @@ impl Compiler {
     /// Destructures a pattern into
     /// a series of unpack and assign instructions.
     /// Instructions match against the topmost stack item.
-    /// Does not delete the data that is matched against.
+    /// Does delete the data that is matched against.
     pub fn destructure(&mut self, pattern: Spanned<CSTPattern>) {
         self.lambda.emit_span(&pattern.span);
 
@@ -251,7 +266,7 @@ impl Compiler {
 
         match pattern.item {
             CSTPattern::Symbol(name) => {
-                self.lambda.emit(Opcode::Copy);
+                // self.lambda.emit(Opcode::Copy);
                 self.resolve_assign(&name);
                 symbols.push(name);
             }
@@ -273,7 +288,7 @@ impl Compiler {
         // }
 
         for symbol in symbols {
-            self.lambda.emit(Opcode::Copy);
+            if !self.is_declared(&symbol) { self.lambda.emit(Opcode::Copy) };
             self.data(Data::NotInit);
             self.resolve_assign(&symbol);
         }
@@ -284,8 +299,12 @@ impl Compiler {
 
         // join all bytecode together
         self.lambda.code.append(&mut old);
+        println!("old: {}", self.lambda);
         self.lambda.code.append(&mut hoists);
+        println!("hoists: {}", self.lambda);
         self.lambda.code.append(&mut destructures);
+        println!("destructures: {}", self.lambda);
+        println!("returning");
     }
 
     /// Assign a value to a variable.
@@ -297,7 +316,7 @@ impl Compiler {
         // eval the expression
         self.walk(&expression)?;
         self.destructure(pattern);
-        self.lambda.emit(Opcode::Del);
+        // self.lambda.emit(Opcode::Del);
         self.data(Data::Unit);
         Ok(())
     }
@@ -314,7 +333,7 @@ impl Compiler {
         {
             // match the argument against the pattern, binding variables
             self.destructure(pattern);
-            self.lambda.emit(Opcode::Del);
+            // self.lambda.emit(Opcode::Del);
 
             // enter a new scope and walk the function body
             self.walk(&expression)?;          // run the function

@@ -20,7 +20,6 @@ pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     let mut parser = Parser::new(tokens);
     let ast = parser.body(Token::End)?;
     parser.consume(Token::End)?;
-    println!("{:#?}", ast);
     return Ok(Spanned::new(ast, Span::empty()));
 }
 
