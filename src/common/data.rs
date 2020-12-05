@@ -27,13 +27,14 @@ pub enum Data {
     Real(f64),
     Boolean(bool),
     String(String),
-    Lambda(Lambda),
-    Closure(Closure),
+    // TODO: make lambda Rc?
+    Lambda(Box<Lambda>),
+    Closure(Box<Closure>),
 
     // TODO: rework how labels and tags work
     // Kind is the base component of an unconstructed label
     Kind(String),
-    Label(String, Box<Data>),
+    Label(Box<String>, Box<Data>),
 
     // Compound Datatypes
     Unit, // an empty typle

@@ -220,7 +220,7 @@ impl VM {
             _ => unreachable!(),
         };
         let data = self.stack.pop_data();
-        self.stack.push_data(Data::Label(kind, Box::new(data)));
+        self.stack.push_data(Data::Label(Box::new(kind), Box::new(data)));
         self.done()
     }
 
@@ -231,7 +231,7 @@ impl VM {
         };
 
         let d = match self.stack.pop_data() {
-            Data::Label(n, d) if n == kind => d,
+            Data::Label(n, d) if *n == kind => d,
             other => return Err(Trace::error(
                 "Pattern Matching",
                 &format!("The data '{}' does not match the Label '{}'", other, kind),
@@ -261,7 +261,7 @@ impl VM {
     /// Call a function on the top of the stack, passing the next value as an argument.
     pub fn call(&mut self) -> Result<(), Trace> {
         let fun = match self.stack.pop_data() {
-            Data::Closure(c) => c,
+            Data::Closure(c) => *c,
             o => return Err(Trace::error(
                 "Call",
                 &format!("The data '{}' is not a function and can not be called", o),
@@ -308,7 +308,7 @@ impl VM {
         let index = self.next_number();
 
         let lambda = match self.closure.lambda.constants[index].clone() {
-            Data::Lambda(lambda) => lambda,
+            Data::Lambda(lambda) => *lambda,
             _ => unreachable!("Expected a lambda to be wrapped with a closure"),
         };
 
@@ -327,7 +327,7 @@ impl VM {
             closure.captures.push(reference)
         }
 
-        self.stack.push_data(Data::Closure(closure));
+        self.stack.push_data(Data::Closure(Box::new(closure)));
         self.done()
     }
 }

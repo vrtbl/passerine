@@ -298,7 +298,7 @@ impl Compiler {
         let lambda = self.exit_scope().lambda;
 
         // push the lambda object onto the callee's stack.
-        let lambda_index = self.lambda.index_data(Data::Lambda(lambda));
+        let lambda_index = self.lambda.index_data(Data::Lambda(Box::new(lambda)));
         self.lambda.emit(Opcode::Closure);
         self.lambda.emit_bytes(&mut split_number(lambda_index));
 
