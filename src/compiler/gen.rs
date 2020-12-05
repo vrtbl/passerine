@@ -242,11 +242,12 @@ impl Compiler {
     /// a series of unpack and assign instructions.
     /// Instructions match against the topmost stack item.
     /// Does delete the data that is matched against.
-    pub fn destructure(&mut self, pattern: Spanned<CSTPattern>) {
+    pub fn destructure(&mut self, pattern: Spanned<CSTPattern>, redeclare: bool) {
         self.lambda.emit_span(&pattern.span);
 
         match pattern.item {
             CSTPattern::Symbol(name) => {
+                if redeclare { self.declare(name.to_string()) }
                 self.resolve_assign(&name);
             }
             CSTPattern::Data(expected) => {
@@ -256,7 +257,7 @@ impl Compiler {
             CSTPattern::Label(name, pattern) => {
                 self.data(Data::Kind(name));
                 self.lambda.emit(Opcode::UnLabel);
-                self.destructure(*pattern);
+                self.destructure(*pattern, redeclare);
             }
         }
     }
@@ -269,7 +270,7 @@ impl Compiler {
     ) -> Result<(), Syntax> {
         // eval the expression
         self.walk(&expression)?;
-        self.destructure(pattern);
+        self.destructure(pattern, false);
         // self.lambda.emit(Opcode::Del);
         self.data(Data::Unit);
         Ok(())
@@ -286,7 +287,7 @@ impl Compiler {
         self.enter_scope();
         {
             // match the argument against the pattern, binding variables
-            self.destructure(pattern);
+            self.destructure(pattern, true);
             // self.lambda.emit(Opcode::Del);
 
             // enter a new scope and walk the function body

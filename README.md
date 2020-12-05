@@ -25,30 +25,30 @@
 **Welcome to Passerine!**
 Passerine is a small, concise, extensible programming language,
 powered by a VM written in Rust.
-It's taken inspiration from many languages,
-including Scheme, OCaml, Rust, and Wren.
+
 Here's a small taste:
 
-```
-syntax 'for var 'in list do {
-    body = var -> do
-
-    loop = remaining -> {
-        body remaining.head
-        match remaining.tail -> [
-            Some more -> loop more,
-            None      -> (),
-        ]
-    }
-
-    loop list
+```plain
+-- a syntactic macro that introduces a scoped let construct
+syntax 'let variable 'be vaule 'in body {
+    -- using the classical let-as-evaluated-lambda trick
+    -- `<p> -> <e>` defines a function
+    -- `<l> <e>` calls a function
+    (variable -> body) value
 }
 
-for number in [1, 2, 3].reverse {
-    print (number + "...")
+-- `<p> = <e>` is assignment
+x = false
+
+-- using the let macro defined above
+let x be true in {
+    -- prints `true`
+    print x
 }
 
-print "Liftoff!"
+-- outer scope not affected
+-- prints `false`
+print x
 ```
 
 ## Getting Started
@@ -72,21 +72,8 @@ to get started.
 This is first project of The Veritable Computation Initiative.
 Our goal is to improve the tools developers use to write software.
 
-So far, all of Passerine has been developed by a
-[one-man team](https://github.com/slightknack).
-
-> It's taken quite a lot of effort to get this far.
-> I've been thinking about this language for around 3 years now,
-> and have been actively developing it for around the past year.
-> I'm excited to continue development -
-> this is largely a test of personal effort,
-> which is why I've been developing it regardless of whether others
-> see its value at the moment.
-> I'm just a high-school student, so any interest
-> means a lot to me.
-> Thanks for checking out my work!
->
-> — Isaac Clayton, the man of the one-man team
+So far, all of Passerine has been developed by
+[Isaac Clayton](https://github.com/slightknack).
 
 ## Roadmap
 See the [Project Roadmap](https://github.com/vrtbl/passerine/projects/1) to get a feel for what's currently under development.
