@@ -64,7 +64,7 @@ linear 2 3 5
 
 There are already some important things we can learn about Passerine from this short example:
 
-Like other programming languages, Passerine uses `=` for assignment. On the left hand side is a *pattern* – in this case, just the variable `double_then_add` – which destructures an expression into a set of bindings. On the right hand side is an *expression*; in this case the expression is a *function definition*.
+Like other programming languages, Passerine uses `=` for assignment. On the left hand side is a *pattern* – in this case, just the variable `linear` – which destructures an expression into a set of bindings. On the right hand side is an *expression*; in this case the expression is a *function definition*.
 
 Passerine is an *expression-oriented* language, because of this, it makes sense that *all functions are anonymous*. All functions take the form `p₀ ... pₙ -> e`, where `p` is a pattern and `e` is an expression.
 
@@ -124,7 +124,7 @@ match value {
 
 Each `pattern -> expression` pair is a *branch* – each `value` is against each branch in order until a branch successfully matches and evaluates – the match expression takes on the value of the matching branch. We'll take a deep dive into match statements [later](#building-a-match-expression), so keep this in mind.
 
-Next, notice the use of curly braces `{ ... }` after `[head & tail]`. This is a *block*, a group of expressions executed one after another. Each expression in a block is separated by a newline or semicolon; the block takes on the value of its last expression.
+You might've also noticed the use of curly braces `{ ... }` after `[head & tail]`. This is a *block*, a group of expressions executed one after another. Each expression in a block is separated by a newline or semicolon; the block takes on the value of its last expression.
 
 The next thing to notice is this line:
 
@@ -132,14 +132,14 @@ The next thing to notice is this line:
 (sorted_lower, sorted_higher) = (sort lower, sort higher)
 ```
 
-This is a more complex assignment than the first one we saw. In this example, the pattern `(sorted_lower, sorted_higher)` is being matched against the expression `(sort lower, sort higher)`. This pattern is a *tuple* destructuring, and is equivalent to:
+This is a more complex assignment than the first one we saw. In this example, the pattern `(sorted_lower, sorted_higher)` is being matched against the expression `(sort lower, sort higher)`. This pattern is a *tuple* destructuring, if you've ever used Python or Rust, I'm sure you're familiar with it. This assignment is equivalent to:
 
 ```passerine
 sorted_lower  = sort lower
 sorted_higher = sort higher
 ```
 
-There's no real reason to use destructuring here. We discuss pattern matching in depth in the [next section](#pattern-matching).
+There's no real reason to use tuple destructuring here – idiomatically, just using `sort lower` and `sort higher` is the better solution. We discuss pattern matching in depth in the [next section](#pattern-matching).
 
 Passerine also supports higher order functions (this should come as no surprise):
 
@@ -147,9 +147,9 @@ Passerine also supports higher order functions (this should come as no surprise)
 filter { x -> x >= pivot } remaining
 ```
 
-`filter` takes a predicate (a function) and an iterable (like a list), and produces a new iterable where the predicate is true for all items. But you knew that 😉. Although parenthesis could be used to unambiguiate the inline function definition after `filter`, it's stylistically more coherent to use parenthesis for *grouping*, and blocks for *regions of computation*.
+`filter` takes a predicate (a function) and an iterable (like a list), and produces a new iterable where the predicate is true for all items. Although parenthesis could be used to group the inline function definition after `filter`, it's stylistically more coherent to use blocks for *regions of computation*. What's a region of computation? A region of computation is a series of multiple expressions, or a single expression that creates new bindings, like an assignment or a function definition.
 
-Passerine allows lines to be split around operators to break up long expressions. This can help improve the legibility of certain expressions:
+Passerine also allows lines to be split around operators to break up long expressions:
 
 ```passerine
 sorted_lower
@@ -157,7 +157,7 @@ sorted_lower
     + sorted_higher
 ```
 
-Although this is not a particularly long expression, this simple example demonstrates that breaking up expression around operators is possible.
+Although this is not a particularly long expression, splitting up lines by operations can help improve the legibility of some expressions.
 
 #### Function Composition
 Before we move on, here's a clever implementation of FizzBuzz in Passerine:
