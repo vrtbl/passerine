@@ -25,12 +25,22 @@
 ## Why Passerine?
 Passerine is a small, concise, extensible functional scripting language, powered by a quick VM written in Rust.
 
-![a Passerine code snippet](./Example.png)
+<p align="center">
+    <a href="#installation">
+        <img src="./Example.png">
+    </a>
+</p>
 
 ### Who started this?
 This is first project of The Veritable Computation Initiative. Our goal is to improve the tools developers use to write software.
 
-Passerine is developed by [Isaac Clayton](https://github.com/slightknack), a high-school student with too much free time, with a few of his friends offering feedback and suggestions from time to time. Thanks @spaceface777 and @hhhapz!
+Passerine is developed by [Isaac Clayton](https://github.com/slightknack), a high-school student with too much free time on his hands. A few people have offered feedback and suggestions from time to time. Special thanks to [Raul](https://github.com/spaceface777),
+[Hamza](https://github.com/hhhapz),
+[Lúcás](https://github.com/cronokirby),
+[Anton](https://github.com/jesyspa/),
+[Yasser](https://github.com/realnegate),
+Xal,
+and others!
 
 ## An Overview
 Where this overview gets really exciting is when we dive into [macros](#macros).
@@ -68,18 +78,18 @@ Passerine uses `-- comment` for comments that continue until the end of the line
 Here's another slightly more complex example – a recursive quick-sort with questionable pivot selection:
 
 ```plain
-sort = list -> {
-    if length list == 1 { return list }
+sort = list -> match list [
+    [] -> [],
+    -- pivot is head, tail is remaining
+    [head & tail] -> {
+        higher = filter { x -> x >= head } tail
+        lower  = filter { x -> x <  head } tail
 
-    pivot, remaining = head list, tail list
-
-    higher = filter (x -> x >= pivot) remaining
-    lower  = filter (x -> x <  pivot) remaining
-
-    sort lower
-       + [pivot]
-       + sort higher
-}
+        sort lower
+            + [pivot]
+            + sort higher
+    }
+]
 ```
 
 The first thing that you should notice is the use of `{ ... }`. This is a *block*, a group of expressions executed one after another. Each expression in a block is separated by a newline or semicolon, the block taking on the value of its last expression.
@@ -102,19 +112,20 @@ We'll delve deeper into pattern matching in the [next section](#pattern-matching
 Passerine also supports higher order functions (this should be no surprise):
 
 ```plain
-filter (x -> x >= pivot) remaining
+filter { x -> x >= pivot } remaining
 ```
 
-`filter` takes a predicate, which is a function, and an iterable, and produces a new iterable where the predicate is true for all items. But you knew that 😉.
+`filter` takes a predicate, which is a function, and an iterable, and produces a new iterable where the predicate is true for all items. But you knew that 😉. Although parenthesis would've been sufficient for the above example, it's stylistically more coherent to use parenthesis for grouping, and blocks for regions of computation.
 
-Passerine allows splitting around operators to break up long expressions and to improve legibility of certain mathematical expressions.
+Passerine allows splitting around operators to break up long expressions and to improve legibility of certain mathematical expressions:
 
 ```plain
 sort lower
-   + [pivot]
-   + sort higher
+    + [pivot]
+    + sort higher
 ```
-Although this is not a particularly long expression, I wanted to show that this was possible.
+
+Although this is not a particularly long expression, this simple example demonstrates what is possible.
 
 ### Pattern Matching
 In the past section, we touched a little on pattern matching. I hope to go one step further with this and build a strong argument for why pattern matching in Passerine is so powerful. Patterns occur in three places:
@@ -132,11 +143,10 @@ Patterns mirror the data that they match against. Passerine supports algebraic d
 | discard  | `_`              | Matches any data, does not produce a binding. |
 | label    | `Baz p`          | Matches a label, i.e. a *type* in Passerine. We'll get into this later. |
 | tuple    | `(p₀, ...)`      | Matches each element of a tuple, which is a group of elements, potentially of different types. Unit `()` is the empty tuple. |
-| record   | `{f₀: p₀, ...}`      | A record, i.e. a struct. This is a series of field-pattern pairs. If a field does not exist in the target record, an error is raised. |
+| list     | `[]`/`[p₀ & p₁]` | `[]` Matches an empty list - `p₀` matches the head of a list, p₁ matches the tail.
+| record   | `{f₀: p₀, ...}`  | A record, i.e. a struct. This is a series of field-pattern pairs. If a field does not exist in the target record, an error is raised. |
 | is       | `p₀: p₁`         | A type annotation. Matches against `p₀` only if `p₁` holds, errors otherwise. |
-| where    | `p \| e`          | A bit different from the other patterns so far. Matches `p` only if the expression `e` is true. |
-
-> TODO: lists
+| where    | `p \| e`         | A bit different from the other patterns so far. Matches `p` only if the expression `e` is true. |
 
 That's quite a lot of information, so let's work through it. The simplest case is a standard assignment. You've already seen this, so let's begin by discussing matching against data.
 
@@ -278,7 +288,7 @@ The reason we don't always need to catch these errors is because Passerine follo
 
 > "Keep calm and let it crash."
 
-The good news is that crashes are local to the fiber they occur in – a single fiber crashing does not bring the whole system down. the idiomatic way to handle an operation that may crash is to try it. This converts any exceptions that may occur into a `Result`:
+The good news is that crashes are local to the fiber they occur in – a single fiber crashing does not bring the whole system down. The idiomatic way to handle an operation that may crash is to try it. This performs the operation in a new fiber and converts any exceptions that may occur into a `Result`:
 
 ```
 config = match (try (open "config.toml")) [
@@ -287,9 +297,126 @@ config = match (try (open "config.toml")) [
 ]
 ```
 
-> TODO: finish off section on error handling (how to raise), discuss yield, etc.
+If something exceptionally bad *does* happen, use the `error` keyword:
+
+```
+doof = platypus -> {
+    if platypus == "Perry" {
+        -- crashes the current fiber
+        error "What!? Perry the platypus!?"
+    } else {
+        "Oh, it's just a platypus..."
+    }
+}
+```
+
+Note that the value of raised errors can be anything. This allows for programmatic recovery from errors:
+
+```
+-- socket must not be disconnected
+send_data = socket data -> {
+    match socket.connection [
+        Option.None -> error Disconnected socket
+        Option.Some connection -> connection.write data,
+    ]
+
+    ()
+}
+```
+
+Let's say the above code tries to send some data through a socket. To handle a disconnection, we can try the error:
+
+```
+ping = socket -> try (send_data socket "ping")
+
+socket = Socket.new ... -- whatever
+socket.disconnect -- oh no!
+
+result = ping socket
+
+match result [
+    Result.Ok "pong" -> (),
+    Result.Error Disconnected socket -> socked.connect,
+]
+```
+
+Why make the distinction between expected errors (`Result`) and unexpected errors (fiber crashes)? Programs only produce valid results if the environments they run in are valid. When a fiber crashes, it's signaling that something about the environment it's running in is not valid. This is very useful to *developers* during development, and very useful to *programs* in contexts where complex long-running applications may fail for any number of reasons. Why not only use exceptions then? Because it's perfectly possible for an error to occur that is not exceptional at all. Malformed input, incorrect permissions, missing items – these are all things that can occur and do occur on a regular basis.
+
+#### Concurrency
+Fibers are for more than just isolating the context of errors. As mentioned earlier:
+
+> A fiber is a *lightweight* process of execution that is cooperatively scheduled with other fibers. Each fiber is like a little system unto itself that can pass messages to other fibers.
+
+Fibers are full *coroutines*. To create a fiber, use the fiber keyword:
+
+```
+counter = fiber {
+    i = 0
+    loop { yield i; i = i + 1 }
+}
+
+print counter () -> prints 0
+print counter () -> prints 1
+print counter () -> ...
+```
+
+The `yield` keyword suspends the current fiber and returns a value to the calling fiber. It
+
+```
+passing_yield = fiber {
+    print "hello"
+    result = yield "banana"
+    print result
+    "yes"
+}
+
+passing_yield "first"  -- prints "hello" then evaluates to "banana"
+passing_yield "second" -- prints "second" then evaluates to "yes"
+passing_yield "uh oh"  -- raises an error, fiber is done
+```
+
+To build more complex systems, you can build fibers with functions:
+
+```
+-- a function that returns a fiber
+flopper = a b -> fiber {
+    loop {
+        yield a
+        yield b
+    }
+}
+
+banana_apple = flopper "Apple" "Banana"
+
+banana_apple () -- evaluates to "Apple"
+banana_apple () -- evaluates to "Banana"
+banana_apple () -- evaluates to "Apple"
+banana_apple () -- ... you get the point
+```
+
+<!--
+Of course, the possibilities are endless. There's one last thing I'd like to discuss before we start talking about macros. Fibers, while usually being ran in the context of another, all act as peers to each-other. If you have a reference to a fiber, it's possible to transfer to it forgetting the context in which it was called. To switch to a fiber, use `switch`.
+
+```
+banana_and_end = fiber {
+    print "banana ending!"
+}
+
+print "the beginning..."
+switch banana_and_end
+print "the end."
+```
+
+`"the end."` is never displayed.
+
+-->
+
+> 'Tis not the end, 'tis but the beginning...
 
 ### Macros
+Passerine has a rich hygienic syntactic macro system that extends the language itself¹.
+
+> 1. Having read Doug Hoyte's [Let Over Lambda](https://letoverlambda.com/), I understand the power that a rich *unhygenic* macro system brings. However, such systems are hard to master – Passerine aims to be as simple and powerful as possible without sacrificing transparency – and much can still be accomplished through 
 
 ## Installation
 Passerine is still very much so a work in progress. We've done a lot, but there's still a so much more to do!
