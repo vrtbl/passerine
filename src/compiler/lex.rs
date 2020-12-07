@@ -137,7 +137,7 @@ impl Lexer {
             if !char.is_whitespace() || char == '\n' {
                 break;
             }
-            len += 1;
+            len += char.len_utf8();
         }
 
         self.offset += len;
@@ -162,7 +162,7 @@ impl Lexer {
 
         for char in source.chars() {
             match char {
-                n if n.is_digit(10) => len += 1,
+                n if n.is_digit(10) => len += n.len_utf8(),
                 _                   => break,
             }
         }
@@ -232,7 +232,7 @@ impl Lexer {
             match char {
                 a if a.is_alphanumeric()
                   || "_".contains(a)
-                  => { len += 1 },
+                  => { len += a.len_utf8() },
                 _ => { break;   },
             }
         }
@@ -315,7 +315,7 @@ impl Lexer {
         len += Lexer::expect(source, "\"")?;
 
         for c in source[len..].chars() {
-            len += 1;
+            len += c.len_utf8();
             if escape {
                 escape = false;
                 // TODO: add more escape codes
@@ -371,12 +371,12 @@ impl Lexer {
         }
 
         // followed by n semicolons/whitespace (including newline)
-        let mut len = 1;
+        let mut len = c.len_utf8();
         for c in chars {
             if c != ';' && !c.is_whitespace() {
                 break;
             }
-            len += 1;
+            len += c.len_utf8();
         }
 
         return Ok((Token::Sep, len));
