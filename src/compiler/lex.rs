@@ -49,6 +49,10 @@ impl Lexer {
             // strip preceeding whitespace
             self.strip();
 
+            // clear out comments
+            self.offset += Lexer::comment(&self.remaining());
+            // self.offset += Lexer::comment(&self.remaining());
+
             // get next token kind, build token
             let (kind, consumed) = match self.step() {
                 Ok(k)  => k,
@@ -220,6 +224,42 @@ impl Lexer {
     /// Matches a `print` expression.
     pub fn print(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "print", Token::Print)
+    }
+
+    // TODO: refactor comment and multi-line for doc-comments
+
+    pub fn comment(source: &str) -> usize {
+        let mut len = match Lexer::expect(source, "--") {
+            Ok(n) => n,
+            Err(_) => { return 0; },
+        };
+
+        for char in source[len..].chars() {
+            if char == '\n' { break; }
+            len += char.len_utf8();
+        }
+
+        return len;
+    }
+
+    pub fn multi_comment(source: &str) -> usize {
+        let mut len: usize = match Lexer::expect(source, "-{") {
+            Ok(n) => n,
+            Err(_) => { return 0; },
+        };
+
+        for char in source[len..].chars() {
+            if let Ok(new) = Lexer::expect(&source[len..], "-{") {
+                len += new;
+                len += Lexer::multi_comment(&source[len..]);
+            } else if Lexer::expect(&source[len..], "}-").is_ok() {
+                break;
+            } else {
+                len += char.len_utf8();
+            }
+        }
+
+        return len;
     }
 
     /// Classifies a symbol or a label.

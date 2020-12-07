@@ -129,8 +129,6 @@ impl Span {
         let line = lines.len() - 1;
         let col = lines.last()?.chars().count() - 1;
 
-        println!("{}", col);
-
         return Some((line, col));
     }
 }
