@@ -71,7 +71,7 @@ Passerine is an *expression-oriented* language, because of this, it makes sense 
 
 > Because Passerine is *expression-oriented*, the distinction between statements and expressions isn't made. In the case that an expression produces no useful value, it should return the Unit type, `()`.
 
-Passerine respects operator precedence. `3 + 2 * 5` is `13`, not `25`. Notation is a powerful tool – although Passerine is inspired by lisps (like Scheme), we try to provide a familiar syntax.
+Passerine respects operator precedence. `3 + 2 * 5` is `13`, not `25`. Notation is a powerful tool – although Passerine is inspired by lisps (like Scheme), it provides a familiar syntax.
 
 Passerine uses whitespace for function calls. Here's a function that is immediately called:
 
@@ -81,13 +81,13 @@ Passerine uses whitespace for function calls. Here's a function that is immediat
 
 `a`, `b`, and `c` are *patterns*, `x`, `y`, `z` and `e` are arguments. Upon evaluation:
 
-- `x` is matched against `a` → `x = a`,
-- `y` against `b` → `y = b`,
-- `z` against `c` → `z = c`.
+- `x` is matched against `a`, so `a = x`,
+- `y` against `b`, so `b = y`,
+- `z` against `c`, so `c = z`,
 
 and then `e` is evaluated in a new scope where `a`, `b`, and `c` are bound.
 
-> Function calls are left-associative, so the call `a b c d` is equivalent to `((a b) c) d`, not `(a (b (c d)))`. This syntax comes from functional languages like Haskell, and makes currying (partial application) quite intuitive.
+> Function calls are left-associative, so the call `a b c d` is equivalent to `((a b) c) d`, not `a (b (c d))`. This syntax comes from functional languages like Haskell, and makes currying (partial application) quite intuitive.
 
 Passerine uses `-- comment` for single-line comments and `-{ comment }-` for nestable multi-line comments.
 
@@ -104,9 +104,11 @@ sort = list -> match list {
         higher = filter { x -> x >= head } tail
         lower  = filter { x -> x <  head } tail
 
-        sort lower
+        (sorted_lower, sorted_higher) = (sort lower, sort higher)
+
+        sorted_lower
             + [pivot]
-            + sort higher
+            + sorted_higher
     }
 }
 ```
@@ -128,35 +130,35 @@ Next, notice the use of curly braces `{ ... }` after `[head & tail]`. This is a 
 The next thing to notice is this line:
 
 ```passerine
-(pivot, remaining) = (head list, tail list)
+(sorted_lower, sorted_higher) = (sort lower, sort higher)
 ```
 
-This is a more complex assignment than the first one we saw. In this example, the pattern `(pivot, remaining)` is being matched against the expression `(head list, tail list)`. This pattern is a *tuple* destructuring, and is equivalent to:
+This is a more complex assignment than the first one we saw. In this example, the pattern `(sorted_lower, sorted_higher)` is being matched against the expression `(sort lower, sort higher)`. This pattern is a *tuple* destructuring, and is equivalent to:
 
 ```passerine
-pivot     = head list
-remaining = tail list
+sorted_lower  = sort lower
+sorted_higher = sort higher
 ```
 
-We discuss pattern matching in depth in the [next section](#pattern-matching).
+There's no real reason to use destructuring here. We discuss pattern matching in depth in the [next section](#pattern-matching).
 
-Passerine also supports higher order functions (this should be no surprise):
+Passerine also supports higher order functions (this should come as no surprise):
 
 ```passerine
 filter { x -> x >= pivot } remaining
 ```
 
-`filter` takes a predicate (a function) and an iterable (like a list), then produces a new iterable where the predicate is true for all items. But you knew that 😉. Although parenthesis are sufficient to unambiguiate the inline function definition after `filter`, it's stylistically more coherent to use parenthesis for *grouping*, and blocks for *regions of computation*.
+`filter` takes a predicate (a function) and an iterable (like a list), and produces a new iterable where the predicate is true for all items. But you knew that 😉. Although parenthesis could be used to unambiguiate the inline function definition after `filter`, it's stylistically more coherent to use parenthesis for *grouping*, and blocks for *regions of computation*.
 
-Passerine allows splitting up lines around operators to break up long expressions. This can help improve the legibility of certain expressions:
+Passerine allows lines to be split around operators to break up long expressions. This can help improve the legibility of certain expressions:
 
 ```passerine
-sort lower
+sorted_lower
     + [pivot]
-    + sort higher
+    + sorted_higher
 ```
 
-Although this is not a particularly long expression, this simple example demonstrates that this is possible.
+Although this is not a particularly long expression, this simple example demonstrates that breaking up expression around operators is possible.
 
 #### Function Composition
 Before we move on, here's a clever implementation of FizzBuzz in Passerine:
@@ -192,9 +194,9 @@ d ((b c) a)
 ### Pattern Matching
 In the last section, we touched on pattern matching a little. I hope to now go one step further and build a strong argument as to why pattern matching in Passerine is such a powerful construct. Patterns are used in in three places:
 
-1. Assignments
-2. Functions
-3. Types
+1. Assignments,
+2. Functions,
+3. and Type Definitions.
 
 We'll briefly discuss each type of pattern and the context in which they are used.
 
