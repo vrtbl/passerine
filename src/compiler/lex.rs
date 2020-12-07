@@ -550,7 +550,7 @@ mod test {
         if !test_literal(
             unicode,
             Token::String(Data::String("Yo 👋! Ünícode µ works just fine 🚩! うん、気持ちいい！".to_string())),
-            unicode.chars().collect::<Vec<char>>().len(),
+            unicode.len(),
         ) { panic!() }
     }
 
@@ -558,6 +558,6 @@ mod test {
     fn comma() {
         let source = Source::source("heck\\ man");
         let tokens = lex(source.clone());
-        assert_eq!(tokens, Err(Syntax::error("Unexpected token", &Span::new(&source, 4, 1))));
+        assert_eq!(tokens, Err(Syntax::error("Unexpected token", &Span::new(&source, 4, 0))));
     }
 }
