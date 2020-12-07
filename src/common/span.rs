@@ -33,7 +33,7 @@ impl Span {
     /// A `Span` that points at a specific point in the source.
     pub fn point(source: &Rc<Source>, offset: usize) -> Span {
         // NOTE: maybe it should be 0?
-        Span { source: Some(Rc::clone(source)), offset, length: 1 }
+        Span { source: Some(Rc::clone(source)), offset, length: 0 }
     }
 
     /// Create a new empty `Span`.
@@ -127,7 +127,9 @@ impl Span {
     fn line_index(string: &str, index: usize) -> Option<(usize, usize)> {
         let lines = Span::lines_newline(&string[..index]);
         let line = lines.len() - 1;
-        let col = lines.last()?.len() - 1;
+        let col = lines.last()?.chars().count() - 1;
+
+        println!("{}", col);
 
         return Some((line, col));
     }
@@ -199,7 +201,7 @@ impl Display for Span {
                 " {} | {}{}",
                 " ".repeat(padding),
                 " ".repeat(start_col),
-                "^".repeat(self.length),
+                "^".repeat(self.length.max(1)),
             );
 
             writeln!(f, "{}", location)?;
