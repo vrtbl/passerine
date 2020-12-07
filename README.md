@@ -45,17 +45,17 @@ and others!
 ## An Overview
 Where this overview gets really exciting is when we dive into [macros](#macros).
 
-**⚠️ Note that Passerine is a work in progress and that some features mentioned in this overview may not be implemented yet.**
-
 [Skip to Installation](#installation).
 
-### Rationale
+**⚠️ Note that Passerine is a *work in progress* and that features mentioned in this overview may *not be implemented* yet.**
 
+### Rationale
+Functional Scripting Language
 
 ### Syntax
 Passerine has a very simple syntax. The goal of the syntax is to make all expressions as concise as possible while still maintaining a unique feel from expression to expression. We'll start simple, here's a function definition:
 
-```plain
+```passerine
 add_twice = value added -> value + 2 * added
 add_twice 3 5
 -- evaluates to 13
@@ -77,9 +77,9 @@ Passerine uses `-- comment` for comments that continue until the end of the line
 
 Here's another slightly more complex example – a recursive quick-sort with questionable pivot selection:
 
-```plain
-sort = list -> match list [
-    [] -> [],
+```passerine
+sort = list -> match list {
+    [] -> []
     -- pivot is head, tail is remaining
     [head & tail] -> {
         higher = filter { x -> x >= head } tail
@@ -89,20 +89,20 @@ sort = list -> match list [
             + [pivot]
             + sort higher
     }
-]
+}
 ```
 
 The first thing that you should notice is the use of `{ ... }`. This is a *block*, a group of expressions executed one after another. Each expression in a block is separated by a newline or semicolon, the block taking on the value of its last expression.
 
 The next thing to notice is this line:
 
-```plain
+```passerine
 (pivot, remaining) = (head list, tail list)
 ```
 
 This is a more complex assignment than the one we used above. In this example, the pattern `(pivot, remaining)` is being matched against the expression `(head list, tail list)`. This pattern is a *tuple* destructure, and is equivalent to:
 
-```plain
+```passerine
 pivot     = head list
 remaining = tail list
 ```
@@ -111,7 +111,7 @@ We'll delve deeper into pattern matching in the [next section](#pattern-matching
 
 Passerine also supports higher order functions (this should be no surprise):
 
-```plain
+```passerine
 filter { x -> x >= pivot } remaining
 ```
 
@@ -119,7 +119,7 @@ filter { x -> x >= pivot } remaining
 
 Passerine allows splitting around operators to break up long expressions and to improve legibility of certain mathematical expressions:
 
-```plain
+```passerine
 sort lower
     + [pivot]
     + sort higher
@@ -152,13 +152,13 @@ That's quite a lot of information, so let's work through it. The simplest case i
 
 The function:
 
-```plain
+```passerine
 true second -> second
 ```
 
 will return the second argument if the first argument passed to the function is `true`. If this is not the case, Passerine will yell at us:
 
-```plain
+```passerine
 Fatal Traceback, most recent call last:
 In src/main.pn:1:1
    |
@@ -175,7 +175,7 @@ Runtime Pattern Matching Error: The data 'false' does not match the expected dat
 
 Discard is another simple pattern – it does nothing. It's most useful when used in conjunction with other patterns:
 
-```plain
+```passerine
 -- to ensure an fruit has the type Banana:
 banana: Banana _ = mystery_fruit
 
@@ -188,7 +188,7 @@ banana: Banana _ = mystery_fruit
 
 A label is a name given to a types. Of course, names do not always imply type safety, but they do do a darn good job, most of the time:
 
-```plain
+```passerine
 -- make a soft yellow banana:
 banana = Banana ("yellow", "soft")
 
@@ -200,7 +200,7 @@ if { Banana (_, flesh) = banana; flesh == "soft" } {
 
 Pattern matching on labels is used to extract the data that is used to construct that label. Tuples are fairly simple and we already covered them, so we'll cover records next. A record is a set of fields:
 
-```plain
+```passerine
 -- define the Person type
 type Person {
     name:  String,
@@ -218,7 +218,7 @@ isaac = Person {
 
 Here's how you can pattern match on `isaac`:
 
-```plain
+```passerine
 Person {
     -- aliasing a `name` as `full_name`
     name: full_name,
@@ -233,7 +233,7 @@ Of course, the value after `:` is a full pattern, and can be matched further wit
 
 Finally, we'll address my favorite pattern, *where*. Where allows for arbitrary code check the validity of a type. This can go a long way. For example, let's define natural numbers in terms of integers numbers:
 
-```
+```passerine
 type Natural n: Integer | n >= 0
 ```
 
@@ -243,7 +243,7 @@ This should be read as:
 
 With this definition in place:
 
-```
+```passerine
 -- this is valid
 seven = Natural 7
 
@@ -268,7 +268,7 @@ It's important to point out that concurrency is *not* the same thing as parallel
 #### Error handling
 Passerine uses a combination of *exceptions* and algebraic data types to handle errors. Errors that are expected should return a `Result` type:
 
-```
+```passerine
 validate_length = n -> {
     if length n < 5 {
         Result.Error "It's too short!"
@@ -280,7 +280,7 @@ validate_length = n -> {
 
 Some errors, however are unexpected. There are millions of ways software can fail; to account for external circumstances is impossible in some cases. In the case that something that isn't expected to fails fails, an exception is raised. For example, trying to open a file that should exist may through an exception.
 
-```
+```passerine
 config = parse_config (open "config.toml")
 ```
 
@@ -290,16 +290,16 @@ The reason we don't always need to catch these errors is because Passerine follo
 
 The good news is that crashes are local to the fiber they occur in – a single fiber crashing does not bring the whole system down. The idiomatic way to handle an operation that may crash is to try it. This performs the operation in a new fiber and converts any exceptions that may occur into a `Result`:
 
-```
-config = match (try (open "config.toml")) [
-    Result.Ok    file  -> Config.parse file,
-    Result.Error error -> Config.default,
-]
+```passerine
+config = match try { open "config.toml" } {
+    Result.Ok    file  -> Config.parse file
+    Result.Error error -> Config.default
+}
 ```
 
 If something exceptionally bad *does* happen, use the `error` keyword:
 
-```
+```passerine
 doof = platypus -> {
     if platypus == "Perry" {
         -- crashes the current fiber
@@ -312,21 +312,20 @@ doof = platypus -> {
 
 Note that the value of raised errors can be anything. This allows for programmatic recovery from errors:
 
-```
+```passerine
 -- socket must not be disconnected
 send_data = socket data -> {
-    match socket.connection [
-        Option.None -> error Disconnected socket
-        Option.Some connection -> connection.write data,
-    ]
-
+    match socket.connection {
+        Option.None            -> error Disconnected socket
+        Option.Some connection -> connection.write data
+    }
     ()
 }
 ```
 
 Let's say the above code tries to send some data through a socket. To handle a disconnection, we can try the error:
 
-```
+```passerine
 ping = socket -> try (send_data socket "ping")
 
 socket = Socket.new ... -- whatever
@@ -334,10 +333,10 @@ socket.disconnect -- oh no!
 
 result = ping socket
 
-match result [
-    Result.Ok "pong" -> (),
-    Result.Error Disconnected socket -> socked.connect,
-]
+match result {
+    Result.Ok "pong" -> ()
+    Result.Error Disconnected socket -> socked.connect
+}
 ```
 
 Why make the distinction between expected errors (`Result`) and unexpected errors (fiber crashes)? Programs only produce valid results if the environments they run in are valid. When a fiber crashes, it's signaling that something about the environment it's running in is not valid. This is very useful to *developers* during development, and very useful to *programs* in contexts where complex long-running applications may fail for any number of reasons. Why not only use exceptions then? Because it's perfectly possible for an error to occur that is not exceptional at all. Malformed input, incorrect permissions, missing items – these are all things that can occur and do occur on a regular basis.
@@ -349,7 +348,7 @@ Fibers are for more than just isolating the context of errors. As mentioned earl
 
 Fibers are full *coroutines*. To create a fiber, use the fiber keyword:
 
-```
+```passerine
 counter = fiber {
     i = 0
     loop { yield i; i = i + 1 }
@@ -362,7 +361,7 @@ print counter () -> ...
 
 The `yield` keyword suspends the current fiber and returns a value to the calling fiber. It
 
-```
+```passerine
 passing_yield = fiber {
     print "hello"
     result = yield "banana"
@@ -377,7 +376,7 @@ passing_yield "uh oh"  -- raises an error, fiber is done
 
 To build more complex systems, you can build fibers with functions:
 
-```
+```passerine
 -- a function that returns a fiber
 flopper = a b -> fiber {
     loop {
@@ -414,9 +413,265 @@ print "the end."
 > 'Tis not the end, 'tis but the beginning...
 
 ### Macros
-Passerine has a rich hygienic syntactic macro system that extends the language itself¹.
+Passerine has a rich hygienic syntactic macro system that extends the language itself.¹
 
-> 1. Having read Doug Hoyte's [Let Over Lambda](https://letoverlambda.com/), I understand the power that a rich *unhygenic* macro system brings. However, such systems are hard to master – Passerine aims to be as simple and powerful as possible without sacrificing transparency – and much can still be accomplished through
+*Syntactic macros*, quite simply, are bits of code that *hygienically* produce more code when invoked at compile time. Macros use a simple yet powerful set of rules to transform code.
+
+#### Hygiene
+Extensions are defined with the `syntax` keyword, followed by some *argument patterns*, followed by the code that the captured arguments will be spliced into. Here's a simple example of using a macro to define using a swap operator:
+
+```passerine
+syntax a 'swap b {
+    tmp = a
+    a = b
+    b = tmp
+}
+
+x = 7
+y = 3
+x swap y
+```
+
+Note that the above code is completely hygienic. the expanded macro looks something like this:
+
+```passerine
+_tmp = x
+x = y
+x = _tmp
+```
+
+Because `tmp` was not passed as a macro pattern parameter, all uses of `tmp` in the macro body are unique unrepresentable variables that do not collide with any other variables currently bound in scope. Essentially:
+
+```passerine
+tmp = 1
+x = 2
+y = 3
+x swap y
+```
+
+Will not affect the value of `tmp`; `tmp` will still be `1`.
+
+#### Argument Patterns
+So, what is an argument pattern (aka *arg-pat*)? I.e. what goes in between:
+
+```passerine
+syntax ... {}
+```
+
+Each item between `syntax` and the body is an arg-pat. arg-pats can be:
+
+- *Syntactic variables*, like `foo` and `bar`.
+- Literal *syntactic identifiers*, which are prefixed with a quote (`'`), like `'in`.
+- Nested argument patterns, followed by optional *modifiers*.
+
+Let's start with *syntactic identifiers*. Identifiers are literal names that must be present for the pattern to match. Each syntactic extension is required to have at least one. For example, an macro that matches a *for loop*:
+
+```passerine
+syntax 'for binding 'in values do { ... }
+```
+
+In this case, `'for` and `'in` are textual identifiers.
+
+This definition could be used as follows:
+
+```passerine
+for a in [1, 2, 3] {
+    print a
+}
+```
+
+*Syntactic variables* are the other identifiers in the pattern that are bound to actual values. In the above example, `a` is the `binding`, `[1, 2, 3]` are the `values`, and `{ print a }` is the `do`.
+
+Operators can be defined this way as well:
+
+```passerine
+syntax sequence 'contains value {
+    c = seq -> match seq {
+        [] -> False
+        [head & _] | head == value -> True
+        [_ & tail] -> c tail
+    }
+
+    c sequence
+}
+```
+
+This defines a `contains` operator that could be used as follows:
+
+```passerine
+print {
+    if [1, 2, 3] contains 2 {
+        "It contains 2"
+    } else {
+        "It does not contain 2"
+    }
+}
+```
+
+Evidently, `It contains 2` would be printed.
+
+It's important to note that macros serve introduce new constructs that just *happen* to be composable – syntactic macros can be used for custom operators, but they can be used for *so much more*.
+
+*Modifiers* are postfix symbols that allow for flexibility within argument patterns. The following modifiers exist:
+
+- Zero or more (`...`)
+- Optional (`?`)
+
+Additionally, parenthesis are used for grouping, and `{ ... }` are used to match expressions within blocks. Here are some syntactic arguments that match an `if else` statement, like this one:
+
+```passerine
+if x == 0 {
+    print "Zero"
+} else if x % 2 == 0 {
+    print "Even"
+} else {
+    print "Not even or zero"
+}
+```
+
+The arg-pat must match a beginning `if`:
+
+```passerine
+syntax 'if { ... }
+```
+
+Then, a condition:
+
+```passerine
+syntax 'if condition { ... }
+```
+
+Then, the first block:
+
+```passerine
+syntax 'if condition then { ... }
+```
+
+Next, we'll need a number of `else if <condition>` statements:
+
+```passerine
+syntax 'if condition then ('else 'if other do)... { ... }
+```
+
+Followed by a required closing else (Passerine is expression oriented and type-checked, so a closing `else` ensures that an `if` expression always returns a value.):
+
+```passerine
+syntax 'if condition then ('else 'if other do)... 'else finally { ... }
+```
+
+Of course, if statements are already baked into the language – let's try something else – a `match` expression.
+
+#### A complete example – Building a `match` expression
+A match expression takes a value and a number of functions, and tries to apply the value to each function until one successfully matches and runs. A match expression looks as like this:
+
+```passerine
+l = Some (1, 2, 3)
+
+match l {
+    Some (m, x, b) -> m * x + b
+    None           -> 0
+}
+```
+
+Here's how we can match a match expression:
+
+```passerine
+syntax 'match value { arms... } {
+    -- TODO: implement the body
+}
+```
+
+This should be read as:
+
+> The syntax for a match expression starts with the pseudokeyword `match`, followed by the `value` to match against, followed by a block where each item in the block gets collected into the list `arms`.
+
+What about the body? Well:
+
+1. If no branches are matched, an error is raised.
+2. If are some branches, we `try` the first branch in a new fiber and see if it matches.
+3. If the function doesn't raise a match error, we found a match!
+4. If the function does raise a match error, we try again with the remaining branches.
+
+Let's start by implementing this as a function:
+
+```passerine
+-- takes a value to match against
+-- and a list of functions, branches
+match_function = value branches -> {
+    if branches.is_empty {
+        error Match "No branches matched in match expression"
+    }
+
+    result = try { (head branches) value }
+
+    if result is Result.Ok _ {
+        Result.Ok v = result; v
+    } else if result is Result.Error Match _ {
+        match_function value (tail branches)
+    } else if result is Result.Error _ {
+        -- a different error occurred, so we re-raise it
+        Result.Error e = result; error e
+    }
+}
+```
+
+I know the use of `if` to handle tasks that pattern matching excels at hurts a little, but remember, *that's why we're building a match expression!* Here's how you could use that match function:
+
+```passerine
+-- Note that we're passing a list of functions
+description = match_function Banana ("yellow", "soft") [
+    Banana ("brown", "mushy") -> "That's not my banana!",
+
+    Banana ("yellow", flesh)
+        | flesh != "soft"
+        -> "I mean it's yellow, but not soft",
+
+    Banana (peel, "soft")
+        | peel != "yellow"
+        -> "I mean it's soft, but not yellow",
+
+    Banana ("yellow", "soft") -> "That's my banana!",
+
+    Banana (color, texture)
+        -> "Hmm. I've never seen a { texture } { color } banana before...",
+]
+```
+
+This is already orders of magnitude better, but passing a list of functions still feels a bit... hacky. Let's use our `match` macro argument pattern definition to make this even more ergonomic:
+
+```passerine
+syntax 'match value { arms... } {
+    match_function value arms
+}
+```
+
+We've added match statements to Passerine, and they feel like language features! Isn't that incredible?
+
+```
+description = match Banana ("yellow", "soft") {
+    Banana ("brown", "mushy") -> "That's not my banana!"
+
+    Banana ("yellow", flesh)
+        | flesh != "soft"
+        -> "I mean it's yellow, but not soft"
+
+    Banana (peel, "soft")
+        | peel != "yellow"
+        -> "I mean it's soft, but not yellow"
+
+    Banana ("yellow", "soft") -> "That's my banana!"
+
+    Banana (color, texture)
+        -> "Hmm. I've never seen a { texture } { color } banana before..."
+}
+```
+
+> 1. Having read Doug Hoyte's [Let Over Lambda](https://letoverlambda.com/), I understand the raw power of a rich *unhygenic* macro system. However, such systems are hard to master – Passerine aims to be as simple and powerful as possible without losing *transparency* – and hygienic macro systems are easier to pick up and understand.
+
+### Concluding Thoughts
+Thanks for reading this far. Passerine has been a joy for me to work on, and I hope you find it to be the same to use.
+
+A few of the features discussed in this overview haven't been implemented yet. We're not trying to sell you short, it's just that developing a programming language and bootstrapping a community around it at the same time is not exactly *easy*. If you'd like something added to Passerine, [open an issue or pull request](#Contributing), or check out the [roadmap](#roadmap).
 
 ## Installation
 Passerine is still very much so a work in progress. We've done a lot, but there's still a so much more to do!
@@ -433,11 +688,11 @@ sh <(curl -sSf https://www.passerine.io/install.sh)
 > 2. Tested on Arch (btw) and macOS.  
 > 3. In the future, we plan to distribute prebuilt binaries, but for now, both Git and Cargo are required.
 
-## Roadmap
-See the [Project Roadmap](https://github.com/vrtbl/passerine/projects/1) to get a feel for what's currently under development.
-
 ## Contributing
 Contributors welcome!
 Read our [Contribution Guide](https://github.com/vrtbl/passerine/blob/master/CONTRIBUTING.md)
 and join the [Discord server](https://discord.gg/yMhUyhw)
 to get started.
+
+## Roadmap
+See the [Project Roadmap](https://github.com/vrtbl/passerine/projects/1) to get a feel for what's currently under development.
