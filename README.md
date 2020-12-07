@@ -1,4 +1,4 @@
-<!-- <p align="center">
+<p align="center">
     <a href="https://passerine.io">
         <img src="./Logotype.png">
     </a>
@@ -20,7 +20,7 @@
     </a>
     <br>
     <br>
-</p>-->
+</p>
 
 ## Why Passerine?
 [Passerine](https://www.passerine.io) is a small, concise, extensible functional scripting language, powered by a VM¹ written in [Rust](https://www.rust-lang.org).
