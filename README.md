@@ -57,10 +57,9 @@ The goal of Passerine's syntax is to make all expressions as *concise* as possib
 We'll start simple; here's a function definition:
 
 ```passerine
-double_then_add = value added -> added + 2 * value
-
-double_then_add 5 3
--- evaluates to 13
+linear = m b x -> b + m * x
+linear 2 3 5
+-- evaluates to 17
 ```
 
 There are already some important things we can learn about Passerine from this short example:
@@ -71,21 +70,21 @@ Passerine is an *expression-oriented* language, because of this, it makes sense 
 
 > Because Passerine is *expression-oriented*, the distinction between statements and expressions isn't made. In the case that an expression produces no useful value, it should return the Unit type, `()`.
 
-Passerine respects operator precedence. `3 + 2 * 5` is `13`, not `25`. Notation is a powerful tool – although Passerine is inspired by lisps (like Scheme), it provides a familiar syntax.
+Passerine respects operator precedence. `2 + 3 * 5` is `17`, not `25`. Notation is a powerful tool – although Passerine is inspired by lisps (like Scheme), it provides a more familiar syntax.
 
-Passerine uses whitespace for function calls. Here's a function that is immediately called:
+Passerine uses whitespace for function calls. A function call takes the form `l e₀ ... eₙ`, where `l` is a function and `e` is an expression. If we substitute `linear`, the first example is equivalent to:
 
 ```passerine
-(a b c -> e) x y z
+(m b x -> b + m * x) 2 3 5
 ```
 
-`a`, `b`, and `c` are *patterns*, `x`, `y`, `z` and `e` are arguments. Upon evaluation:
+`m`, `b`, and `x` are *patterns*, `2`, `3`, and `5` are *arguments*. Upon evaluation:
 
-- `x` is matched against `a`, so `a = x`,
-- `y` against `b`, so `b = y`,
-- `z` against `c`, so `c = z`,
+- `2` is matched against `m`, so `m = 2`,
+- `3` against `b`, so `b = 3`,
+- `5` against `x`, so `x = 5`,
 
-and then `e` is evaluated in a new scope where `a`, `b`, and `c` are bound.
+`b + m * x` is then evaluated in a new scope where `m`, `b`, and `x` are bound. In the case of the above example, this is equivalent to `2 + 3 * 5`, which is `17`.
 
 > Function calls are left-associative, so the call `a b c d` is equivalent to `((a b) c) d`, not `a (b (c d))`. This syntax comes from functional languages like Haskell, and makes currying (partial application) quite intuitive.
 
