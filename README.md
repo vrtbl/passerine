@@ -45,7 +45,7 @@ and others!
 ## An Overview
 Where this overview gets really exciting is when we dive into [macros](#macros).
 
-Note that Passerine is a work in progress and that some features mentioned in this overview may not be implemented yet.
+**⚠️ Note that Passerine is a work in progress and that some features mentioned in this overview may not be implemented yet.**
 
 [Skip to Installation](#installation).
 
@@ -416,7 +416,7 @@ print "the end."
 ### Macros
 Passerine has a rich hygienic syntactic macro system that extends the language itself¹.
 
-> 1. Having read Doug Hoyte's [Let Over Lambda](https://letoverlambda.com/), I understand the power that a rich *unhygenic* macro system brings. However, such systems are hard to master – Passerine aims to be as simple and powerful as possible without sacrificing transparency – and much can still be accomplished through 
+> 1. Having read Doug Hoyte's [Let Over Lambda](https://letoverlambda.com/), I understand the power that a rich *unhygenic* macro system brings. However, such systems are hard to master – Passerine aims to be as simple and powerful as possible without sacrificing transparency – and much can still be accomplished through
 
 ## Installation
 Passerine is still very much so a work in progress. We've done a lot, but there's still a so much more to do!
