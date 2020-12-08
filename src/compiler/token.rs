@@ -17,6 +17,7 @@ pub enum Token {
     Syntax,
     Assign,
     Lambda,
+    Compose,
     Print,
     // pseudokeywords
     Keyword(String),
@@ -48,6 +49,7 @@ impl Display for Token {
             Token::Syntax       => "a syntax definition",
             Token::Assign       => "an assignment",
             Token::Lambda       => "a lambda",
+            Token::Compose      => "a composition",
             Token::Unit         => "the Unit, '()'",
             Token::Print        => "a print keyword",
             Token::Symbol       => "a symbol",

@@ -94,6 +94,10 @@ pub enum AST {
         pattern:    Box<Spanned<ASTPattern>>,
         expression: Box<Spanned<AST>>,
     },
+    Composition {
+        argument: Box<Spanned<AST>>,
+        function: Box<Spanned<AST>>,
+    },
     Print(Box<Spanned<AST>>),
     Label(String, Box<Spanned<AST>>),
     Syntax {
@@ -125,6 +129,16 @@ impl AST {
         }
     }
 
+    pub fn composition(
+        argument: Spanned<AST>,
+        function: Spanned<AST>,
+    ) -> AST {
+        AST::Composition {
+            argument: Box::new(argument),
+            function: Box::new(function),
+        }
+    }
+
     /// Shortcut for creating an `AST::Syntax` variant.
     /// i.e. a macro definition
     pub fn syntax(
@@ -132,7 +146,7 @@ impl AST {
         expression: Spanned<AST>,
     ) -> AST {
         AST::Syntax {
-            arg_pat:   Box::new(arg_pat),
+            arg_pat:    Box::new(arg_pat),
             expression: Box::new(expression),
         }
     }

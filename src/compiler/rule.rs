@@ -202,6 +202,13 @@ impl Rule {
                     .collect::<Result<Vec<_>, _>>()?
             ),
 
+            // Appy the transformation to the left and right sides of the composition
+            AST::Composition { argument, function } => {
+                let a = Rule::expand(*argument, bindings)?;
+                let f = Rule::expand(*function, bindings)?;
+                AST::composition(a, f)
+            },
+
             // replace the variables in (argument) patterns
             AST::Pattern(pattern) => {
                 let spanned = Spanned::new(pattern, tree.span.clone());

@@ -33,6 +33,7 @@ pub enum Prec {
     None = 0,
     Assign,
     Lambda,
+    Compose,
     Call,
     End,
 }
@@ -159,8 +160,10 @@ impl Parser {
     /// Looks at the current token and parses the right side of any infix expressions.
     pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
-            Token::Assign => self.assign(left),
-            Token::Lambda => self.lambda(left),
+            Token::Assign  => self.assign(left),
+            Token::Lambda  => self.lambda(left),
+            Token::Compose => self.compose(left),
+
             Token::End    => Err(self.unexpected()),
             Token::Sep    => unreachable!(),
             _             => self.call(left),
@@ -174,8 +177,9 @@ impl Parser {
         let sep = next != current;
 
         let prec = match next {
-            Token::Assign => Prec::Assign,
-            Token::Lambda => Prec::Lambda,
+            Token::Assign  => Prec::Assign,
+            Token::Lambda  => Prec::Lambda,
+            Token::Compose => Prec::Compose,
 
               Token::End
             | Token::CloseParen
@@ -406,6 +410,13 @@ impl Parser {
         let expression = self.expression(Prec::Lambda, false)?;
         let combined   = Span::combine(&pattern.span, &expression.span);
         Ok(Spanned::new(AST::lambda(pattern, expression), combined))
+    }
+
+    pub fn compose(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        self.consume(Token::Compose)?;
+        let right = self.expression(Prec::Compose.associate_left(), false)?;
+        let combined = Span::combine(&left.span, &right.span);
+        return Ok(Spanned::new(AST::composition(left, right), combined))
     }
 
     /// Parses a function call.

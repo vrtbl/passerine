@@ -39,6 +39,7 @@ impl Transformer {
             AST::Data(d) => CST::Data(d),
             AST::Block(b) => self.block(b)?,
             AST::Form(f) => self.form(f)?,
+            AST::Composition { argument, function } => self.composition(*argument, *function)?,
             AST::Pattern(_) => return Err(Syntax::error("Unexpected pattern", &ast.span)),
             AST::ArgPat(_)  => return Err(Syntax::error("Unexpected argument pattern", &ast.span)),
             AST::Syntax { arg_pat, expression } => self.rule(*arg_pat, *expression)?,
@@ -135,6 +136,14 @@ impl Transformer {
         let (rule, mut bindings) = matches.pop().unwrap();
         let expanded = Rule::expand(rule.item.tree.clone(), &mut bindings)?;
         return Ok(self.walk(expanded)?.item);
+    }
+
+    /// Desugar a function composition.
+    /// A composition takes the form `c |> b |> a`
+    /// and is left-associative `(c |> b) |> a`.
+    /// When desugared, the above is equivalent to the call `a b c`.
+    pub fn composition(&mut self, argument: Spanned<AST>, function: Spanned<AST>) -> Result<CST, Syntax> {
+        Ok(CST::call(self.walk(function)?, self.walk(argument)?))
     }
 
     pub fn block(&mut self, b: Vec<Spanned<AST>>) -> Result<CST, Syntax> {

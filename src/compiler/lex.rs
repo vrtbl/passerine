@@ -94,6 +94,7 @@ impl Lexer {
             Box::new(Lexer::syntax),
             Box::new(Lexer::assign),
             Box::new(Lexer::lambda),
+            Box::new(Lexer::compose),
             Box::new(Lexer::print), // remove print statements after FFI
 
             // variants
@@ -222,6 +223,11 @@ impl Lexer {
     /// Matches a literal lambda arrow `->`.
     pub fn lambda(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "->", Token::Lambda)
+    }
+
+    /// Matches a literal lambda arrow `->`.
+    pub fn compose(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "|>", Token::Compose)
     }
 
     /// Matches a `print` expression.
