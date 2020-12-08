@@ -1,9 +1,9 @@
 use std::{
     fmt::{
+        self,
         Formatter,
         Debug,
         Display,
-        Result
     },
     usize,
     rc::Rc,
@@ -33,7 +33,7 @@ impl Span {
     /// A `Span` that points at a specific point in the source.
     pub fn point(source: &Rc<Source>, offset: usize) -> Span {
         // NOTE: maybe it should be 0?
-        Span { source: Some(Rc::clone(source)), offset, length: 1 }
+        Span { source: Some(Rc::clone(source)), offset, length: 0 }
     }
 
     /// Create a new empty `Span`.
@@ -115,53 +115,26 @@ impl Span {
     // just replace this method with the std version.
     /// Splits a string by the newline character into a Vector of string slices.
     /// Includes the trailing newline in each slice.
-    fn split_lines_inclusive(string: &str) -> Vec<&str> {
-        let newline = "\n";
+    fn lines_newline(string: &str) -> Vec<String> {
+        return string.split("\n").map(|l| l.to_string() + "\n").collect();
+    }
 
-        let mut indicies: Vec<usize> = vec![0];
-        indicies.append(&mut string
-            .match_indices(newline).collect::<Vec<(usize, &str)>>()
-            .into_iter().map(|(s, _)| s + newline.len()).collect()
-        );
-        indicies.push(string.len());
-
-        let mut lines = vec![];
-        for i in 0..(indicies.len() - 1) {
-            lines.push(&string[indicies[i]..indicies[i + 1]]);
-        }
-
-        return lines;
+    fn lines(string: &str) -> Vec<String> {
+        return string.split("\n").map(|l| l.to_string()).collect();
     }
 
     /// Returns the start and end lines and columns of the `Span` if the `Span` is not empty.
-    fn line_indicies(&self) -> Option<((usize, usize), (usize, usize))> {
-        if self.is_empty() { panic!("Can not return the line indicies of an empty span") }
+    fn line_index(string: &str, index: usize) -> Option<(usize, usize)> {
+        let lines = Span::lines_newline(&string[..index]);
+        let line = lines.len() - 1;
+        let col = lines.last()?.chars().count() - 1;
 
-        let start = self.offset;
-        let end   = self.end();
-
-        let full_source = &self.source.as_ref().unwrap().contents;
-        let start_lines: Vec<&str> = Span::split_lines_inclusive(&full_source[..=start]);
-        let end_lines:   Vec<&str> = Span::split_lines_inclusive(&full_source[..end]);
-
-        // println!("{} {}", self.offset, self.length);
-        // println!("{:?}", full_source);
-        // println!("{:?}", start_lines);
-        // println!("{:?}", end_lines);
-
-        let start_line = start_lines.len() - 1;
-        let end_line   = end_lines.len() - 1;
-
-        let start_col = start_lines.last()?.len() - 1;
-        let end_col   = end_lines.last()?.len() - 1;
-
-        return Some(((start_line, start_col), (end_line, end_col)));
-
+        return Some((line, col));
     }
 }
 
 impl Debug for Span {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if !self.is_empty() {
             write!(f, "Span {{ {:?}, ({}, {}) }}", self.contents(), self.offset, self.length)
         } else {
@@ -186,13 +159,19 @@ impl Display for Span {
     /// 14 >    another { error }
     /// 15 > }
     /// ```
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if self.is_empty() {
             panic!("Can't display the section corresponding with an empty Span")
         }
 
-        let lines: Vec<&str> = self.source.as_ref().unwrap().contents.lines().collect();
-        let ((start_line, start_col), (end_line, _end_col)) = match self.line_indicies() {
+        let full_source = &self.source.as_ref().unwrap().contents;
+        let lines = Span::lines(&full_source);
+
+        let (start_line, start_col) = match Span::line_index(full_source, self.offset) {
+            Some(li) => li,
+            None     => unreachable!(),
+        };
+        let (end_line, _end_col) = match Span::line_index(full_source, self.end()) {
             Some(li) => li,
             None     => unreachable!(),
         };
@@ -213,14 +192,14 @@ impl Display for Span {
         let separator = format!(" {} |", " ".repeat(padding));
 
         if start_line == end_line {
-            let l = lines[end_line];
+            let l = &lines[end_line];
 
             let line = format!(" {} | {}", readable_end_line, l);
             let span = format!(
                 " {} | {}{}",
                 " ".repeat(padding),
                 " ".repeat(start_col),
-                "^".repeat(self.length),
+                "^".repeat(self.length.max(1)),
             );
 
             writeln!(f, "{}", location)?;
@@ -271,8 +250,16 @@ impl<T> Spanned<T> {
         Spanned { item, span }
     }
 
-    /// a destructive alias for `self.item`
-    pub fn into(self) -> T { self.item }
+    pub fn build(spanneds: &Vec<Spanned<T>>) -> Span {
+        let spans = spanneds.iter()
+            .map(|s| s.span.clone())
+            .collect::<Vec<Span>>();
+        Span::join(spans)
+    }
+
+    pub fn map<B, E>(self, f: fn(T) -> Result<B, E>) -> Result<Spanned<B>, E> {
+        Ok(Spanned::new(f(self.item)?, self.span))
+    }
 }
 
 #[cfg(test)]

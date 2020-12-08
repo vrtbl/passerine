@@ -43,7 +43,8 @@ const P_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
 const S_FLAG: u64 = 0x0000_0000_0000_0000; // stack frame
 const U_FLAG: u64 = 0x0000_0000_0000_0001; // unit
 const F_FLAG: u64 = 0x0000_0000_0000_0002; // false
-const T_FLAG: u64 = 0x0000_0000_0000_0004; // true
+const T_FLAG: u64 = 0x0000_0000_0000_0003; // true
+const N_FLAG: u64 = 0x0000_0000_0000_0004; // not initialized
 
 impl Tagged {
     /// Wraps `Data` to create a new tagged pointer.
@@ -58,6 +59,8 @@ impl Tagged {
             Data::Boolean(true)  => Tagged(QNAN | T_FLAG),
             // Stack frame
             Data::Frame => Tagged(QNAN | S_FLAG),
+            // Not Initialized
+            Data::NotInit => Tagged(QNAN | N_FLAG),
 
             // on the heap
             // TODO: layout to make sure pointer is the right size when boxing
@@ -67,8 +70,14 @@ impl Tagged {
 
     // TODO: encode frame in tag itself; a frame is not data
     /// Creates a new stack frame.
+    #[inline]
     pub fn frame() -> Tagged {
         Tagged::new(Data::Frame)
+    }
+
+    #[inline]
+    pub fn not_init() -> Tagged {
+        Tagged::new(Data::NotInit)
     }
 
     /// Returns the underlying `Data` (or a pointer to that `Data`).
@@ -82,6 +91,7 @@ impl Tagged {
             f if f == &(QNAN | F_FLAG) => Ok(Data::Boolean(false)),
             t if t == &(QNAN | T_FLAG) => Ok(Data::Boolean(true)),
             s if s == &(QNAN | S_FLAG) => Ok(Data::Frame),
+            n if n == &(QNAN | N_FLAG) => Ok(Data::NotInit),
             p if (p & P_FLAG) == P_FLAG => Err({
                 // println!("{:#x}", p & P_MASK);
                 // unsafe part
@@ -251,6 +261,8 @@ mod test {
             Data::String("Hello, World!".to_string()),
             Data::String("".to_string()),
             Data::String("Whoop 😋".to_string()),
+            Data::Frame,
+            Data::NotInit,
         ];
 
         for test in tests {

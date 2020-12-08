@@ -7,14 +7,28 @@ use crate::common::{
 
 use std::fmt;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Captured {
+    /// The index on the stack if the variable is local to the current scope
+    Local(usize),
+    /// The index of the upvalue in the enclosing scope
+    Nonlocal(usize),
+}
+
 /// Represents a single interpretable chunk of bytecode,
 /// Think a function.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Lambda {
-    pub code:      Vec<u8>,            // each byte is an opcode or a number-stream
-    pub spans:     Vec<(usize, Span)>, // each usize indexes the bytecode op that begins each line
-    pub constants: Vec<Data>,          // number-stream indexed, used to load constants
-    pub captureds:  Vec<usize>          // TODO: see CLOSURES.md
+    /// Each byte is an opcode or a number-stream.
+    pub code: Vec<u8>,
+    /// Each usize indexes the bytecode op that begins each line.
+    pub spans: Vec<(usize, Span)>,
+    /// number-stream indexed, used to load constants.
+    pub constants: Vec<Data>,
+    /// List of positions of locals in the scope where this lambda is defined,
+    /// indexes must be gauranteed to be data on the heap.
+    pub captures: Vec<Captured>,
+
 }
 
 impl Lambda {
@@ -24,7 +38,7 @@ impl Lambda {
             code:      vec![],
             spans:     vec![],
             constants: vec![],
-            captureds:  vec![],
+            captures:    vec![],
         }
     }
 
@@ -90,9 +104,9 @@ impl fmt::Display for Lambda {
         //     writeln!(f, "{:?}", span)?;
         // }
 
-        writeln!(f, "-- Dumping Captureds:")?;
-        for captured in self.captureds.iter() {
-            writeln!(f, "{:?}", captured)?;
+        writeln!(f, "-- Dumping Captures:")?;
+        for capture in self.captures.iter() {
+            writeln!(f, "{:?}", capture)?;
         }
 
         writeln!(f, "-- Dumping Bytecode:")?;
@@ -144,7 +158,11 @@ impl fmt::Display for Lambda {
                     index += consumed;
                     writeln!(f, "Closure \t{}\tIndex of lambda to be wrapped", todo_index)?;
                 },
-                Opcode::Print => { writeln!(f, "Print    \t\t--")?;}
+                Opcode::Print   => { writeln!(f, "Print    \t\t--")?; },
+                Opcode::Label   => { writeln!(f, "Label    \t\t--")?; },
+                Opcode::UnLabel => { writeln!(f, "UnLabel  \t\t--")?; },
+                Opcode::UnData  => { writeln!(f, "UnData   \t\t--")?; },
+                Opcode::Copy    => { writeln!(f, "Copy     \t\t--")?; },
             }
         }
 

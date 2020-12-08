@@ -68,6 +68,7 @@ impl Stack {
         if self.stack.len() - 1 == index {
             self.stack.pop();
         } else {
+            println!("{:#?}", self);
             unreachable!("Expected frame on top of stack, found data")
         }
     }
@@ -79,23 +80,18 @@ impl Stack {
         self.stack.push(Tagged::frame());
     }
 
-    // TODO: Change behaviour? Make if heapify a specified local?
     /// Wraps the top data value on the stack in `Data::Heaped`,
-    /// if it is not already on the heap.
+    /// data must not already be on the heap
     #[inline]
-    pub fn heapify(&mut self, index: usize) -> Rc<RefCell<Data>> {
+    pub fn heapify(&mut self, index: usize) {
         let local_index = self.frames.peek() + index + 1;
 
         let data = mem::replace(&mut self.stack[local_index], Tagged::frame()).data();
-        let reference = Rc::new(RefCell::new(data));
-        let heaped = Data::Heaped(reference.clone());
+        let heaped = Data::Heaped(Rc::new(RefCell::new(data)));
         mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(heaped)));
-
-        return reference;
     }
 
-    /// Gets a local and pushes it onto the top of the `Stack`
-    pub fn get_local(&mut self, index: usize) {
+    pub fn local_data(&mut self, index: usize) -> Data {
         let local_index = self.frames.peek() + index + 1;
 
         // a little bit of shuffling involved
@@ -104,7 +100,7 @@ impl Stack {
         let copy = data.clone();
         mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(data)));
 
-        self.push_data(copy);
+        return copy;
     }
 
     /// Sets a local - note that this function doesn't do much.
@@ -114,10 +110,11 @@ impl Stack {
     pub fn set_local(&mut self, index: usize) {
         let local_index = self.frames.peek() + index + 1;
 
-        if self.stack.len() - 1 == local_index {
+        if (self.stack.len() - 1) == local_index {
             // local is already in the correct spot; we declare it
             return;
-        } else if self.stack.len() <= local_index {
+        } else if (self.stack.len() - 1) < local_index {
+            println!("{} < {}", self.stack.len() - 1, local_index);
             unreachable!("Can not set local that is not yet on stack");
         } else {
             // get the old local

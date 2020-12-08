@@ -11,8 +11,8 @@ pub struct Syntax {
 
 impl Syntax {
     /// Creates a new static error.
-    pub fn error(message: &str, span: Span) -> Syntax {
-        Syntax { message: message.to_string(), span }
+    pub fn error(message: &str, span: &Span) -> Syntax {
+        Syntax { message: message.to_string(), span: span.clone() }
     }
 }
 
@@ -36,7 +36,7 @@ mod test {
         let source = Rc::new(Source::source("x = \"Hello, world\" -> y + 1"));
         let error = Syntax::error(
             "Unexpected token '\"Hello, world!\"'",
-            Span::new(&source, 4, 14),
+            &Span::new(&source, 4, 14),
         );
 
         let target = "In ./source:1:5

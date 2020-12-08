@@ -20,15 +20,21 @@ use crate::common::{
 pub enum Data {
     // VM Stack
     Frame,
+    NotInit,
     Heaped(Rc<RefCell<Data>>),
 
     // Passerine Data (Atomic)
     Real(f64),
     Boolean(bool),
     String(String),
-    Lambda(Lambda),
-    Closure(Closure),
-    Label(String, Box<Data>), // TODO: better type
+    // TODO: make lambda Rc?
+    Lambda(Box<Lambda>),
+    Closure(Box<Closure>),
+
+    // TODO: rework how labels and tags work
+    // Kind is the base component of an unconstructed label
+    Kind(String),
+    Label(Box<String>, Box<Data>),
 
     // Compound Datatypes
     Unit, // an empty typle
@@ -49,12 +55,14 @@ impl Display for Data {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Data::Frame       => unreachable!("Can not display stack frame"),
+            Data::NotInit     => unreachable!("Can not display unitialized data"),
             Data::Heaped(_)   => unreachable!("Can not display heaped data"),
-            Data::Real(n)     => write!(f, "Real {}", n),
-            Data::Boolean(b)  => write!(f, "Boolean {}", if *b { "true" } else { "false" }),
+            Data::Real(n)     => write!(f, "{}", n),
+            Data::Boolean(b)  => write!(f, "{}", if *b { "true" } else { "false" }),
             Data::String(s)   => write!(f, "{}", s),
             Data::Lambda(_)   => unreachable!("Can not display naked functions"),
-            Data::Closure(_)  => write!(f, "Function"),
+            Data::Closure(c)  => write!(f, "Function ~ {}", c.id),
+            Data::Kind(_)     => unreachable!("Can not display naked labels"),
             Data::Label(n, v) => write!(f, "{} {}", n, v),
             Data::Unit        => write!(f, "()"),
         }
@@ -65,12 +73,14 @@ impl Debug for Data {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Data::Frame       => write!(f, "Frame"),
+            Data::NotInit     => write!(f, "NotInit"),
             Data::Heaped(h)   => write!(f, "Heaped({:?})", h.borrow()),
             Data::Real(n)     => write!(f, "Real({:?})", n),
             Data::Boolean(b)  => write!(f, "Boolean({:?})", b),
             Data::String(s)   => write!(f, "String({:?})", s),
             Data::Lambda(_)   => write!(f, "Function(...)"),
-            Data::Closure(_)  => write!(f, "Closure(...)"),
+            Data::Closure(c)  => write!(f, "Closure({})", c.id),
+            Data::Kind(n)     => write!(f, "Kind({})", n),
             Data::Label(n, v) => write!(f, "Label({}, {:?})", n, v),
             Data::Unit        => write!(f, "Unit"),
         }

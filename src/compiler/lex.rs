@@ -49,11 +49,18 @@ impl Lexer {
             // strip preceeding whitespace
             self.strip();
 
+            // clear out comments
+            self.offset += Lexer::comment(&self.remaining());
+            self.offset += Lexer::multi_comment(&self.remaining());
+
+            // strip trailing whitespace
+            self.strip();
+
             // get next token kind, build token
             let (kind, consumed) = match self.step() {
                 Ok(k)  => k,
                 Err(e) => return Err(
-                    Syntax::error(&e, Span::point(&self.source, self.offset))
+                    Syntax::error(&e, &Span::point(&self.source, self.offset))
                 ),
             };
 
@@ -79,26 +86,29 @@ impl Lexer {
             // think 'or' as literal or 'or' as operator
 
             // static
-            Box::new(|s| Lexer::unit(s)         ),
-            Box::new(|s| Lexer::open_bracket(s) ),
-            Box::new(|s| Lexer::close_bracket(s)),
-            Box::new(|s| Lexer::open_paren(s)   ),
-            Box::new(|s| Lexer::close_paren(s)  ),
-            Box::new(|s| Lexer::assign(s)       ),
-            Box::new(|s| Lexer::lambda(s)       ),
-            Box::new(|s| Lexer::print(s)        ), // remove print statements after FFI
+            Box::new(Lexer::unit),
+            Box::new(Lexer::open_bracket),
+            Box::new(Lexer::close_bracket),
+            Box::new(Lexer::open_paren),
+            Box::new(Lexer::close_paren),
+            Box::new(Lexer::syntax),
+            Box::new(Lexer::assign),
+            Box::new(Lexer::lambda),
+            Box::new(Lexer::compose),
+            Box::new(Lexer::print), // remove print statements after FFI
 
             // variants
-            Box::new(|s| Lexer::sep(s)    ),
-            Box::new(|s| Lexer::boolean(s)),
+            Box::new(Lexer::sep),
+            Box::new(Lexer::boolean),
 
             // dynamic
-            Box::new(|s| Lexer::real(s)  ),
-            Box::new(|s| Lexer::string(s)),
-            // Box::new(|s| Lexer::int(s)),
+            Box::new(Lexer::real),
+            Box::new(Lexer::string),
 
             // keep this @ the bottom, lmao
-            Box::new(|s| Lexer::symbol(s) ),
+            Box::new(Lexer::keyword),
+            Box::new(Lexer::label),
+            Box::new(Lexer::symbol),
         ];
 
         // maybe some sort of map reduce?
@@ -135,7 +145,7 @@ impl Lexer {
             if !char.is_whitespace() || char == '\n' {
                 break;
             }
-            len += 1;
+            len += char.len_utf8();
         }
 
         self.offset += len;
@@ -160,7 +170,7 @@ impl Lexer {
 
         for char in source.chars() {
             match char {
-                n if n.is_digit(10) => len += 1,
+                n if n.is_digit(10) => len += n.len_utf8(),
                 _                   => break,
             }
         }
@@ -200,6 +210,11 @@ impl Lexer {
         Lexer::literal(source, ")", Token::CloseParen)
     }
 
+    /// Matches a macro definition, `syntax`.
+    pub fn syntax(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "syntax", Token::Syntax)
+    }
+
     /// Matches a literal assignment equal sign `=`.
     pub fn assign(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "=", Token::Assign)
@@ -210,28 +225,111 @@ impl Lexer {
         Lexer::literal(source, "->", Token::Lambda)
     }
 
+    /// Matches a literal lambda arrow `->`.
+    pub fn compose(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "|>", Token::Compose)
+    }
+
     /// Matches a `print` expression.
     pub fn print(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "print", Token::Print)
     }
 
-    /// Classifis a symbol (i.e. variable name).
-    /// for now, a symbol is one or more ascii alphanumerics
-    pub fn symbol(source: &str) -> Result<Bite, String> {
-        // TODO: extend to full unicode
+    // TODO: refactor comment and multi-line for doc-comments
+
+    pub fn comment(source: &str) -> usize {
+        let mut len = match Lexer::expect(source, "--") {
+            Ok(n) => n,
+            Err(_) => { return 0; },
+        };
+
+        for char in source[len..].chars() {
+            if char == '\n' { break; }
+            len += char.len_utf8();
+        }
+
+        return len;
+    }
+
+    pub fn multi_comment(source: &str) -> usize {
+        let mut len: usize = match Lexer::expect(source, "-{") {
+            Ok(n) => n,
+            Err(_) => { return 0; },
+        };
+
+        for char in source[len..].chars() {
+            if let Ok(_) = Lexer::expect(&source[len..], "-{") {
+                len += Lexer::multi_comment(&source[len..]);
+            } else if let Ok(end) = Lexer::expect(&source[len..], "}-") {
+                len += end; break;
+            } else {
+                len += char.len_utf8();
+            }
+        }
+
+        return len;
+    }
+
+    /// Classifies a symbol or a label.
+    /// A series of alphanumerics and certain ascii punctuation (see `Lexer::is_alpha`).
+    /// Can not start with a numeric character.
+    pub fn identifier(source: &str) -> Result<Bite, String> {
         let mut len = 0;
 
         for char in source.chars() {
-            if !char.is_ascii_alphanumeric() {
-                break;
+            match char {
+                a if a.is_alphanumeric()
+                  || "_".contains(a)
+                  => { len += a.len_utf8() },
+                _ => { break;   },
             }
-            len += 1;
         }
 
-        return match len {
-            0 => Err("Expected a symbol".to_string()),
-            l => Ok((Token::Symbol, l)),
-        };
+        if len == 0 {
+            return Err("Expected an alphanumeric character".to_string());
+        }
+
+        let first = source.chars().next().unwrap();
+        match first {
+            n if n.is_numeric() => Err(
+                "Can not start with a numeric character".to_string()
+            ),
+            s if s.is_uppercase() => Ok((Token::Label, len)), // label
+            _ => Ok((Token::Symbol, len)), // symbol
+        }
+    }
+
+    /// Classifies a symbol (i.e. variable name).
+    pub fn symbol(source: &str) -> Result<Bite, String> {
+        if let symbol @ (Token::Symbol, _) = Lexer::identifier(source)? {
+            Ok(symbol)
+        } else {
+            Err("Expected a symbol".to_string())
+        }
+    }
+
+    /// Classifies a label (i.e. data wrapper).
+    /// Must start with an uppercase character.
+    pub fn label(source: &str) -> Result<Bite, String> {
+        if let label @ (Token::Label, _) = Lexer::identifier(source)? {
+            Ok(label)
+        } else {
+            Err("Expected a Label".to_string())
+        }
+    }
+
+    /// Classifies a pseudokeyword, used in syntax macros.
+    /// Must start with a single quote `'`.
+    pub fn keyword(source: &str) -> Result<Bite, String> {
+        let mut len = 0;
+        len += Lexer::expect(&source, "'")?;
+
+        if let (Token::Symbol, l) = Lexer::identifier(&source[len..])? {
+            let keyword = source[len..len+l].to_string();
+            Ok((Token::Keyword(keyword), len + l))
+        } else {
+            Err("Expected a pseudokeyword".to_string())
+        }
     }
 
     /// Matches a number with a decimal point.
@@ -265,7 +363,7 @@ impl Lexer {
         len += Lexer::expect(source, "\"")?;
 
         for c in source[len..].chars() {
-            len += 1;
+            len += c.len_utf8();
             if escape {
                 escape = false;
                 // TODO: add more escape codes
@@ -321,12 +419,12 @@ impl Lexer {
         }
 
         // followed by n semicolons/whitespace (including newline)
-        let mut len = 1;
+        let mut len = c.len_utf8();
         for c in chars {
             if c != ';' && !c.is_whitespace() {
                 break;
             }
-            len += 1;
+            len += c.len_utf8();
         }
 
         return Ok((Token::Sep, len));
@@ -500,7 +598,7 @@ mod test {
         if !test_literal(
             unicode,
             Token::String(Data::String("Yo 👋! Ünícode µ works just fine 🚩! うん、気持ちいい！".to_string())),
-            unicode.chars().collect::<Vec<char>>().len(),
+            unicode.len(),
         ) { panic!() }
     }
 
@@ -508,6 +606,6 @@ mod test {
     fn comma() {
         let source = Source::source("heck\\ man");
         let tokens = lex(source.clone());
-        assert_eq!(tokens, Err(Syntax::error("Unexpected token", Span::new(&source, 4, 1))));
+        assert_eq!(tokens, Err(Syntax::error("Unexpected token", &Span::new(&source, 4, 0))));
     }
 }

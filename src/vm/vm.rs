@@ -4,7 +4,7 @@ use crate::common::{
     number::build_number,
     data::Data,
     opcode::Opcode,
-    lambda::Lambda,
+    lambda::{Captured, Lambda},
     closure::Closure,
 };
 
@@ -74,6 +74,7 @@ impl VM {
         match opcode {
             Opcode::Con     => self.con(),
             Opcode::Del     => self.del(),
+            Opcode::Copy    => self.copy_val(),
             Opcode::Capture => self.capture(),
             Opcode::Save    => self.save(),
             Opcode::SaveCap => self.save_cap(),
@@ -83,6 +84,9 @@ impl VM {
             Opcode::Return  => self.return_val(),
             Opcode::Closure => self.closure(),
             Opcode::Print   => self.print(),
+            Opcode::Label   => self.label(),
+            Opcode::UnLabel => self.un_label(),
+            Opcode::UnData  => self.un_data(),
         }
     }
 
@@ -130,6 +134,7 @@ impl VM {
     // - replace some panics with Result<()>s
 
     /// Load a constant and push it onto the stack.
+    #[inline]
     pub fn con(&mut self) -> Result<(), Trace> {
         // get the constant index
         let index = self.next_number();
@@ -140,18 +145,15 @@ impl VM {
 
     /// Moves the top value on the stack to the heap,
     /// replacing it with a reference to the heapified value.
-    /// > NOTE: Behaviour is not stabilized yet.
+    #[inline]
     pub fn capture(&mut self) -> Result<(), Trace> {
-        // we need to use lambda captured, not closure captured!
         let index = self.next_number();
-
-        // TODO: Write this all out efficiently?
-        let reference = self.stack.heapify(index);   // move value to the heap
-        self.closure.captureds.push(reference);
+        self.stack.heapify(index);   // move value to the heap
         self.done()
     }
 
     /// Save the topmost value on the stack into a variable.
+    #[inline]
     pub fn save(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         self.stack.set_local(index);
@@ -159,35 +161,51 @@ impl VM {
     }
 
     /// Save the topmost value on the stack into a captured variable.
+    #[inline]
     pub fn save_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         let data  = self.stack.pop_data();
-        mem::drop(self.closure.captureds[index].replace(data));
+        mem::drop(self.closure.captures[index].replace(data));
         self.done()
     }
 
     /// Push a copy of a variable's value onto the stack.
+    #[inline]
     pub fn load(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
-        self.stack.get_local(index);
+        let data = self.stack.local_data(index);
+        self.stack.push_data(data);
         self.done()
     }
 
     /// Load a captured variable from the current closure.
+    #[inline]
     pub fn load_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         // NOTE: should heaped data should only be present for variables?
-        // self.closure.captureds[index].borrow().to_owned()
-        self.stack.push_data(Data::Heaped(self.closure.captureds[index].clone()));
+        // self.closure.captures[index].borrow().to_owned()
+        self.stack.push_data(self.closure.captures[index].borrow().to_owned());
         self.done()
     }
 
     /// Delete the top item of the stack.
+    #[inline]
     pub fn del(&mut self) -> Result<(), Trace> {
         mem::drop(self.stack.pop_data());
         self.done()
     }
 
+    /// Copy the top data of the stack, i.e.
+    /// `[F, D]` becomes `[F, D, D]`.
+    #[inline]
+    pub fn copy_val(&mut self) -> Result<(), Trace> {
+        let data = self.stack.pop_data();
+        self.stack.push_data(data.clone());
+        self.stack.push_data(data);
+        self.done()
+    }
+
+    #[inline]
     pub fn print(&mut self) -> Result<(), Trace> {
         let data = self.stack.pop_data();
         println!("{}", data);
@@ -195,11 +213,55 @@ impl VM {
         self.done()
     }
 
-    // TODO: closures
+    #[inline]
+    pub fn label(&mut self) -> Result<(), Trace> {
+        let kind = match self.stack.pop_data() {
+            Data::Kind(n) => n,
+            _ => unreachable!(),
+        };
+        let data = self.stack.pop_data();
+        self.stack.push_data(Data::Label(Box::new(kind), Box::new(data)));
+        self.done()
+    }
+
+    fn un_label(&mut self) -> Result<(), Trace> {
+        let kind = match self.stack.pop_data() {
+            Data::Kind(n) => n,
+            _ => unreachable!(),
+        };
+
+        let d = match self.stack.pop_data() {
+            Data::Label(n, d) if *n == kind => d,
+            other => return Err(Trace::error(
+                "Pattern Matching",
+                &format!("The data '{}' does not match the Label '{}'", other, kind),
+                vec![self.closure.lambda.index_span(self.ip)],
+            )),
+        };
+
+        self.stack.push_data(*d);
+        self.done()
+    }
+
+    fn un_data(&mut self) -> Result<(), Trace> {
+        let expected = self.stack.pop_data();
+        let data = self.stack.pop_data();
+
+        if data != expected {
+            return Err(Trace::error(
+                "Pattern Matching",
+                &format!("The data '{}' does not match the expected data '{}'", data, expected),
+                vec![self.closure.lambda.index_span(self.ip)],
+            ));
+        }
+
+        self.done()
+    }
+
     /// Call a function on the top of the stack, passing the next value as an argument.
     pub fn call(&mut self) -> Result<(), Trace> {
         let fun = match self.stack.pop_data() {
-            Data::Closure(c) => c,
+            Data::Closure(c) => *c,
             o => return Err(Trace::error(
                 "Call",
                 &format!("The data '{}' is not a function and can not be called", o),
@@ -246,16 +308,26 @@ impl VM {
         let index = self.next_number();
 
         let lambda = match self.closure.lambda.constants[index].clone() {
-            Data::Lambda(lambda) => lambda,
+            Data::Lambda(lambda) => *lambda,
             _ => unreachable!("Expected a lambda to be wrapped with a closure"),
         };
 
         let mut closure = Closure::wrap(lambda);
-        for upvalue in closure.lambda.captureds.iter().rev() {
-            closure.captureds.push(self.closure.captureds[*upvalue].clone())
+
+        for captured in closure.lambda.captures.iter() /* .rev */ {
+            let reference = match captured {
+                Captured::Local(index) => {
+                    match self.stack.local_data(*index) {
+                        Data::Heaped(h) => h,
+                        _ => unreachable!("Expected data to be on the heap"),
+                    }
+                },
+                Captured::Nonlocal(upvalue) => self.closure.captures[*upvalue].clone(),
+            };
+            closure.captures.push(reference)
         }
 
-        self.stack.push_data(Data::Closure(closure));
+        self.stack.push_data(Data::Closure(Box::new(closure)));
         self.done()
     }
 }
@@ -265,6 +337,7 @@ mod test {
     use super::*;
     use crate::compiler::{
         parse::parse,
+        desugar::desugar,
         lex::lex,
         gen::gen,
     };
@@ -273,6 +346,7 @@ mod test {
     fn inspect(source: &str) -> VM {
         let lambda = lex(Source::source(source))
             .and_then(parse)
+            .and_then(desugar)
             .and_then(gen)
             .map_err(|e| println!("{}", e))
             .unwrap();
@@ -301,7 +375,7 @@ mod test {
 
     #[test]
     fn functions() {
-        let mut vm = inspect("iden = x -> x; y = true; iden ({y = false; iden iden} (iden y))");
+        let mut vm = inspect("iden = x -> x; y = true; iden ({ y = false; iden iden } (iden y))");
         let identity = vm.stack.pop_data();
         assert_eq!(identity, Data::Boolean(true));
     }

@@ -1,4 +1,8 @@
-use std::mem;
+use std::{
+    mem,
+    convert::TryFrom,
+};
+
 use crate::common::{
     span::{Span, Spanned},
     data::Data,
@@ -7,7 +11,7 @@ use crate::common::{
 use crate::compiler::{
     syntax::Syntax,
     token::Token,
-    ast::AST,
+    ast::{AST, ASTPattern, ArgPat},
 };
 
 /// Simple function that parses a token stream into an AST.
@@ -29,6 +33,7 @@ pub enum Prec {
     None = 0,
     Assign,
     Lambda,
+    Compose,
     Call,
     End,
 }
@@ -75,6 +80,17 @@ impl Parser {
         }
     }
 
+    // // TODO: merge with sep?
+    pub fn draw(&self) -> &Spanned<Token> {
+        let mut offset = 0;
+
+        while self.tokens[self.index + offset].item == Token::Sep {
+            offset += 1;
+        }
+
+        return &self.tokens[self.index + offset];
+    }
+
     /// Returns the current token then advances the parser.
     pub fn advance(&mut self) -> &Spanned<Token> {
         self.index += 1;
@@ -99,7 +115,7 @@ impl Parser {
         let token = self.current();
         Syntax::error(
             &format!("Oopsie woopsie, what's {} doing here?", token.item),
-            token.span.clone()
+            &token.span
         )
     }
 
@@ -110,7 +126,7 @@ impl Parser {
         let current = &self.tokens[self.index - 1];
         if current.item != token {
             self.index -= 1;
-            Err(Syntax::error(&format!("Expected {}, found {}", token, current.item), current.span.clone()))
+            Err(Syntax::error(&format!("Expected {}, found {}", token, current.item), &current.span))
         } else {
             Ok(current)
         }
@@ -120,41 +136,50 @@ impl Parser {
 
     /// Looks at the current token and parses an infix expression
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
-        match self.current().item {
+        match self.skip().item {
             Token::End         => Ok(Spanned::new(AST::Block(vec![]), Span::empty())),
 
+            Token::Syntax      => self.syntax(),
             Token::OpenParen   => self.group(),
             Token::OpenBracket => self.block(),
             Token::Symbol      => self.symbol(),
             Token::Print       => self.print(),
+            Token::Label       => self.label(),
+            Token::Keyword(_)  => self.keyword(),
+
             Token::Unit
             | Token::Number(_)
             | Token::String(_)
             | Token::Boolean(_) => self.literal(),
 
-            Token::Sep => Err(self.unexpected()),
-             _ => Err(Syntax::error("Expected an expression", self.current().span.clone())),
+            Token::Sep => unreachable!(),
+            _          => Err(Syntax::error("Expected an expression", &self.current().span)),
         }
     }
 
     /// Looks at the current token and parses the right side of any infix expressions.
     pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        match self.current().item {
-            Token::Assign => self.assign(left),
-            Token::Lambda => self.lambda(left),
+        match self.skip().item {
+            Token::Assign  => self.assign(left),
+            Token::Lambda  => self.lambda(left),
+            Token::Compose => self.compose(left),
 
-            Token::End => Err(self.unexpected()),
-            Token::Sep => Err(self.unexpected()),
-
-            _ => self.call(left),
+            Token::End    => Err(self.unexpected()),
+            Token::Sep    => unreachable!(),
+            _             => self.call(left),
         }
     }
 
     /// Looks at the current operator token and determines the precedence
     pub fn prec(&mut self) -> Result<Prec, Syntax> {
-        let prec = match self.current().item {
-            Token::Assign => Prec::Assign,
-            Token::Lambda => Prec::Lambda,
+        let next = self.draw().item.clone();
+        let current = self.current().item.clone();
+        let sep = next != current;
+
+        let prec = match next {
+            Token::Assign  => Prec::Assign,
+            Token::Lambda  => Prec::Lambda,
+            Token::Compose => Prec::Compose,
 
               Token::End
             | Token::CloseParen
@@ -164,27 +189,38 @@ impl Parser {
               Token::OpenParen
             | Token::OpenBracket
             | Token::Unit
+            | Token::Syntax
             | Token::Print
             | Token::Symbol
+            | Token::Keyword(_)
+            | Token::Label
             | Token::Number(_)
             | Token::String(_)
             | Token::Boolean(_) => Prec::Call,
 
-            Token::Sep => Prec::End,
+            Token::Sep => unreachable!(),
         };
-        Ok(prec)
+
+        if sep && prec == Prec::Call {
+            Ok(Prec::End)
+        } else {
+            Ok(prec)
+        }
     }
 
+    // TODO: factor out? only group uses the skip sep flag...
     /// Uses some pratt parser magic to parse an expression.
     /// It's essentially a fold-left over tokens
     /// based on the precedence and content.
     /// Cool stuff.
-    pub fn expression(&mut self, prec: Prec) -> Result<Spanned<AST>, Syntax> {
+    pub fn expression(&mut self, prec: Prec, skip_sep: bool) -> Result<Spanned<AST>, Syntax> {
         let mut left = self.rule_prefix()?;
 
-        while self.prec()? >= prec
-           && self.prec()? != Prec::End
-        {
+        while {
+            if skip_sep { self.sep(); }
+            let p = self.prec()?;
+            p >= prec && p != Prec::End
+        } {
             left = self.rule_infix(left)?;
         }
 
@@ -198,7 +234,18 @@ impl Parser {
     /// Constructs an AST for a symbol.
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
         let symbol = self.consume(Token::Symbol)?;
-        Ok(Spanned::new(AST::Symbol, symbol.span.clone()))
+        Ok(Spanned::new(AST::Symbol(symbol.span.contents()), symbol.span.clone()))
+    }
+
+    /// Parses a keyword.
+    /// Note that this is wrapped in a Pattern node.
+    pub fn keyword(&mut self) -> Result<Spanned<AST>, Syntax> {
+        if let Spanned { item: Token::Keyword(name), span } = self.advance() {
+            let wrapped = AST::ArgPat(ArgPat::Keyword(name.clone()));
+            Ok(Spanned::new(wrapped, span.clone()))
+        } else {
+            unreachable!("Expected a keyword");
+        }
     }
 
     /// Constructs the AST for a literal, such as a number or string.
@@ -212,20 +259,20 @@ impl Parser {
             Token::Boolean(b) => AST::Data(b.clone()),
             unexpected => return Err(Syntax::error(
                 &format!("Expected a literal, found {}", unexpected),
-                span.clone()
+                &span
             )),
         };
 
-        Result::Ok(Spanned::new(leaf, span.clone()))
+        Ok(Spanned::new(leaf, span.clone()))
     }
 
     /// Constructs the ast for a group,
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
-        self.consume(Token::OpenParen)?;
-        let ast = self.expression(Prec::None.associate_left())?;
-        self.consume(Token::CloseParen)?;
-        Ok(ast)
+        let start = self.consume(Token::OpenParen)?.span.clone();
+        let ast   = self.expression(Prec::None.associate_left(), true)?.item;
+        let end   = self.consume(Token::CloseParen)?.span.clone();
+        Ok(Spanned::new(ast, Span::combine(&start, &end)))
     }
 
     /// Parses the body of a block.
@@ -236,7 +283,7 @@ impl Parser {
         let mut expressions = vec![];
 
         while self.skip().item != end {
-            let ast = self.expression(Prec::None)?;
+            let ast = self.expression(Prec::None, false)?;
             expressions.push(ast);
             if let Err(_) = self.consume(Token::Sep) {
                 break;
@@ -256,6 +303,42 @@ impl Parser {
         return Ok(Spanned::new(ast, Span::combine(&start, &end)));
     }
 
+    // TODO: unwrap from outside in to prevent nesting
+    /// Parse a macro definition.
+    /// `syntax`, followed by a pattern, followed by a `block`
+    pub fn syntax(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let start = self.consume(Token::Syntax)?.span.clone();
+        let mut after = self.expression(Prec::Call, false)?;
+
+        let mut form = match after.item {
+            AST::Form(p) => p,
+            _ => return Err(Syntax::error(
+                "Expected a pattern and a block after 'syntax'",
+                &after.span,
+            )),
+        };
+
+        let last = form.pop().unwrap();
+        after.span = Spanned::build(&form);
+        after.item = AST::Form(form);
+        let block = match (last.item, last.span) {
+            (b @ AST::Block(_), s) => Spanned::new(b, s),
+            _ => return Err(Syntax::error(
+                "Expected a block after the syntax pattern",
+                &after.span,
+            )),
+        };
+
+        let arg_pat = Parser::arg_pat(after)?;
+        let span = Span::join(vec![
+            start,
+            arg_pat.span.clone(),
+            block.span.clone()
+        ]);
+
+        return Ok(Spanned::new(AST::syntax(arg_pat, block), span));
+    }
+
     /// Parse a print statement.
     /// A print statement takes the form `print <expression>`
     /// Where expression is exactly one expression
@@ -263,7 +346,7 @@ impl Parser {
     /// Once the FFI is solidified, printing will be a function like any other.
     pub fn print(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::Print)?.span.clone();
-        let ast = self.expression(Prec::Call)?;
+        let ast = self.expression(Prec::Call, false)?;
         let end = ast.span.clone();
         return Ok(Spanned::new(
             AST::Print(Box::new(ast)),
@@ -271,30 +354,69 @@ impl Parser {
         ))
     }
 
+    /// Parse a label.
+    /// A label takes the form of `<Label> <expression>`
+    pub fn label(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let start = self.consume(Token::Label)?.span.clone();
+        let ast = self.expression(Prec::End, false)?;
+        let end = ast.span.clone();
+        return Ok(Spanned::new(
+            AST::Label(start.contents(), Box::new(ast)),
+            Span::combine(&start, &end),
+        ));
+    }
+
     // Infix:
+
+    pub fn arg_pat(ast: Spanned<AST>) -> Result<Spanned<ArgPat>, Syntax> {
+        let item = match ast.item {
+            AST::Symbol(s) => ArgPat::Symbol(s),
+            AST::ArgPat(p) => p,
+            AST::Form(f) => {
+                let mut mapped = vec![];
+                for a in f { mapped.push(Parser::arg_pat(a)?); }
+                ArgPat::Group(mapped)
+            }
+            _ => Err(Syntax::error(
+                "Unexpected construct inside argument pattern",
+                &ast.span
+            ))?,
+        };
+
+        return Ok(Spanned::new(item, ast.span));
+    }
 
     // TODO: assign and lambda are similar... combine?
 
     /// Parses an assignment, associates right.
     pub fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let symbol = if let AST::Symbol = left.item { left }
-            else { return Err(Syntax::error("Expected a symbol", left.span))? };
+        let left_span = left.span.clone();
+        let pattern = left.map(ASTPattern::try_from)
+            .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Assign)?;
-        let expression = self.expression(Prec::Assign)?;
-        let combined   = Span::combine(&symbol.span, &expression.span);
-        Result::Ok(Spanned::new(AST::assign(symbol, expression), combined))
+        let expression = self.expression(Prec::Assign, false)?;
+        let combined   = Span::combine(&pattern.span, &expression.span);
+        Ok(Spanned::new(AST::assign(pattern, expression), combined))
     }
 
     /// Parses a lambda definition, associates right.
     pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let symbol = if let AST::Symbol = left.item { left }
-            else { return Err(Syntax::error("Expected a symbol", left.span))? };
+        let left_span = left.span.clone();
+        let pattern = left.map(ASTPattern::try_from)
+            .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Lambda)?;
-        let expression = self.expression(Prec::Lambda)?;
-        let combined   = Span::combine(&symbol.span, &expression.span);
-        Result::Ok(Spanned::new(AST::lambda(symbol, expression), combined))
+        let expression = self.expression(Prec::Lambda, false)?;
+        let combined   = Span::combine(&pattern.span, &expression.span);
+        Ok(Spanned::new(AST::lambda(pattern, expression), combined))
+    }
+
+    pub fn compose(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        self.consume(Token::Compose)?;
+        let right = self.expression(Prec::Compose.associate_left(), false)?;
+        let combined = Span::combine(&left.span, &right.span);
+        return Ok(Spanned::new(AST::composition(left, right), combined))
     }
 
     /// Parses a function call.
@@ -304,9 +426,16 @@ impl Parser {
     /// we interpret anything that isn't an operator as a function call operator.
     /// Then pull a fast one and not parse it like an operator at all.
     pub fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let argument = self.expression(Prec::Call.associate_left())?;
+        let argument = self.expression(Prec::Call.associate_left(), false)?;
         let combined = Span::combine(&left.span, &argument.span);
-        return Ok(Spanned::new(AST::call(left, argument), combined));
+
+        let mut form = match left.item {
+            AST::Form(f) => f,
+            _ => vec![left],
+        };
+
+        form.push(argument);
+        return Ok(Spanned::new(AST::Form(form), combined));
     }
 }
 
@@ -338,7 +467,7 @@ mod test {
                     vec![
                         Spanned::new(
                             AST::assign(
-                                Spanned::new(AST::Symbol, Span::new(&source, 0, 1)),
+                                Spanned::new(ASTPattern::Symbol("x".to_string()), Span::new(&source, 0, 1)),
                                 Spanned::new(
                                     AST::Data(Data::Real(55.0)),
                                     Span::new(&source, 4, 4),
@@ -365,10 +494,10 @@ mod test {
                     vec![
                         Spanned::new(
                             AST::assign(
-                                Spanned::new(AST::Symbol, Span::new(&source, 0, 1)),
+                                Spanned::new(ASTPattern::Symbol("x".to_string()), Span::new(&source, 0, 1)),
                                 Spanned::new(
                                     AST::lambda(
-                                        Spanned::new(AST::Symbol, Span::new(&source, 4, 1)),
+                                        Spanned::new(ASTPattern::Symbol("y".to_string()), Span::new(&source, 4, 1)),
                                         Spanned::new(
                                             AST::Data(Data::Real(3.141592)),
                                             Span::new(&source, 9, 8),
