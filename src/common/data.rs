@@ -61,7 +61,7 @@ impl Display for Data {
             Data::Boolean(b)  => write!(f, "{}", if *b { "true" } else { "false" }),
             Data::String(s)   => write!(f, "{}", s),
             Data::Lambda(_)   => unreachable!("Can not display naked functions"),
-            Data::Closure(_)  => write!(f, "Function"),
+            Data::Closure(c)  => write!(f, "Function ~ {}", c.id),
             Data::Kind(_)     => unreachable!("Can not display naked labels"),
             Data::Label(n, v) => write!(f, "{} {}", n, v),
             Data::Unit        => write!(f, "()"),
