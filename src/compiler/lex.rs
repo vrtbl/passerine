@@ -51,7 +51,10 @@ impl Lexer {
 
             // clear out comments
             self.offset += Lexer::comment(&self.remaining());
-            // self.offset += Lexer::comment(&self.remaining());
+            self.offset += Lexer::multi_comment(&self.remaining());
+
+            // strip trailing whitespace
+            self.strip();
 
             // get next token kind, build token
             let (kind, consumed) = match self.step() {
@@ -249,11 +252,10 @@ impl Lexer {
         };
 
         for char in source[len..].chars() {
-            if let Ok(new) = Lexer::expect(&source[len..], "-{") {
-                len += new;
+            if let Ok(_) = Lexer::expect(&source[len..], "-{") {
                 len += Lexer::multi_comment(&source[len..]);
-            } else if Lexer::expect(&source[len..], "}-").is_ok() {
-                break;
+            } else if let Ok(end) = Lexer::expect(&source[len..], "}-") {
+                len += end; break;
             } else {
                 len += char.len_utf8();
             }
