@@ -70,7 +70,7 @@ Passerine is an *expression-oriented* language, because of this, it makes sense 
 
 > Because Passerine is *expression-oriented*, the distinction between statements and expressions isn't made. In the case that an expression produces no useful value, it should return the Unit type, `()`.
 
-Passerine respects operator precedence. `2 + 3 * 5` is `17`, not `25`. Notation is a powerful tool – although Passerine is inspired by lisps (like Scheme), it provides a more familiar syntax.
+Passerine respects operator precedence. `3 + 2 * 5` is `17`, not `25`. Notation is a powerful tool – although Passerine is inspired by lisps (like Scheme), it provides a more familiar syntax.
 
 Passerine uses whitespace for function calls. A function call takes the form `l e₀ ... eₙ`, where `l` is a function and `e` is an expression. If we substitute `linear`, the first example is equivalent to:
 
