@@ -59,7 +59,7 @@ We'll start simple; here's a function definition:
 ```passerine
 linear = m b x -> b + m * x
 linear 2 3 5
--- evaluates to 17
+-- evaluates to 13
 ```
 
 There are already some important things we can learn about Passerine from this short example:
@@ -70,7 +70,7 @@ Passerine is an *expression-oriented* language, because of this, it makes sense 
 
 > Because Passerine is *expression-oriented*, the distinction between statements and expressions isn't made. In the case that an expression produces no useful value, it should return the Unit type, `()`.
 
-Passerine respects operator precedence. `3 + 2 * 5` is `17`, not `25`. Notation is a powerful tool – although Passerine is inspired by lisps (like Scheme), it provides a more familiar syntax.
+Passerine respects operator precedence. `3 + 2 * 5` is `13`, not `25`. Notation is a powerful tool – although Passerine is inspired by lisps (like Scheme), it provides a more familiar syntax.
 
 Passerine uses whitespace for function calls. A function call takes the form `l e₀ ... eₙ`, where `l` is a function and `e` is an expression. If we substitute `linear`, the first example is equivalent to:
 
@@ -84,7 +84,7 @@ Passerine uses whitespace for function calls. A function call takes the form `l 
 - `3` against `b`, so `b = 3`,
 - `5` against `x`, so `x = 5`,
 
-`b + m * x` is then evaluated in a new scope where `m`, `b`, and `x` are bound. In the case of the above example, this is equivalent to `2 + 3 * 5`, which is `17`.
+`b + m * x` is then evaluated in a new scope where `m`, `b`, and `x` are bound. In the case of the above example, this is equivalent to `3 + 2 * 5`, which is `13`.
 
 > Function calls are left-associative, so the call `a b c d` is equivalent to `((a b) c) d`, not `a (b (c d))`. This syntax comes from functional languages like Haskell, and makes currying (partial application) quite intuitive.
 
@@ -440,7 +440,7 @@ match result {
 
 Why make the distinction between expected errors (`Result`) and unexpected errors (fiber crashes)? Programs only produce valid results if the environments they run in are valid. When a fiber crashes, it's signaling that something about the environment it's running in is not valid. This is very useful to *developers* during development, and very useful to *programs* in contexts where complex long-running applications may fail for any number of reasons.
 
-sWhy not only use exceptions then? Because it's perfectly possible for an error to occur that is not exceptional at all. Malformed input, incorrect permissions, missing items – these are all things that can occur and do occur on a regular basis. It's always important to use the right tool for the job; prefer expected errors over unexpected errors.
+Why not only use exceptions then? Because it's perfectly possible for an error to occur that is not exceptional at all. Malformed input, incorrect permissions, missing items – these are all things that can occur and do occur on a regular basis. It's always important to use the right tool for the job; prefer expected errors over unexpected errors.
 
 #### Concurrency
 Fibers are for more than just isolating the context of errors. As mentioned earlier:
