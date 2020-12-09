@@ -99,9 +99,9 @@ sort = list -> match list {
     [] -> []
 
     -- pivot is head, tail is remaining
-    [head & tail] -> {
-        higher = filter { x -> x >= head } tail
-        lower  = filter { x -> x <  head } tail
+    [pivot & tail] -> {
+        higher = filter { x -> x >= pivot } tail
+        lower  = filter { x -> x <  pivot } tail
 
         (sorted_lower, sorted_higher) = (sort lower, sort higher)
 
