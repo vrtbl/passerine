@@ -82,21 +82,6 @@ impl Transformer {
     // TODO: do raw apply and check once macros get more complicated.
     // TODO: Make it possible for forms with less than one value to exist
     pub fn form(&mut self, form: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
-        // collect all in-scope pseudokeywords
-        let mut keywords = HashSet::new();
-        for rule in self.rules.iter() {
-            for keyword in Rule::keywords(&rule.item.arg_pat) {
-                keywords.insert(keyword);
-            }
-        }
-
-        // TODO: convert symbols to in-scope pseudokeywords
-        // This allows us to error on an imperfect macro match.
-        // form = form.iter()
-        //     .map(|branch| match branch.item {
-        //         AST::Symbol(name)
-        //     })
-
         // build up a list of rules that matched the current form
         // note that this should be 1
         // 0 means that there's a function call
@@ -113,7 +98,40 @@ impl Transformer {
             }
         }
 
-        if matches.len() == 0 { return self.call(form); }
+        if matches.len() == 0 {
+            // collect all in-scope pseudokeywords
+            let mut pseudokeywords: HashSet<String> = HashSet::new();
+            for rule in self.rules.iter() {
+                for pseudokeyword in Rule::keywords(&rule.item.arg_pat) {
+                    pseudokeywords.insert(pseudokeyword);
+                }
+            }
+
+            let potential_keywords = form.iter()
+                .filter(|i| if let AST::Symbol(_) = &i.item { true } else { false })
+                .map(   |i| if let AST::Symbol(s) = &i.item { s.to_string() } else { unreachable!() })
+                .collect::<HashSet<String>>();
+
+            // calculate pseudokeyword collisions in case of ambiguity
+            let intersection = potential_keywords.intersection(&pseudokeywords)
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>();
+
+            // process the form as a function call instead
+            if intersection.is_empty() { return self.call(form); }
+
+            return Err(Syntax::error(
+                &format!(
+                    "In-scope pseudokeyword{} {} used, but no macros match the form.",
+                    if intersection.len() == 1 { "" } else { "s" },
+                    intersection.iter()
+                        .map(|kw| format!("'{}'", kw))
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                ),
+                &Spanned::build(&form),
+            ))
+        }
         if matches.len() > 1 {
             // TODO: make the error prettier
             // might have to rework Syntax a bit...
