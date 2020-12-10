@@ -99,9 +99,9 @@ sort = list -> match list {
     [] -> []
 
     -- pivot is head, tail is remaining
-    [head & tail] -> {
-        higher = filter { x -> x >= head } tail
-        lower  = filter { x -> x <  head } tail
+    [pivot & tail] -> {
+        higher = filter { x -> x >= pivot } tail
+        lower  = filter { x -> x <  pivot } tail
 
         (sorted_lower, sorted_higher) = (sort lower, sort higher)
 
@@ -144,7 +144,7 @@ There's no real reason to use tuple destructuring here – idiomatically, just u
 Passerine also supports higher order functions (this should come as no surprise):
 
 ```passerine
-filter { x -> x >= pivot } remaining
+filter { x -> x >= pivot } tail
 ```
 
 `filter` takes a predicate (a function) and an iterable (like a list), and produces a new iterable where the predicate is true for all items. Although parenthesis could be used to group the inline function definition after `filter`, it's stylistically more coherent to use blocks for *regions of computation*. What's a region of computation? A region of computation is a series of multiple expressions, or a single expression that creates new bindings, like an assignment or a function definition.
