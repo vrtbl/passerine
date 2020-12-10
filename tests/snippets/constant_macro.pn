@@ -1,0 +1,7 @@
+-- action: run
+-- outcome: success
+-- expect: false
+
+syntax 'not_true { x -> false }
+
+true |> not_true

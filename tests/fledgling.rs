@@ -13,7 +13,6 @@ use passerine::{
     },
     compiler::{
         lex, parse, desugar, gen,
-        token::Token,
         ast::AST,
     },
     vm::vm::VM,
@@ -54,7 +53,11 @@ pub enum Action {
 impl Action {
     pub fn parse(action: &str) -> Action {
         match action {
-            r if r == "run" => Action::Run,
+            l if l == "lex"     => Action::Lex,
+            p if p == "parse"   => Action::Parse,
+            d if d == "desugar" => Action::Desugar,
+            g if g == "gen"     => Action::Gen,
+            r if r == "run"     => Action::Run,
             invalid => {
                 println!("invalid: '{}'", invalid);
                 panic!("invalid action in strat heading");
@@ -105,9 +108,9 @@ impl TestStrat {
         }
 
         TestStrat {
-            outcome: outcome.unwrap(),
-            action: action.unwrap(),
-            expect: expect,
+            outcome: outcome.expect("no outcome provided"),
+            action: action.expect("no action provided"),
+            expect,
         }
     }
 
@@ -163,12 +166,18 @@ fn test_snippet(source: Rc<Source>, strat: TestStrat) {
                 let mut vm = VM::init();
 
                 match vm.run(Closure::wrap(lambda)) {
-                    Ok(()) => if let Some(top) = strat.expect {
+                    Ok(()) => {
+                        if let Some(expected) = &strat.expect {
+                            let top = vm.stack.pop_data();
+                            if expected != &top {
+                                println!("Top: {}", top);
+                                println!("Expected: {}", expected);
+                                panic!("Top stack data does not match")
+                            }
+                        }
                         Outcome::Success
-                    } else {
-                        panic!("expected returned snippet data did not match")
                     },
-                    Err(e) => Outcome::Trace
+                    Err(_) => Outcome::Trace
                 }
             } else {
                 Outcome::Syntax

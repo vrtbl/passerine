@@ -1,0 +1,9 @@
+-- action: desugar
+-- outcome: syntax
+
+syntax a 'where b { 0.0 }
+
+a = 1.0
+b = 2.0
+
+a where b where a

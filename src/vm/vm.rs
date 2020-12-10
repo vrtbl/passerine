@@ -21,9 +21,9 @@ use crate::vm::{
 /// so more than one can be spawned if needed.
 #[derive(Debug)]
 pub struct VM {
-    closure: Closure,
-    stack:   Stack,
-    ip:      usize,
+    pub closure: Closure,
+    pub stack:   Stack,
+    pub ip:      usize,
 }
 
 // NOTE: use Opcode::same and Opcode.to_byte() rather than actual bytes

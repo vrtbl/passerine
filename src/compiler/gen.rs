@@ -18,6 +18,7 @@ use crate::compiler::{
 /// Exposes the functionality of the `Compiler`.
 pub fn gen(cst: Spanned<CST>) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base();
+    println!("{:#?}", cst);
     compiler.walk(&cst)?;
     return Ok(compiler.lambda);
 }
@@ -140,9 +141,13 @@ impl Compiler {
     /// if resolution it successful, it captures the variable in the original scope
     /// then builds a chain of upvalues to hoist that upvalue where it's needed.
     pub fn captured(&mut self, name: &str) -> Option<(Captured, bool)> {
+        println!("{} trying to resolve {}", self.depth, name);
+
         if let Some(index) = self.local(name) {
+            println!("is local");
             let already = self.captures.contains(&index);
             if !already {
+                println!("is not captured");
                 self.captures.push(index);
                 self.lambda.emit(Opcode::Capture);
                 self.lambda.emit_bytes(&mut split_number(index));
@@ -151,11 +156,15 @@ impl Compiler {
         }
 
         if let Some(enclosing) = self.enclosing.as_mut() {
+            println!("is not local");
             if let Some((captured, already)) = enclosing.captured(name) {
+                println!("exists in enclosing scope: {:?}", captured);
                 let upvalue = if !already {
+                    println!("already captured");
                     self.lambda.captures.push(captured);
                     self.lambda.captures.len() - 1
                 } else {
+                    println!("not already captured.");
                     self.lambda.captures.iter().position(|c| c == &captured).unwrap()
                 };
                 return Some((Captured::Nonlocal(upvalue), already));
