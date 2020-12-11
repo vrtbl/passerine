@@ -18,7 +18,6 @@ use crate::compiler::{
 /// Exposes the functionality of the `Compiler`.
 pub fn gen(cst: Spanned<CST>) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base();
-    println!("{:#?}", cst);
     compiler.walk(&cst)?;
     return Ok(compiler.lambda);
 }
@@ -140,34 +139,27 @@ impl Compiler {
     /// Tries to resolve a variable in enclosing scopes
     /// if resolution it successful, it captures the variable in the original scope
     /// then builds a chain of upvalues to hoist that upvalue where it's needed.
-    pub fn captured(&mut self, name: &str) -> Option<(Captured, bool)> {
-        println!("{} trying to resolve {}", self.depth, name);
-
+    pub fn captured(&mut self, name: &str) -> Option<Captured> {
         if let Some(index) = self.local(name) {
-            println!("is local");
             let already = self.captures.contains(&index);
             if !already {
-                println!("is not captured");
                 self.captures.push(index);
                 self.lambda.emit(Opcode::Capture);
                 self.lambda.emit_bytes(&mut split_number(index));
             }
-            return Some((Captured::Local(index), already));
+            return Some(Captured::Local(index));
         }
 
         if let Some(enclosing) = self.enclosing.as_mut() {
-            println!("is not local");
-            if let Some((captured, already)) = enclosing.captured(name) {
-                println!("exists in enclosing scope: {:?}", captured);
-                let upvalue = if !already {
-                    println!("already captured");
+            if let Some(captured) = enclosing.captured(name) {
+                let included = self.lambda.captures.contains(&captured);
+                let upvalue = if !included {
                     self.lambda.captures.push(captured);
                     self.lambda.captures.len() - 1
                 } else {
-                    println!("not already captured.");
                     self.lambda.captures.iter().position(|c| c == &captured).unwrap()
                 };
-                return Some((Captured::Nonlocal(upvalue), already));
+                return Some(Captured::Nonlocal(upvalue));
             }
         }
 
@@ -177,7 +169,7 @@ impl Compiler {
     /// returns the index of a captured non-local.
     pub fn captured_upvalue(&mut self, name: &str) -> Option<usize> {
         match self.captured(name) {
-            Some((Captured::Nonlocal(upvalue), _)) => Some(upvalue),
+            Some(Captured::Nonlocal(upvalue)) => Some(upvalue),
             _ => None,
         }
     }
