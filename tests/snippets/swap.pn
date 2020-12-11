@@ -1,0 +1,17 @@
+-- action: run
+-- outcome: success
+-- expect: false
+
+syntax a 'swap b {
+    tmp = a
+    a = b
+    b = tmp
+}
+
+tmp = ()
+x = true
+y = false
+
+x swap y
+
+x

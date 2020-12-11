@@ -1,0 +1,7 @@
+-- action: gen
+-- outcome: success
+
+a = "Heck"
+
+() -> a
+() -> a
