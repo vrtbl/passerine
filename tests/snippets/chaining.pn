@@ -1,6 +1,6 @@
--- action: run
+-- action:  run
 -- outcome: success
--- expect: "Bye"
+-- expect:  "Bye"
 
 i = x -> x
 bye = x -> "Bye"
