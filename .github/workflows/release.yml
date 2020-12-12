@@ -21,37 +21,37 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # - name: Check out Passerine
-      - uses: actions/checkout@v2
+      - name: Check out Passerine
+        uses: actions/checkout@v2
         with:
           path: passerine
 
-      # - name: Check out Aspen
-      - uses: actions/checkout@v2
+      - name: Check out Aspen
+        uses: actions/checkout@v2
         with:
           repository: vrtbl/aspen
           path: aspen
 
-      # - name: Get Toolchain
-      - uses: actions-rs/toolchain@v1
+      - name: Get Toolchain
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
 
-      # - name: Cross-Compile
-      - uses: actions-rs/cargo@v1
+      - name: Cross-Compile
+        uses: actions-rs/cargo@v1
         with:
           use-cross: true
           command: build
           args: --release --manifest-path ./aspen/Cargo.toml --target=${{ matrix.target }}
 
-      # - name: Move Binary
-      - run: mv ./aspen/target/release/aspen ./bin/aspen_${{ matrix.target }}
+      - name: Move Binary
+        run: mv ./aspen/target/release/aspen ./bin/aspen_${{ matrix.target }}
 
-      # - name: Create Release
-      - id: create_release
-      - uses: actions/create-release@v1
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -59,12 +59,12 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: true
           prerelease: true
-      
-      # # - name: Upload Release Assets
-      # - uses: actions/upload-release-asset@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-      #     asset_path: ./bin/aspen_${{ matrix.target }}
-      #     asset_name: aspen_${{ matrix.target }}
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/aspen_${{ matrix.target }}
+          asset_name: aspen_${{ matrix.target }}
