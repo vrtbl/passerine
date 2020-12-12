@@ -21,8 +21,8 @@ jobs:
     #       - x86_64-apple-darwin
 
     steps:
-      - name: Checkout Passerine
       - uses: actions/checkout@v2
+      - name: Checkout Passerine
         # with:
         #   path: passerine
 
