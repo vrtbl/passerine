@@ -26,12 +26,12 @@ jobs:
         with:
           path: passerine
 
-      - name: Checkout Aspen
-      - uses: actions/checkout@v2
-        with:
-          repository: vrtbl/aspen
-          path: aspen
-
+      # - name: Checkout Aspen
+      # - uses: actions/checkout@v2
+      #   with:
+      #     repository: vrtbl/aspen
+      #     path: aspen
+      #
       # - name: Get Toolchain
       # - uses: actions-rs/toolchain@v1
       #   with:
