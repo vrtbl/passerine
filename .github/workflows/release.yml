@@ -33,12 +33,12 @@ jobs:
           path: aspen
 
       # # - name: Get Toolchain
-      # - uses: actions-rs/toolchain@v1
-      #   with:
-      #     toolchain: stable
-      #     target: ${{ matrix.target }}
-      #     override: true
-      #
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
       # # - name: Cross-Compile
       # - uses: actions-rs/cargo@v1
       #   with:
