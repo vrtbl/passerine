@@ -7,8 +7,8 @@ on:
     branches: [ master ]
 
 jobs:
-  build:    
-    name: Build
+  build:
+    name: Build Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -17,5 +17,3 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
-    
-    
