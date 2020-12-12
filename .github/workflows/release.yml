@@ -1,0 +1,70 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+jobs:
+
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - x86_64-unknown-linux-gnu
+          - x86_64-pc-windows-gnu
+          - x86_64-pc-windows-msvc
+          - aarch64-apple-darwin
+          - x86_64-apple-darwin
+          
+    steps:
+      - name: Checkout Passerine
+      - uses: actions/checkout@v2
+        with: 
+          path: passerine
+      
+      - name: Checkout Aspen
+      - uses: actions/checkout@v2
+        with: 
+          repository: vrtbl/aspen
+          path: aspen
+      
+      - name: Get Toolchain
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Cross-Compile
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --manifest-path $GITHUB_WORKSPACE/aspen/Cargo.toml --target=${{ matrix.target }}
+            
+      - name: Move Binary
+      - run: mv $GITHUB_WORKSPACE/aspen/target/release/aspen $GITHUB_WORKSPACE/bin/aspen_${{ matrix.target }}
+      
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: true
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} 
+          asset_path: $GITHUB_WORKSPACE/bin/aspen_${{ matrix.target }}
+          asset_name: aspen_${{ matrix.target }}
+      
