@@ -40,12 +40,12 @@ jobs:
           override: true
 
       # # - name: Cross-Compile
-      # - uses: actions-rs/cargo@v1
-      #   with:
-      #     use-cross: true
-      #     command: build
-      #     args: --release --manifest-path ./aspen/Cargo.toml --target=${{ matrix.target }}
-      #
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --manifest-path ./aspen/Cargo.toml --target=${{ matrix.target }}
+      
       # # - name: Move Binary
       # - run: mv ./aspen/target/release/aspen ./bin/aspen_${{ matrix.target }}
       #
