@@ -21,37 +21,38 @@ jobs:
           - x86_64-apple-darwin
 
     steps:
-      - name: Checkout Passerine
       - uses: actions/checkout@v2
+      - name: Checkout Passerine
         with:
           path: passerine
 
-      - name: Checkout Aspen
       - uses: actions/checkout@v2
+      - name: Checkout Aspen
         with:
           repository: vrtbl/aspen
           path: aspen
 
-      - name: Get Toolchain
       - uses: actions-rs/toolchain@v1
+      - name: Get Toolchain
         with:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
 
-      - name: Cross-Compile
       - uses: actions-rs/cargo@v1
+      - name: Cross-Compile
         with:
           use-cross: true
           command: build
-          args: --release --manifest-path $GITHUB_WORKSPACE/aspen/Cargo.toml --target=${{ matrix.target }}
+          args: --release --manifest-path ./aspen/Cargo.toml --target=${{ matrix.target }}
 
+      - run: mv ./aspen/target/release/aspen ./bin/aspen_${{ matrix.target }}
       - name: Move Binary
-      - run: mv $GITHUB_WORKSPACE/aspen/target/release/aspen $GITHUB_WORKSPACE/bin/aspen_${{ matrix.target }}
 
+
+      - uses: actions/create-release@v1
       - name: Create Release
       - id: create_release
-      - uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -60,11 +61,11 @@ jobs:
           draft: true
           prerelease: true
 
-      - name: Upload Release Assets
       - uses: actions/upload-release-asset@v1
+      - name: Upload Release Assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: $GITHUB_WORKSPACE/bin/aspen_${{ matrix.target }}
+          asset_path: ./bin/aspen_${{ matrix.target }}
           asset_name: aspen_${{ matrix.target }}
