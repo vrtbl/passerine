@@ -3,7 +3,7 @@ name: Rust Release
 on:
   push:
     tags:
-    - 'v*'
+      - 'v*'
 
 jobs:
   build:
@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Checkout Passerine
+      # - name: Checkout Passerine
         # with:
         #   path: passerine
 
