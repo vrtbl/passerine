@@ -18,9 +18,7 @@ use crate::common::{
 /// Built-in Passerine datatypes.
 #[derive(Clone, PartialEq)]
 pub enum Data {
-    // VM Stack
-    Frame,
-    NotInit,
+    // Data on the heap
     Heaped(Rc<RefCell<Data>>),
 
     // Passerine Data (Atomic)
@@ -54,8 +52,6 @@ impl Eq for Data {}
 impl Display for Data {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Data::Frame       => unreachable!("Can not display stack frame"),
-            Data::NotInit     => unreachable!("Can not display unitialized data"),
             Data::Heaped(_)   => unreachable!("Can not display heaped data"),
             Data::Real(n)     => write!(f, "{}", n),
             Data::Boolean(b)  => write!(f, "{}", if *b { "true" } else { "false" }),
@@ -72,8 +68,6 @@ impl Display for Data {
 impl Debug for Data {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Data::Frame       => write!(f, "Frame"),
-            Data::NotInit     => write!(f, "NotInit"),
             Data::Heaped(h)   => write!(f, "Heaped({:?})", h.borrow()),
             Data::Real(n)     => write!(f, "Real({:?})", n),
             Data::Boolean(b)  => write!(f, "Boolean({:?})", b),

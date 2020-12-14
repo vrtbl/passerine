@@ -10,7 +10,6 @@ use crate::common::{
 
 use crate::vm::{
     trace::Trace,
-    // tag::Tagged,
     stack::Stack,
 };
 

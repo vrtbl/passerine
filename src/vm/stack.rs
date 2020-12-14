@@ -8,6 +8,7 @@ use crate::common::data::Data;
 
 use crate::vm::{
     tag::Tagged,
+    slot::Slot,
     linked::Linked,
 };
 
@@ -37,7 +38,7 @@ impl Stack {
     /// Pushes some `Data` onto the `Stack`, tagging it along the way
     #[inline]
     pub fn push_data(&mut self, data: Data) {
-        self.stack.push(Tagged::new(data))
+        self.stack.push(Tagged::new(Slot::Data(data)))
     }
 
     /// Pushes some `Tagged` `Data` onto the `Stack` without unwrapping it.
@@ -53,10 +54,9 @@ impl Stack {
         let value = self.stack.pop()
             .expect("VM tried to pop empty stack, stack should never be empty");
 
-        match value.data() {
-            Data::Frame     => unreachable!("tried to pop data, Frame is not data"),
-            Data::Heaped(r) => r.borrow().clone(),
-            data            => data,
+        match value.slot().data() {
+            Data::Heaped(h) => h.borrow().clone(),
+            d => d,
         }
     }
 
@@ -86,9 +86,21 @@ impl Stack {
     pub fn heapify(&mut self, index: usize) {
         let local_index = self.frames.peek() + index + 1;
 
-        let data = mem::replace(&mut self.stack[local_index], Tagged::frame()).data();
-        let heaped = Data::Heaped(Rc::new(RefCell::new(data)));
+        let data = mem::replace(&mut self.stack[local_index], Tagged::not_init()).slot().data();
+        let heaped = Slot::Data(Data::Heaped(Rc::new(RefCell::new(data))));
         mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(heaped)));
+    }
+
+    pub fn local_slot(&mut self, index: usize) -> Slot {
+        let local_index = self.frames.peek() + index + 1;
+
+        // a little bit of shuffling involved
+        // I know that something better than this can be done
+        let slot = mem::replace(&mut self.stack[local_index], Tagged::not_init()).slot();
+        let copy = slot.clone();
+        mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(slot)));
+
+        return copy;
     }
 
     pub fn local_data(&mut self, index: usize) -> Data {
@@ -96,9 +108,9 @@ impl Stack {
 
         // a little bit of shuffling involved
         // I know that something better than this can be done
-        let data = mem::replace(&mut self.stack[local_index], Tagged::frame()).data();
+        let data = mem::replace(&mut self.stack[local_index], Tagged::not_init()).slot().data();
         let copy = data.clone();
-        mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(data)));
+        mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(Slot::Data(data))));
 
         return copy;
     }
@@ -118,15 +130,16 @@ impl Stack {
             unreachable!("Can not set local that is not yet on stack");
         } else {
             // get the old local
-            let data = mem::replace(&mut self.stack[local_index], Tagged::frame()).data();
+            let slot = mem::replace(&mut self.stack[local_index], Tagged::not_init()).slot();
 
             // replace the old value with the new one if on the heap
-            let tagged = match data {
-                Data::Frame => unreachable!(),
+            let tagged = match slot {
+                Slot::Frame => unreachable!("Expected data, found frame"),
                 // if it is on the heap, we replace in the old value
-                Data::Heaped(ref cell) => {
+                Slot::Data(Data::Heaped(ref cell)) => {
+                    // TODO: check types?
                     mem::drop(cell.replace(self.pop_data()));
-                    Tagged::new(data)
+                    Tagged::new(slot)
                 }
                 // if it's not on the heap, we assume it's data,
                 // and do a quick swap-and-drop
