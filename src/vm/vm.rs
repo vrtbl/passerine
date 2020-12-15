@@ -6,6 +6,7 @@ use crate::common::{
     opcode::Opcode,
     lambda::{Captured, Lambda},
     closure::Closure,
+    span::Span,
 };
 
 use crate::vm::{
@@ -42,24 +43,35 @@ impl VM {
     }
 
     /// Advances to the next instruction.
+    #[inline]
     pub fn next(&mut self)                           { self.ip += 1; }
     /// Jumps past the end of the block, causing the current lambda to return.
+    #[inline]
     pub fn terminate(&mut self) -> Result<(), Trace> { self.ip = self.closure.lambda.code.len(); Ok(()) }
     /// Advances IP, returns `Ok`. Used in Bytecode implementations.
+    #[inline]
     pub fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
     /// Returns the current instruction as a byte.
+    #[inline]
     pub fn peek_byte(&mut self) -> u8                { self.closure.lambda.code[self.ip] }
     /// Advances IP and returns the current instruction as a byte.
+    #[inline]
     pub fn next_byte(&mut self) -> u8                { self.next(); self.peek_byte() }
 
     /// Builds the next number in the bytecode stream.
     /// See `utils::number` for more.
+    #[inline]
     pub fn next_number(&mut self) -> usize {
         self.next();
         let remaining      = &self.closure.lambda.code[self.ip..];
         let (index, eaten) = build_number(remaining);
         self.ip += eaten - 1; // ip left on next op
         return index;
+    }
+
+    #[inline]
+    pub fn current_span(&self) -> Span {
+        self.closure.lambda.index_span(self.ip)
     }
 
     // core interpreter loop
@@ -86,6 +98,7 @@ impl VM {
             Opcode::Label   => self.label(),
             Opcode::UnLabel => self.un_label(),
             Opcode::UnData  => self.un_data(),
+            Opcode::FFICall => self.ffi_call(),
         }
     }
 
@@ -234,7 +247,7 @@ impl VM {
             other => return Err(Trace::error(
                 "Pattern Matching",
                 &format!("The data '{}' does not match the Label '{}'", other, kind),
-                vec![self.closure.lambda.index_span(self.ip)],
+                vec![self.current_span()],
             )),
         };
 
@@ -250,7 +263,7 @@ impl VM {
             return Err(Trace::error(
                 "Pattern Matching",
                 &format!("The data '{}' does not match the expected data '{}'", data, expected),
-                vec![self.closure.lambda.index_span(self.ip)],
+                vec![self.current_span()],
             ));
         }
 
@@ -264,7 +277,7 @@ impl VM {
             o => return Err(Trace::error(
                 "Call",
                 &format!("The data '{}' is not a function and can not be called", o),
-                vec![self.closure.lambda.index_span(self.ip)],
+                vec![self.current_span()],
             )),
         };
         let arg = self.stack.pop_data();
@@ -276,7 +289,7 @@ impl VM {
         match self.run(fun) {
             Ok(()) => (),
             Err(mut trace) => {
-                trace.add_context(self.closure.lambda.index_span(self.ip));
+                trace.add_context(self.current_span());
                 return Err(trace);
             },
         };
@@ -327,6 +340,22 @@ impl VM {
         }
 
         self.stack.push_data(Data::Closure(Box::new(closure)));
+        self.done()
+    }
+
+    pub fn ffi_call(&mut self) -> Result<(), Trace> {
+        let index = self.next_number();
+        let ffi_function = &self.closure.lambda.ffi[index];
+
+        let argument = self.stack.pop_data();
+        let returned = match (ffi_function.0)(argument) {
+            Ok(d) => d,
+            Err(e) => return Err(Trace::error(
+                "FFI Call", &e, vec![self.current_span()],
+            )),
+        };
+
+        self.stack.push_data(returned);
         self.done()
     }
 }

@@ -176,7 +176,7 @@ impl From<Tagged> for u64 {
 //
 //         for n in &[positive, negative, nan, neg_inf] {
 //             let data    = Data::Real(*n);
-//             let wrapped = Tagged::new(data);
+//             let wrapped = Tagged::new(Slot::Data(data));
 //             match wrapped.data() {
 //                 Data::Real(f) if f.is_nan() => assert!(n.is_nan()),
 //                 Data::Real(f) => assert_eq!(*n, f),

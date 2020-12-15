@@ -1,8 +1,11 @@
+use std::rc::Rc;
+
 use crate::common::{
     opcode::Opcode,
     data::Data,
     number::build_number,
     span::Span,
+    ffi::FFIFunction,
 };
 
 use std::fmt;
@@ -17,7 +20,7 @@ pub enum Captured {
 
 /// Represents a single interpretable chunk of bytecode,
 /// Think a function.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Lambda {
     /// Each byte is an opcode or a number-stream.
     pub code: Vec<u8>,
@@ -28,7 +31,9 @@ pub struct Lambda {
     /// List of positions of locals in the scope where this lambda is defined,
     /// indexes must be gauranteed to be data on the heap.
     pub captures: Vec<Captured>,
-
+    /// List of FFI functions (i.e. Rust Functions)
+    /// that can be called from this function
+    pub ffi: Vec<Rc<FFIFunction>>,
 }
 
 impl Lambda {
@@ -38,7 +43,8 @@ impl Lambda {
             code:      vec![],
             spans:     vec![],
             constants: vec![],
-            captures:    vec![],
+            captures:  vec![],
+            ffi:       vec![],
         }
     }
 
@@ -80,7 +86,7 @@ impl Lambda {
     }
 
     /// Look up the nearest span at or before the index of a specific bytecode op.
-    pub fn index_span(&mut self, index: usize) -> Span {
+    pub fn index_span(&self, index: usize) -> Span {
         let mut best = &Span::empty();
 
         for (i, span) in self.spans.iter() {
@@ -163,6 +169,11 @@ impl fmt::Display for Lambda {
                 Opcode::UnLabel => { writeln!(f, "UnLabel  \t\t--")?; },
                 Opcode::UnData  => { writeln!(f, "UnData   \t\t--")?; },
                 Opcode::Copy    => { writeln!(f, "Copy     \t\t--")?; },
+                Opcode::FFICall => {
+                    let (ffi_index, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    writeln!(f, "Return  \t{}\tIndexed FFI function called", ffi_index)?;
+                },
             }
         }
 
