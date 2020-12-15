@@ -4,13 +4,14 @@ use crate::common::{
     number::build_number,
     data::Data,
     opcode::Opcode,
-    lambda::{Captured, Lambda},
+    lambda::Captured,
     closure::Closure,
     span::Span,
 };
 
 use crate::vm::{
     trace::Trace,
+    slot::Suspend,
     stack::Stack,
 };
 
@@ -34,11 +35,11 @@ pub struct VM {
 impl VM {
     /// Initialize a new VM.
     /// To run the VM, a lambda must be passed to it through `run`.
-    pub fn init() -> VM {
+    pub fn init(closure: Closure) -> VM {
         VM {
-            closure: Closure::wrap(Lambda::empty()),
-            stack: Stack::init(),
-            ip:    0,
+            closure,
+            stack:   Stack::init(),
+            ip:      0,
         }
     }
 
@@ -107,34 +108,23 @@ impl VM {
     /// Or failure, in which it returns the runtime error.
     /// In the future, fibers will allow for error handling -
     /// right now, error in Passerine are practically panics.
-    pub fn run(&mut self, closure: Closure) -> Result<(), Trace> {
-        // cache current state, load new bytecode
-        let old_closure = mem::replace(&mut self.closure, closure);
-        let old_ip      = mem::replace(&mut self.ip,    0);
-        // TODO: should lambdas store their own ip?
-
-        let mut result = Ok(());
-
+    pub fn run(&mut self) -> Result<(), Trace> {
         while self.ip < self.closure.lambda.code.len() {
             // println!("before: {:?}", self.stack.stack);
             // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
-            if let error @ Err(_) = self.step() {
+            if let Err(error) = self.step() {
                 // TODO: clean up stack on error
-                result = error;
-                // println!("Error!");
-                break;
+                println!("{}", error);
+                // TODO: reinstate tracebacks
+                // trace.add_context(self.current_span());
+                panic!();
             };
             // println!("---");
         }
         // println!("after: {:?}", self.stack.stack);
         // println!("---");
 
-        // return current state
-        mem::drop(mem::replace(&mut self.closure, old_closure));
-        self.ip = old_ip;
-
-        // If something went wrong, the error will be returned.
-        return result;
+        return Ok(());
     }
 
     // TODO: there are a lot of optimizations that can be made
@@ -272,6 +262,7 @@ impl VM {
 
     /// Call a function on the top of the stack, passing the next value as an argument.
     pub fn call(&mut self) -> Result<(), Trace> {
+        // get the function and argument to run
         let fun = match self.stack.pop_data() {
             Data::Closure(c) => *c,
             o => return Err(Trace::error(
@@ -282,20 +273,27 @@ impl VM {
         };
         let arg = self.stack.pop_data();
 
-        self.stack.push_frame();
-        self.stack.push_data(arg);
-        // println!("entering...");
-        // TODO: keep the passerine call stack separated from the rust call stack.
-        match self.run(fun) {
-            Ok(()) => (),
-            Err(mut trace) => {
-                trace.add_context(self.current_span());
-                return Err(trace);
-            },
-        };
-        // println!("exiting...");
+        // tail call optimization
+        if let Opcode::Return = Opcode::from_byte(self.next_byte()) {
+            let locals = self.next_number();
+            for _ in 0..locals { self.del()?; }
 
-        self.done()
+            self.stack.pop_frame();
+        }
+
+        // preserve the calling context
+        let old_closure = mem::replace(&mut self.closure, fun);
+        let old_ip      = mem::replace(&mut self.ip,      0);
+        let suspend = Suspend {
+            ip: old_ip,
+            closure: old_closure,
+        };
+
+        // set up the stack for the function call
+        self.stack.push_frame(suspend);
+        self.stack.push_data(arg);
+
+        Ok(())
     }
 
     /// Return a value from a function.
@@ -311,7 +309,10 @@ impl VM {
         let locals = self.next_number();
         for _ in 0..locals { self.del()?; }
 
-        self.stack.pop_frame();    // remove the frame
+        let suspend = self.stack.pop_frame(); // remove the frame
+        self.ip      = suspend.ip;
+        self.closure = suspend.closure;
+
         self.stack.push_data(val); // push the return value
         self.terminate()
     }
@@ -380,9 +381,9 @@ mod test {
             .unwrap();
 
         // println!("{:?}", lambda);
-        let mut vm = VM::init();
+        let mut vm = VM::init(Closure::wrap(lambda));
 
-        match vm.run(Closure::wrap(lambda)) {
+        match vm.run() {
             Ok(()) => vm,
             Err(e) => {
                 println!("{}", e);

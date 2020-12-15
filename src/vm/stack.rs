@@ -8,8 +8,7 @@ use crate::common::data::Data;
 
 use crate::vm::{
     tag::Tagged,
-    slot::Slot,
-    linked::Linked,
+    slot::{Slot, Suspend},
 };
 
 /// A stack of `Tagged` `Data`.
@@ -21,18 +20,32 @@ use crate::vm::{
 /// followed by *n* temporaries, ad infinitum.
 #[derive(Debug)]
 pub struct Stack {
-    // TODO: just use a Vec<usize>?
-    pub frames: Linked,
-    pub stack: Vec<Tagged>
+    pub frames: Vec<usize>,
+    pub stack:  Vec<Tagged>
 }
 
 impl Stack {
     /// Create a new `Stack` with a single frame.
     pub fn init() -> Stack {
         Stack {
-            frames: Linked::new(0),
-            stack: vec![Tagged::frame()],
+            frames: vec![0],
+            stack:  vec![Tagged::frame()],
         }
+    }
+
+    #[inline]
+    fn frame_index(&self) -> usize {
+        *self.frames.last().unwrap()
+    }
+
+    #[inline]
+    fn pop(&mut self) -> Tagged {
+        self.stack.pop()
+            .expect("VM tried to pop empty stack, stack should never be empty")
+    }
+
+    fn swap(&mut self, index: usize, tagged: Tagged) -> Tagged {
+        mem::replace(&mut self.stack[index], tagged)
     }
 
     /// Pushes some `Data` onto the `Stack`, tagging it along the way
@@ -63,20 +76,28 @@ impl Stack {
     /// Pops a stack frame from the `Stack`, restoring the previous frame.
     /// Panics if there are no frames left on the stack.
     #[inline]
-    pub fn pop_frame(&mut self) {
-        let index = self.frames.prepop();
-        if self.stack.len() - 1 == index {
-            self.stack.pop();
+    pub fn pop_frame(&mut self) -> Suspend {
+        let index = self.frames.pop().expect("No frame index found");
+
+        if let Slot::Frame = self.pop().slot() {} else {
+            unreachable!("Expected frame on top of stack");
+        }
+
+        let old_slot = self.swap(index, Tagged::frame()).slot();
+        if let Slot::Suspend(s) = old_slot {
+            return s;
         } else {
-            println!("{:#?}", self);
-            unreachable!("Expected frame on top of stack, found data")
+            unreachable!("Expected frame on top of stack");
         }
     }
 
     /// Pushes a new stack frame onto the `Stack`.
+    /// Takes the old suspended closure / ip, and stores that on the stack.
     #[inline]
-    pub fn push_frame(&mut self) {
-        self.frames.prepend(self.stack.len());
+    pub fn push_frame(&mut self, suspend: Suspend) {
+        let frame_index = self.frame_index();
+        self.stack[frame_index] = Tagged::new(Slot::Suspend(suspend));
+        self.frames.push(self.stack.len());
         self.stack.push(Tagged::frame());
     }
 
@@ -84,33 +105,33 @@ impl Stack {
     /// data must not already be on the heap
     #[inline]
     pub fn heapify(&mut self, index: usize) {
-        let local_index = self.frames.peek() + index + 1;
+        let local_index = self.frame_index() + index + 1;
 
-        let data = mem::replace(&mut self.stack[local_index], Tagged::not_init()).slot().data();
+        let data = self.swap(local_index, Tagged::not_init()).slot().data();
         let heaped = Slot::Data(Data::Heaped(Rc::new(RefCell::new(data))));
         mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(heaped)));
     }
 
     pub fn local_slot(&mut self, index: usize) -> Slot {
-        let local_index = self.frames.peek() + index + 1;
+        let local_index = self.frame_index() + index + 1;
 
         // a little bit of shuffling involved
         // I know that something better than this can be done
-        let slot = mem::replace(&mut self.stack[local_index], Tagged::not_init()).slot();
+        let slot = self.swap(local_index, Tagged::not_init()).slot();
         let copy = slot.clone();
-        mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(slot)));
+        mem::drop(self.swap(local_index, Tagged::new(slot)));
 
         return copy;
     }
 
     pub fn local_data(&mut self, index: usize) -> Data {
-        let local_index = self.frames.peek() + index + 1;
+        let local_index = self.frame_index() + index + 1;
 
         // a little bit of shuffling involved
         // I know that something better than this can be done
-        let data = mem::replace(&mut self.stack[local_index], Tagged::not_init()).slot().data();
+        let data = self.swap(local_index, Tagged::not_init()).slot().data();
         let copy = data.clone();
-        mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(Slot::Data(data))));
+        mem::drop(self.swap(local_index, Tagged::new(Slot::Data(data))));
 
         return copy;
     }
@@ -120,7 +141,7 @@ impl Stack {
     /// If a new local is being declared,
     /// it's literally a bounds-check and no-op.
     pub fn set_local(&mut self, index: usize) {
-        let local_index = self.frames.peek() + index + 1;
+        let local_index = self.frame_index() + index + 1;
 
         if (self.stack.len() - 1) == local_index {
             // local is already in the correct spot; we declare it
@@ -130,7 +151,7 @@ impl Stack {
             unreachable!("Can not set local that is not yet on stack");
         } else {
             // get the old local
-            let slot = mem::replace(&mut self.stack[local_index], Tagged::not_init()).slot();
+            let slot = self.swap(local_index, Tagged::not_init()).slot();
 
             // replace the old value with the new one if on the heap
             let tagged = match slot {
@@ -146,7 +167,7 @@ impl Stack {
                 _ => self.stack.pop().unwrap(),
             };
 
-            mem::drop(mem::replace(&mut self.stack[local_index], tagged))
+            mem::drop(self.swap(local_index, tagged))
         }
     }
 }

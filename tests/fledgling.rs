@@ -163,9 +163,9 @@ fn test_snippet(source: Rc<Source>, strat: TestStrat) {
                 .and_then(desugar)
                 .and_then(gen)
             {
-                let mut vm = VM::init();
+                let mut vm = VM::init(Closure::wrap(lambda));
 
-                match vm.run(Closure::wrap(lambda)) {
+                match vm.run() {
                     Ok(()) => {
                         if let Some(expected) = &strat.expect {
                             let top = vm.stack.pop_data();

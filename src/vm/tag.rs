@@ -65,7 +65,9 @@ impl Tagged {
 
             // on the heap
             // TODO: layout to make sure pointer is the right size when boxing
-            Slot::Data(other) => Tagged(P_FLAG | QNAN | (P_MASK & (Box::into_raw(Box::new(other))) as u64)),
+            other @ Slot::Data(_)
+            | other @ Slot::Suspend { .. }
+            => Tagged(P_FLAG | QNAN | (P_MASK & (Box::into_raw(Box::new(other))) as u64)),
         }
     }
 
