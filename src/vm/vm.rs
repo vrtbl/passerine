@@ -46,9 +46,6 @@ impl VM {
     /// Advances to the next instruction.
     #[inline]
     pub fn next(&mut self)                           { self.ip += 1; }
-    /// Jumps past the end of the block, causing the current lambda to return.
-    #[inline]
-    pub fn terminate(&mut self) -> Result<(), Trace> { self.ip = self.closure.lambda.code.len(); Ok(()) }
     /// Advances IP, returns `Ok`. Used in Bytecode implementations.
     #[inline]
     pub fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
@@ -58,6 +55,12 @@ impl VM {
     /// Advances IP and returns the current instruction as a byte.
     #[inline]
     pub fn next_byte(&mut self) -> u8                { self.next(); self.peek_byte() }
+
+    /// Returns whether the program has terminated
+    #[inline]
+    pub fn is_terminated(&mut self) -> bool {
+        self.ip >= self.closure.lambda.code.len()
+    }
 
     /// Builds the next number in the bytecode stream.
     /// See `utils::number` for more.
@@ -109,8 +112,8 @@ impl VM {
     /// In the future, fibers will allow for error handling -
     /// right now, error in Passerine are practically panics.
     pub fn run(&mut self) -> Result<(), Trace> {
-        while self.ip < self.closure.lambda.code.len() {
-            // println!("before: {:?}", self.stack.stack);
+        while !self.is_terminated() {
+            // println!("before: {:#?}", self.stack.stack);
             // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             if let Err(error) = self.step() {
                 // TODO: clean up stack on error
@@ -274,14 +277,16 @@ impl VM {
         let arg = self.stack.pop_data();
 
         // tail call optimization
-        if let Opcode::Return = Opcode::from_byte(self.next_byte()) {
-            let locals = self.next_number();
-            for _ in 0..locals { self.del()?; }
-
-            self.stack.pop_frame();
+        self.next();
+        if !self.is_terminated() {
+            if let Opcode::Return = Opcode::from_byte(self.peek_byte()) {
+                let locals = self.next_number();
+                for _ in 0..locals { self.del()?; }
+                self.stack.pop_frame();
+            }
         }
 
-        // preserve the calling context
+        // suspend the calling context
         let old_closure = mem::replace(&mut self.closure, fun);
         let old_ip      = mem::replace(&mut self.ip,      0);
         let suspend = Suspend {
@@ -292,7 +297,6 @@ impl VM {
         // set up the stack for the function call
         self.stack.push_frame(suspend);
         self.stack.push_data(arg);
-
         Ok(())
     }
 
@@ -309,12 +313,14 @@ impl VM {
         let locals = self.next_number();
         for _ in 0..locals { self.del()?; }
 
+        // restore suspended callee
         let suspend = self.stack.pop_frame(); // remove the frame
         self.ip      = suspend.ip;
         self.closure = suspend.closure;
 
+        // push return value
         self.stack.push_data(val); // push the return value
-        self.terminate()
+        Ok(())
     }
 
     pub fn closure(&mut self) -> Result<(), Trace> {

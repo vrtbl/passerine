@@ -1,0 +1,10 @@
+-- action: run
+-- outcome: success
+
+loop = ()
+loop = x -> {
+    print "y"
+    loop ()
+}
+
+loop ()

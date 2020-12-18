@@ -44,6 +44,7 @@ impl Stack {
             .expect("VM tried to pop empty stack, stack should never be empty")
     }
 
+    #[inline]
     fn swap(&mut self, index: usize, tagged: Tagged) -> Tagged {
         mem::replace(&mut self.stack[index], tagged)
     }
@@ -77,13 +78,13 @@ impl Stack {
     /// Panics if there are no frames left on the stack.
     #[inline]
     pub fn pop_frame(&mut self) -> Suspend {
-        let index = self.frames.pop().expect("No frame index found");
-
         if let Slot::Frame = self.pop().slot() {} else {
             unreachable!("Expected frame on top of stack");
         }
 
-        let old_slot = self.swap(index, Tagged::frame()).slot();
+        self.frames.pop();
+        let old_slot = self.swap(self.frame_index(), Tagged::frame()).slot();
+
         if let Slot::Suspend(s) = old_slot {
             return s;
         } else {
@@ -147,7 +148,7 @@ impl Stack {
             // local is already in the correct spot; we declare it
             return;
         } else if (self.stack.len() - 1) < local_index {
-            println!("{} < {}", self.stack.len() - 1, local_index);
+            // println!("{} < {}", self.stack.len() - 1, local_index);
             unreachable!("Can not set local that is not yet on stack");
         } else {
             // get the old local

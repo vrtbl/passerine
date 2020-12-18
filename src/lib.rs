@@ -105,10 +105,10 @@
 //! # fn main() {
 //! # let source = Source::source("pi = 3.14");
 //! # let bytecode = Closure::wrap(gen(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap());
-//! // Initialize the VM:
-//! let mut vm = VM::init();
-//! // Run some bytecode:
-//! vm.run(bytecode);
+//! // Initialize a VM with some bytecode:
+//! let mut vm = VM::init(bytecode);
+//! // Run the initialized VM:
+//! vm.run();
 //! # }
 //! ```
 //!
