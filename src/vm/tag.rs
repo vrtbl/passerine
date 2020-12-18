@@ -84,7 +84,7 @@ impl Tagged {
     }
 
     /// Returns the underlying `Data` (or a pointer to that `Data`).
-    unsafe fn extract(&self) -> Result<Slot, Box<Data>> {
+    unsafe fn extract(&self) -> Result<Slot, Box<Slot>> {
         // println!("-- Extracting...");
         let Tagged(bits) = self;
 
@@ -98,7 +98,7 @@ impl Tagged {
             p if (p & P_FLAG) == P_FLAG => Err({
                 // println!("{:#x}", p & P_MASK);
                 // unsafe part
-                Box::from_raw((bits & P_MASK) as *mut Data)
+                Box::from_raw((bits & P_MASK) as *mut Slot)
             }),
             _ => unreachable!("Corrupted tagged data"),
         }
@@ -114,8 +114,8 @@ impl Tagged {
         let d = unsafe {
             match self.extract() {
                 Ok(slot) => slot,
-                Err(boxed) => {
-                    Slot::Data(*boxed)
+                Err(slot) => {
+                    *slot
                 }
             }
         };
@@ -139,7 +139,7 @@ impl Tagged {
                     // but we do not own the pointer,
                     // so we 'leak' it - &self still holds a reference
                     Box::leak(boxed);
-                    Slot::Data(*copy)
+                    *copy
                 },
             }
         }
