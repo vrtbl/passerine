@@ -114,7 +114,7 @@ impl VM {
     pub fn run(&mut self) -> Result<(), Trace> {
         while !self.is_terminated() {
             // println!("before: {:#?}", self.stack.stack);
-            // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             if let Err(error) = self.step() {
                 // TODO: clean up stack on error
                 println!("{}", error);
@@ -278,16 +278,19 @@ impl VM {
 
         // TODO: make all programs end in return,
         // so bounds check (i.e. is_terminated) is never required
-        // tail call optimization
         self.next();
-        // if !self.is_terminated() {
-        //     if let Opcode::Return = Opcode::from_byte(self.peek_byte()) {
-        //         let locals = self.next_number();
-        //         for _ in 0..locals { self.del()?; }
-        //         self.stack.pop_frame();
-        //         self.next();
-        //     }
-        // }
+        let tail_call = !self.is_terminated()
+                     && Opcode::Return
+                     == Opcode::from_byte(self.peek_byte());
+
+        // clear the stack if there's a tail call
+        if tail_call {
+            println!("tail call!");
+            println!("{:#?}", self.stack.stack);
+            let locals = self.next_number();
+            println!("deleted {} locals", locals);
+            for _ in 0..locals { self.del()?; }
+        }
 
         // suspend the calling context
         let old_closure = mem::replace(&mut self.closure, fun);
@@ -297,9 +300,17 @@ impl VM {
             closure: old_closure,
         };
 
+        // if there's a tail call, we don't bother pushing a new frame
+        // the topmost frame doesn't carry any context;
+        // that context is intrinsic to the VM itself.
+        if !tail_call {
+            self.stack.push_frame(suspend);
+        }
+
         // set up the stack for the function call
-        self.stack.push_frame(suspend);
+        // self.stack.push_frame(suspend);
         self.stack.push_data(arg);
+
         Ok(())
     }
 

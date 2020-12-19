@@ -2,7 +2,7 @@
 /// Under the hood, it's just a byte.
 /// This allows non opcode bytes to be inserted in bytecode streams.
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Opcode {
     /// Load a constant.
     Con = 0,
