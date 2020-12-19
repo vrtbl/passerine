@@ -158,29 +158,33 @@ fn test_snippet(source: Rc<Source>, strat: TestStrat) {
             .is_ok() { Outcome::Success } else { Outcome::Syntax },
 
         Action::Run => {
-            if let Ok(lambda) = lex(source)
+            match lex(source)
                 .and_then(parse)
                 .and_then(desugar)
                 .and_then(gen)
             {
-                let mut vm = VM::init(Closure::wrap(lambda));
+                Ok(lambda) => {
+                    let mut vm = VM::init(Closure::wrap(lambda));
 
-                match vm.run() {
-                    Ok(()) => {
-                        if let Some(expected) = &strat.expect {
-                            let top = vm.stack.pop_data();
-                            if expected != &top {
-                                println!("Top: {}", top);
-                                println!("Expected: {}", expected);
-                                panic!("Top stack data does not match")
+                    match vm.run() {
+                        Ok(()) => {
+                            if let Some(expected) = &strat.expect {
+                                let top = vm.stack.pop_data();
+                                if expected != &top {
+                                    println!("Top: {}", top);
+                                    println!("Expected: {}", expected);
+                                    panic!("Top stack data does not match")
+                                }
                             }
-                        }
-                        Outcome::Success
-                    },
-                    Err(_) => Outcome::Trace
+                            Outcome::Success
+                        },
+                        Err(_) => Outcome::Trace
+                    }
                 }
-            } else {
-                Outcome::Syntax
+                Err(e) => {
+                    println!("{}", e);
+                    Outcome::Syntax
+                }
             }
         }
     };

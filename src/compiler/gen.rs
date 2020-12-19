@@ -272,7 +272,6 @@ impl Compiler {
         // eval the expression
         self.walk(&expression)?;
         self.destructure(pattern, false);
-        // self.lambda.emit(Opcode::Del);
         self.data(Data::Unit);
         Ok(())
     }
@@ -289,11 +288,12 @@ impl Compiler {
         {
             // match the argument against the pattern, binding variables
             self.destructure(pattern, true);
-            // self.lambda.emit(Opcode::Del);
 
             // enter a new scope and walk the function body
-            self.walk(&expression)?;          // run the function
-            self.lambda.emit(Opcode::Return); // return the result
+            self.walk(&expression)?;
+
+            // return the result
+            self.lambda.emit(Opcode::Return);
             self.lambda.emit_bytes(&mut split_number(self.locals.len()));
         }
         let lambda = self.exit_scope().lambda;

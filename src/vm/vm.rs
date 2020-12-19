@@ -276,15 +276,18 @@ impl VM {
         };
         let arg = self.stack.pop_data();
 
+        // TODO: make all programs end in return,
+        // so bounds check (i.e. is_terminated) is never required
         // tail call optimization
         self.next();
-        if !self.is_terminated() {
-            if let Opcode::Return = Opcode::from_byte(self.peek_byte()) {
-                let locals = self.next_number();
-                for _ in 0..locals { self.del()?; }
-                self.stack.pop_frame();
-            }
-        }
+        // if !self.is_terminated() {
+        //     if let Opcode::Return = Opcode::from_byte(self.peek_byte()) {
+        //         let locals = self.next_number();
+        //         for _ in 0..locals { self.del()?; }
+        //         self.stack.pop_frame();
+        //         self.next();
+        //     }
+        // }
 
         // suspend the calling context
         let old_closure = mem::replace(&mut self.closure, fun);
