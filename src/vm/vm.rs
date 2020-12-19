@@ -114,7 +114,7 @@ impl VM {
     pub fn run(&mut self) -> Result<(), Trace> {
         while !self.is_terminated() {
             // println!("before: {:#?}", self.stack.stack);
-            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             if let Err(error) = self.step() {
                 // TODO: clean up stack on error
                 println!("{}", error);
@@ -284,11 +284,9 @@ impl VM {
                      == Opcode::from_byte(self.peek_byte());
 
         // clear the stack if there's a tail call
+        // we must do this before we suspend the calling context
         if tail_call {
-            println!("tail call!");
-            println!("{:#?}", self.stack.stack);
             let locals = self.next_number();
-            println!("deleted {} locals", locals);
             for _ in 0..locals { self.del()?; }
         }
 

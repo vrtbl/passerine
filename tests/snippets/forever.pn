@@ -1,23 +1,23 @@
 -- action: run
 -- outcome: trace
 
-zero = f x -> {
-    x
-}
-
-succ = n f x -> {
-    f (n f x)
-}
+zero = f x -> x
+succ = n f x -> f (n f x)
 
 print_number = number -> {
     number { x -> print " o " } ()
     print "---"
 }
 
-one = succ zero
-two = succ one
-three = succ two
+syntax 'loop do {
+    l = ()
+    l = () -> { do; l () }
+    l ()
+}
 
-print "printing numeber"
+counter = zero
 
-print_number three
+loop {
+    print_number counter
+    counter = succ counter
+}
