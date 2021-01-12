@@ -4,4 +4,4 @@
 
 syntax 'not_true { x -> false }
 
-true |> not_true
+true . not_true

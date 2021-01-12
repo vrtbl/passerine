@@ -36,7 +36,7 @@ pub enum Data {
 
     // Compound Datatypes
     Unit, // an empty typle
-    // Tuple(Vec<Data>),
+    Tuple(Vec<Data>),
     // // TODO: Hashmap?
     // // I mean, it's overkill for small things
     // // yet if people have very big records, yk.

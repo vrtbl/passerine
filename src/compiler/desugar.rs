@@ -156,9 +156,9 @@ impl Transformer {
         return Ok(self.walk(expanded)?.item);
     }
 
-    /// Desugar a function composition.
-    /// A composition takes the form `c |> b |> a`
-    /// and is left-associative `(c |> b) |> a`.
+    /// Desugar a function application.
+    /// A composition takes the form `c . b . a`
+    /// and is left-associative `(c . b) . a`.
     /// When desugared, the above is equivalent to the call `a b c`.
     pub fn composition(&mut self, argument: Spanned<AST>, function: Spanned<AST>) -> Result<CST, Syntax> {
         Ok(CST::call(self.walk(function)?, self.walk(argument)?))

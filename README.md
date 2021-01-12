@@ -159,7 +159,7 @@ sorted_lower
 
 Although this is not a particularly long expression, splitting up lines by operations can help improve the legibility of some expressions.
 
-#### Function Composition
+#### Function Application
 Before we move on, here's a clever implementation of FizzBuzz in Passerine:
 
 ```passerine
@@ -171,20 +171,20 @@ fizzbuzz = n -> {
 
     fizz = test 3 "Fizz"
     buzz = test 5 "Buzz"
-    "{n}" |> fizz (buzz (i -> i))
+    "{n}" . fizz (buzz (i -> i))
 }
 
-1..100 |> fizzbuzz |> print
+1..100 . fizzbuzz . print
 ```
 
-`|>` is the function composition operator:
+`|>` is the function application operator:
 
 ```passerine
 -- the comopsition
-a |> b c |> d
+a . b c . d
 
 -- is left-associative
-(a |> (b c)) |> d
+(a . (b c)) . d
 
 -- and equivalent to
 d ((b c) a)

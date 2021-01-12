@@ -13,6 +13,7 @@ pub enum Token {
     OpenParen,
     CloseParen,
     Sep,
+    Pair,
 
     Syntax,
     Assign,

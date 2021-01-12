@@ -225,9 +225,9 @@ impl Lexer {
         Lexer::literal(source, "->", Token::Lambda)
     }
 
-    /// Matches a literal lambda arrow `->`.
+    /// Matches a literal function application ".".
     pub fn compose(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "|>", Token::Compose)
+        Lexer::literal(source, ".", Token::Compose)
     }
 
     /// Matches a `print` expression.
