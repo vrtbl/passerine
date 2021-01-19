@@ -39,6 +39,7 @@ impl Transformer {
             AST::Data(d) => CST::Data(d),
             AST::Block(b) => self.block(b)?,
             AST::Form(f) => self.form(f)?,
+            AST::Tuple(t) => self.tuple(t)?,
             AST::Composition { argument, function } => self.composition(*argument, *function)?,
             AST::Pattern(_) => return Err(Syntax::error("Unexpected pattern", &ast.span)),
             AST::ArgPat(_)  => return Err(Syntax::error("Unexpected argument pattern", &ast.span)),
@@ -79,8 +80,7 @@ impl Transformer {
         }
     }
 
-    // TODO: do raw apply and check once macros get more complicated.
-    // TODO: Make it possible for forms with less than one value to exist
+    // TODO: Make it possible for forms with less than one value to exist?
     pub fn form(&mut self, form: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
         // build up a list of rules that matched the current form
         // note that this should be 1
@@ -156,6 +156,15 @@ impl Transformer {
         return Ok(self.walk(expanded)?.item);
     }
 
+    pub fn tuple(&mut self, tuple: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
+        let mut expressions = vec![];
+        for expression in tuple {
+            expressions.push(self.walk(expression)?)
+        }
+
+        Ok(CST::Tuple(expressions))
+    }
+
     /// Desugar a function application.
     /// A composition takes the form `c . b . a`
     /// and is left-associative `(c . b) . a`.
@@ -164,10 +173,10 @@ impl Transformer {
         Ok(CST::call(self.walk(function)?, self.walk(argument)?))
     }
 
-    pub fn block(&mut self, b: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
+    pub fn block(&mut self, block: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
         let mut expressions = vec![];
-        for e in b {
-            expressions.push(self.walk(e)?)
+        for expression in block {
+            expressions.push(self.walk(expression)?)
         }
 
         Ok(CST::Block(expressions))

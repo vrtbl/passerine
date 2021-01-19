@@ -61,6 +61,11 @@ impl Display for Data {
             Data::Kind(_)     => unreachable!("Can not display naked labels"),
             Data::Label(n, v) => write!(f, "{} {}", n, v),
             Data::Unit        => write!(f, "()"),
+            Data::Tuple(t)    => write!(f, "({})", t.iter()
+                .map(|i| format!("{}", i))
+                .collect::<Vec<String>>()
+                .join(", ")
+            ),
         }
     }
 }
@@ -77,6 +82,7 @@ impl Debug for Data {
             Data::Kind(n)     => write!(f, "Kind({})", n),
             Data::Label(n, v) => write!(f, "Label({}, {:?})", n, v),
             Data::Unit        => write!(f, "Unit"),
+            Data::Tuple(t)    => write!(f, "Tuple({:?})", t),
         }
     }
 }

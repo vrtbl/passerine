@@ -9,8 +9,9 @@ use crate::common::{
 pub enum ASTPattern {
     Symbol(String),
     Data(Data),
-    Chain(Vec<Spanned<ASTPattern>>),
+    Chain(Vec<Spanned<ASTPattern>>), // used inside lambdas
     Label(String, Box<Spanned<ASTPattern>>),
+    Tuple(Vec<Spanned<ASTPattern>>),
 }
 
 impl ASTPattern {
@@ -37,6 +38,13 @@ impl TryFrom<AST> for ASTPattern {
                     }
                     ASTPattern::Chain(patterns)
                 },
+                AST::Tuple(t) => {
+                    let mut patterns = vec![];
+                    for item in t {
+                        patterns.push(item.map(ASTPattern::try_from)?);
+                    }
+                    ASTPattern::Tuple(patterns)
+                }
                 _ => Err("Unexpected construct inside pattern")?,
             }
         )
@@ -86,6 +94,7 @@ pub enum AST {
     Form(Vec<Spanned<AST>>),
     Pattern(ASTPattern),
     ArgPat(ArgPat),
+    Tuple(Vec<Spanned<AST>>),
     Assign {
         pattern:    Box<Spanned<ASTPattern>>,
         expression: Box<Spanned<AST>>,

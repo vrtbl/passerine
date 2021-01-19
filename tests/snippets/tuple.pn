@@ -1,0 +1,6 @@
+-- action: desugar
+-- outcome: success
+
+x = "Hello", "World"
+
+print x

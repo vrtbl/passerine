@@ -109,6 +109,7 @@ impl Compiler {
             CST::Block(block) => self.block(block),
             CST::Print(expression) => self.print(*expression),
             CST::Label(name, expression) => self.label(name, *expression),
+            CST::Tuple(t) => todo!(),
             CST::Assign { pattern, expression } => self.assign(*pattern, *expression),
             CST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
             CST::Call   { fun,     arg        } => self.call(*fun, *arg),
@@ -260,6 +261,7 @@ impl Compiler {
                 self.lambda.emit(Opcode::UnLabel);
                 self.destructure(*pattern, redeclare);
             }
+            CSTPattern::Tuple(_) => todo!(),
         }
     }
 

@@ -52,6 +52,7 @@ impl Display for Token {
             Token::Lambda       => "a lambda",
             Token::Compose      => "a composition",
             Token::Unit         => "the Unit, '()'",
+            Token::Pair         => "a tuple",
             Token::Print        => "a print keyword",
             Token::Symbol       => "a symbol",
             Token::Label        => "a Label", // capitilized to mimic actual labels

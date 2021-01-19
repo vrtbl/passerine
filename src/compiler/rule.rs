@@ -158,6 +158,14 @@ impl Rule {
                     )
                 },
                 ASTPattern::Chain(_) => todo!(),
+                ASTPattern::Tuple(tuple) => {
+                    let span = Spanned::build(&tuple);
+                    let expanded = tuple.into_iter()
+                        .map(|b| Rule::expand_pattern(b, bindings))
+                        .collect::<Result<Vec<_>, _>>()?;
+
+                    Spanned::new(ASTPattern::Tuple(expanded), span)
+                }
             }
         )
     }
@@ -238,6 +246,12 @@ impl Rule {
             // TODO: Should labels be bindable in macros?
             AST::Label(kind, expression) => AST::Label(
                 kind, Box::new(Rule::expand(*expression, bindings)?)
+            ),
+
+            AST::Tuple(tuple) => AST::Tuple(
+                tuple.into_iter()
+                    .map(|b| Rule::expand(b, bindings))
+                    .collect::<Result<Vec<_>, _>>()?
             ),
 
             // a macro inside a macro. not sure how this should work yet

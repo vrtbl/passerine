@@ -95,6 +95,7 @@ impl Lexer {
             Box::new(Lexer::assign),
             Box::new(Lexer::lambda),
             Box::new(Lexer::compose),
+            Box::new(Lexer::pair),
             Box::new(Lexer::print), // remove print statements after FFI
 
             // variants
@@ -228,6 +229,11 @@ impl Lexer {
     /// Matches a literal function application ".".
     pub fn compose(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, ".", Token::Compose)
+    }
+
+    /// Matches a literal tuple pair ",".
+    pub fn pair(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, ",", Token::Pair)
     }
 
     /// Matches a `print` expression.

@@ -15,6 +15,7 @@ pub enum CSTPattern {
     Symbol(String),
     Data(Data),
     Label(String, Box<Spanned<CSTPattern>>),
+    Tuple(Vec<Spanned<CSTPattern>>),
 }
 
 impl TryFrom<ASTPattern> for CSTPattern {
@@ -26,6 +27,7 @@ impl TryFrom<ASTPattern> for CSTPattern {
                 ASTPattern::Symbol(s)   => CSTPattern::Symbol(s),
                 ASTPattern::Data(d)     => CSTPattern::Data(d),
                 ASTPattern::Label(k, a) => CSTPattern::Label(k, Box::new(a.map(CSTPattern::try_from)?)),
+                ASTPattern::Tuple(t)    => CSTPattern::Tuple(t.into_iter().map(|i| i.map(CSTPattern::try_from)).collect::<Result<Vec<_>, _>>()?),
                 ASTPattern::Chain(_)    => Err("Unexpected chained construct inside pattern")?,
             }
         )
@@ -58,12 +60,7 @@ pub enum CST {
     },
     Print(Box<Spanned<CST>>),
     Label(String, Box<Spanned<CST>>),
-    // TODO: support following constructs as they are implemented
-    // Macro {
-    //     pattern:    Box<CST>,
-    //     expression: Box<CST>,
-    // }
-    // Form(Vec<CST>) // function call -> (fun a1 a2 .. an)
+    Tuple(Vec<Spanned<CST>>),
 }
 
 impl CST {

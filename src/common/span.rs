@@ -250,6 +250,7 @@ impl<T> Spanned<T> {
         Spanned { item, span }
     }
 
+    /// Joins a Vector of spanned items into a single span.
     pub fn build(spanneds: &Vec<Spanned<T>>) -> Span {
         let spans = spanneds.iter()
             .map(|s| s.span.clone())
@@ -257,6 +258,7 @@ impl<T> Spanned<T> {
         Span::join(spans)
     }
 
+    /// Applies a function a `Spanned`'s item.
     pub fn map<B, E>(self, f: fn(T) -> Result<B, E>) -> Result<Spanned<B>, E> {
         Ok(Spanned::new(f(self.item)?, self.span))
     }

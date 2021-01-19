@@ -33,6 +33,7 @@ pub enum Prec {
     None = 0,
     Assign,
     Lambda,
+    Pair,
     Compose,
     Call,
     End,
@@ -45,6 +46,7 @@ impl Prec {
     /// ```build
     /// Prec::Addition.associate_left()
     /// ```
+    /// `a + b + c` left-associated becomes `(a + b) + c`.
     /// By default, the parser accociates right.
     pub fn associate_left(&self) -> Prec {
         if let Prec::End = self { panic!("Can not associate further left") }
@@ -80,7 +82,7 @@ impl Parser {
         }
     }
 
-    // // TODO: merge with sep?
+    // TODO: merge with sep?
     pub fn draw(&self) -> &Spanned<Token> {
         let mut offset = 0;
 
@@ -162,6 +164,7 @@ impl Parser {
         match self.skip().item {
             Token::Assign  => self.assign(left),
             Token::Lambda  => self.lambda(left),
+            Token::Pair    => self.pair(left),
             Token::Compose => self.compose(left),
 
             Token::End    => Err(self.unexpected()),
@@ -179,6 +182,7 @@ impl Parser {
         let prec = match next {
             Token::Assign  => Prec::Assign,
             Token::Lambda  => Prec::Lambda,
+            Token::Pair    => Prec::Pair,
             Token::Compose => Prec::Compose,
 
               Token::End
@@ -412,6 +416,22 @@ impl Parser {
         Ok(Spanned::new(AST::lambda(pattern, expression), combined))
     }
 
+    /// Parses a pair operator, i.e. the comma used to build tuples: `a, b, c`.
+    pub fn pair(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        self.consume(Token::Pair)?;
+        let item = self.expression(Prec::Pair.associate_left(), false)?;
+        let combined = Span::combine(&left.span, &item.span);
+
+        let mut tuple = match left.item {
+            AST::Tuple(t) => t,
+            _ => vec![left],
+        };
+
+        tuple.push(item);
+        return Ok(Spanned::new(AST::Tuple(tuple), combined));
+    }
+
+    /// parses a function composition, i.e. `a . b`
     pub fn compose(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         self.consume(Token::Compose)?;
         let right = self.expression(Prec::Compose.associate_left(), false)?;
