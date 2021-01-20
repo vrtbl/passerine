@@ -166,8 +166,18 @@ impl fmt::Display for Lambda {
                 },
                 Opcode::Print   => { writeln!(f, "Print    \t\t--")?; },
                 Opcode::Label   => { writeln!(f, "Label    \t\t--")?; },
+                Opcode::Tuple => {
+                    let (length, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    writeln!(f, "Tuple  \t{}\tValues tupled together", length)?;
+                },
                 Opcode::UnLabel => { writeln!(f, "UnLabel  \t\t--")?; },
                 Opcode::UnData  => { writeln!(f, "UnData   \t\t--")?; },
+                Opcode::UnTuple => {
+                    let (item_index, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    writeln!(f, "UnTuple\t{}\tItem accessed", item_index)?;
+                },
                 Opcode::Copy    => { writeln!(f, "Copy     \t\t--")?; },
                 Opcode::FFICall => {
                     let (ffi_index, consumed) = build_number(&self.code[index..]);

@@ -109,7 +109,7 @@ impl Compiler {
             CST::Block(block) => self.block(block),
             CST::Print(expression) => self.print(*expression),
             CST::Label(name, expression) => self.label(name, *expression),
-            CST::Tuple(t) => todo!(),
+            CST::Tuple(tuple) => self.tuple(tuple),
             CST::Assign { pattern, expression } => self.assign(*pattern, *expression),
             CST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
             CST::Call   { fun,     arg        } => self.call(*fun, *arg),
@@ -226,6 +226,19 @@ impl Compiler {
         Ok(())
     }
 
+    // TODO: untuple
+    pub fn tuple(&mut self, tuple: Vec<Spanned<CST>>) -> Result<(), Syntax> {
+        let length = tuple.len();
+
+        for item in tuple.into_iter().rev() {
+            self.walk(&item)?;
+        }
+
+        self.lambda.emit(Opcode::Tuple);
+        self.lambda.emit_bytes(&mut split_number(length));
+        Ok(())
+    }
+
     pub fn resolve_assign(&mut self, name: &str) {
         let index = if let Some(i) = self.local(name) {
             self.lambda.emit(Opcode::Save); i
@@ -261,7 +274,13 @@ impl Compiler {
                 self.lambda.emit(Opcode::UnLabel);
                 self.destructure(*pattern, redeclare);
             }
-            CSTPattern::Tuple(_) => todo!(),
+            CSTPattern::Tuple(tuple) => {
+                for (index, sub_pattern) in tuple.into_iter().enumerate() {
+                    self.lambda.emit(Opcode::UnTuple);
+                    self.lambda.emit_bytes(&mut split_number(index));
+                    self.destructure(sub_pattern, redeclare);
+                }
+            },
         }
     }
 

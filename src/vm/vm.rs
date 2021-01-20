@@ -89,6 +89,7 @@ impl VM {
         match opcode {
             Opcode::Con     => self.con(),
             Opcode::Del     => self.del(),
+            Opcode::FFICall => self.ffi_call(),
             Opcode::Copy    => self.copy_val(),
             Opcode::Capture => self.capture(),
             Opcode::Save    => self.save(),
@@ -100,9 +101,10 @@ impl VM {
             Opcode::Closure => self.closure(),
             Opcode::Print   => self.print(),
             Opcode::Label   => self.label(),
-            Opcode::UnLabel => self.un_label(),
+            Opcode::Tuple   => self.tuple(),
             Opcode::UnData  => self.un_data(),
-            Opcode::FFICall => self.ffi_call(),
+            Opcode::UnLabel => self.un_label(),
+            Opcode::UnTuple => self.un_tuple(),
         }
     }
 
@@ -229,6 +231,33 @@ impl VM {
         self.done()
     }
 
+    #[inline]
+    pub fn tuple(&mut self) -> Result<(), Trace> {
+        let index = self.next_number();
+        let mut items = vec![];
+        for _ in 0..index {
+            items.push(self.stack.pop_data())
+        }
+
+        self.stack.push_data(Data::Tuple(items));
+        self.done()
+    }
+
+    fn un_data(&mut self) -> Result<(), Trace> {
+        let expected = self.stack.pop_data();
+        let data = self.stack.pop_data();
+
+        if data != expected {
+            return Err(Trace::error(
+                "Pattern Matching",
+                &format!("The data '{}' does not match the expected data '{}'", data, expected),
+                vec![self.current_span()],
+            ));
+        }
+
+        self.done()
+    }
+
     fn un_label(&mut self) -> Result<(), Trace> {
         let kind = match self.stack.pop_data() {
             Data::Kind(n) => n,
@@ -248,18 +277,30 @@ impl VM {
         self.done()
     }
 
-    fn un_data(&mut self) -> Result<(), Trace> {
-        let expected = self.stack.pop_data();
-        let data = self.stack.pop_data();
-
-        if data != expected {
-            return Err(Trace::error(
+    fn un_tuple(&mut self) -> Result<(), Trace> {
+        let index = self.next_number();
+        let t = match self.stack.pop_data() {
+            Data::Tuple(t) => t,
+            other => return Err(Trace::error(
                 "Pattern Matching",
-                &format!("The data '{}' does not match the expected data '{}'", data, expected),
+                &format!("The data '{}' is not a tuple", other),
+                vec![self.current_span()],
+            )),
+        };
+
+        let length = t.len();
+        if index >= length {
+            return Err(Trace::error(
+                "Indexing",
+                &format!(
+                    "The tuple '{}' is of length {}, so the index {} is out-of-bounds",
+                    Data::Tuple(t), length, index
+                ),
                 vec![self.current_span()],
             ));
         }
 
+        self.stack.push_data(t[index].clone());
         self.done()
     }
 

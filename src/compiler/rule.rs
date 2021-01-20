@@ -157,13 +157,18 @@ impl Rule {
                         ASTPattern::label(name, Rule::expand_pattern(*pattern, bindings)?), span,
                     )
                 },
-                ASTPattern::Chain(_) => todo!(),
+                ASTPattern::Chain(chain) => {
+                    let span = Spanned::build(&chain);
+                    let expanded = chain.into_iter()
+                        .map(|b| Rule::expand_pattern(b, bindings))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Spanned::new(ASTPattern::Chain(expanded), span)
+                },
                 ASTPattern::Tuple(tuple) => {
                     let span = Spanned::build(&tuple);
                     let expanded = tuple.into_iter()
                         .map(|b| Rule::expand_pattern(b, bindings))
                         .collect::<Result<Vec<_>, _>>()?;
-
                     Spanned::new(ASTPattern::Tuple(expanded), span)
                 }
             }

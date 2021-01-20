@@ -1,6 +1,6 @@
--- action: desugar
--- outcome: success
+-- action: run
+-- outcome: trace
 
-x = "Hello", "World"
+x = (true, false)
 
-print x
+(w, z) = x

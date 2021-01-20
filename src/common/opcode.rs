@@ -8,34 +8,38 @@ pub enum Opcode {
     Con = 0,
     /// Delete a value off the stack.
     Del = 1,
-    /// Copies topmost value on the stack.
-    Copy = 2,
-    /// Moves a variable onto the heap.
-    Capture = 3,
-    /// Save a constant into a variable.
-    Save = 4,
-    /// Save a value to a captured variable.
-    SaveCap = 5,
-    /// Push a copy of a variable onto the stack.
-    Load = 6,
-    /// Load a copy of a captured variable.
-    LoadCap = 7,
-    /// Call a function.
-    Call = 8,
-    /// Return from a function.
-    Return = 9,
-    /// Creates a closure over the current local environment.
-    Closure = 10,
-    /// Prints a value.
-    Print = 11,
-    /// Constructs a label.
-    Label = 12,
-    /// Destructures a label.
-    UnLabel = 13,
-    /// Destructures atomic data by asserting it matches exactly
-    UnData = 14,
     /// Calls out to a Rust function via FFI
-    FFICall = 15,
+    FFICall = 2,
+    /// Copies topmost value on the stack.
+    Copy = 3,
+    /// Moves a variable onto the heap.
+    Capture = 4,
+    /// Save a constant into a variable.
+    Save = 5,
+    /// Save a value to a captured variable.
+    SaveCap = 6,
+    /// Push a copy of a variable onto the stack.
+    Load = 7,
+    /// Load a copy of a captured variable.
+    LoadCap = 8,
+    /// Call a function.
+    Call = 9,
+    /// Return from a function.
+    Return = 10,
+    /// Creates a closure over the current local environment.
+    Closure = 11,
+    /// Prints a value.
+    Print = 12,
+    /// Constructs a label.
+    Label = 13,
+    // Constructs a tuple.
+    Tuple = 14,
+    /// Destructures atomic data by asserting it matches exactly.
+    UnData = 15,
+    /// Destructures a label.
+    UnLabel = 16,
+    /// Sestructures a tuple.
+    UnTuple = 17,
 }
 
 impl Opcode {

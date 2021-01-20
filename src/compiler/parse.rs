@@ -416,9 +416,11 @@ impl Parser {
         Ok(Spanned::new(AST::lambda(pattern, expression), combined))
     }
 
+    // TODO: allow trailing comma
     /// Parses a pair operator, i.e. the comma used to build tuples: `a, b, c`.
     pub fn pair(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         self.consume(Token::Pair)?;
+
         let item = self.expression(Prec::Pair.associate_left(), false)?;
         let combined = Span::combine(&left.span, &item.span);
 
