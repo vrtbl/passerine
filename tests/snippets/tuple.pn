@@ -1,7 +1,6 @@
 -- action: run
--- outcome: trace
+-- outcome: success
 
-x = "Jeremy"
-y = "Banana"
-
-x, y = y, x
+a = true
+b = false
+a, = b,

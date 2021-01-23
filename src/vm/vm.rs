@@ -117,11 +117,11 @@ impl VM {
     /// In the future, fibers will allow for error handling -
     /// right now, error in Passerine are practically panics.
     pub fn run(&mut self) -> Result<(), Trace> {
-        println!("Starting\n{}", self.closure.lambda);
+        // println!("Starting\n{}", self.closure.lambda);
 
         while !self.is_terminated() {
-            println!("before: {:#?}", self.stack.stack);
-            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            // println!("before: {:#?}", self.stack.stack);
+            // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             if let Err(error) = self.step() {
                 // TODO: clean up stack on error
                 println!("{}", error);
@@ -131,7 +131,7 @@ impl VM {
             };
             // println!("---");
         }
-        println!("after: {:?}", self.stack.stack);
+        // println!("after: {:?}", self.stack.stack);
         // println!("---");
 
         return Ok(());
@@ -364,7 +364,7 @@ impl VM {
         self.stack.declare(self.closure.lambda.decls);
         self.stack.push_data(arg);
 
-        println!("{}", self.closure.lambda);
+        // println!("{}", self.closure.lambda);
 
         Ok(())
     }

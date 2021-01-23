@@ -419,18 +419,23 @@ impl Parser {
     // TODO: allow trailing comma
     /// Parses a pair operator, i.e. the comma used to build tuples: `a, b, c`.
     pub fn pair(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        let left_span = left.span.clone();
         self.consume(Token::Pair)?;
-
-        let item = self.expression(Prec::Pair.associate_left(), false)?;
-        let combined = Span::combine(&left.span, &item.span);
 
         let mut tuple = match left.item {
             AST::Tuple(t) => t,
             _ => vec![left],
         };
 
-        tuple.push(item);
-        return Ok(Spanned::new(AST::Tuple(tuple), combined));
+        let span = if let Ok(item) = self.expression(Prec::Pair.associate_left(), false) {
+            let combined = Span::combine(&left_span, &item.span);
+            tuple.push(item);
+            combined
+        } else {
+            left_span
+        };
+
+        return Ok(Spanned::new(AST::Tuple(tuple), span));
     }
 
     /// parses a function composition, i.e. `a . b`
