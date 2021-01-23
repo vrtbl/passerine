@@ -416,7 +416,7 @@ impl Parser {
         Ok(Spanned::new(AST::lambda(pattern, expression), combined))
     }
 
-    // TODO: allow trailing comma
+    // TODO: trailing comma must be grouped
     /// Parses a pair operator, i.e. the comma used to build tuples: `a, b, c`.
     pub fn pair(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
@@ -427,11 +427,14 @@ impl Parser {
             _ => vec![left],
         };
 
+        let index = self.index;
         let span = if let Ok(item) = self.expression(Prec::Pair.associate_left(), false) {
             let combined = Span::combine(&left_span, &item.span);
             tuple.push(item);
             combined
         } else {
+            // restore parser to location right after trailing comma
+            self.index = index;
             left_span
         };
 

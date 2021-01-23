@@ -1,6 +1,5 @@
 -- action: run
 -- outcome: success
 
-a = true
-b = false
-a, = b,
+(a, b,) = "Nice", "Post"
+b, a = a, b
