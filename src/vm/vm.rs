@@ -88,6 +88,7 @@ impl VM {
 
         match opcode {
             Opcode::Con     => self.con(),
+            Opcode::NotInit => self.not_init(),
             Opcode::Del     => self.del(),
             Opcode::FFICall => self.ffi_call(),
             Opcode::Copy    => self.copy_val(),
@@ -114,9 +115,11 @@ impl VM {
     /// In the future, fibers will allow for error handling -
     /// right now, error in Passerine are practically panics.
     pub fn run(&mut self) -> Result<(), Trace> {
+        println!("{}", self.closure.lambda);
+
         while !self.is_terminated() {
-            // println!("before: {:#?}", self.stack.stack);
-            // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            println!("before: {:#?}", self.stack.stack);
+            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             if let Err(error) = self.step() {
                 // TODO: clean up stack on error
                 println!("{}", error);
@@ -126,7 +129,7 @@ impl VM {
             };
             // println!("---");
         }
-        // println!("after: {:?}", self.stack.stack);
+        println!("after: {:?}", self.stack.stack);
         // println!("---");
 
         return Ok(());
@@ -147,6 +150,12 @@ impl VM {
         let index = self.next_number();
 
         self.stack.push_data(self.closure.lambda.constants[index].clone());
+        self.done()
+    }
+
+    #[inline]
+    pub fn not_init(&mut self) -> Result<(), Trace> {
+        self.stack.push_not_init();
         self.done()
     }
 
@@ -301,6 +310,7 @@ impl VM {
         }
 
         self.stack.push_data(t[index].clone());
+        self.stack.push_data(Data::Tuple(t));
         self.done()
     }
 

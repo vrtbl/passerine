@@ -102,6 +102,11 @@ impl Stack {
         self.stack.push(Tagged::frame());
     }
 
+    #[inline]
+    pub fn push_not_init(&mut self) {
+        self.stack.push(Tagged::new(Slot::NotInit));
+    }
+
     /// Wraps the top data value on the stack in `Data::Heaped`,
     /// data must not already be on the heap
     #[inline]

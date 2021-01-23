@@ -8,6 +8,9 @@ use crate::common::{
     data::Data,
 };
 
+// TODO: do a pass where we hoist and resolve variables?
+// may work well for types too.
+
 use crate::compiler::{
     cst::{CST, CSTPattern},
     // TODO: CST specific pattern once where?
@@ -136,7 +139,6 @@ impl Compiler {
         return None;
     }
 
-
     /// Tries to resolve a variable in enclosing scopes
     /// if resolution it successful, it captures the variable in the original scope
     /// then builds a chain of upvalues to hoist that upvalue where it's needed.
@@ -239,19 +241,29 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn resolve_assign(&mut self, name: &str) {
+    // resolves the assignment of a variable
+    // returns true if the variable was declared.
+    pub fn resolve_assign(&mut self, name: &str) -> bool {
+        let mut declared = false;
+
         let index = if let Some(i) = self.local(name) {
             self.lambda.emit(Opcode::Save); i
         } else if let Some(i) = self.captured_upvalue(name) {
             self.lambda.emit(Opcode::SaveCap); i
         } else {
             self.declare(name.to_string());
+            declared = true;
             self.lambda.emit(Opcode::Save);
             self.locals.len() - 1
         };
 
         self.lambda.emit_bytes(&mut split_number(index));
+        return declared;
     }
+
+    // TODO: simplify destructure.
+    // because declarations can only happen with Symbol,
+    // there can be at most one declaration
 
     /// Destructures a pattern into
     /// a series of unpack and assign instructions.
@@ -260,11 +272,16 @@ impl Compiler {
     pub fn destructure(&mut self, pattern: Spanned<CSTPattern>, redeclare: bool) {
         self.lambda.emit_span(&pattern.span);
 
+        // write to a new code buffer so we can schloop declarations in
+        let mut old_code = mem::replace(&mut self.lambda.code, vec![]);
+        let mut declare = false;
+
         match pattern.item {
             CSTPattern::Symbol(name) => {
                 if redeclare { self.declare(name.to_string()) }
-                self.resolve_assign(&name);
-            }
+                // new declarations grow the stack
+                declare = self.resolve_assign(&name);
+            },
             CSTPattern::Data(expected) => {
                 self.data(expected);
                 self.lambda.emit(Opcode::UnData);
@@ -282,6 +299,13 @@ impl Compiler {
                 }
             },
         }
+
+        let mut added_code = mem::replace(&mut self.lambda.code, vec![]);
+
+        // if we declared a new variable, grow the stack
+        if declare && !redeclare { self.lambda.emit(Opcode::NotInit); }
+        self.lambda.code.append(&mut old_code);
+        self.lambda.code.append(&mut added_code);
     }
 
     /// Assign a value to a variable.
@@ -371,6 +395,8 @@ mod test {
         let lambda = gen(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap();
 
         let result = vec![
+            // 3 variabled declared in scope
+            (Opcode::NotInit as u8), (Opcode::NotInit as u8), (Opcode::NotInit as u8),
             (Opcode::Con as u8), 128, (Opcode::Save as u8), 128,  // con true, save to heck,
                 (Opcode::Con as u8), 129, (Opcode::Del as u8),    // load unit, delete
             (Opcode::Load as u8), 128, (Opcode::Save as u8), 129, // load heck, save to lol,

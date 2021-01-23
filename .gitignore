@@ -7,6 +7,9 @@
 # Hidden files
 **/.*
 
+# scratchpad
+/scratchpad
+
 # But not:
 !.gitignore
 !.git

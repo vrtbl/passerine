@@ -3,4 +3,4 @@
 
 x = (true, false)
 
-(w, z) = x
+(w, x) = x

@@ -127,7 +127,8 @@ impl fmt::Display for Lambda {
                     index += consumed;
                     writeln!(f, "Load Con\t{}\t{:?}", constant_index, self.constants[constant_index])?;
                 },
-                Opcode::Del => { writeln!(f, "Delete  \t\t--")?; },
+                Opcode::NotInit => { writeln!(f, "NotInit \t\tDeclare variable")?; }
+                Opcode::Del     => { writeln!(f, "Delete  \t\t--")?; },
                 Opcode::Capture => {
                     let (local_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
@@ -169,14 +170,14 @@ impl fmt::Display for Lambda {
                 Opcode::Tuple => {
                     let (length, consumed) = build_number(&self.code[index..]);
                     index += consumed;
-                    writeln!(f, "Tuple  \t{}\tValues tupled together", length)?;
+                    writeln!(f, "Tuple   \t{}\tValues tupled together", length)?;
                 },
                 Opcode::UnLabel => { writeln!(f, "UnLabel  \t\t--")?; },
                 Opcode::UnData  => { writeln!(f, "UnData   \t\t--")?; },
                 Opcode::UnTuple => {
                     let (item_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
-                    writeln!(f, "UnTuple\t{}\tItem accessed", item_index)?;
+                    writeln!(f, "UnTuple \t{}\tItem accessed", item_index)?;
                 },
                 Opcode::Copy    => { writeln!(f, "Copy     \t\t--")?; },
                 Opcode::FFICall => {
