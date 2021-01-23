@@ -96,6 +96,10 @@ impl Lexer {
             Box::new(Lexer::lambda),
             Box::new(Lexer::compose),
             Box::new(Lexer::pair),
+            Box::new(Lexer::add),
+            Box::new(Lexer::sub),
+            Box::new(Lexer::mul),
+            Box::new(Lexer::div),
             Box::new(Lexer::print), // remove print statements after FFI
 
             // variants
@@ -184,6 +188,7 @@ impl Lexer {
         Ok((kind, Lexer::expect(source, literal)?))
     }
 
+    // TODO: macro for token classifiers?
     // token classifiers
 
     /// Matches a literal opening bracket `{`.
@@ -234,6 +239,26 @@ impl Lexer {
     /// Matches a literal tuple pair ",".
     pub fn pair(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, ",", Token::Pair)
+    }
+
+    /// Matches a literal addition "+".
+    pub fn add(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "+", Token::Add)
+    }
+
+    /// Matches a literal subtraction "-".
+    pub fn sub(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "-", Token::Add)
+    }
+
+    /// Matches a literal multiplication "*".
+    pub fn mul(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "*", Token::Add)
+    }
+
+    /// Matches a literal division "/".
+    pub fn div(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "/", Token::Add)
     }
 
     /// Matches a `print` expression.

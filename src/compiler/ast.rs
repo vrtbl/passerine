@@ -113,6 +113,9 @@ pub enum AST {
         arg_pat:    Box<Spanned<ArgPat>>,
         expression: Box<Spanned<AST>>,
     }
+    FFI {
+        
+    }
 }
 
 impl AST {

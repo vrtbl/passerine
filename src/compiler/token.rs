@@ -15,6 +15,7 @@ pub enum Token {
     Sep,
     Pair,
 
+    // Keywords
     Syntax,
     Assign,
     Lambda,
@@ -33,8 +34,12 @@ pub enum Token {
     Symbol,
     Label,
 
+    // Operators
+    Add, Sub,
+    Mul, Div,
+
     // EoS
-    End
+    End,
 }
 
 impl Display for Token {
@@ -58,10 +63,13 @@ impl Display for Token {
             Token::Label        => "a Label", // capitilized to mimic actual labels
             Token::Number(_)    => "a number",
             Token::String(_)    => "a string",
+            Token::Add          => "an addition",
+            Token::Sub          => "a subtraction",
+            Token::Mul          => "a multiplication",
+            Token::Div          => "a division",
             Token::End          => "end of source",
             Token::Keyword(k) => { return write!(f, "the pseudokeyword '{}", k); },
-            Token::Boolean(b) => { return write!(f, "the boolean {}",         b); },
-
+            Token::Boolean(b) => { return write!(f, "the boolean {}",        b); },
         };
         write!(f, "{}", message)
     }

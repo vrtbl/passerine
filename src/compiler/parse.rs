@@ -34,6 +34,10 @@ pub enum Prec {
     Assign,
     Lambda,
     Pair,
+
+    AddSub,
+    MulDiv,
+
     Compose,
     Call,
     End,
@@ -167,6 +171,11 @@ impl Parser {
             Token::Pair    => self.pair(left),
             Token::Compose => self.compose(left),
 
+            Token::Add => self.add(left),
+            Token::Sub => self.sub(left),
+            Token::Mul => self.mul(left),
+            Token::Div => self.div(left),
+
             Token::End    => Err(self.unexpected()),
             Token::Sep    => unreachable!(),
             _             => self.call(left),
@@ -184,6 +193,12 @@ impl Parser {
             Token::Lambda  => Prec::Lambda,
             Token::Pair    => Prec::Pair,
             Token::Compose => Prec::Compose,
+
+              Token::Add
+            | Token::Sub => Prec::AddSub,
+
+              Token::Mul
+            | Token::Div => Prec::MulDiv,
 
               Token::End
             | Token::CloseParen
@@ -446,7 +461,14 @@ impl Parser {
         self.consume(Token::Compose)?;
         let right = self.expression(Prec::Compose.associate_left(), false)?;
         let combined = Span::combine(&left.span, &right.span);
-        return Ok(Spanned::new(AST::composition(left, right), combined))
+        return Ok(Spanned::new(AST::composition(left, right), combined));
+    }
+
+    pub fn add(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        self.consume(Token::Add)?;
+        let right = self.expression(Prec::Compose.associate_left(), false)?;
+        let combined = Span::combine(&left.span, &right.span);
+        return Ok(Spanned::new(AST::FFI(core::CoreFFI::Add), combined));
     }
 
     /// Parses a function call.
