@@ -89,6 +89,12 @@ impl Compiler {
     /// Restore the enclosing compiler,
     /// returning the nested one for data extraction.
     pub fn exit_scope(&mut self) -> Compiler {
+        // declare variables on stack.
+        let mut old_code = mem::replace(&mut self.lambda.code, vec![]);
+        // TODO: Bytecode Op like `Declare 4`
+        for _ in 0..self.locals.len() { self.lambda.emit(Opcode::NotInit) }
+        self.lambda.code.append(&mut old_code);
+
         let enclosing = mem::replace(&mut self.enclosing, None);
         let nested = match enclosing {
             Some(compiler) => mem::replace(self, *compiler),
@@ -272,15 +278,10 @@ impl Compiler {
     pub fn destructure(&mut self, pattern: Spanned<CSTPattern>, redeclare: bool) {
         self.lambda.emit_span(&pattern.span);
 
-        // write to a new code buffer so we can schloop declarations in
-        let mut old_code = mem::replace(&mut self.lambda.code, vec![]);
-        let mut declare = false;
-
         match pattern.item {
             CSTPattern::Symbol(name) => {
                 if redeclare { self.declare(name.to_string()) }
-                // new declarations grow the stack
-                declare = self.resolve_assign(&name);
+                self.resolve_assign(&name);
             },
             CSTPattern::Data(expected) => {
                 self.data(expected);
@@ -299,13 +300,6 @@ impl Compiler {
                 }
             },
         }
-
-        let mut added_code = mem::replace(&mut self.lambda.code, vec![]);
-
-        // if we declared a new variable, grow the stack
-        if declare && !redeclare { self.lambda.emit(Opcode::NotInit); }
-        self.lambda.code.append(&mut old_code);
-        self.lambda.code.append(&mut added_code);
     }
 
     /// Assign a value to a variable.
