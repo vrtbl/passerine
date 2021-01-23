@@ -107,6 +107,11 @@ impl Stack {
         self.stack.push(Tagged::new(Slot::NotInit));
     }
 
+    #[inline]
+    pub fn declare(&mut self, decls: usize) {
+        for _ in 0..decls { self.push_not_init(); }
+    }
+
     /// Wraps the top data value on the stack in `Data::Heaped`,
     /// data must not already be on the heap
     #[inline]

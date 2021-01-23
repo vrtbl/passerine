@@ -22,6 +22,8 @@ pub enum Captured {
 /// Think a function.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Lambda {
+    /// Number of variables declared in this scope.
+    pub decls: usize,
     /// Each byte is an opcode or a number-stream.
     pub code: Vec<u8>,
     /// Each usize indexes the bytecode op that begins each line.
@@ -40,6 +42,7 @@ impl Lambda {
     /// Creates a new empty Lambda to be filled.
     pub fn empty() -> Lambda {
         Lambda {
+            decls:     0,
             code:      vec![],
             spans:     vec![],
             constants: vec![],
@@ -114,6 +117,8 @@ impl fmt::Display for Lambda {
         for capture in self.captures.iter() {
             writeln!(f, "{:?}", capture)?;
         }
+
+        writeln!(f, "-- Dumping Variables: {}", self.decls)?;
 
         writeln!(f, "-- Dumping Bytecode:")?;
         writeln!(f, "Inst.   \tArgs\tValue?")?;

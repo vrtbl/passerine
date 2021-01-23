@@ -36,11 +36,13 @@ impl VM {
     /// Initialize a new VM.
     /// To run the VM, a lambda must be passed to it through `run`.
     pub fn init(closure: Closure) -> VM {
-        VM {
+        let mut vm = VM {
             closure,
             stack:   Stack::init(),
             ip:      0,
-        }
+        };
+        vm.stack.declare(vm.closure.lambda.decls);
+        return vm;
     }
 
     /// Advances to the next instruction.
@@ -115,7 +117,7 @@ impl VM {
     /// In the future, fibers will allow for error handling -
     /// right now, error in Passerine are practically panics.
     pub fn run(&mut self) -> Result<(), Trace> {
-        println!("{}", self.closure.lambda);
+        println!("Starting\n{}", self.closure.lambda);
 
         while !self.is_terminated() {
             println!("before: {:#?}", self.stack.stack);
@@ -309,8 +311,9 @@ impl VM {
             ));
         }
 
-        self.stack.push_data(t[index].clone());
+        let data = t[index].clone();
         self.stack.push_data(Data::Tuple(t));
+        self.stack.push_data(data);
         self.done()
     }
 
@@ -358,7 +361,10 @@ impl VM {
 
         // set up the stack for the function call
         // self.stack.push_frame(suspend);
+        self.stack.declare(self.closure.lambda.decls);
         self.stack.push_data(arg);
+
+        println!("{}", self.closure.lambda);
 
         Ok(())
     }

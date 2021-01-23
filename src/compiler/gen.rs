@@ -69,11 +69,12 @@ impl Compiler {
         }
     }
 
+    // TODO: delcs and locals a bit redundant...
+
     /// Declare a local variable.
     pub fn declare(&mut self, name: String) {
-        self.locals.push(
-            Local { name, depth: self.depth }
-        )
+        self.locals.push(Local { name, depth: self.depth });
+        self.lambda.decls = self.locals.len();
     }
 
     /// Replace the current compiler with a fresh one,
@@ -87,18 +88,12 @@ impl Compiler {
     }
 
     /// Restore the enclosing compiler,
-    /// returning the nested one for data extraction.
+    /// returning the nested one for data (Lambda) extraction.
     pub fn exit_scope(&mut self) -> Compiler {
-        // declare variables on stack.
-        let mut old_code = mem::replace(&mut self.lambda.code, vec![]);
-        // TODO: Bytecode Op like `Declare 4`
-        for _ in 0..self.locals.len() { self.lambda.emit(Opcode::NotInit) }
-        self.lambda.code.append(&mut old_code);
-
         let enclosing = mem::replace(&mut self.enclosing, None);
         let nested = match enclosing {
             Some(compiler) => mem::replace(self, *compiler),
-            None => panic!("Can not go back past base compiler"),
+            None => unreachable!("Can not go back past root copiler"),
         };
         return nested;
     }
@@ -298,6 +293,8 @@ impl Compiler {
                     self.lambda.emit_bytes(&mut split_number(index));
                     self.destructure(sub_pattern, redeclare);
                 }
+                // Delete the tuple moved to the top of the stack.
+                self.lambda.emit(Opcode::Del);
             },
         }
     }
@@ -389,8 +386,6 @@ mod test {
         let lambda = gen(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap();
 
         let result = vec![
-            // 3 variabled declared in scope
-            (Opcode::NotInit as u8), (Opcode::NotInit as u8), (Opcode::NotInit as u8),
             (Opcode::Con as u8), 128, (Opcode::Save as u8), 128,  // con true, save to heck,
                 (Opcode::Con as u8), 129, (Opcode::Del as u8),    // load unit, delete
             (Opcode::Load as u8), 128, (Opcode::Save as u8), 129, // load heck, save to lol,

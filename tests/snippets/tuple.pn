@@ -1,6 +1,7 @@
 -- action: run
 -- outcome: trace
 
-x = (true, false)
+x = "Jeremy"
+y = "Banana"
 
-(w, x) = x
+x, y = y, x
