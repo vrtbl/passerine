@@ -38,8 +38,8 @@ impl VM {
     pub fn init(closure: Closure) -> VM {
         let mut vm = VM {
             closure,
-            stack:   Stack::init(),
-            ip:      0,
+            stack: Stack::init(),
+            ip:    0,
         };
         vm.stack.declare(vm.closure.lambda.decls);
         return vm;

@@ -39,7 +39,7 @@ pub struct Lambda {
     pub captures: Vec<Captured>,
     /// List of FFI functions (i.e. Rust Functions)
     /// that can be called from this function
-    pub ffi: Vec<Rc<FFIFunction>>,
+    pub ffi: Vec<FFIFunction>,
 }
 
 impl Lambda {
@@ -102,6 +102,15 @@ impl Lambda {
         }
 
         return best.clone();
+    }
+
+    /// Adds a ffi function to the ffi table,
+    /// without checking for duplicates.
+    /// The `Compiler` ensures that functions are valid
+    /// and not duplicated during codegen.
+    pub fn add_ffi(&mut self, function: FFIFunction) -> usize {
+        self.ffi.push(function);
+        self.ffi.len() - 1
     }
 }
 

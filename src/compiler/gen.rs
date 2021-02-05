@@ -59,6 +59,8 @@ pub struct Compiler {
     depth: usize,
     /// The foreign functional interface used to bind values
     ffi: FFI,
+    /// The FFI functions that have been bound in this scope.
+    ffi_names: Vec<String>,
 }
 
 impl Compiler {
@@ -71,6 +73,7 @@ impl Compiler {
             captures:  vec![],
             depth:     0,
             ffi:       FFI::new(),
+            ffi_names: vec![]
         }
     }
 
@@ -130,7 +133,7 @@ impl Compiler {
             CST::Print(expression) => self.print(*expression),
             CST::Label(name, expression) => self.label(name, *expression),
             CST::Tuple(tuple) => self.tuple(tuple),
-            CST::FFI(name) => self.ffi(name),
+            CST::FFI(name) => self.ffi(name, cst.span.clone()),
             CST::Assign { pattern, expression } => self.assign(*pattern, *expression),
             CST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
             CST::Call   { fun,     arg        } => self.call(*fun, *arg),
@@ -233,16 +236,18 @@ impl Compiler {
         Ok(())
     }
 
-    // Generates a print expression
-    // Note that currently printing is a baked-in language feature,
-    // but the second the FFI becomes a thing
-    // it'll no longer be one.
+    /// Generates a print expression
+    /// Note that currently printing is a baked-in language feature,
+    /// but the second the FFI becomes a thing
+    /// it'll no longer be one.
     pub fn print(&mut self, expression: Spanned<CST>) -> Result<(), Syntax> {
         self.walk(&expression)?;
         self.lambda.emit(Opcode::Print);
         Ok(())
     }
 
+    /// Generates a Label construction
+    /// that loads the variant, then wraps some data
     pub fn label(&mut self, name: String, expression: Spanned<CST>) -> Result<(), Syntax> {
         self.walk(&expression)?;
         self.data(Data::Kind(name));
@@ -250,6 +255,9 @@ impl Compiler {
         Ok(())
     }
 
+    /// Generates a Tuple construction
+    /// that loads all fields in the tuple
+    /// then rips them off the stack into a vec.
     pub fn tuple(&mut self, tuple: Vec<Spanned<CST>>) -> Result<(), Syntax> {
         let length = tuple.len();
 
@@ -259,6 +267,33 @@ impl Compiler {
 
         self.lambda.emit(Opcode::Tuple);
         self.lambda.emit_bytes(&mut split_number(length));
+        Ok(())
+    }
+
+    // Makes a rust function callable from passerine
+    // TODO: make a macro to map Passerine's data model to Rust's
+    pub fn ffi(&mut self, name: String, span: Span) -> Result<(), Syntax> {
+        let function = self.ffi.get(&name)
+            .map_err(|s| Syntax::error(&s, &span))?;
+
+        let index = match self.ffi_names.iter().position(|n| n == &name) {
+            Some(p) => p,
+            None => {
+                // TODO: keeping track of state
+                // in two different places is a code smell imo
+                // Reason: don't want to include strings in lambda
+                // optimal solutions:
+                // have an earlier step that normalizes AST,
+                // determines scope of all names/symbols,
+                // and replaces all names/symbols with indicies
+                // before codgen.
+                self.ffi_names.push(name);
+                self.lambda.add_ffi(function)
+            },
+        };
+
+        self.lambda.emit(Opcode::FFICall);
+        self.lambda.emit_bytes(&mut split_number(index));
         Ok(())
     }
 

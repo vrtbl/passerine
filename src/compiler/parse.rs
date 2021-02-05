@@ -172,13 +172,13 @@ impl Parser {
             Token::Compose => self.compose(left),
 
             Token::Add => self.add(left),
-            Token::Sub => self.sub(left),
-            Token::Mul => self.mul(left),
-            Token::Div => self.div(left),
+            Token::Sub => todo!(), // self.sub(left),
+            Token::Mul => todo!(), // self.mul(left),
+            Token::Div => todo!(), // self.div(left),
 
-            Token::End    => Err(self.unexpected()),
-            Token::Sep    => unreachable!(),
-            _             => self.call(left),
+            Token::End => Err(self.unexpected()),
+            Token::Sep => unreachable!(),
+            _          => self.call(left),
         }
     }
 
@@ -471,7 +471,8 @@ impl Parser {
 
         // TODO: names must be full qualified paths.
 
-        let arguments = Spanned::new(AST::Tuple(vec![left, right]), combined);
+        // TODO: use argument
+        let arguments = Spanned::new(AST::Tuple(vec![left, right]), combined.clone());
         return Ok(Spanned::new(AST::ffi("add"), combined));
     }
 
