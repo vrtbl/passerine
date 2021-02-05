@@ -22,6 +22,8 @@ pub enum Captured {
 /// Think a function.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Lambda {
+    // TODO: make this a list of variable names
+    // So structs can be made, and state preserved in the repl.
     /// Number of variables declared in this scope.
     pub decls: usize,
     /// Each byte is an opcode or a number-stream.

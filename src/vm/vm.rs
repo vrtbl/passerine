@@ -427,7 +427,7 @@ impl VM {
         let returned = match (ffi_function.0)(argument) {
             Ok(d) => d,
             Err(e) => return Err(Trace::error(
-                "FFI Call", &e, vec![self.current_span()],
+                "FFI Call", e, vec![self.current_span()],
             )),
         };
 

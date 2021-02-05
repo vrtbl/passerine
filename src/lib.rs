@@ -115,5 +115,6 @@
 //! The `VM` is just a simple light stack-based VM.
 
 pub mod common;
+pub mod core;
 pub mod compiler;
 pub mod vm;

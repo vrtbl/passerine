@@ -468,7 +468,11 @@ impl Parser {
         self.consume(Token::Add)?;
         let right = self.expression(Prec::Compose.associate_left(), false)?;
         let combined = Span::combine(&left.span, &right.span);
-        return Ok(Spanned::new(AST::FFI(core::CoreFFI::Add), combined));
+
+        // TODO: names must be full qualified paths.
+
+        let arguments = Spanned::new(AST::Tuple(vec![left, right]), combined);
+        return Ok(Spanned::new(AST::ffi("add"), combined));
     }
 
     /// Parses a function call.
