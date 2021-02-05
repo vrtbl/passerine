@@ -48,6 +48,7 @@ impl Transformer {
             AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression)?,
             AST::Print(e) => CST::Print(Box::new(self.walk(*e)?)),
             AST::Label(n, e) => CST::Label(n, Box::new(self.walk(*e)?)),
+            AST::FFI(name) => CST::FFI(name),
         };
 
         return Ok(Spanned::new(cst, ast.span))

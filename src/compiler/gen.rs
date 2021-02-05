@@ -13,9 +13,11 @@ use crate::common::{
 
 use crate::compiler::{
     cst::{CST, CSTPattern},
-    // TODO: CST specific pattern once where?
+    // TODO: pattern for where?
     syntax::Syntax,
 };
+
+use crate::core::ffi::FFI;
 
 /// Simple function that generates unoptimized bytecode from an `CST`.
 /// Exposes the functionality of the `Compiler`.
@@ -55,6 +57,8 @@ pub struct Compiler {
     captures: Vec<usize>,
     /// The nested depth of the current compiler.
     depth: usize,
+    /// The foreign functional interface used to bind values
+    ffi: FFI,
 }
 
 impl Compiler {
@@ -66,7 +70,14 @@ impl Compiler {
             locals:    vec![],
             captures:  vec![],
             depth:     0,
+            ffi:       FFI::new(),
         }
+    }
+
+    // Should the FFI be required to be bound
+    // *before* or *after* the compiler is constructed?
+    pub fn bind_ffi(&mut self, ffi: FFI) {
+        todo!()
     }
 
     // TODO: delcs and locals a bit redundant...
@@ -78,12 +89,14 @@ impl Compiler {
     }
 
     /// Replace the current compiler with a fresh one,
-    /// keeping a reference to the old one in `self.enclosing`.
+    /// keeping a reference to the old one in `self.enclosing`,
+    /// and moving the FFI into the current compiler.
     pub fn enter_scope(&mut self) {
-        let depth = self.depth + 1;
+        let depth      = self.depth + 1;
         let mut nested = Compiler::base();
-        nested.depth = depth;
-        let enclosing = mem::replace(self, nested);
+        nested.depth   = depth;
+        let ffi        = mem::replace(self.ffi, FFI::new());
+        let enclosing  = mem::replace(self, nested);
         self.enclosing = Some(Box::new(enclosing));
     }
 
@@ -114,6 +127,7 @@ impl Compiler {
             CST::Print(expression) => self.print(*expression),
             CST::Label(name, expression) => self.label(name, *expression),
             CST::Tuple(tuple) => self.tuple(tuple),
+            CST::FFI(name) => self.ffi(name),
             CST::Assign { pattern, expression } => self.assign(*pattern, *expression),
             CST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
             CST::Call   { fun,     arg        } => self.call(*fun, *arg),

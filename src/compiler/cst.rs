@@ -61,6 +61,7 @@ pub enum CST {
     Print(Box<Spanned<CST>>),
     Label(String, Box<Spanned<CST>>),
     Tuple(Vec<Spanned<CST>>),
+    FFI(String),
 }
 
 impl CST {

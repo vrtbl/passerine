@@ -4,6 +4,11 @@ use std::{
 };
 use crate::common::data::Data;
 
+// TODO: have FFI function keep track of number of arguments
+// it takes, so this invariant can be checket at compile time?
+/// Represents a single FFI function,
+/// Bound at compile time,
+/// Through the use of `FFI`.
 pub struct FFIFunction(Rc<dyn Fn(Data) -> Result<Data, String>>);
 
 impl FFIFunction {

@@ -424,10 +424,10 @@ impl VM {
         let ffi_function = &self.closure.lambda.ffi[index];
 
         let argument = self.stack.pop_data();
-        let returned = match (ffi_function.0)(argument) {
+        let returned = match ffi_function.call(argument) {
             Ok(d) => d,
             Err(e) => return Err(Trace::error(
-                "FFI Call", e, vec![self.current_span()],
+                "FFI Call", &e, vec![self.current_span()],
             )),
         };
 

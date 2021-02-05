@@ -1,14 +1,16 @@
-use std::rc::Rc;
+use std::{
+    fmt,
+    rc::Rc,
+};
 
 use crate::common::{
     opcode::Opcode,
     data::Data,
     number::build_number,
     span::Span,
-    ffi::FFIFunction,
 };
 
-use std::fmt;
+use crate::core::ffi::FFIFunction;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Captured {
