@@ -95,19 +95,22 @@ impl Compiler {
         let depth      = self.depth + 1;
         let mut nested = Compiler::base();
         nested.depth   = depth;
-        let ffi        = mem::replace(self.ffi, FFI::new());
+        let ffi        = mem::replace(&mut self.ffi, FFI::new());
         let enclosing  = mem::replace(self, nested);
         self.enclosing = Some(Box::new(enclosing));
     }
 
     /// Restore the enclosing compiler,
-    /// returning the nested one for data (Lambda) extraction.
+    /// returning the nested one for data (Lambda) extraction,
+    /// and moving the FFI mappings back into the enclosing compiler.
     pub fn exit_scope(&mut self) -> Compiler {
+        let ffi       = mem::replace(&mut self.ffi, FFI::new());
         let enclosing = mem::replace(&mut self.enclosing, None);
         let nested = match enclosing {
             Some(compiler) => mem::replace(self, *compiler),
             None => unreachable!("Can not go back past root copiler"),
         };
+        self.ffi = ffi;
         return nested;
     }
 
@@ -230,6 +233,10 @@ impl Compiler {
         Ok(())
     }
 
+    // Generates a print expression
+    // Note that currently printing is a baked-in language feature,
+    // but the second the FFI becomes a thing
+    // it'll no longer be one.
     pub fn print(&mut self, expression: Spanned<CST>) -> Result<(), Syntax> {
         self.walk(&expression)?;
         self.lambda.emit(Opcode::Print);
@@ -243,7 +250,6 @@ impl Compiler {
         Ok(())
     }
 
-    // TODO: untuple
     pub fn tuple(&mut self, tuple: Vec<Spanned<CST>>) -> Result<(), Syntax> {
         let length = tuple.len();
 
