@@ -17,15 +17,23 @@ use crate::compiler::{
     syntax::Syntax,
 };
 
-use crate::core::ffi::FFI;
+use crate::core::{
+    ffi_core,
+    ffi::FFI,
+};
 
 /// Simple function that generates unoptimized bytecode from an `CST`.
 /// Exposes the functionality of the `Compiler`.
 pub fn gen(cst: Spanned<CST>) -> Result<Lambda, Syntax> {
-    let mut compiler = Compiler::base();
+    let ffi = ffi_core();
+    let mut compiler = Compiler::base(ffi);
     compiler.walk(&cst)?;
     return Ok(compiler.lambda);
 }
+
+// TODO: gen with FFI
+// TODO: methods to combine FFIs
+// TODO: namespaces for FFIs?
 
 // TODO: implement equality
 /// Represents a local when compiling.
@@ -65,22 +73,16 @@ pub struct Compiler {
 
 impl Compiler {
     /// Construct a new `Compiler`.
-    pub fn base() -> Compiler {
+    pub fn base(ffi: FFI) -> Compiler {
         Compiler {
             enclosing: None,
             lambda:    Lambda::empty(),
             locals:    vec![],
             captures:  vec![],
             depth:     0,
-            ffi:       FFI::new(),
+            ffi,
             ffi_names: vec![]
         }
-    }
-
-    // Should the FFI be required to be bound
-    // *before* or *after* the compiler is constructed?
-    pub fn bind_ffi(&mut self, ffi: FFI) {
-        todo!()
     }
 
     // TODO: delcs and locals a bit redundant...
@@ -95,10 +97,9 @@ impl Compiler {
     /// keeping a reference to the old one in `self.enclosing`,
     /// and moving the FFI into the current compiler.
     pub fn enter_scope(&mut self) {
-        let depth      = self.depth + 1;
-        let mut nested = Compiler::base();
-        nested.depth   = depth;
         let ffi        = mem::replace(&mut self.ffi, FFI::new());
+        let mut nested = Compiler::base(ffi);
+        nested.depth   = self.depth + 1;
         let enclosing  = mem::replace(self, nested);
         self.enclosing = Some(Box::new(enclosing));
     }
@@ -133,7 +134,7 @@ impl Compiler {
             CST::Print(expression) => self.print(*expression),
             CST::Label(name, expression) => self.label(name, *expression),
             CST::Tuple(tuple) => self.tuple(tuple),
-            CST::FFI(name) => self.ffi(name, cst.span.clone()),
+            CST::FFI    { name,    expression } => self.ffi(name, *expression, cst.span.clone()),
             CST::Assign { pattern, expression } => self.assign(*pattern, *expression),
             CST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
             CST::Call   { fun,     arg        } => self.call(*fun, *arg),
@@ -272,7 +273,9 @@ impl Compiler {
 
     // Makes a rust function callable from passerine
     // TODO: make a macro to map Passerine's data model to Rust's
-    pub fn ffi(&mut self, name: String, span: Span) -> Result<(), Syntax> {
+    pub fn ffi(&mut self, name: String, expression: Spanned<CST>, span: Span) -> Result<(), Syntax> {
+        self.walk(&expression)?;
+
         let function = self.ffi.get(&name)
             .map_err(|s| Syntax::error(&s, &span))?;
 

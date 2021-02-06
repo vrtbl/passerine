@@ -266,7 +266,10 @@ impl Rule {
                 AST::syntax(ap, e)
             },
 
-            AST::FFI(name) => AST::FFI(name),
+            AST::FFI { name, expression } => AST::ffi(
+                &name,
+                Rule::expand(*expression, bindings)?
+            ),
         };
 
         return Ok(Spanned::new(item, tree.span));

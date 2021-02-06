@@ -40,15 +40,15 @@ impl Transformer {
             AST::Block(b) => self.block(b)?,
             AST::Form(f) => self.form(f)?,
             AST::Tuple(t) => self.tuple(t)?,
-            AST::Composition { argument, function } => self.composition(*argument, *function)?,
             AST::Pattern(_) => return Err(Syntax::error("Unexpected pattern", &ast.span)),
             AST::ArgPat(_)  => return Err(Syntax::error("Unexpected argument pattern", &ast.span)),
+            AST::Print(e) => CST::Print(Box::new(self.walk(*e)?)),
+            AST::Label(n, e) => CST::Label(n, Box::new(self.walk(*e)?)),
             AST::Syntax { arg_pat, expression } => self.rule(*arg_pat, *expression)?,
             AST::Assign { pattern, expression } => self.assign(*pattern, *expression)?,
             AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression)?,
-            AST::Print(e) => CST::Print(Box::new(self.walk(*e)?)),
-            AST::Label(n, e) => CST::Label(n, Box::new(self.walk(*e)?)),
-            AST::FFI(name) => CST::FFI(name),
+            AST::Composition { argument, function } => self.composition(*argument, *function)?,
+            AST::FFI { name, expression } => self.ffi(name, *expression)?,
         };
 
         return Ok(Spanned::new(cst, ast.span))
@@ -174,6 +174,10 @@ impl Transformer {
         Ok(CST::call(self.walk(function)?, self.walk(argument)?))
     }
 
+    pub fn ffi(&mut self, name: String, expression: Spanned<AST>) -> Result<CST, Syntax> {
+        Ok(CST::FFI{ name, expression: Box::new(self.walk(expression)?) })
+    }
+
     pub fn block(&mut self, block: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
         let mut expressions = vec![];
         for expression in block {
@@ -183,7 +187,6 @@ impl Transformer {
         Ok(CST::Block(expressions))
     }
 
-    /// TODO: implement full pattern matching
     pub fn assign(&mut self, p: Spanned<ASTPattern>, e: Spanned<AST>) -> Result<CST, Syntax> {
         let p_span = p.span.clone();
 

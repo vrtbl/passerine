@@ -61,7 +61,10 @@ pub enum CST {
     Print(Box<Spanned<CST>>),
     Label(String, Box<Spanned<CST>>),
     Tuple(Vec<Spanned<CST>>),
-    FFI(String),
+    FFI {
+        name:       String,
+        expression: Box<Spanned<CST>>,
+    },
 }
 
 impl CST {
@@ -92,6 +95,14 @@ impl CST {
         CST::Call {
             fun: Box::new(fun),
             arg: Box::new(arg),
+        }
+    }
+
+    // Shortcut for creating an `CST::FFI` variant.
+    pub fn ffi(name: &str, expression: Spanned<CST>) -> CST {
+        CST::FFI {
+            name: name.to_string(),
+            expression: Box::new(expression),
         }
     }
 }

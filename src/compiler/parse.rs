@@ -473,7 +473,7 @@ impl Parser {
 
         // TODO: use argument
         let arguments = Spanned::new(AST::Tuple(vec![left, right]), combined.clone());
-        return Ok(Spanned::new(AST::ffi("add"), combined));
+        return Ok(Spanned::new(AST::ffi("add", arguments), combined));
     }
 
     /// Parses a function call.

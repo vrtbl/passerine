@@ -1,7 +1,4 @@
-use std::{
-    fmt,
-    rc::Rc,
-};
+use std::fmt;
 
 use crate::common::{
     opcode::Opcode,

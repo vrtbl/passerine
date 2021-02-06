@@ -115,7 +115,10 @@ pub enum AST {
     },
     // TODO: Currently quite basic
     // Use a symbol or the like?
-    FFI(String),
+    FFI {
+        name:       String,
+        expression: Box<Spanned<AST>>,
+    },
 }
 
 impl AST {
@@ -164,7 +167,10 @@ impl AST {
     }
 
     // Shortcut for creating an `AST::FFI` variant.
-    pub fn ffi(name: &str) -> AST {
-        AST::FFI(name.to_string())
+    pub fn ffi(name: &str, expression: Spanned<AST>) -> AST {
+        AST::FFI {
+            name: name.to_string(),
+            expression: Box::new(expression),
+        }
     }
 }
