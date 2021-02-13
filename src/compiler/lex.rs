@@ -248,17 +248,17 @@ impl Lexer {
 
     /// Matches a literal subtraction "-".
     pub fn sub(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "-", Token::Add)
+        Lexer::literal(source, "-", Token::Sub)
     }
 
     /// Matches a literal multiplication "*".
     pub fn mul(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "*", Token::Add)
+        Lexer::literal(source, "*", Token::Mul)
     }
 
     /// Matches a literal division "/".
     pub fn div(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "/", Token::Add)
+        Lexer::literal(source, "/", Token::Div)
     }
 
     /// Matches a `print` expression.

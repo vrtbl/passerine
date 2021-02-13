@@ -172,9 +172,9 @@ impl Parser {
             Token::Compose => self.compose(left),
 
             Token::Add => self.add(left),
-            Token::Sub => todo!(), // self.sub(left),
-            Token::Mul => todo!(), // self.mul(left),
-            Token::Div => todo!(), // self.div(left),
+            Token::Sub => self.sub(left),
+            Token::Mul => self.mul(left),
+            Token::Div => self.div(left),
 
             Token::End => Err(self.unexpected()),
             Token::Sep => unreachable!(),
@@ -464,16 +464,38 @@ impl Parser {
         return Ok(Spanned::new(AST::composition(left, right), combined));
     }
 
-    pub fn add(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        self.consume(Token::Add)?;
-        let right = self.expression(Prec::Compose.associate_left(), false)?;
-        let combined = Span::combine(&left.span, &right.span);
+    // TODO: names must be full qualified paths.
 
-        // TODO: names must be full qualified paths.
+    fn binop(
+        &mut self,
+        op: Token,
+        prec: Prec,
+        name: &str,
+        left: Spanned<AST>
+    ) -> Result<Spanned<AST>, Syntax> {
+        self.consume(op)?;
+        let right = self.expression(prec.associate_left(), false)?;
+        let combined = Span::combine(&left.span, &right.span);
 
         // TODO: use argument
         let arguments = Spanned::new(AST::Tuple(vec![left, right]), combined.clone());
-        return Ok(Spanned::new(AST::ffi("add", arguments), combined));
+        return Ok(Spanned::new(AST::ffi(name, arguments), combined));
+    }
+
+    pub fn add(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        return self.binop(Token::Add, Prec::AddSub, "add", left);
+    }
+
+    pub fn sub(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        return self.binop(Token::Sub, Prec::AddSub, "sub", left);
+    }
+
+    pub fn mul(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        return self.binop(Token::Mul, Prec::MulDiv, "mul", left);
+    }
+
+    pub fn div(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        return self.binop(Token::Div, Prec::MulDiv, "div", left);
     }
 
     /// Parses a function call.
