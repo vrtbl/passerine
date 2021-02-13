@@ -191,7 +191,7 @@ impl Compiler {
         return None
     }
 
-    /// returns the index of a captured non-local.
+    /// Returns the index of a captured non-local.
     pub fn captured_upvalue(&mut self, name: &str) -> Option<usize> {
         match self.captured(name) {
             Some(Captured::Nonlocal(upvalue)) => Some(upvalue),
@@ -199,7 +199,6 @@ impl Compiler {
         }
     }
 
-    // TODO: rewrite according to new local rules
     /// Takes a symbol leaf, and produces some code to load the local
     pub fn symbol(&mut self, name: &str, span: Span) -> Result<(), Syntax> {
         if let Some(index) = self.local(name) {
@@ -271,8 +270,9 @@ impl Compiler {
         Ok(())
     }
 
-    // Makes a rust function callable from passerine
     // TODO: make a macro to map Passerine's data model to Rust's
+    /// Makes a Rust function callable from Passerine,
+    /// by keeping a reference to that function.
     pub fn ffi(&mut self, name: String, expression: Spanned<CST>, span: Span) -> Result<(), Syntax> {
         self.walk(&expression)?;
 
@@ -300,8 +300,8 @@ impl Compiler {
         Ok(())
     }
 
-    // resolves the assignment of a variable
-    // returns true if the variable was declared.
+    /// Resolves the assignment of a variable
+    /// returns true if the variable was declared.
     pub fn resolve_assign(&mut self, name: &str) -> bool {
         let mut declared = false;
 
@@ -370,7 +370,6 @@ impl Compiler {
         Ok(())
     }
 
-    // TODO: rewrite according to new symbol rules
     /// Recursively compiles a lambda declaration in a new scope.
     pub fn lambda(
         &mut self,

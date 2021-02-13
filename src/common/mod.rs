@@ -1,5 +1,5 @@
 //! Contains datastructures and utility functions
-//! common to both the `compiler` and `vm`, including:
+//! common to both the `compiler` and `vm`.
 //!
 //! - Core data-strucutres.
 //! - Opcodes and number splicing.

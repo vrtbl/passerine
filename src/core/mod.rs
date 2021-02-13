@@ -1,5 +1,5 @@
-/// This module provides the core language library
-/// And compiler-magic FFI bindings.
+//! This module provides the standard/core language library
+//! And compiler-magic FFI bindings.
 
 pub mod ffi;
 pub mod extract;

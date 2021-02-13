@@ -1,5 +1,8 @@
 # Pattern Matching for fun ~~and for profit!~~
 
+> This is a big file where I'm planning stuff.
+> I'll delete it before this branch is merged into master.
+
 What's the best way to implement pattern matching from a backend /runtime perspective?That's a tricky question. I'll go into some more depth here. Currently, the language I'm developing has support for tuples - so you can do something like:
 ```
 (a, b) = (b, a)
@@ -306,4 +309,5 @@ This has been implemented
 - [ ] using macros from other macros; nesting macros
 - [ ] variable hoisting
 - [ ] pattern error messages
-- [ ] calls in patterns are ignored?
+- [X] calls in patterns are ignored?
+- [ ] add step to deal with hoisting, etc.

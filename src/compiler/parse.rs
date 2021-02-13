@@ -87,6 +87,8 @@ impl Parser {
     }
 
     // TODO: merge with sep?
+    /// Returns the next non-sep tokens,
+    /// without advancing the parser.
     pub fn draw(&self) -> &Spanned<Token> {
         let mut offset = 0;
 
@@ -419,6 +421,8 @@ impl Parser {
 
     // Infix:
 
+    /// Parses an argument pattern,
+    /// Which converts an `AST` into an `ArgPat`.
     pub fn arg_pat(ast: Spanned<AST>) -> Result<Spanned<ArgPat>, Syntax> {
         let item = match ast.item {
             AST::Symbol(s) => ArgPat::Symbol(s),
@@ -488,7 +492,7 @@ impl Parser {
         return Ok(Spanned::new(AST::Tuple(tuple), span));
     }
 
-    /// parses a function composition, i.e. `a . b`
+    /// Parses a function composition, i.e. `a . b`
     pub fn compose(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         self.consume(Token::Compose)?;
         let right = self.expression(Prec::Compose.associate_left(), false)?;
@@ -498,6 +502,7 @@ impl Parser {
 
     // TODO: names must be full qualified paths.
 
+    /// Parses a left-associative binary operator.
     fn binop(
         &mut self,
         op: Token,
@@ -513,18 +518,22 @@ impl Parser {
         return Ok(Spanned::new(AST::ffi(name, arguments), combined));
     }
 
+    /// Parses an addition, calls out to FFI.
     pub fn add(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         return self.binop(Token::Add, Prec::AddSub, "add", left);
     }
 
+    /// Parses a subraction, calls out to FFI.
     pub fn sub(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         return self.binop(Token::Sub, Prec::AddSub, "sub", left);
     }
 
+    /// Parses a multiplication, calls out to FFI.
     pub fn mul(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         return self.binop(Token::Mul, Prec::MulDiv, "mul", left);
     }
 
+    /// Parses a division, calls out to FFI.
     pub fn div(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         return self.binop(Token::Div, Prec::MulDiv, "div", left);
     }

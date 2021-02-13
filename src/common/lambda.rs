@@ -9,16 +9,17 @@ use crate::common::{
 
 use crate::core::ffi::FFIFunction;
 
+/// Represents a variable visible in the current scope.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Captured {
-    /// The index on the stack if the variable is local to the current scope
+    /// The index on the stack if the variable is local to the current scope.
     Local(usize),
-    /// The index of the upvalue in the enclosing scope
+    /// The index of the upvalue in the enclosing scope.
     Nonlocal(usize),
 }
 
 /// Represents a single interpretable chunk of bytecode,
-/// Think a function.
+/// think a function.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Lambda {
     // TODO: make this a list of variable names
@@ -29,18 +30,18 @@ pub struct Lambda {
     pub code: Vec<u8>,
     /// Each usize indexes the bytecode op that begins each line.
     pub spans: Vec<(usize, Span)>,
-    /// number-stream indexed, used to load constants.
+    /// Number-stream indexed, used to load constants.
     pub constants: Vec<Data>,
     /// List of positions of locals in the scope where this lambda is defined,
     /// indexes must be gauranteed to be data on the heap.
     pub captures: Vec<Captured>,
-    /// List of FFI functions (i.e. Rust Functions)
-    /// that can be called from this function
+    /// List of FFI functions (i.e. Rust functions)
+    /// that can be called from this function.
     pub ffi: Vec<FFIFunction>,
 }
 
 impl Lambda {
-    /// Creates a new empty Lambda to be filled.
+    /// Creates a new empty `Lambda` to be filled.
     pub fn empty() -> Lambda {
         Lambda {
             decls:     0,
@@ -52,12 +53,12 @@ impl Lambda {
         }
     }
 
-    /// Emits an opcode as a byte
+    /// Emits an opcode as a byte.
     pub fn emit(&mut self, op: Opcode) {
         self.code.push(op as u8)
     }
 
-    /// Emits a series of bytes
+    /// Emits a series of bytes.
     pub fn emit_bytes(&mut self, bytes: &mut Vec<u8>) {
         self.code.append(bytes)
     }
@@ -69,7 +70,7 @@ impl Lambda {
         self.spans.push((self.code.len(), span.clone()))
     }
 
-    /// Removes the last emitted byte
+    /// Removes the last emitted byte.
     pub fn demit(&mut self) {
         self.code.pop();
     }
@@ -112,8 +113,10 @@ impl Lambda {
 }
 
 impl fmt::Display for Lambda {
+    /// Dump a human-readable breakdown of a `Lambda`'s bytecode.
+    /// Including constants, captures, and variables declared.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "\n-- Dumping Constants:")?;
+        writeln!(f, "-- Dumping Constants:")?;
         for constant in self.constants.iter() {
             writeln!(f, "{:?}", constant)?;
         }

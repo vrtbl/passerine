@@ -275,6 +275,8 @@ impl Lexer {
 
     // TODO: refactor comment and multi-line for doc-comments
 
+    /// Parses a single-line comment,
+    /// which ignores from "--" until the next newline.
     pub fn comment(source: &str) -> usize {
         let mut len = match Lexer::expect(source, "--") {
             Ok(n) => n,
@@ -289,6 +291,8 @@ impl Lexer {
         return len;
     }
 
+    /// Parses a nestable multi-line comment,
+    /// Which begins with `-{` and ends with `}-`.
     pub fn multi_comment(source: &str) -> usize {
         let mut len: usize = match Lexer::expect(source, "-{") {
             Ok(n) => n,

@@ -14,25 +14,26 @@ use crate::compiler::{
 
 // TODO: separate macro step and desugaring into two different steps?
 
+/// Desugares an `AST` into a `CST`, applying macro transformations along the way.
 pub fn desugar(ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
     let mut transformer = Transformer::new();
     let cst = transformer.walk(ast)?;
     return Ok(cst);
 }
 
-/// Applies compile-time transformations to the AST
+/// Applies compile-time transformations to the AST.
 pub struct Transformer {
     rules: Vec<Spanned<Rule>>,
 }
 
 impl Transformer {
+    /// Creates a new transformer with no macro transformation rules.
     pub fn new() -> Transformer {
         Transformer { rules: vec![] }
     }
 
-    /// desugars an AST into a CST
-    /// This function will become more complicated later on
-    /// once macros are introduced, but right now it's basically a 1 to 1 translation
+    /// Desugars an `AST` into a `CST`,
+    /// By walking over it in a fairly straight-forward manner.
     pub fn walk(&mut self, ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
         let cst: CST = match ast.item {
             AST::Symbol(_) => self.symbol(ast.clone())?,
@@ -55,6 +56,10 @@ impl Transformer {
         return Ok(Spanned::new(cst, ast.span))
     }
 
+    /// Converts a symbol.
+    /// Note that symbols can be one-item macros;
+    /// Function calls are always parsed with at least two items,
+    /// So we need to wrap this symbol in a vec and interpret it as a form.
     pub fn symbol(&mut self, ast: Spanned<AST>) -> Result<CST, Syntax> {
         self.form(vec![ast])
     }
@@ -76,24 +81,27 @@ impl Transformer {
             },
             _higher => {
                 let arg = self.walk(f.pop().unwrap())?;
-                let f_span = Span::join(f.iter().map(|e| e.span.clone()).collect::<Vec<Span>>());
+                // can't join, because some spans may be in macro
+                let f_span = f[0].span.clone();
                 Ok(CST::call(Spanned::new(self.call(f)?, f_span), arg))
             },
         }
     }
 
     // TODO: Make it possible for forms with less than one value to exist?
+    /// Desugars a form.
+    /// This is where most of the macro logic resides.
+    /// Applying a macro really happens in four broad strokes:
+    /// 1. We match the form against all macros currently in scope.
+    /// 2. If there was one match, we're done! we apply the macro and keep on going.
+    /// 3. If there were no matches, we ensure that it couldn't've been a macro,
+    ///    then parse it as a function call.
+    /// 4. If there was more than one match, we point out the ambiguity.
     pub fn form(&mut self, form: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
-        // build up a list of rules that matched the current form
-        // note that this should be 1
-        // 0 means that there's a function call
-        // more than 1 means there's some macro ambiguity that needs to be resolved
-        println!("AST: {:#?}", form);
-
+        // apply all the rules in scope
         let mut matches = vec![];
         for rule in self.rules.iter() {
             let mut reversed_remaining = form.clone().into_iter().rev().collect();
-            println!("Thing: {:#?}", reversed_remaining);
             let possibility = Rule::bind(&rule.item.arg_pat, &mut reversed_remaining);
 
             if let Some(bindings) = possibility {
@@ -103,6 +111,7 @@ impl Transformer {
             }
         }
 
+        // no macros were matched
         if matches.len() == 0 {
             // collect all in-scope pseudokeywords
             let mut pseudokeywords: HashSet<String> = HashSet::new();
@@ -112,6 +121,7 @@ impl Transformer {
                 }
             }
 
+            // into a set for quick membership checking
             let potential_keywords = form.iter()
                 .filter(|i| if let AST::Symbol(_) = &i.item { true } else { false })
                 .map(   |i| if let AST::Symbol(s) = &i.item { s.to_string() } else { unreachable!() })
@@ -122,9 +132,10 @@ impl Transformer {
                 .map(|s| s.to_string())
                 .collect::<Vec<String>>();
 
-            // process the form as a function call instead
+            // no collisions? process the form as a function call instead
             if intersection.is_empty() { return self.call(form); }
 
+            // a collision? point it out!
             return Err(Syntax::error(
                 &format!(
                     "In-scope pseudokeyword{} {} used, but no macros match the form.",
@@ -137,6 +148,9 @@ impl Transformer {
                 &Spanned::build(&form),
             ))
         }
+
+        // multiple macros were matched,
+        // so this form is ambiguious
         if matches.len() > 1 {
             // TODO: make the error prettier
             // might have to rework Syntax a bit...
@@ -156,11 +170,22 @@ impl Transformer {
             ))
         }
 
+        // apply the rule to apply the macro!
         let (rule, mut bindings) = matches.pop().unwrap();
         let expanded = Rule::expand(rule.item.tree.clone(), &mut bindings)?;
-        return Ok(self.walk(expanded)?.item);
+
+        println!("{:#?}", expanded);
+        println!("---");
+
+        let e = self.walk(expanded)?.item;
+
+        println!("{:#?}", e);
+
+        return Ok(e);
     }
 
+    /// Desugar a tuple.
+    /// Nothing fancy here.
     pub fn tuple(&mut self, tuple: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
         let mut expressions = vec![];
         for expression in tuple {
@@ -178,10 +203,14 @@ impl Transformer {
         Ok(CST::call(self.walk(function)?, self.walk(argument)?))
     }
 
+    /// Desugar a FFI call.
+    /// We walk the expression that may be passed to the FFI.
     pub fn ffi(&mut self, name: String, expression: Spanned<AST>) -> Result<CST, Syntax> {
         Ok(CST::FFI{ name, expression: Box::new(self.walk(expression)?) })
     }
 
+    /// Desugars a block,
+    /// i.e. a series of expressions that takes on the value of the last one.
     pub fn block(&mut self, block: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
         let mut expressions = vec![];
         for expression in block {
@@ -191,6 +220,8 @@ impl Transformer {
         Ok(CST::Block(expressions))
     }
 
+    /// Desugars an assigment.
+    /// Note that this converts the assignment's `ASTPattern` into a `CSTPattern`
     pub fn assign(&mut self, p: Spanned<ASTPattern>, e: Spanned<AST>) -> Result<CST, Syntax> {
         let p_span = p.span.clone();
 
@@ -201,7 +232,10 @@ impl Transformer {
         ))
     }
 
-    /// TODO: implement full pattern matching
+    /// Desugars a lambda
+    /// This converts both patterns and expressions;
+    /// On top of this, it desugars `a b c -> d`
+    /// into `a -> b -> c -> d`.
     pub fn lambda(&mut self, p: Spanned<ASTPattern>, e: Spanned<AST>) -> Result<CST, Syntax> {
         let p_span = p.span.clone();
         let arguments = if let ASTPattern::Chain(c) = p.item { c } else { vec![p] };
@@ -218,6 +252,12 @@ impl Transformer {
         return Ok(expression.item);
     }
 
+    /// Desugars a macro definition.
+    /// Right now, this is a bit awkward;
+    /// Ideally, a preprocessing step should be taken
+    /// That determines which variables are declared where,
+    /// Which macros are declared when,
+    /// And removes all such valueless declarations from the AST.
     pub fn rule(&mut self, arg_pat: Spanned<ArgPat>, tree: Spanned<AST>) -> Result<CST, Syntax> {
         let patterns_span = arg_pat.span.clone();
         let rule = Rule::new(arg_pat, tree)?;
@@ -227,3 +267,5 @@ impl Transformer {
         Ok(CST::Block(vec![]))
     }
 }
+
+// TODO: tests!

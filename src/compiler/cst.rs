@@ -16,11 +16,17 @@ pub enum CSTPattern {
     Data(Data),
     Label(String, Box<Spanned<CSTPattern>>),
     Tuple(Vec<Spanned<CSTPattern>>),
+    // Where {
+    //     pattern: Box<ASTPattern>,
+    //     expression: Box<AST>,
+    // },
 }
 
 impl TryFrom<ASTPattern> for CSTPattern {
     type Error = String;
 
+    /// Directly maps `ASTPattern`s to `CSTPattern`s.
+    /// This function may become a bit more complex once 'where' is added.
     fn try_from(ast_pattern: ASTPattern) -> Result<Self, Self::Error> {
         Ok(
             match ast_pattern {

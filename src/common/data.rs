@@ -18,24 +18,34 @@ use crate::common::{
 /// Built-in Passerine datatypes.
 #[derive(Clone, PartialEq)]
 pub enum Data {
-    // Data on the heap
+    /// Data on the heap.
     Heaped(Rc<RefCell<Data>>),
 
     // Passerine Data (Atomic)
+    /// Real Numbers, represented as double-precision floating points.
     Real(f64),
+    /// A boolean, like true or false.
     Boolean(bool),
+    /// A UTF-8 encoded string.
     String(String),
-    // TODO: make lambda Rc?
+    /// Represents a function, ie.e some bytecode without a context.
     Lambda(Box<Lambda>),
+    /// Some bytecode with a context that can be run.
     Closure(Box<Closure>),
 
     // TODO: rework how labels and tags work
-    // Kind is the base component of an unconstructed label
+    /// `Kind` is the base component of an unconstructed label
     Kind(String),
+    /// A Label is similar to a type, and wraps some data.
+    /// in the future labels will have associated namespaces.
     Label(Box<String>, Box<Data>),
 
+    // TODO: equivalence between Unit and Tuple(vec![])?
+
     // Compound Datatypes
+    /// The empty Tuple
     Unit, // an empty typle
+    /// A non-empty Tuple.
     Tuple(Vec<Data>),
     // // TODO: Hashmap?
     // // I mean, it's overkill for small things
@@ -50,6 +60,7 @@ pub enum Data {
 impl Eq for Data {}
 
 impl Display for Data {
+    /// Displays some Passerine Data in a pretty manner, as if it were printed to console.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Data::Heaped(_)   => unreachable!("Can not display heaped data"),
@@ -71,6 +82,8 @@ impl Display for Data {
 }
 
 impl Debug for Data {
+    /// Displays some Passerine Data following Rust conventions,
+    /// with certain fields omitted.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Data::Heaped(h)   => write!(f, "Heaped({:?})", h.borrow()),
