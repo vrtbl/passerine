@@ -17,7 +17,6 @@ pub fn ffi_core() -> FFI {
     let mut ffi = FFI::new();
 
     // math
-    // all these x are redundant :\
     ffi.add("add", FFIFunction::new(Box::new(math::add))).unwrap();
     ffi.add("sub", FFIFunction::new(Box::new(math::sub))).unwrap();
     ffi.add("mul", FFIFunction::new(Box::new(math::mul))).unwrap();

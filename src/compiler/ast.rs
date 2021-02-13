@@ -45,6 +45,7 @@ impl TryFrom<AST> for ASTPattern {
                     }
                     ASTPattern::Tuple(patterns)
                 }
+                AST::Group(e) => e.map(ASTPattern::try_from)?.item,
                 _ => Err("Unexpected construct inside pattern")?,
             }
         )
@@ -92,6 +93,7 @@ pub enum AST {
     Data(Data),
     Block(Vec<Spanned<AST>>),
     Form(Vec<Spanned<AST>>),
+    Group(Box<Spanned<AST>>),
     Pattern(ASTPattern),
     ArgPat(ArgPat),
     Tuple(Vec<Spanned<AST>>),
@@ -172,5 +174,10 @@ impl AST {
             name: name.to_string(),
             expression: Box::new(expression),
         }
+    }
+
+    // Shortcut for creating an `AST::Group` variant.
+    pub fn group(expression: Spanned<AST>) -> AST {
+        AST::Group(Box::new(expression))
     }
 }

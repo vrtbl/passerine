@@ -39,6 +39,7 @@ impl Transformer {
             AST::Data(d) => CST::Data(d),
             AST::Block(b) => self.block(b)?,
             AST::Form(f) => self.form(f)?,
+            AST::Group(a) => self.walk(*a)?.item,
             AST::Tuple(t) => self.tuple(t)?,
             AST::Pattern(_) => return Err(Syntax::error("Unexpected pattern", &ast.span)),
             AST::ArgPat(_)  => return Err(Syntax::error("Unexpected argument pattern", &ast.span)),
@@ -87,9 +88,12 @@ impl Transformer {
         // note that this should be 1
         // 0 means that there's a function call
         // more than 1 means there's some macro ambiguity that needs to be resolved
+        println!("AST: {:#?}", form);
+
         let mut matches = vec![];
         for rule in self.rules.iter() {
             let mut reversed_remaining = form.clone().into_iter().rev().collect();
+            println!("Thing: {:#?}", reversed_remaining);
             let possibility = Rule::bind(&rule.item.arg_pat, &mut reversed_remaining);
 
             if let Some(bindings) = possibility {

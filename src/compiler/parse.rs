@@ -293,9 +293,9 @@ impl Parser {
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::OpenParen)?.span.clone();
-        let ast   = self.expression(Prec::None.associate_left(), true)?.item;
+        let ast   = self.expression(Prec::None.associate_left(), true)?;
         let end   = self.consume(Token::CloseParen)?.span.clone();
-        Ok(Spanned::new(ast, Span::combine(&start, &end)))
+        Ok(Spanned::new(AST::group(ast), Span::combine(&start, &end)))
     }
 
     /// Parses the body of a block.

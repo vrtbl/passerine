@@ -190,6 +190,8 @@ impl Rule {
         ))
     }
 
+    // TODO: break expand out into functions
+
     /// Takes a macro's tree and a set of bindings and produces a new hygenic tree.
     pub fn expand(tree: Spanned<AST>, mut bindings: &mut Bindings)
     -> Result<Spanned<AST>, Syntax> {
@@ -218,6 +220,8 @@ impl Rule {
                     .map(|b| Rule::expand(b, bindings))
                     .collect::<Result<Vec<_>, _>>()?
             ),
+
+            AST::Group(expression) => AST::group(Rule::expand(*expression, bindings)?),
 
             // Appy the transformation to the left and right sides of the composition
             AST::Composition { argument, function } => {

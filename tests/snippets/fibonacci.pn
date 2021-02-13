@@ -32,13 +32,25 @@ syntax a 'equals b {
     magic "equal" (a, b)
 }
 
-syntax 'loop do {
+syntax 'while condition do {
+    test = () -> condition
+
     l = ()
-    l = () -> { do; l () }
+    l = () -> {
+        recurse = magic "if" (
+            test (),
+            { () -> { do; l () } },
+            { () -> () },
+        )
+        recurse ()
+    }
+
     l ()
 }
 
 print_no_line = x -> magic "print" x
+
+print "starting"
 
 -- a simple recursive fibonacci implementation
 fib = ()
@@ -54,9 +66,9 @@ fib = n -> {
 
 counter = 0.0
 
-loop {
-    counter = counter + 1.0
+while (not (counter equals 16.0)) {
     print_no_line counter
     print_no_line ": "
     print fib counter
+    counter = counter + 1.0
 }
