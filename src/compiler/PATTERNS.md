@@ -301,3 +301,9 @@ When we're checking for an infix symbol:
 - After we parse an infix operator, we skip the next Sep
 
 This has been implemented
+
+# TODOs:
+- [ ] using macros from other macros; nesting macros
+- [ ] variable hoisting
+- [ ] pattern error messages
+- [ ] calls in patterns are ignored?

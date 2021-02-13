@@ -145,10 +145,14 @@ impl Rule {
         pattern: Spanned<ASTPattern>,
         bindings: &mut Bindings,
     ) -> Result<Spanned<ASTPattern>, Syntax> {
+        // this is temp.
+        let span = pattern.span.clone();
+
         Ok(
             match pattern.item {
                 ASTPattern::Symbol(name) => Rule::resolve_symbol(name, pattern.span, bindings)
-                    .map(ASTPattern::try_from).unwrap(),
+                    .map(ASTPattern::try_from)
+                    .map_err(|s| Syntax::error(&s, &span))?,
                 ASTPattern::Data(_) => pattern,
                 // treat name as symbol?
                 ASTPattern::Label(name, pattern) => {

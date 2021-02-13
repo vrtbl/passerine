@@ -150,6 +150,7 @@ impl Parser {
             Token::OpenBracket => self.block(),
             Token::Symbol      => self.symbol(),
             Token::Print       => self.print(),
+            Token::Magic       => self.magic(),
             Token::Label       => self.label(),
             Token::Keyword(_)  => self.keyword(),
 
@@ -189,6 +190,7 @@ impl Parser {
         let sep = next != current;
 
         let prec = match next {
+            // infix
             Token::Assign  => Prec::Assign,
             Token::Lambda  => Prec::Lambda,
             Token::Pair    => Prec::Pair,
@@ -200,16 +202,18 @@ impl Parser {
               Token::Mul
             | Token::Div => Prec::MulDiv,
 
+            // postfix
               Token::End
             | Token::CloseParen
             | Token::CloseBracket => Prec::End,
 
-            // prefix rules
+            // prefix
               Token::OpenParen
             | Token::OpenBracket
             | Token::Unit
             | Token::Syntax
             | Token::Print
+            | Token::Magic
             | Token::Symbol
             | Token::Keyword(_)
             | Token::Label
@@ -373,6 +377,34 @@ impl Parser {
         ))
     }
 
+    /// Parse an `extern` statement.
+    /// used for compiler magic and other glue.
+    /// takes the form:
+    /// ```ignore
+    /// magic "FFI String Name" data_to_pass_out
+    /// ```
+    /// and evaluates to the value returned by the ffi function.
+    pub fn magic(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let start = self.consume(Token::Magic)?.span.clone();
+
+        let Spanned { item: token, span } = self.advance();
+        let name = match token {
+            Token::String(Data::String(s))  => s.clone(),
+            unexpected => return Err(Syntax::error(
+                &format!("Expected a string, found {}", unexpected),
+                &span
+            )),
+        };
+
+        let ast = self.expression(Prec::End, false)?;
+        let end = ast.span.clone();
+
+        return Ok(Spanned::new(
+            AST::ffi(&name, ast),
+            Span::combine(&start, &end),
+        ));
+    }
+
     /// Parse a label.
     /// A label takes the form of `<Label> <expression>`
     pub fn label(&mut self) -> Result<Spanned<AST>, Syntax> {
@@ -477,7 +509,6 @@ impl Parser {
         let right = self.expression(prec.associate_left(), false)?;
         let combined = Span::combine(&left.span, &right.span);
 
-        // TODO: use argument
         let arguments = Spanned::new(AST::Tuple(vec![left, right]), combined.clone());
         return Ok(Spanned::new(AST::ffi(name, arguments), combined));
     }

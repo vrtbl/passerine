@@ -1,12 +1,17 @@
-// fn data_triop(data: Data) -> (Data, Data) {
-//     match data {
-//         Data::Tuple(t) if t.len() == 3 => (t[0].clone(), t[1].clone(), t[2].clone()),
-//         _ => unreachable!("bad data layout passed to ffi"),
-//     }
-// }
-//
-// pub fn ffi_if(data: Data) -> Result<Data, String> {
-//     match data_triop(data) {
-//         (Data::Boolean(b), a @ Data::Closure(a), Data::Closure(b))
-//     }
-// }
+use crate::common::data::Data;
+use crate::core::extract::triop;
+
+/// An implementation of an if statement, as an FFI.
+/// Interesting idea, not sure if I'm going to keep it.
+pub fn if_choice(data: Data) -> Result<Data, String> {
+    if let (Data::Boolean(condition), option_a, option_b) = triop(data) {
+        let choice = if condition { option_a } else { option_b };
+        Ok(choice)
+    } else {
+        Err("\
+            Expected the condition to be a boolean.\n\
+            Note that Passerine does not have a notion of truthiness."
+            .to_string()
+        )
+    }
+}

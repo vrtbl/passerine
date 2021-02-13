@@ -100,6 +100,7 @@ impl Lexer {
             Box::new(Lexer::sub),
             Box::new(Lexer::mul),
             Box::new(Lexer::div),
+            Box::new(Lexer::magic),
             Box::new(Lexer::print), // remove print statements after FFI
 
             // variants
@@ -264,6 +265,12 @@ impl Lexer {
     /// Matches a `print` expression.
     pub fn print(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "print", Token::Print)
+    }
+
+    /// Matches an external FFI call, which takes the form:
+    /// `magic "String Name of Function" data`.
+    pub fn magic(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "magic", Token::Magic)
     }
 
     // TODO: refactor comment and multi-line for doc-comments

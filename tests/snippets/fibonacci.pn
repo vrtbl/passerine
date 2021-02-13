@@ -1,0 +1,62 @@
+-- action: run
+-- outcome: success
+
+-- create the syntax for an if statement
+syntax 'if condition do 'else otherwise {
+    -- the ffi will return `do` or `otherwise` depending on condition
+    branch = magic "if" (
+        condition,
+        { () -> do },
+        { () -> otherwise },
+    )
+
+    -- call the branch
+    branch ()
+}
+
+syntax a 'or b {
+    magic "if" (a,
+        true,
+        b,
+    )
+}
+
+syntax 'not a {
+    magic "if" (a,
+        false,
+        true,
+    )
+}
+
+syntax a 'equals b {
+    magic "equal" (a, b)
+}
+
+syntax 'loop do {
+    l = ()
+    l = () -> { do; l () }
+    l ()
+}
+
+print_no_line = x -> magic "print" x
+
+-- a simple recursive fibonacci implementation
+fib = ()
+fib = n -> {
+    base = { n equals 0.0 } or { n equals 1.0 }
+
+    if (not base) {
+        fib (n - 1.0) + fib (n - 2.0)
+    } else {
+        1.0
+    }
+}
+
+counter = 0.0
+
+loop {
+    counter = counter + 1.0
+    print_no_line counter
+    print_no_line ": "
+    print fib counter
+}
