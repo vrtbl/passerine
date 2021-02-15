@@ -1,0 +1,38 @@
+-- action: run
+-- outcome: success
+-- expect: false
+
+syntax 'lazy y {
+    Thunk { () -> y }
+}
+syntax 'evaluate y {
+    Thunk x = y
+    x ()
+}
+
+syntax 'if cond then 'else otherwise {
+    branch = magic "if" (cond, lazy then, lazy otherwise)
+    evaluate branch
+}
+
+syntax a 'equals b {
+    magic "equal" (a, b)
+}
+
+odd = ()
+
+not = n -> if n { false } else { true }
+
+even = n -> if (n equals 0.0) {
+    true
+} else {
+    odd (n - 1.0)
+}
+
+odd = n -> if (n equals 0.0) {
+    false
+} else {
+    even (n - 1.0)
+}
+
+print even 35.0

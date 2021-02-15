@@ -99,11 +99,11 @@ impl Rule {
             // matches as well.
             // substitution scheme could be: `#name#tag`
             // and if name matches whole symbol matches.
-            ArgPat::Keyword(expected) => {
-                if let AST::Symbol(name) = reversed_form.pop()?.item {
-                    if &name == expected { Some(Ok(HashMap::new())) }
-                    else                 { None                     }
-                } else                   { None                     }
+            ArgPat::Keyword(expected) => match reversed_form.pop()?.item {
+                AST::Symbol(name) if &Rule::remove_tag(&name) == expected => {
+                    Some(Ok(HashMap::new()))
+                },
+                _ => None,
             },
             ArgPat::Symbol(symbol) => Some(Ok(
                 vec![(symbol.clone(), reversed_form.pop()?)]
@@ -126,16 +126,24 @@ impl Rule {
         }
     }
 
+    /// Turns a tagged random identifier, like
+    /// `<base>#XXXXXXXX` back into `<base>`.
+    /// If the identifier is not tagged, this function just
+    /// returns `<base>`.
+    pub fn remove_tag(base: &str) -> String {
+        base.split("#").collect::<Vec<&str>>()[0].to_string()
+    }
+
     /// Turns a base identifier into a random identifier
-    /// of the format `#_<base>_XXXXXXXX`,
+    /// of the format `<base>#XXXXXXXX`,
     /// Gauranteed not to exist in bindings.
-    pub fn unique_identifier(base: String, bindings: &Bindings) -> String {
+    pub fn unique_tag(base: String, bindings: &Bindings) -> String {
         let mut tries = 0;
         for _ in 0..1024 {
             let stamp = stamp(tries);
-            // for example, `foo` may become `#_foo_d56aea12`
+            // for example, `foo` may become `foo#d56aea12`
             // this should not be constructible as a symbol.
-            let modified = format!("#_{}_{}", base, stamp);
+            let modified = format!("{}#{}", base, stamp);
             if !bindings.contains_key(&modified) {
                 // println!("{}", modified);
                 return modified;
@@ -153,7 +161,7 @@ impl Rule {
         if let Some(bound_tree) = bindings.get(&name) {
             bound_tree.clone()
         } else {
-            let unique = Rule::unique_identifier(name.clone(), bindings);
+            let unique = Rule::unique_tag(name.clone(), bindings);
             let spanned = Spanned::new(AST::Symbol(unique.clone()), span.clone());
             bindings.insert(name, spanned);
             Spanned::new(AST::Symbol(unique), span)

@@ -1,5 +1,6 @@
 -- action: run
 -- outcome: success
+-- expect: 55.0
 
 -- create the syntax for an if statement
 syntax 'if condition do 'else otherwise {
@@ -64,11 +65,4 @@ fib = n -> {
     }
 }
 
-counter = 0.0
-
-while (not (counter equals 16.0)) {
-    print_no_line counter
-    print_no_line ": "
-    print fib counter
-    counter = counter + 1.0
-}
+fib 9.0

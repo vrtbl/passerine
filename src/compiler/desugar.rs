@@ -173,15 +173,7 @@ impl Transformer {
         // apply the rule to apply the macro!
         let (rule, mut bindings) = matches.pop().unwrap();
         let expanded = Rule::expand(rule.item.tree.clone(), &mut bindings)?;
-
-        println!("{:#?}", expanded);
-        println!("---");
-
-        let e = self.walk(expanded)?.item;
-
-        println!("{:#?}", e);
-
-        return Ok(e);
+        return Ok(self.walk(expanded)?.item);
     }
 
     /// Desugar a tuple.

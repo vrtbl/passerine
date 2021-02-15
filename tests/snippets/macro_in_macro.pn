@@ -1,6 +1,6 @@
 -- action: run
 -- outcome: success
--- expect: 3.141592
+-- expect: 2.0
 
 syntax a 'swap b {
     a, b = b, a
@@ -9,7 +9,6 @@ syntax a 'swap b {
 syntax a 'rot b 'rot c {
     a swap b
     b swap c
-    c swap a
 }
 
 a = 1.0
