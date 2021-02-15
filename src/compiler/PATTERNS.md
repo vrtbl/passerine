@@ -306,7 +306,7 @@ When we're checking for an infix symbol:
 This has been implemented
 
 # TODOs:
-- [ ] using macros from other macros; nesting macros
+- [X] using macros from other macros; nesting macros
 - [ ] variable hoisting
 - [ ] pattern error messages
 - [X] calls in patterns are ignored?

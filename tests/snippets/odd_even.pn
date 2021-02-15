@@ -19,8 +19,6 @@ syntax a 'equals b {
     magic "equal" (a, b)
 }
 
-odd = ()
-
 not = n -> if n { false } else { true }
 
 even = n -> if (n equals 0.0) {

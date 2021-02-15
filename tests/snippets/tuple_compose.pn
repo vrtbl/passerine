@@ -1,0 +1,11 @@
+-- action: run
+-- outcome: success
+-- expect: true
+
+b = false -> true
+
+-- is the same as (x, y) = (a, (b.c))
+-- not (x, y) = ((a, b) . c)
+x, y = "Hello", false . b
+
+print y

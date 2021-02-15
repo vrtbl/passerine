@@ -32,8 +32,8 @@ pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
 pub enum Prec {
     None = 0,
     Assign,
-    Lambda,
     Pair,
+    Lambda,
 
     Logic,
 
