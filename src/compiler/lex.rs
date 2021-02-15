@@ -100,6 +100,7 @@ impl Lexer {
             Box::new(Lexer::sub),
             Box::new(Lexer::mul),
             Box::new(Lexer::div),
+            Box::new(Lexer::equal),
             Box::new(Lexer::magic),
             Box::new(Lexer::print), // remove print statements after FFI
 
@@ -262,6 +263,11 @@ impl Lexer {
         Lexer::literal(source, "/", Token::Div)
     }
 
+    /// Matches a literal equality test "==".
+    pub fn equal(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "==", Token::Equal)
+    }
+
     /// Matches a `print` expression.
     pub fn print(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "print", Token::Print)
@@ -414,6 +420,7 @@ impl Lexer {
                     '\\' => '\\',
                     'n'  => '\n',
                     't'  => '\t',
+                    'r'  => '\r',
                     o    => return Err(format!("Unknown escape code '\\{}'", o)),
                 })
             } else {

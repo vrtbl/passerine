@@ -39,6 +39,8 @@ pub enum Token {
     Add, Sub,
     Mul, Div,
 
+    Equal,
+
     // EoS
     End,
 }
@@ -69,6 +71,7 @@ impl Display for Token {
             Token::Sub          => "a subtraction",
             Token::Mul          => "a multiplication",
             Token::Div          => "a division",
+            Token::Equal        => "an equality test",
             Token::End          => "end of source",
             Token::Keyword(k) => { return write!(f, "the pseudokeyword '{}", k); },
             Token::Boolean(b) => { return write!(f, "the boolean {}",        b); },

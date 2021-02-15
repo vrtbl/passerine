@@ -177,7 +177,7 @@ fizzbuzz = n -> {
 1..100 . fizzbuzz . print
 ```
 
-`|>` is the function application operator:
+`.` is the function application operator:
 
 ```passerine
 -- the comopsition

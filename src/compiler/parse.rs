@@ -35,10 +35,12 @@ pub enum Prec {
     Lambda,
     Pair,
 
+    Logic,
+
     AddSub,
     MulDiv,
 
-    Compose,
+    Compose, // TODO: where should this be, precedence-wise?
     Call,
     End,
 }
@@ -179,6 +181,8 @@ impl Parser {
             Token::Mul => self.mul(left),
             Token::Div => self.div(left),
 
+            Token::Equal => self.equal(left),
+
             Token::End => Err(self.unexpected()),
             Token::Sep => unreachable!(),
             _          => self.call(left),
@@ -197,6 +201,8 @@ impl Parser {
             Token::Lambda  => Prec::Lambda,
             Token::Pair    => Prec::Pair,
             Token::Compose => Prec::Compose,
+
+            Token::Equal => Prec::Logic,
 
               Token::Add
             | Token::Sub => Prec::AddSub,
@@ -536,6 +542,11 @@ impl Parser {
     /// Parses a division, calls out to FFI.
     pub fn div(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         return self.binop(Token::Div, Prec::MulDiv, "div", left);
+    }
+
+    /// Parses an equality, calls out to FFI.
+    pub fn equal(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        return self.binop(Token::Equal, Prec::Logic, "equal", left);
     }
 
     /// Parses a function call.
