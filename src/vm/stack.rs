@@ -33,17 +33,20 @@ impl Stack {
         }
     }
 
+    /// Return the index of the topmost `Tagged(Slot::Frame)`.
     #[inline]
     fn frame_index(&self) -> usize {
         *self.frames.last().unwrap()
     }
 
+    /// Pop and return the topmost `Tagged` item.
     #[inline]
     fn pop(&mut self) -> Tagged {
         self.stack.pop()
             .expect("VM tried to pop empty stack, stack should never be empty")
     }
 
+    /// Swaps out a `Tagged` item without another `Tagged` item, provided its index.
     #[inline]
     fn swap(&mut self, index: usize, tagged: Tagged) -> Tagged {
         mem::replace(&mut self.stack[index], tagged)
@@ -102,11 +105,13 @@ impl Stack {
         self.stack.push(Tagged::frame());
     }
 
+    /// Shorcut for pushing a `Tagged(Slot::NotInit)` on top of the stack.
     #[inline]
     pub fn push_not_init(&mut self) {
-        self.stack.push(Tagged::new(Slot::NotInit));
+        self.stack.push(Tagged::not_init());
     }
 
+    /// Shortcut for calling `push_not_init` N times.
     #[inline]
     pub fn declare(&mut self, decls: usize) {
         for _ in 0..decls { self.push_not_init(); }
@@ -123,6 +128,7 @@ impl Stack {
         mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(heaped)));
     }
 
+    /// returns a copy of the `Slot` of a local variable on the stack.
     pub fn local_slot(&mut self, index: usize) -> Slot {
         let local_index = self.frame_index() + index + 1;
 
@@ -135,6 +141,7 @@ impl Stack {
         return copy;
     }
 
+    /// Returns a copy of the `Data` stored in a local variable on the stack.
     pub fn local_data(&mut self, index: usize) -> Data {
         let local_index = self.frame_index() + index + 1;
 

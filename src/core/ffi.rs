@@ -54,6 +54,7 @@ impl FFI {
         }
     }
 
+    /// Returns the `FFIFunction` interned with the provided name.
     pub fn get(&mut self, name: &str) -> Result<FFIFunction, String> {
         match self.0.get(name) {
             Some(x) => Ok(x.clone()),

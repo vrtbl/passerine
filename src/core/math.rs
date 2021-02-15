@@ -1,6 +1,7 @@
 use crate::common::data::Data;
 use crate::core::extract::binop;
 
+/// Adds two numbers, concatenates two strings.
 pub fn add(data: Data) -> Result<Data, String> {
     let result = match binop(data) {
         (Data::Real(l),   Data::Real(r))   => Data::Real(l + r),
@@ -11,6 +12,7 @@ pub fn add(data: Data) -> Result<Data, String> {
     return Ok(result);
 }
 
+/// Subtraction between two numbers.
 pub fn sub(data: Data) -> Result<Data, String> {
     let result = match binop(data) {
         (Data::Real(l),   Data::Real(r))   => Data::Real(l - r),
@@ -20,6 +22,7 @@ pub fn sub(data: Data) -> Result<Data, String> {
     return Ok(result);
 }
 
+/// Multiplication between two numbers.
 pub fn mul(data: Data) -> Result<Data, String> {
     let result = match binop(data) {
         (Data::Real(l),   Data::Real(r))   => Data::Real(l * r),
@@ -29,6 +32,8 @@ pub fn mul(data: Data) -> Result<Data, String> {
     return Ok(result);
 }
 
+/// Division between two numbers.
+/// Raises a runtime error if there is a division by zero.
 pub fn div(data: Data) -> Result<Data, String> {
     let result = match binop(data) {
         (Data::Real(_),   Data::Real(n)) if n == 0.0 => Err("Division by zero")?,

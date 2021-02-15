@@ -6,6 +6,7 @@ use crate::core::extract::binop;
 // Rust hit it right on the nose with the difference between equality and partial equality
 // TODO: equality vs partial equality in passerine?
 
+/// Returns `true` if the `Data` are equal, false otherwise.
 pub fn equal(data: Data) -> Result<Data, String> {
     let (left, right) = binop(data);
     return Ok(Data::Boolean(left == right));

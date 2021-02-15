@@ -1,3 +1,5 @@
+///! Snippet tests for the passerine compiler pipeline as a whole.
+
 use std::{
     fs,
     path::PathBuf,

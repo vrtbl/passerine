@@ -9,12 +9,14 @@ use crate::common::{
     data::Data,
 };
 
+/// Represents a suspended closure.
 #[derive(Debug, Clone)]
 pub struct Suspend {
     pub ip:      usize,
     pub closure: Closure,
 }
 
+/// Represents the value a slot on the VM can take.
 #[derive(Clone)]
 pub enum Slot {
     // VM Stack
