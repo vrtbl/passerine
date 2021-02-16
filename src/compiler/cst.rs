@@ -10,30 +10,31 @@ use crate::compiler::ast::ASTPattern;
 // TODO: create a pattern specific to the CST?
 // Once where (i.e. `x | x > 0`) is added?
 
+/// A pattern that mirrors the structure of some Data.
 #[derive(Debug, Clone, PartialEq)]
-pub enum CSTPattern {
+pub enum Pattern {
     Symbol(String),
     Data(Data),
-    Label(String, Box<Spanned<CSTPattern>>),
-    Tuple(Vec<Spanned<CSTPattern>>),
+    Label(String, Box<Spanned<Pattern>>),
+    Tuple(Vec<Spanned<Pattern>>),
     // Where {
     //     pattern: Box<ASTPattern>,
     //     expression: Box<AST>,
     // },
 }
 
-impl TryFrom<ASTPattern> for CSTPattern {
+impl TryFrom<ASTPattern> for Pattern {
     type Error = String;
 
-    /// Directly maps `ASTPattern`s to `CSTPattern`s.
+    /// Directly maps `ASTPattern`s to `Pattern`s.
     /// This function may become a bit more complex once 'where' is added.
     fn try_from(ast_pattern: ASTPattern) -> Result<Self, Self::Error> {
         Ok(
             match ast_pattern {
-                ASTPattern::Symbol(s)   => CSTPattern::Symbol(s),
-                ASTPattern::Data(d)     => CSTPattern::Data(d),
-                ASTPattern::Label(k, a) => CSTPattern::Label(k, Box::new(a.map(CSTPattern::try_from)?)),
-                ASTPattern::Tuple(t)    => CSTPattern::Tuple(t.into_iter().map(|i| i.map(CSTPattern::try_from)).collect::<Result<Vec<_>, _>>()?),
+                ASTPattern::Symbol(s)   => Pattern::Symbol(s),
+                ASTPattern::Data(d)     => Pattern::Data(d),
+                ASTPattern::Label(k, a) => Pattern::Label(k, Box::new(a.map(Pattern::try_from)?)),
+                ASTPattern::Tuple(t)    => Pattern::Tuple(t.into_iter().map(|i| i.map(Pattern::try_from)).collect::<Result<Vec<_>, _>>()?),
                 ASTPattern::Chain(_)    => Err("Unexpected chained construct inside pattern")?,
             }
         )
@@ -53,11 +54,11 @@ pub enum CST {
     Data(Data),
     Block(Vec<Spanned<CST>>),
     Assign {
-        pattern:    Box<Spanned<CSTPattern>>,
+        pattern:    Box<Spanned<Pattern>>,
         expression: Box<Spanned<CST>>,
     },
     Lambda {
-        pattern:    Box<Spanned<CSTPattern>>,
+        pattern:    Box<Spanned<Pattern>>,
         expression: Box<Spanned<CST>>,
     },
     Call {
@@ -76,7 +77,7 @@ pub enum CST {
 impl CST {
     /// Shortcut for creating an `CST::Assign` variant.
     pub fn assign(
-        pattern:    Spanned<CSTPattern>,
+        pattern:    Spanned<Pattern>,
         expression: Spanned<CST>
     ) -> CST {
         CST::Assign {
@@ -87,7 +88,7 @@ impl CST {
 
     /// Shortcut for creating an `CST::Lambda` variant.
     pub fn lambda(
-        pattern:    Spanned<CSTPattern>,
+        pattern:    Spanned<Pattern>,
         expression: Spanned<CST>
     ) -> CST {
         CST::Lambda {
