@@ -1,0 +1,31 @@
+-- action: run
+-- outcome: success
+
+syntax 'if cond then 'else other {
+    branch = magic "if" (
+        cond,
+        () -> then,
+        () -> other,
+    )
+    branch ()
+}
+
+send = what -> if (what == "friend") {
+    Cool 2.0
+} else {
+    Ugly (3.0, 4.0)
+}
+
+match = x y -> y
+
+result = match (send "friend") (
+    Cool name -> name + 3.21,
+    Ugly name -> name + 3.0,
+    Nice (name, age) -> name + age + 4.0,
+)
+
+(cool, ugly, nice) = result
+
+number = Cool 417.48 . cool
+
+print number

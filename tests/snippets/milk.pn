@@ -15,20 +15,18 @@ syntax 'if cond then 'else else {
 }
 
 bottles = ()
-bottles = n -> {
-    if (n == 0.0) {
-        n
-    } else {
-        prn n
-        prnln " bottles of milk on the wall!"
-        prn n
-        prnln " bottles of milk!"
-        prnln "take one down,"
-        prnln "pass it around,"
-        prn (n - 1.0)
-        prnln " bottles of milk on the wall!\n"
-        bottles (n - 1.0)
-    }
+bottles = n -> if (n == 0.0) {
+    n
+} else {
+    prn n
+    prnln " bottles of milk on the wall!"
+    prn n
+    prnln " bottles of milk!"
+    prnln "take one down,"
+    prnln "pass it around,"
+    prn (n - 1.0)
+    prnln " bottles of milk on the wall!\n"
+    bottles (n - 1.0)
 }
 
-bottles 9.0
+bottles 3.0

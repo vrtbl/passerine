@@ -1,0 +1,5 @@
+to_string = data -> magic "to_string" data
+
+age = 17.0
+
+print ("I am " + to_string age + " years old")

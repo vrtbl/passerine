@@ -1,6 +1,6 @@
 <p align="center">
     <a href="https://passerine.io">
-        <img src="./Logotype.png">
+        <img src="./Logotype.svg">
     </a>
 </p>
 <h3 align="center">The Passerine Programming Language</h3>
