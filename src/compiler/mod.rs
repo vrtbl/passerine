@@ -23,6 +23,7 @@ pub mod gen;
 pub mod token;
 pub mod ast; // high level pre-macro IR
 pub mod rule; // macro transformation
+pub mod pattern;
 pub mod cst; // post-macro IR
 pub mod sst; // hoisted IR
 

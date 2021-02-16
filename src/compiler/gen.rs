@@ -12,7 +12,7 @@ use crate::common::{
 // may work well for types too.
 
 use crate::compiler::{
-    cst::Pattern,
+    pattern::CSTPattern,
     sst::SST,
     // TODO: pattern for where?
     syntax::Syntax,
@@ -46,7 +46,11 @@ pub struct Compiler {
     /// The current bytecode emission target.
     lambda: Lambda,
     ///
-    symbol_table: SymbolTable,
+    // symbol_table: SymbolTable,
+    /// The foreign functional interface used to bind values
+    ffi: FFI,
+    /// The FFI functions that have been bound in this scope.
+    ffi_names: Vec<String>,
 }
 
 impl Compiler {
@@ -57,14 +61,6 @@ impl Compiler {
             lambda:    Lambda::empty(),
 
         }
-    }
-
-    // TODO: delcs and locals a bit redundant...
-
-    /// Declare a local variable.
-    pub fn declare(&mut self, name: String) {
-        self.locals.push(Local { name, depth: self.depth });
-        self.lambda.decls = self.locals.len();
     }
 
     /// Replace the current compiler with a fresh one,
@@ -105,7 +101,6 @@ impl Compiler {
             SST::Data(data) => Ok(self.data(data)),
             SST::Symbol(name) => self.symbol(&name, sst.span.clone()),
             SST::Block(block) => self.block(block),
-            SST::Print(expression) => self.print(*expression),
             SST::Label(name, expression) => self.label(name, *expression),
             SST::Tuple(tuple) => self.tuple(tuple),
             SST::FFI    { name,    expression } => self.ffi(name, *expression, sst.span.clone()),
@@ -115,81 +110,62 @@ impl Compiler {
         };
     }
 
+    // // TODO: nested too deep :(
+    // /// Returns the relative position on the stack of a declared local,
+    // /// if it exists in the current scope.
+    // pub fn local(&self, name: &str) -> Option<usize> {
+    //     for (index, l) in self.locals.iter().enumerate() {
+    //         if name == l.name {
+    //             return Some(index)
+    //         }
+    //     }
+    //
+    //     return None;
+    // }
+
+    /// Tries to resolve a variable in enclosing scopes
+    /// if resolution it successful, it captures the variable in the original scope
+    /// then builds a chain of upvalues to hoist that upvalue where it's needed.
+    // pub fn captured(&mut self, name: &str) -> Option<Captured> {
+    //     if let Some(index) = self.local(name) {
+    //         let already = self.captures.contains(&index);
+    //         if !already {
+    //             self.captures.push(index);
+    //             self.lambda.emit(Opcode::Capture);
+    //             self.lambda.emit_bytes(&mut split_number(index));
+    //         }
+    //         return Some(Captured::Local(index));
+    //     }
+    //
+    //     if let Some(enclosing) = self.enclosing.as_mut() {
+    //         if let Some(captured) = enclosing.captured(name) {
+    //             let included = self.lambda.captures.contains(&captured);
+    //             let upvalue = if !included {
+    //                 self.lambda.captures.push(captured);
+    //                 self.lambda.captures.len() - 1
+    //             } else {
+    //                 self.lambda.captures.iter().position(|c| c == &captured).unwrap()
+    //             };
+    //             return Some(Captured::Nonlocal(upvalue));
+    //         }
+    //     }
+    //
+    //     return None
+    // }
+    //
+    // /// Returns the index of a captured non-local.
+    // pub fn captured_upvalue(&mut self, name: &str) -> Option<usize> {
+    //     match self.captured(name) {
+    //         Some(Captured::Nonlocal(upvalue)) => Some(upvalue),
+    //         _ => None,
+    //     }
+    // }
+
     /// Takes a `Data` leaf and and produces some code to load the constant
     pub fn data(&mut self, data: Data) {
         self.lambda.emit(Opcode::Con);
         let mut split = split_number(self.lambda.index_data(data));
         self.lambda.emit_bytes(&mut split);
-    }
-
-    // TODO: nested too deep :(
-    /// Returns the relative position on the stack of a declared local,
-    /// if it exists in the current scope.
-    pub fn local(&self, name: &str) -> Option<usize> {
-        for (index, l) in self.locals.iter().enumerate() {
-            if name == l.name {
-                return Some(index)
-            }
-        }
-
-        return None;
-    }
-
-    /// Tries to resolve a variable in enclosing scopes
-    /// if resolution it successful, it captures the variable in the original scope
-    /// then builds a chain of upvalues to hoist that upvalue where it's needed.
-    pub fn captured(&mut self, name: &str) -> Option<Captured> {
-        if let Some(index) = self.local(name) {
-            let already = self.captures.contains(&index);
-            if !already {
-                self.captures.push(index);
-                self.lambda.emit(Opcode::Capture);
-                self.lambda.emit_bytes(&mut split_number(index));
-            }
-            return Some(Captured::Local(index));
-        }
-
-        if let Some(enclosing) = self.enclosing.as_mut() {
-            if let Some(captured) = enclosing.captured(name) {
-                let included = self.lambda.captures.contains(&captured);
-                let upvalue = if !included {
-                    self.lambda.captures.push(captured);
-                    self.lambda.captures.len() - 1
-                } else {
-                    self.lambda.captures.iter().position(|c| c == &captured).unwrap()
-                };
-                return Some(Captured::Nonlocal(upvalue));
-            }
-        }
-
-        return None
-    }
-
-    /// Returns the index of a captured non-local.
-    pub fn captured_upvalue(&mut self, name: &str) -> Option<usize> {
-        match self.captured(name) {
-            Some(Captured::Nonlocal(upvalue)) => Some(upvalue),
-            _ => None,
-        }
-    }
-
-    /// Takes a symbol leaf, and produces some code to load the local
-    pub fn symbol(&mut self, name: &str, span: Span) -> Result<(), Syntax> {
-        if let Some(index) = self.local(name) {
-            // if the variable is locally in scope
-            self.lambda.emit(Opcode::Load);
-            self.lambda.emit_bytes(&mut split_number(index))
-        } else if let Some(upvalue) = self.captured_upvalue(name) {
-            // if the variable is captured in a closure
-            self.lambda.emit(Opcode::LoadCap);
-            self.lambda.emit_bytes(&mut split_number(upvalue))
-        } else {
-            // TODO: hoist?
-            return Err(Syntax::error(
-                "Variable referenced before assignment; it is undefined", &span
-            ));
-        }
-        Ok(())
     }
 
     /// A block is a series of expressions where the last is returned.
@@ -303,24 +279,24 @@ impl Compiler {
     /// a series of unpack and assign instructions.
     /// Instructions match against the topmost stack item.
     /// Does delete the data that is matched against.
-    pub fn destructure(&mut self, pattern: Spanned<Pattern>, redeclare: bool) {
+    pub fn destructure(&mut self, pattern: Spanned<CSTPattern>, redeclare: bool) {
         self.lambda.emit_span(&pattern.span);
 
         match pattern.item {
-            Pattern::Symbol(name) => {
+            CSTPattern::Symbol(name) => {
                 if redeclare { self.declare(name.to_string()) }
                 self.resolve_assign(&name);
             },
-            Pattern::Data(expected) => {
+            CSTPattern::Data(expected) => {
                 self.data(expected);
                 self.lambda.emit(Opcode::UnData);
             }
-            Pattern::Label(name, pattern) => {
+            CSTPattern::Label(name, pattern) => {
                 self.data(Data::Kind(name));
                 self.lambda.emit(Opcode::UnLabel);
                 self.destructure(*pattern, redeclare);
             }
-            Pattern::Tuple(tuple) => {
+            CSTPattern::Tuple(tuple) => {
                 for (index, sub_pattern) in tuple.into_iter().enumerate() {
                     self.lambda.emit(Opcode::UnTuple);
                     self.lambda.emit_bytes(&mut split_number(index));
@@ -335,7 +311,7 @@ impl Compiler {
     /// Assign a value to a variable.
     pub fn assign(
         &mut self,
-        pattern: Spanned<Pattern>,
+        pattern: Spanned<CSTPattern>,
         expression: Spanned<SST>
     ) -> Result<(), Syntax> {
         // eval the expression
@@ -348,7 +324,7 @@ impl Compiler {
     /// Recursively compiles a lambda declaration in a new scope.
     pub fn lambda(
         &mut self,
-        pattern: Spanned<Pattern>,
+        pattern: Spanned<CSTPattern>,
         expression: Spanned<SST>
     ) -> Result<(), Syntax> {
         // just so the parallel is visually apparent

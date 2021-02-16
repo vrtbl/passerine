@@ -278,7 +278,7 @@ impl VM {
 
         if data != expected {
             return Err(Trace::error(
-                "Pattern Matching",
+                "CSTPattern Matching",
                 &format!("The data '{}' does not match the expected data '{}'", data, expected),
                 vec![self.current_span()],
             ));
@@ -296,7 +296,7 @@ impl VM {
         let d = match self.stack.pop_data() {
             Data::Label(n, d) if *n == kind => d,
             other => return Err(Trace::error(
-                "Pattern Matching",
+                "CSTPattern Matching",
                 &format!("The data '{}' does not match the Label '{}'", other, kind),
                 vec![self.current_span()],
             )),
@@ -311,7 +311,7 @@ impl VM {
         let t = match self.stack.pop_data() {
             Data::Tuple(t) => t,
             other => return Err(Trace::error(
-                "Pattern Matching",
+                "CSTPattern Matching",
                 &format!("The data '{}' is not a tuple", other),
                 vec![self.current_span()],
             )),

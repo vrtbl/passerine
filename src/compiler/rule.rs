@@ -9,7 +9,8 @@ use crate::common::{
 };
 
 use crate::compiler::{
-    ast::{AST, ASTPattern, ArgPat},
+    ast::{AST},
+    pattern::{ASTPattern, ArgPattern},
     syntax::Syntax
 };
 
@@ -17,28 +18,28 @@ use crate::compiler::{
 // TODO: add context for macro application
 // NOTE: add spans?
 
-/// When a macro is expanded, `AST` slices captured by the macro Argument Pattern
+/// When a macro is expanded, `AST` slices captured by the macro Argument CSTPattern
 /// Are spliced into the macro body.
-/// A `Binding` relates a name (within an Argument Pattern),
+/// A `Binding` relates a name (within an Argument CSTPattern),
 /// to an `AST` slice.
 type Bindings = HashMap<String, Spanned<AST>>;
 
-/// A rule has an Argument Pattern and an `AST`.
-/// When a form matches the `ArgPat`,
+/// A rule has an Argument CSTPattern and an `AST`.
+/// When a form matches the `ArgPattern`,
 /// A set of bindings are produced,
 /// which are then spliced into the Rule's `AST`
 /// To make a new `AST`.
 /// This is done in a hygenic manner.
 #[derive(Debug, Clone)]
 pub struct Rule {
-    pub arg_pat: Spanned<ArgPat>,
+    pub arg_pat: Spanned<ArgPattern>,
     pub tree: Spanned<AST>,
 }
 
 impl Rule {
     /// Builds a new rule, making sure the rule's signature is valid.
     pub fn new(
-        arg_pat: Spanned<ArgPat>,
+        arg_pat: Spanned<ArgPattern>,
         tree: Spanned<AST>,
     ) -> Result<Rule, Syntax> {
         if Rule::keywords(&arg_pat).len() == 0 {
@@ -52,14 +53,14 @@ impl Rule {
 
     /// Returns all keywords, as strings, used by the macro, in order of usage.
     /// Does not filter for duplicates.
-    pub fn keywords(arg_pat: &Spanned<ArgPat>) -> Vec<String> {
+    pub fn keywords(arg_pat: &Spanned<ArgPattern>) -> Vec<String> {
         match &arg_pat.item {
-            ArgPat::Group(pats) => {
+            ArgPattern::Group(pats) => {
                 let mut keywords = vec![];
                 for pat in pats { keywords.append(&mut Rule::keywords(&pat)) }
                 keywords
             },
-            ArgPat::Keyword(name) => vec![name.clone()],
+            ArgPattern::Keyword(name) => vec![name.clone()],
             _ => vec![],
         }
     }
@@ -89,7 +90,7 @@ impl Rule {
     /// Note that this function takes the form unwrapped and in reverse -
     /// This is to make processing the bindings more efficient,
     /// As this function works with the head of the form.
-    pub fn bind(arg_pat: &Spanned<ArgPat>, mut reversed_form: &mut Vec<Spanned<AST>>)
+    pub fn bind(arg_pat: &Spanned<ArgPattern>, mut reversed_form: &mut Vec<Spanned<AST>>)
     -> Option<Result<Bindings, Syntax>> {
         match &arg_pat.item {
             // TODO: right now, if a macro is invoked from another macro,
@@ -99,17 +100,17 @@ impl Rule {
             // matches as well.
             // substitution scheme could be: `#name#tag`
             // and if name matches whole symbol matches.
-            ArgPat::Keyword(expected) => match reversed_form.pop()?.item {
+            ArgPattern::Keyword(expected) => match reversed_form.pop()?.item {
                 AST::Symbol(name) if &Rule::remove_tag(&name) == expected => {
                     Some(Ok(HashMap::new()))
                 },
                 _ => None,
             },
-            ArgPat::Symbol(symbol) => Some(Ok(
+            ArgPattern::Symbol(symbol) => Some(Ok(
                 vec![(symbol.clone(), reversed_form.pop()?)]
                     .into_iter().collect()
             )),
-            ArgPat::Group(pats) => {
+            ArgPattern::Group(pats) => {
                 let mut bindings = HashMap::new();
                 for pat in pats {
                     let span = pat.span.clone();
@@ -154,7 +155,7 @@ impl Rule {
     }
 
     /// Resolves a symbol.
-    /// If the symbol has been bound, i.e. is defined in the Argument Pattern,
+    /// If the symbol has been bound, i.e. is defined in the Argument CSTPattern,
     /// We simply splice that in.
     /// If not, we hygenically replace it with a unique variable.
     pub fn resolve_symbol(name: String, span: Span, bindings: &mut Bindings) -> Spanned<AST> {
@@ -215,25 +216,25 @@ impl Rule {
     /// A macro inside a macro is a macro completely local to that macro.
     /// The argument patterns inside a macro can be extended.
     pub fn expand_arg_pat(
-        arg_pat: Spanned<ArgPat>,
+        arg_pat: Spanned<ArgPattern>,
         bindings: &mut Bindings,
-    ) -> Result<Spanned<ArgPat>, Syntax> {
+    ) -> Result<Spanned<ArgPattern>, Syntax> {
         Ok(
             match arg_pat.item {
-                ArgPat::Keyword(_) => arg_pat,
-                ArgPat::Symbol(name) => {
+                ArgPattern::Keyword(_) => arg_pat,
+                ArgPattern::Symbol(name) => {
                     let span = arg_pat.span.clone();
 
                     Rule::resolve_symbol(name, arg_pat.span, bindings)
-                    .map(ArgPat::try_from)
+                    .map(ArgPattern::try_from)
                     .map_err(|s| Syntax::error(&s, &span))?
                 },
-                ArgPat::Group(sub_pat) => {
+                ArgPattern::Group(sub_pat) => {
                     let span = Spanned::build(&sub_pat);
                     let expanded = sub_pat.into_iter()
                         .map(|b| Rule::expand_arg_pat(b, bindings))
                         .collect::<Result<Vec<_>, _>>()?;
-                    Spanned::new(ArgPat::Group(expanded), span)
+                    Spanned::new(ArgPattern::Group(expanded), span)
                 },
             }
         )
@@ -280,13 +281,13 @@ impl Rule {
             },
 
             // replace the variables in (argument) patterns
-            AST::Pattern(pattern) => {
+            AST::CSTPattern(pattern) => {
                 let spanned = Spanned::new(pattern, tree.span.clone());
-                AST::Pattern(Rule::expand_pattern(spanned, bindings)?.item)
+                AST::CSTPattern(Rule::expand_pattern(spanned, bindings)?.item)
             },
-            AST::ArgPat(arg_pat) => {
+            AST::ArgPattern(arg_pat) => {
                 let spanned = Spanned::new(arg_pat, tree.span.clone());
-                AST::ArgPat(Rule::expand_arg_pat(spanned, bindings)?.item)
+                AST::ArgPattern(Rule::expand_arg_pat(spanned, bindings)?.item)
             },
 
             // replace the variables in the patterns and the expression

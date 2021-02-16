@@ -1,4 +1,4 @@
-# Pattern Matching for fun ~~and for profit!~~
+# CSTPattern Matching for fun ~~and for profit!~~
 
 > This is a big file where I'm planning stuff.
 > I'll delete it before this branch is merged into master.
@@ -11,7 +11,7 @@ This becomes the following AST (simplified):
 
 ```
 AST::Assign {
-    pattern: Pattern(Pattern::Tuple [a, b])
+    pattern: CSTPattern(CSTPattern::Tuple [a, b])
     expression: AST(AST::Tuple [b, a])
 }
 ```
@@ -72,7 +72,7 @@ this becomes the following AST:
 
 ```
 AST::Assign {
-    pattern: Pattern(Pattern::Label(Number, n))
+    pattern: CSTPattern(CSTPattern::Label(Number, n))
     expression: AST(AST::Label(Number, 7.0))
 }
 ```
@@ -128,7 +128,7 @@ Number seven = packed_seven
 print seven
 ```
 
-- Patterns need to be passed through to the CST
+- CSTPatterns need to be passed through to the CST
 - when the CST is compiling patterns it's essentially creating a set of destructors and assignments.
 
 Variables need to be declared onto the stack before assignment. this is because variables, when undefined, are saved onto the topmost item. but if there are no new variables declared, one of two bad things could happen:

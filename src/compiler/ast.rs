@@ -5,7 +5,37 @@ use crate::common::{
     data::Data,
 };
 
-/// Represents a Pattern during the AST phase of compilation.
+/// Represents an argument pattern,
+/// i.e. the mini language used to match macros.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArgPattern {
+    Keyword(String),
+    Symbol(String),
+    Group(Vec<Spanned<ArgPattern>>),
+}
+
+impl TryFrom<AST> for ArgPattern {
+    type Error = String;
+
+    /// Like `ASTPattern`s, `ArgPattern`s are represented as ASTs,
+    /// Then converted into `ArgPattern`s when the compiler determines it so.
+    fn try_from(ast: AST) -> Result<Self, Self::Error> {
+        Ok(
+            match ast {
+                AST::Symbol(s) => ArgPattern::Symbol(s),
+                AST::ArgPattern(p) => p,
+                AST::Form(f) => {
+                    let mut mapped = vec![];
+                    for a in f { mapped.push(a.map(ArgPattern::try_from)?); }
+                    ArgPattern::Group(mapped)
+                }
+                _ => Err("Unexpected construct inside argument pattern")?,
+            }
+        )
+    }
+}
+
+/// Represents a CSTPattern during the AST phase of compilation.
 /// A pattern is like a very general type,
 /// because Passerine uses structural row-based typing.
 #[derive(Debug, Clone, PartialEq)]
@@ -22,7 +52,7 @@ pub enum ASTPattern {
 }
 
 impl ASTPattern {
-    // Shortcut for creating a `Pattern::Label` variant
+    // Shortcut for creating a `CSTPattern::Label` variant
     pub fn label(name: String, pattern: Spanned<ASTPattern>) -> ASTPattern {
         ASTPattern::Label(name, Box::new(pattern))
     }
@@ -31,8 +61,8 @@ impl ASTPattern {
 impl TryFrom<AST> for ASTPattern {
     type Error = String;
 
-    /// Tries to convert an `AST` into a `Pattern`.
-    /// Patterns mirror the `AST`s they are designed to destructure.
+    /// Tries to convert an `AST` into a `CSTPattern`.
+    /// CSTPatterns mirror the `AST`s they are designed to destructure.
     /// During parsing, they are just parsed as `AST`s -
     /// When the compiler can determine that an AST is actually a pattern,
     /// It performs this conversion.
@@ -42,7 +72,7 @@ impl TryFrom<AST> for ASTPattern {
                 AST::Symbol(s) => ASTPattern::Symbol(s),
                 AST::Data(d) => ASTPattern::Data(d),
                 AST::Label(k, a) => ASTPattern::Label(k, Box::new(a.map(ASTPattern::try_from)?)),
-                AST::Pattern(p) => p,
+                AST::CSTPattern(p) => p,
                 AST::Form(f) => {
                     let mut patterns = vec![];
                     for item in f {
@@ -64,36 +94,6 @@ impl TryFrom<AST> for ASTPattern {
     }
 }
 
-/// Represents an argument pattern,
-/// i.e. the mini language used to match macros.
-#[derive(Debug, Clone, PartialEq)]
-pub enum ArgPat {
-    Keyword(String),
-    Symbol(String),
-    Group(Vec<Spanned<ArgPat>>),
-}
-
-impl TryFrom<AST> for ArgPat {
-    type Error = String;
-
-    /// Like `ASTPattern`s, `ArgPat`s are represented as ASTs,
-    /// Then converted into `ArgPat`s when the compiler determines it so.
-    fn try_from(ast: AST) -> Result<Self, Self::Error> {
-        Ok(
-            match ast {
-                AST::Symbol(s) => ArgPat::Symbol(s),
-                AST::ArgPat(p) => p,
-                AST::Form(f) => {
-                    let mut mapped = vec![];
-                    for a in f { mapped.push(a.map(ArgPat::try_from)?); }
-                    ArgPat::Group(mapped)
-                }
-                _ => Err("Unexpected construct inside argument pattern")?,
-            }
-        )
-    }
-}
-
 /// Represents an item in a sugared `AST`.
 /// Which is the direct result of parsing
 /// Each syntax-level construct has it's own `AST` variant.
@@ -107,8 +107,8 @@ pub enum AST {
     Block(Vec<Spanned<AST>>),
     Form(Vec<Spanned<AST>>),
     Group(Box<Spanned<AST>>),
-    Pattern(ASTPattern),
-    ArgPat(ArgPat),
+    CSTPattern(ASTPattern),
+    ArgPattern(ArgPattern),
     Tuple(Vec<Spanned<AST>>),
     Assign {
         pattern:    Box<Spanned<ASTPattern>>,
@@ -122,10 +122,9 @@ pub enum AST {
         argument: Box<Spanned<AST>>,
         function: Box<Spanned<AST>>,
     },
-    Print(Box<Spanned<AST>>),
     Label(String, Box<Spanned<AST>>),
     Syntax {
-        arg_pat:    Box<Spanned<ArgPat>>,
+        arg_pat:    Box<Spanned<ArgPattern>>,
         expression: Box<Spanned<AST>>,
     },
     // TODO: Currently quite basic
@@ -172,13 +171,18 @@ impl AST {
     /// Shortcut for creating an `AST::Syntax` variant.
     /// i.e. a macro definition
     pub fn syntax(
-        arg_pat: Spanned<ArgPat>,
+        arg_pat: Spanned<ArgPattern>,
         expression: Spanned<AST>,
     ) -> AST {
         AST::Syntax {
             arg_pat:    Box::new(arg_pat),
             expression: Box::new(expression),
         }
+    }
+
+    /// Shortcut for creating a `AST::Label` variant.
+    pub fn label(name: &str, expression: Spanned<AST>) -> AST {
+        AST::Label(name.to_string(), Box::new(expression))
     }
 
     // Shortcut for creating an `AST::FFI` variant.

@@ -190,8 +190,8 @@ a . b c . d
 d ((b c) a)
 ```
 
-### Pattern Matching
-In the last section, we touched on pattern matching a little. I hope to now go one step further and build a strong argument as to why pattern matching in Passerine is such a powerful construct. Patterns are used in in three places:
+### CSTPattern Matching
+In the last section, we touched on pattern matching a little. I hope to now go one step further and build a strong argument as to why pattern matching in Passerine is such a powerful construct. CSTPatterns are used in in three places:
 
 1. Assignments,
 2. Functions,
@@ -200,7 +200,7 @@ In the last section, we touched on pattern matching a little. I hope to now go o
 We'll briefly discuss each type of pattern and the context in which they are used.
 
 #### What are patterns?
-*Patterns* extract *data* from *types* by mirroring the structure of those types. The act of applying a pattern to a type is called *matching* or *destructuring* – when a pattern matches some data successfully, a number of *bindings* are produced.
+*CSTPatterns* extract *data* from *types* by mirroring the structure of those types. The act of applying a pattern to a type is called *matching* or *destructuring* – when a pattern matches some data successfully, a number of *bindings* are produced.
 
 Passerine supports algebraic data types, and all of these types can be matched and destructured against. Here is a table of Passerine's patterns:
 
@@ -245,7 +245,7 @@ In src/main.pn:1:2
  1 | (true second -> second) false "Bananas!"
    |  ^^^^
    |
-Runtime Pattern Matching Error: The data 'false' does not match the expected data 'true'
+Runtime CSTPattern Matching Error: The data 'false' does not match the expected data 'true'
 ```
 
 *Discard* is another simple pattern – it does nothing. It's most useful when used in conjunction with other patterns:
@@ -273,7 +273,7 @@ if { Banana (_, flesh) = banana; flesh == "soft" } {
 }
 ```
 
-Pattern matching on labels is used to *extract* the raw data that is used to construct that label.
+CSTPattern matching on labels is used to *extract* the raw data that is used to construct that label.
 
 *Tuples* are fairly simple – we already covered them – so we'll cover records next. A record is a set of fields:
 
@@ -342,7 +342,7 @@ Where clauses in patterns ensure that the underlying data of a type can never br
 
 > TODO: traits and impls.
 
-Pattern matching and algebraic data types allow for quickly building up and tearing down expressive data schemas. As data (and the transformation applied to it) are the core of any program, constructs for quickly building up and tearing down complex datatypes are an incredible tool for scripting expressive applications.
+CSTPattern matching and algebraic data types allow for quickly building up and tearing down expressive data schemas. As data (and the transformation applied to it) are the core of any program, constructs for quickly building up and tearing down complex datatypes are an incredible tool for scripting expressive applications.
 
 ### Fibers
 How does passerine handle errors? What about concurrency?
@@ -552,7 +552,7 @@ x swap y
 
 Will not affect the value of `tmp`; `tmp` will still be `1`.
 
-#### Argument Patterns
+#### Argument CSTPatterns
 So, what is an argument pattern (an *arg-pat*)? Arg-pats are what go between:
 
 ```passerine
