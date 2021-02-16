@@ -1,0 +1,34 @@
+-- action: run
+-- outcome: success
+-- expect: 0.0
+
+prn = x -> magic "print" x
+prnln = x -> magic "println" x
+
+syntax 'if cond then 'else else {
+    branch = magic "if" (
+        cond,
+        () -> then,
+        () -> else,
+    )
+    branch()
+}
+
+bottles = ()
+bottles = n -> {
+    if (n == 0.0) {
+        n
+    } else {
+        prn n
+        prnln " bottles of milk on the wall!"
+        prn n
+        prnln " bottles of milk!"
+        prnln "take one down,"
+        prnln "pass it around,"
+        prn (n - 1.0)
+        prnln " bottles of milk on the wall!\n"
+        bottles (n - 1.0)
+    }
+}
+
+bottles 9.0

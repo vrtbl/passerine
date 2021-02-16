@@ -128,6 +128,14 @@ impl Stack {
         mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(heaped)));
     }
 
+    /// Truncates the stack to the last frame.
+    /// Returns `true` if the stack can not be unwound further.
+    #[inline]
+    pub fn unwind_frame(&mut self) -> bool {
+        self.stack.truncate(self.frame_index() + 1);
+        return self.frames.len() > 1;
+    }
+
     /// returns a copy of the `Slot` of a local variable on the stack.
     pub fn local_slot(&mut self, index: usize) -> Slot {
         let local_index = self.frame_index() + index + 1;

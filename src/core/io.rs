@@ -11,3 +11,7 @@ pub fn print(data: Data) -> Result<Data, String> {
     print!("{}", data);
     return Ok(data);
 }
+
+pub fn to_string(data: Data) -> Result<Data, String> {
+    Ok(Data::String(format!("{}", data)))
+}

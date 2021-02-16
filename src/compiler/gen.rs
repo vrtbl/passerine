@@ -261,7 +261,7 @@ impl Compiler {
     pub fn tuple(&mut self, tuple: Vec<Spanned<CST>>) -> Result<(), Syntax> {
         let length = tuple.len();
 
-        for item in tuple.into_iter().rev() {
+        for item in tuple.into_iter() {
             self.walk(&item)?;
         }
 
@@ -295,6 +295,7 @@ impl Compiler {
             },
         };
 
+        self.lambda.emit_span(&span);
         self.lambda.emit(Opcode::FFICall);
         self.lambda.emit_bytes(&mut split_number(index));
         Ok(())

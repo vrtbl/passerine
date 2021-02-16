@@ -111,6 +111,16 @@ impl VM {
         }
     }
 
+    pub fn unwind(&mut self) {
+        // restore suspended callee
+        let suspend = self.stack.pop_frame(); // remove the frame
+        self.ip      = suspend.ip;
+        self.closure = suspend.closure;
+
+        // indicate failure
+        self.stack.push_not_init();
+    }
+
     /// Suspends the current lambda and runs a new one on the VM.
     /// Runs until either success, in which it restores the state of the previous lambda,
     /// Or failure, in which it returns the runtime error.
@@ -118,23 +128,30 @@ impl VM {
     /// right now, error in Passerine are practically panics.
     pub fn run(&mut self) -> Result<(), Trace> {
         // println!("Starting\n{}", self.closure.lambda);
+        let mut result = Ok(());
 
         while !self.is_terminated() {
             // println!("before: {:#?}", self.stack.stack);
             // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
-            if let Err(error) = self.step() {
-                // TODO: clean up stack on error
-                println!("{}", error);
-                // TODO: reinstate tracebacks
-                // trace.add_context(self.current_span());
-                panic!();
-            };
+            result = self.step();
+            if result.is_err() { break; }
             // println!("---");
         }
         // println!("after: {:?}", self.stack.stack);
         // println!("---");
 
-        return Ok(());
+        if let Err(mut trace) = result {
+            while self.stack.unwind_frame() {
+                self.unwind();
+                self.ip -= 1;
+                trace.add_context(self.current_span());
+            }
+
+            println!("{}", trace);
+            result = Err(trace);
+        };
+
+        return result;
     }
 
     // TODO: there are a lot of optimizations that can be made
@@ -250,6 +267,7 @@ impl VM {
             items.push(self.stack.pop_data())
         }
 
+        items.reverse();
         self.stack.push_data(Data::Tuple(items));
         self.done()
     }

@@ -25,6 +25,7 @@ pub fn ffi_core() -> FFI {
     // io
     ffi.add("println", FFIFunction::new(Box::new(io::println))).unwrap();
     ffi.add("print", FFIFunction::new(Box::new(io::print))).unwrap();
+    ffi.add("to_string", FFIFunction::new(Box::new(io::to_string))).unwrap();
 
     // control
     ffi.add("if", FFIFunction::new(Box::new(control::if_choice))).unwrap();
