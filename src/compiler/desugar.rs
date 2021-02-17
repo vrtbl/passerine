@@ -8,7 +8,7 @@ use crate::common::span::{Span, Spanned};
 use crate::compiler::{
     rule::Rule,
     ast::{AST, ASTPattern, ArgPattern},
-    cst::{CST, CSTCSTPattern},
+    cst::{CST, CSTPattern},
     syntax::Syntax
 };
 
@@ -212,12 +212,12 @@ impl Transformer {
     }
 
     /// Desugars an assigment.
-    /// Note that this converts the assignment's `ASTPattern` into a `CSTCSTPattern`
+    /// Note that this converts the assignment's `ASTPattern` into a `CSTPattern`
     pub fn assign(&mut self, p: Spanned<ASTPattern>, e: Spanned<AST>) -> Result<CST, Syntax> {
         let p_span = p.span.clone();
 
         Ok(CST::assign(
-            p.map(CSTCSTPattern::try_from)
+            p.map(CSTPattern::try_from)
                 .map_err(|err| Syntax::error(&err, &p_span))?,
             self.walk(e)?
         ))
@@ -233,7 +233,7 @@ impl Transformer {
         let mut expression = self.walk(e)?;
 
         for argument in arguments.into_iter().rev() {
-            let pattern = argument.map(CSTCSTPattern::try_from)
+            let pattern = argument.map(CSTPattern::try_from)
                 .map_err(|err| Syntax::error(&err, &p_span))?;
 
             let combined = Span::combine(&pattern.span, &expression.span);

@@ -1,9 +1,20 @@
 use crate::common::{
-    span::Spanned,
+    span::{Span, Spanned},
     data::Data,
 };
 
-// TODO: SST Pattern
+/// A pattern that mirrors the structure of some Data.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SSTPattern {
+    Symbol(usize),
+    Data(Data),
+    Label(String, Box<Spanned<SSTPattern>>), // todo usize for label
+    Tuple(Vec<Spanned<SSTPattern>>),
+    // Where {
+    //     pattern: Box<ASTPattern>,
+    //     expression: Box<AST>,
+    // },
+}
 
 /// Represents an item in a hoisted `SST`.
 /// Each langauge-level construct has it's own `SST` variant.
@@ -15,14 +26,15 @@ pub enum SST {
     Data(Data),
     Block(Vec<Spanned<SST>>),
     Assign {
-        pattern:    Box<Spanned<CSTPattern>>,
+        pattern:    Box<Spanned<SSTPattern>>,
         expression: Box<Spanned<SST>>,
     },
     Lambda {
-        pattern:    Box<Spanned<CSTPattern>>,
+        pattern:    Box<Spanned<SSTPattern>>,
         expression: Box<Spanned<SST>>,
         // TODO: just locals, or all variables accessible?
         locals:     Vec<usize>, // unique usizes of locals defined in this scope
+        captures:   Vec<usize>, // unique usizes of locals defined outside this scope
     },
     Call {
         fun: Box<Spanned<SST>>,
@@ -43,7 +55,7 @@ pub struct ScopeContext {
 impl SST {
     /// Shortcut for creating an `SST::Assign` variant.
     pub fn assign(
-        pattern:    Spanned<CSTPattern>,
+        pattern:    Spanned<SSTPattern>,
         expression: Spanned<SST>
     ) -> SST {
         SST::Assign {
@@ -53,14 +65,25 @@ impl SST {
     }
 
     /// Shortcut for creating an `SST::Lambda` variant.
-    pub fn lambda(
-        pattern:    Spanned<CSTPattern>,
-        expression: Spanned<SST>
-    ) -> SST {
+    // pub fn lambda(
+    //     pattern:    Spanned<SSTPattern>,
+    //     expression: Spanned<SST>,
+    // ) -> SST {
+    //     SST::Lambda {
+    //         pattern:    Box::new(pattern),
+    //         expression: Box::new(expression),
+    //         locals:     vec![],
+    //         captures:   vec![],
+    //     }
+    // }
+
+    // TODO: fix this
+    pub fn empty_lambda() -> SST {
         SST::Lambda {
-            pattern:    Box::new(pattern),
-            expression: Box::new(expression),
+            pattern:    Box::new(Spanned::new(SSTPattern::Symbol(0), Span::empty())),
+            expression: Box::new(Spanned::new(SST::Symbol(0), Span::empty())),
             locals:     vec![],
+            captures:   vec![],
         }
     }
 
