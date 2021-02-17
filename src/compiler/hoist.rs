@@ -21,6 +21,7 @@ use crate::compiler::{
 pub fn hoist(cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
     let mut hoister = Hoister::new();
     let sst = hoister.walk(cst)?;
+
     return Ok(sst);
 }
 
@@ -66,63 +67,6 @@ impl Hoister {
         &self.scopes[last]
     }
 
-    fn new_symbol(&mut self, name: &str) -> UniqueSymbol {
-        let index = self.symbol_table.len();
-        self.symbol_table.push(name.to_string());
-        return UniqueSymbol(index);
-    }
-
-    fn resolve_local(&self, name: &str) -> Option<UniqueSymbol> {
-        for local in self.borrow_local_scope().locals.iter() {
-            let local_name = &self.symbol_table[local.0];
-            if local_name == name { return Some(*local); }
-        }
-        return None;
-    }
-
-    fn resolve_nonlocal(&mut self, name: &str) -> Option<UniqueSymbol> {
-        let top_scope = self.exit_scope()?;
-
-        let unique_symbol = if let Some(local) = self.resolve_local(name) {
-            local
-        } else if let Some(nonlocal) = self.resolve_nonlocal(name) {
-            nonlocal
-        } else {
-            self.reenter_scope(top_scope);
-            return None;
-        };
-
-        self.reenter_scope(top_scope);
-        self.local_scope().nonlocals.push(unique_symbol);
-        return Some(unique_symbol);
-    }
-
-    /// Returns the unique usize of a local symbol.
-    fn resolve(&mut self, name: &str, hoist: bool) -> UniqueSymbol {
-        // if the symbol has already been defined, use it
-        if let Some(local) = self.resolve_local(name) {
-            return local;
-        } else if let Some(nonlocal) = self.resolve_nonlocal(name) {
-            return nonlocal;
-        }
-
-        let unique_symbol = match self.unresolved_hoists.get(name) {
-            Some(us) => *us,
-            None => self.new_symbol(name),
-        };
-
-        if !hoist {
-            // declare the local in the current scope
-            self.unresolved_hoists.remove(name);
-            self.local_scope().locals.push(unique_symbol);
-        } else {
-            // mark the variable as used before lexical definition
-            self.unresolved_hoists.insert(name.to_string(), unique_symbol);
-        }
-
-        return unique_symbol;
-    }
-
     pub fn walk(&mut self, cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
         let sst: SST = match cst.item {
             CST::Data(data) => SST::Data(data),
@@ -139,24 +83,87 @@ impl Hoister {
         return Ok(Spanned::new(sst, cst.span))
     }
 
-    pub fn walk_pattern(&mut self, pattern: Spanned<CSTPattern>, hoist: bool) -> Spanned<SSTPattern> {
+    pub fn walk_pattern(&mut self, pattern: Spanned<CSTPattern>, declare: bool) -> Spanned<SSTPattern> {
         let item = match pattern.item {
-            CSTPattern::Symbol(name) => SSTPattern::Symbol(self.resolve(&name, hoist)),
+            CSTPattern::Symbol(name) => SSTPattern::Symbol(self.resolve_assign(&name, declare)),
             CSTPattern::Data(d)      => SSTPattern::Data(d),
-            CSTPattern::Label(n, p)  => SSTPattern::Label(n, Box::new(self.walk_pattern(*p, hoist))),
+            CSTPattern::Label(n, p)  => SSTPattern::Label(n, Box::new(self.walk_pattern(*p, shadow))),
             CSTPattern::Tuple(t)     => SSTPattern::Tuple(
-                t.into_iter().map(|c| self.walk_pattern(c, hoist)).collect::<Vec<_>>()
+                t.into_iter().map(|c| self.walk_pattern(c, shadow)).collect::<Vec<_>>()
             )
         };
 
         return Spanned::new(item, pattern.span);
     }
 
+    fn new_symbol(&mut self, name: &str) -> UniqueSymbol {
+        let index = self.symbol_table.len();
+        self.symbol_table.push(name.to_string());
+        return UniqueSymbol(index);
+    }
+
+    fn resolve_local(&mut self, name: &str) -> Option<UniqueSymbol> {
+        for local in self.borrow_local_scope().locals.iter() {
+            let local_name = &self.symbol_table[local.0];
+            if local_name == name {
+                return Some(*local);
+            }
+        }
+
+        return None;
+    }
+
+    fn resolve_symbol(&mut self, name: &str) -> UniqueSymbol {
+        // if the symbol is not defined in any scopes,
+        // it must be a new symbol
+
+        // if an unresolved symbol of the same name exists, use that symbol
+        let unique_symbol = match self.unresolved_hoists.get(name) {
+            Some(us) => *us,
+            None => self.new_symbol(name),
+        };
+
+        // if we are hoisting the variable,
+        // mark the variable as being used before its lexical definition
+        self.unresolved_hoists.insert(name.to_string(), unique_symbol);
+
+        return unique_symbol;
+    }
+
+    // TODO: simplify
+
+    /// Returns the unique usize of a local symbol.
+    /// If a variable is referenced before assignment,
+    /// this function will define it in all lexical scopes
+    /// once this variable is discovered, we remove the definitions
+    /// in all scopes below this one.
+    fn resolve_assign(&mut self, name: &str, declare: bool) -> UniqueSymbol {
+        // if the symbol is defined in the local scope, return that symbol
+        for local in self.borrow_local_scope().locals.iter() {
+            let local_name = &self.symbol_table[local.0];
+            if local_name == name {
+                return *local;
+            }
+        }
+
+        // if the symbol is defined in the enclosing scope,
+        // return that symbol and marked it as being captured by the current scope
+        if let Some(scope) = self.exit_scope() {
+            let unique_symbol = self.resolve(name, hoist);
+            self.reenter_scope(scope);
+            self.local_scope().nonlocals.push(unique_symbol);
+            return unique_symbol;
+        }
+
+        self.unresolved_hoists.remove(name);
+        self.local_scope().locals.push(unique_symbol);
+    }
+
     // TODO: merge with resolve?
 
     /// Replaces a symbol name with a unique identifier for that symbol
     pub fn symbol(&mut self, name: &str) -> SST {
-        let unique_symbol = self.resolve(name, true);
+        let unique_symbol = self.resolve(name, false, true);
         return SST::Symbol(unique_symbol);
     }
 

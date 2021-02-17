@@ -532,8 +532,20 @@ mod test {
         ");
     }
 
+    #[test]
+    fn hoist_later() {
+        inspect("\
+            w = 0.5
+            later = n -> thing 10.0 - w\n\
+            thing = x -> x + 20.0\n\
+            -- later 5.0\n\
+        ");
+    }
+
     // TODO: figure out how to make the following passerine code into a test
     // without entering into an infinite loop (which is the intended behaviour)
+    // maybe try running it a large number of times,
+    // and check the size of the stack?
     // loop = ()
     // loop = y -> x -> {
     //     print y

@@ -63,7 +63,7 @@ impl Compiler {
             lambda:    Lambda::empty(),
             ffi,
             ffi_names: vec![],
-            scope:     Scope::new(),
+            scope:     scope,
         }
     }
 
