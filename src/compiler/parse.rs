@@ -11,8 +11,7 @@ use crate::common::{
 use crate::compiler::{
     syntax::Syntax,
     token::Token,
-    ast::AST,
-    pattern::{ASTPattern, ArgPattern},
+    ast::{AST, ASTPattern, ArgPattern},
 };
 
 /// Simple function that parses a token stream into an AST.

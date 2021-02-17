@@ -458,9 +458,10 @@ impl VM {
 mod test {
     use super::*;
     use crate::compiler::{
+        lex::lex,
         parse::parse,
         desugar::desugar,
-        lex::lex,
+        hoist::hoist,
         gen::gen,
     };
     use crate::common::source::Source;
@@ -469,6 +470,7 @@ mod test {
         let lambda = lex(Source::source(source))
             .and_then(parse)
             .and_then(desugar)
+            .and_then(hoist)
             .and_then(gen)
             .map_err(|e| println!("{}", e))
             .unwrap();

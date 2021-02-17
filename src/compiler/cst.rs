@@ -5,6 +5,8 @@ use crate::common::{
     data::Data,
 };
 
+use crate::compiler::ast::ASTPattern;
+
 // TODO: create a pattern specific to the CST?
 // Once where (i.e. `x | x > 0`) is added?
 

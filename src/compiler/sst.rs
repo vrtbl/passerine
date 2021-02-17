@@ -3,10 +3,13 @@ use crate::common::{
     data::Data,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UniqueSymbol(pub usize);
+
 /// A pattern that mirrors the structure of some Data.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SSTPattern {
-    Symbol(usize),
+    Symbol(UniqueSymbol),
     Data(Data),
     Label(String, Box<Spanned<SSTPattern>>), // todo usize for label
     Tuple(Vec<Spanned<SSTPattern>>),
@@ -16,13 +19,44 @@ pub enum SSTPattern {
     // },
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Scope {
+    pub locals:   Vec<UniqueSymbol>,
+    pub nonlocals: Vec<UniqueSymbol>,
+}
+
+impl Scope {
+    pub fn new() -> Scope {
+        Scope {
+            locals:    vec![],
+            nonlocals: vec![],
+        }
+    }
+
+    pub fn is_local(&self, unique_symbol: UniqueSymbol) -> bool {
+        self.locals.contains(&unique_symbol)
+    }
+
+    pub fn is_nonlocal(&self, unique_symbol: UniqueSymbol) -> bool {
+        self.nonlocals.contains(&unique_symbol)
+    }
+
+    pub fn local_index(&self, unique_symbol: UniqueSymbol) -> Option<usize> {
+        self.locals.iter().position(|l| l == &unique_symbol)
+    }
+
+    pub fn nonlocal_index(&self, unique_symbol: UniqueSymbol) -> Option<usize> {
+        self.nonlocals.iter().position(|l| l == &unique_symbol)
+    }
+}
+
 /// Represents an item in a hoisted `SST`.
 /// Each langauge-level construct has it's own `SST` variant.
 /// Note that symbols have been substituted.
 /// At this point in compilation the scope of each local is known.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SST {
-    Symbol(usize),
+    Symbol(UniqueSymbol),
     Data(Data),
     Block(Vec<Spanned<SST>>),
     Assign {
@@ -32,9 +66,7 @@ pub enum SST {
     Lambda {
         pattern:    Box<Spanned<SSTPattern>>,
         expression: Box<Spanned<SST>>,
-        // TODO: just locals, or all variables accessible?
-        locals:     Vec<usize>, // unique usizes of locals defined in this scope
-        captures:   Vec<usize>, // unique usizes of locals defined outside this scope
+        scope:      Scope,
     },
     Call {
         fun: Box<Spanned<SST>>,
@@ -68,17 +100,14 @@ impl SST {
     pub fn lambda(
         pattern:    Spanned<SSTPattern>,
         expression: Spanned<SST>,
-        locals:     Vec<usize>,
-        captures:   Vec<usize>,
+        scope:      Scope,
     ) -> SST {
         SST::Lambda {
             pattern:    Box::new(pattern),
             expression: Box::new(expression),
-            locals:     vec![],
-            captures:   vec![],
+            scope:      scope,
         }
     }
-
 
     /// Shortcut for creating a `SST::Label` variant.
     pub fn label(name: &str, expression: Spanned<SST>) -> SST {

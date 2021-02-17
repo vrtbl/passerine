@@ -9,8 +9,7 @@ use crate::common::{
 };
 
 use crate::compiler::{
-    ast::{AST},
-    pattern::{ASTPattern, ArgPattern},
+    ast::{AST, ASTPattern, ArgPattern},
     syntax::Syntax
 };
 
@@ -301,10 +300,6 @@ impl Rule {
                 let e = Rule::expand(*expression, bindings)?;
                 AST::lambda(p, e)
             },
-
-            AST::Print(expression) => AST::Print(
-                Box::new(Rule::expand(*expression, bindings)?)
-            ),
 
             // TODO: Should labels be bindable in macros?
             AST::Label(kind, expression) => AST::Label(

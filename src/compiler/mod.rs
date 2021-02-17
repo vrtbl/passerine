@@ -32,4 +32,5 @@ pub mod syntax;
 pub use lex::lex;
 pub use parse::parse;
 pub use desugar::desugar;
+pub use hoist::hoist;
 pub use gen::gen;

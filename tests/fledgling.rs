@@ -14,7 +14,7 @@ use passerine::{
         closure::Closure,
     },
     compiler::{
-        lex, parse, desugar, gen,
+        lex, parse, desugar, hoist, gen,
         ast::AST,
     },
     vm::vm::VM,
@@ -156,6 +156,7 @@ fn test_snippet(source: Rc<Source>, strat: TestStrat) {
         Action::Gen => if lex(source)
             .and_then(parse)
             .and_then(desugar)
+            .and_then(hoist)
             .and_then(gen)
             .is_ok() { Outcome::Success } else { Outcome::Syntax },
 
@@ -163,6 +164,7 @@ fn test_snippet(source: Rc<Source>, strat: TestStrat) {
             match lex(source)
                 .and_then(parse)
                 .and_then(desugar)
+                .and_then(hoist)
                 .and_then(gen)
             {
                 Ok(lambda) => {
@@ -213,7 +215,7 @@ fn test_snippets() {
     while let Some(path) = to_run.pop() {
         println!("test {}: {}...", counter, path.display());
 
-        let source = Source::path(path).expect("Could not get snippet source");
+        let source = Source::path(&path).expect("Could not get snippet source");
         let test_strat = TestStrat::snippet(&source);
 
         test_snippet(source, test_strat);

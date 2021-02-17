@@ -12,8 +12,7 @@ use crate::common::{
 // may work well for types too.
 
 use crate::compiler::{
-    pattern::CSTPattern,
-    sst::SST,
+    sst::{UniqueSymbol, Scope, SST, SSTPattern},
     // TODO: pattern for where?
     syntax::Syntax,
 };
@@ -30,8 +29,9 @@ use crate::core::{
 /// Simple function that generates unoptimized bytecode from an `SST`.
 /// Exposes the functionality of the `Compiler`.
 pub fn gen(sst: Spanned<SST>) -> Result<Lambda, Syntax> {
+    println!("Spanned SST: {:#?}", sst);
     let ffi = ffi_core();
-    let mut compiler = Compiler::base(ffi);
+    let mut compiler = Compiler::base(ffi, todo!());
     compiler.walk(&sst)?;
     return Ok(compiler.lambda);
 }
@@ -45,31 +45,34 @@ pub struct Compiler {
     enclosing: Option<Box<Compiler>>,
     /// The current bytecode emission target.
     lambda: Lambda,
-    ///
-    // symbol_table: SymbolTable,
+    /// Names of symbols,
+    // symbol_table: Vec<String>,
     /// The foreign functional interface used to bind values
     ffi: FFI,
     /// The FFI functions that have been bound in this scope.
     ffi_names: Vec<String>,
+    // determined in hoisting
+    scope: Scope,
 }
 
 impl Compiler {
     /// Construct a new `Compiler`.
-    pub fn base(ffi: FFI) -> Compiler {
+    pub fn base(ffi: FFI, scope: Scope) -> Compiler {
         Compiler {
             enclosing: None,
             lambda:    Lambda::empty(),
-
+            ffi,
+            ffi_names: vec![],
+            scope:     Scope::new(),
         }
     }
 
     /// Replace the current compiler with a fresh one,
     /// keeping a reference to the old one in `self.enclosing`,
     /// and moving the FFI into the current compiler.
-    pub fn enter_scope(&mut self) {
+    pub fn enter_scope(&mut self, scope: Scope) {
         let ffi        = mem::replace(&mut self.ffi, FFI::new());
-        let mut nested = Compiler::base(ffi);
-        nested.depth   = self.depth + 1;
+        let mut nested = Compiler::base(ffi, scope);
         let enclosing  = mem::replace(self, nested);
         self.enclosing = Some(Box::new(enclosing));
     }
@@ -99,13 +102,13 @@ impl Compiler {
         // push left, push right, push center
         return match sst.item.clone() {
             SST::Data(data) => Ok(self.data(data)),
-            SST::Symbol(name) => self.symbol(&name, sst.span.clone()),
+            SST::Symbol(unique) => Ok(self.symbol(unique)),
             SST::Block(block) => self.block(block),
             SST::Label(name, expression) => self.label(name, *expression),
             SST::Tuple(tuple) => self.tuple(tuple),
             SST::FFI    { name,    expression } => self.ffi(name, *expression, sst.span.clone()),
             SST::Assign { pattern, expression } => self.assign(*pattern, *expression),
-            SST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
+            SST::Lambda { pattern, expression, scope } => self.lambda(*pattern, *expression, scope),
             SST::Call   { fun,     arg        } => self.call(*fun, *arg),
         };
     }
@@ -160,6 +163,19 @@ impl Compiler {
     //         _ => None,
     //     }
     // }
+
+    pub fn symbol(&mut self, unique_symbol: UniqueSymbol) {
+        let index = if let Some(i) = self.scope.local_index(unique_symbol) {
+            self.lambda.emit(Opcode::Load); i
+        } else if let Some(i) = self.scope.nonlocal_index(unique_symbol) {
+            self.lambda.emit(Opcode::LoadCap); i
+        } else {
+            // unreachable?
+            todo!();
+        };
+
+        self.lambda.emit_bytes(&mut split_number(index));
+    }
 
     /// Takes a `Data` leaf and and produces some code to load the constant
     pub fn data(&mut self, data: Data) {
@@ -253,22 +269,17 @@ impl Compiler {
 
     /// Resolves the assignment of a variable
     /// returns true if the variable was declared.
-    pub fn resolve_assign(&mut self, name: &str) -> bool {
-        let mut declared = false;
-
-        let index = if let Some(i) = self.local(name) {
+    pub fn resolve_assign(&mut self, unique_symbol: UniqueSymbol) {
+        let index = if let Some(i) = self.scope.local_index(unique_symbol) {
             self.lambda.emit(Opcode::Save); i
-        } else if let Some(i) = self.captured_upvalue(name) {
+        } else if let Some(i) = self.scope.nonlocal_index(unique_symbol) {
             self.lambda.emit(Opcode::SaveCap); i
         } else {
-            self.declare(name.to_string());
-            declared = true;
-            self.lambda.emit(Opcode::Save);
-            self.locals.len() - 1
+            // unreachable?
+            todo!()
         };
 
         self.lambda.emit_bytes(&mut split_number(index));
-        return declared;
     }
 
     // TODO: simplify destructure.
@@ -279,24 +290,23 @@ impl Compiler {
     /// a series of unpack and assign instructions.
     /// Instructions match against the topmost stack item.
     /// Does delete the data that is matched against.
-    pub fn destructure(&mut self, pattern: Spanned<CSTPattern>, redeclare: bool) {
+    pub fn destructure(&mut self, pattern: Spanned<SSTPattern>, redeclare: bool) {
         self.lambda.emit_span(&pattern.span);
 
         match pattern.item {
-            CSTPattern::Symbol(name) => {
-                if redeclare { self.declare(name.to_string()) }
-                self.resolve_assign(&name);
+            SSTPattern::Symbol(unique_symbol) => {
+                self.resolve_assign(unique_symbol);
             },
-            CSTPattern::Data(expected) => {
+            SSTPattern::Data(expected) => {
                 self.data(expected);
                 self.lambda.emit(Opcode::UnData);
             }
-            CSTPattern::Label(name, pattern) => {
+            SSTPattern::Label(name, pattern) => {
                 self.data(Data::Kind(name));
                 self.lambda.emit(Opcode::UnLabel);
                 self.destructure(*pattern, redeclare);
             }
-            CSTPattern::Tuple(tuple) => {
+            SSTPattern::Tuple(tuple) => {
                 for (index, sub_pattern) in tuple.into_iter().enumerate() {
                     self.lambda.emit(Opcode::UnTuple);
                     self.lambda.emit_bytes(&mut split_number(index));
@@ -311,7 +321,7 @@ impl Compiler {
     /// Assign a value to a variable.
     pub fn assign(
         &mut self,
-        pattern: Spanned<CSTPattern>,
+        pattern: Spanned<SSTPattern>,
         expression: Spanned<SST>
     ) -> Result<(), Syntax> {
         // eval the expression
@@ -324,12 +334,14 @@ impl Compiler {
     /// Recursively compiles a lambda declaration in a new scope.
     pub fn lambda(
         &mut self,
-        pattern: Spanned<CSTPattern>,
-        expression: Spanned<SST>
+        pattern: Spanned<SSTPattern>,
+        expression: Spanned<SST>,
+        scope: Scope,
     ) -> Result<(), Syntax> {
         // just so the parallel is visually apparent
-        self.enter_scope();
+        self.enter_scope(scope);
         {
+            // TODO: push lambda locals and captures onto lambda
             // match the argument against the pattern, binding variables
             self.destructure(pattern, true);
 
@@ -338,7 +350,7 @@ impl Compiler {
 
             // return the result
             self.lambda.emit(Opcode::Return);
-            self.lambda.emit_bytes(&mut split_number(self.locals.len()));
+            self.lambda.emit_bytes(&mut split_number(self.scope.locals.len()));
         }
         let lambda = self.exit_scope().lambda;
 
@@ -369,13 +381,14 @@ mod test {
         lex::lex,
         parse::parse,
         desugar::desugar,
+        hoist::hoist,
     };
     use crate::common::source::Source;
 
     #[test]
     fn constants() {
         let source = Source::source("heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"");
-        let lambda = gen(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap();
+        let lambda = gen(hoist(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap()).unwrap();
 
         let result = vec![
             Data::Boolean(true),
@@ -391,7 +404,7 @@ mod test {
     #[test]
     fn bytecode() {
         let source = Source::source("heck = true; lol = heck; lmao = false");
-        let lambda = gen(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap();
+        let lambda = gen(hoist(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap()).unwrap();
 
         let result = vec![
             (Opcode::Con as u8), 128, (Opcode::Save as u8), 128,  // con true, save to heck,

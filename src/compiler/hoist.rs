@@ -7,7 +7,7 @@ use crate::common::span::{Span, Spanned};
 
 use crate::compiler::{
     cst::{CST, CSTPattern},
-    sst::{SST, SSTPattern},
+    sst::{SST, SSTPattern, UniqueSymbol, Scope},
     syntax::Syntax,
 };
 
@@ -24,27 +24,14 @@ pub fn hoist(cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
     return Ok(sst);
 }
 
-pub struct Scope {
-    locals:   Vec<usize>,
-    captures: Vec<usize>,
-}
-
-impl Scope {
-    pub fn new() -> Scope {
-        Scope {
-            locals:   vec![],
-            captures: vec![],
-        }
-    }
-}
-
 pub struct Hoister {
     /// The unique local symbols in the current scope.
     scopes: Vec<Scope>,
     /// Maps integers (index in vector) to string representation of symbol.
+    // TODO: make it it's own type
     symbol_table: Vec<String>,
     /// keeps track of variables that were referenced before assignment.
-    unresolved_hoists: HashMap<String, usize>,
+    unresolved_hoists: HashMap<String, UniqueSymbol>,
 }
 
 impl Hoister {
@@ -65,28 +52,35 @@ impl Hoister {
     }
 
     fn exit_scope(&mut self) -> Option<Scope> {
+        if self.scopes.len() == 1 { return None; }
         return self.scopes.pop()
     }
 
     fn local_scope(&mut self) -> &mut Scope {
-        &mut self.scopes[self.scopes.len() - 1]
+        let last = self.scopes.len() - 1;
+        &mut self.scopes[last]
     }
 
-    fn new_symbol(&mut self, name: String) -> usize {
+    fn borrow_local_scope(&self) -> &Scope {
+        let last = self.scopes.len() - 1;
+        &self.scopes[last]
+    }
+
+    fn new_symbol(&mut self, name: &str) -> UniqueSymbol {
         let index = self.symbol_table.len();
-        self.symbol_table.push(name);
-        return index;
+        self.symbol_table.push(name.to_string());
+        return UniqueSymbol(index);
     }
 
-    fn resolve_local(&self, name: String) -> Option<usize> {
-        for local in self.local_scope().locals.iter() {
-            let local_name = self.symbol_table[*local];
+    fn resolve_local(&self, name: &str) -> Option<UniqueSymbol> {
+        for local in self.borrow_local_scope().locals.iter() {
+            let local_name = &self.symbol_table[local.0];
             if local_name == name { return Some(*local); }
         }
         return None;
     }
 
-    fn resolve_nonlocal(&mut self, name: String) -> Option<usize> {
+    fn resolve_nonlocal(&mut self, name: &str) -> Option<UniqueSymbol> {
         let top_scope = self.exit_scope()?;
 
         let unique_symbol = if let Some(local) = self.resolve_local(name) {
@@ -99,12 +93,12 @@ impl Hoister {
         };
 
         self.reenter_scope(top_scope);
-        self.local_scope().captures.push(unique_symbol);
+        self.local_scope().nonlocals.push(unique_symbol);
         return Some(unique_symbol);
     }
 
     /// Returns the unique usize of a local symbol.
-    fn resolve(&mut self, name: String, hoist: bool) -> usize {
+    fn resolve(&mut self, name: &str, hoist: bool) -> UniqueSymbol {
         // if the symbol has already been defined, use it
         if let Some(local) = self.resolve_local(name) {
             return local;
@@ -112,46 +106,46 @@ impl Hoister {
             return nonlocal;
         }
 
-        let unique_symbol = match self.unresolved_hoists.get(&name) {
+        let unique_symbol = match self.unresolved_hoists.get(name) {
             Some(us) => *us,
             None => self.new_symbol(name),
         };
 
         if !hoist {
             // declare the local in the current scope
-            self.unresolved_hoists.remove(&name);
+            self.unresolved_hoists.remove(name);
             self.local_scope().locals.push(unique_symbol);
         } else {
             // mark the variable as used before lexical definition
-            self.unresolved_hoists.insert(name, unique_symbol);
+            self.unresolved_hoists.insert(name.to_string(), unique_symbol);
         }
 
-        return todo!()
+        return unique_symbol;
     }
 
     pub fn walk(&mut self, cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
         let sst: SST = match cst.item {
             CST::Data(data) => SST::Data(data),
-            CST::Symbol(name) => self.symbol(name),
+            CST::Symbol(name) => self.symbol(&name),
             CST::Block(block) => self.block(block)?,
             CST::Label(name, expression) => SST::Label(name, Box::new(self.walk(*expression)?)),
-            CST::Tuple(tuple) => self.tuple(tuple),
+            CST::Tuple(tuple) => self.tuple(tuple)?,
             CST::FFI    { name,    expression } => SST::ffi(&name, self.walk(*expression)?),
-            CST::Assign { pattern, expression } => self.assign(*pattern, *expression),
-            CST::Lambda { pattern, expression } => self.lambda(*pattern, *expression),
-            CST::Call   { fun,     arg        } => self.call(*fun, *arg),
+            CST::Assign { pattern, expression } => self.assign(*pattern, *expression)?,
+            CST::Lambda { pattern, expression } => self.lambda(*pattern, *expression)?,
+            CST::Call   { fun,     arg        } => self.call(*fun, *arg)?,
         };
 
         return Ok(Spanned::new(sst, cst.span))
     }
 
-    pub fn walk_pattern(&mut self, pattern: Spanned<CSTPattern>) -> Spanned<SSTPattern> {
+    pub fn walk_pattern(&mut self, pattern: Spanned<CSTPattern>, hoist: bool) -> Spanned<SSTPattern> {
         let item = match pattern.item {
-            CSTPattern::Symbol(name) => SSTPattern::Symbol(self.resolve(name, false)),
+            CSTPattern::Symbol(name) => SSTPattern::Symbol(self.resolve(&name, hoist)),
             CSTPattern::Data(d)      => SSTPattern::Data(d),
-            CSTPattern::Label(n, p)  => SSTPattern::Label(n, Box::new(self.walk_pattern(*p))),
+            CSTPattern::Label(n, p)  => SSTPattern::Label(n, Box::new(self.walk_pattern(*p, hoist))),
             CSTPattern::Tuple(t)     => SSTPattern::Tuple(
-                t.into_iter().map(|c| self.walk_pattern(c)).collect::<Vec<_>>()
+                t.into_iter().map(|c| self.walk_pattern(c, hoist)).collect::<Vec<_>>()
             )
         };
 
@@ -161,7 +155,7 @@ impl Hoister {
     // TODO: merge with resolve?
 
     /// Replaces a symbol name with a unique identifier for that symbol
-    pub fn symbol(&mut self, name: String) -> SST {
+    pub fn symbol(&mut self, name: &str) -> SST {
         let unique_symbol = self.resolve(name, true);
         return SST::Symbol(unique_symbol);
     }
@@ -175,19 +169,45 @@ impl Hoister {
         Ok(SST::Block(expressions))
     }
 
+    /// Nothing fancy here.
+    pub fn tuple(&mut self, tuple: Vec<Spanned<CST>>) -> Result<SST, Syntax> {
+        let mut expressions = vec![];
+        for expression in tuple {
+            expressions.push(self.walk(expression)?)
+        }
+
+        Ok(SST::Tuple(expressions))
+    }
+
+    pub fn assign(&mut self, pattern: Spanned<CSTPattern>, expression: Spanned<CST>) -> Result<SST, Syntax> {
+        // TODO: make sure that this can shadow outer scopes.
+        let sst_pattern = self.walk_pattern(pattern, false);
+        let sst_expression = self.walk(expression)?;
+
+        return Ok(SST::assign(
+            sst_pattern,
+            sst_expression,
+        ));
+    }
+
     pub fn lambda(&mut self, pattern: Spanned<CSTPattern>, expression: Spanned<CST>) -> Result<SST, Syntax> {
         self.enter_scope();
-        let sst_pattern = self.walk_pattern(pattern);
+        // TODO: make sure that the lambda arguments are redeclared
+        let sst_pattern = self.walk_pattern(pattern, false);
         let sst_expression = self.walk(expression)?;
         let scope = self.exit_scope().unwrap();
 
-        let lambda = SST::lambda(
+        return Ok(SST::lambda(
             sst_pattern,
             sst_expression,
-            scope.locals,
-            scope.captures,
-        );
+            scope,
+        ));
+    }
 
-        return Ok(lambda);
+    pub fn call(&mut self, fun: Spanned<CST>, arg: Spanned<CST>) -> Result<SST, Syntax> {
+        return Ok(SST::call(
+            self.walk(fun)?,
+            self.walk(arg)?,
+        ));
     }
 }
