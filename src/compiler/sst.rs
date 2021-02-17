@@ -65,27 +65,20 @@ impl SST {
     }
 
     /// Shortcut for creating an `SST::Lambda` variant.
-    // pub fn lambda(
-    //     pattern:    Spanned<SSTPattern>,
-    //     expression: Spanned<SST>,
-    // ) -> SST {
-    //     SST::Lambda {
-    //         pattern:    Box::new(pattern),
-    //         expression: Box::new(expression),
-    //         locals:     vec![],
-    //         captures:   vec![],
-    //     }
-    // }
-
-    // TODO: fix this
-    pub fn empty_lambda() -> SST {
+    pub fn lambda(
+        pattern:    Spanned<SSTPattern>,
+        expression: Spanned<SST>,
+        locals:     Vec<usize>,
+        captures:   Vec<usize>,
+    ) -> SST {
         SST::Lambda {
-            pattern:    Box::new(Spanned::new(SSTPattern::Symbol(0), Span::empty())),
-            expression: Box::new(Spanned::new(SST::Symbol(0), Span::empty())),
+            pattern:    Box::new(pattern),
+            expression: Box::new(expression),
             locals:     vec![],
             captures:   vec![],
         }
     }
+
 
     /// Shortcut for creating a `SST::Label` variant.
     pub fn label(name: &str, expression: Spanned<SST>) -> SST {
