@@ -25,13 +25,15 @@ use crate::core::{
 /// Simple function that generates unoptimized bytecode from an `CST`.
 /// Exposes the functionality of the `Compiler`.
 pub fn gen(cst: Spanned<CST>) -> Result<Lambda, Syntax> {
-    let ffi = ffi_core();
+    return gen_with_ffi(cst, ffi_core());
+}
+
+pub fn gen_with_ffi(cst: Spanned<CST>, ffi: FFI) -> Result<Lambda, Syntax> {
     let mut compiler = Compiler::base(ffi);
     compiler.walk(&cst)?;
     return Ok(compiler.lambda);
 }
 
-// TODO: gen with FFI
 // TODO: methods to combine FFIs
 // TODO: namespaces for FFIs?
 
