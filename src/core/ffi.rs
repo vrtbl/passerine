@@ -40,6 +40,10 @@ impl PartialEq for FFIFunction {
 /// passed to the compiler at the bytecode generation step.
 pub struct FFI(HashMap<String, FFIFunction>);
 
+// TODO: move default FFI here
+// TODO: FFI namespaces
+// TODO: no longer use strings for FFIs
+
 impl FFI {
     /// Creates a new empty Foreign Functional Interface.
     pub fn new() -> FFI {
@@ -59,6 +63,28 @@ impl FFI {
         match self.0.get(name) {
             Some(x) => Ok(x.clone()),
             None => Err(format!("The ffi function '{}' is not defined", name)),
+        }
+    }
+
+    // TODO: just return FFI?
+
+    /// Tries to merge one FFI into another.
+    /// If there was a name collision,
+    /// this function returns an Err(FFI) with the functions that collided.
+    pub fn combine(&mut self, mut other: FFI) -> Result<(), FFI> {
+        let mut mismatches = FFI::new();
+
+        for (key, value) in other.0.drain() {
+            match self.add(&key, value.clone()) {
+                Ok(()) => (),
+                Err(_) => mismatches.add(&key, value).unwrap(),
+            }
+        }
+
+        return if mismatches.0.is_empty() {
+            Ok(())
+        } else {
+            Err(mismatches)
         }
     }
 }

@@ -22,15 +22,16 @@ use crate::core::{
     ffi::FFI,
 };
 
-// TODO: gen with FFI
-// TODO: methods to combine FFIs
 // TODO: namespaces for FFIs?
 
 /// Simple function that generates unoptimized bytecode from an `SST`.
 /// Exposes the functionality of the `Compiler`.
 pub fn gen(sst: Spanned<SST>) -> Result<Lambda, Syntax> {
+    return gen_with_ffi(sst, ffi_core());
+}
+
+pub fn gen_with_ffi(sst: Spanned<SST>, ffi: FFI) -> Result<Lambda, Syntax> {
     println!("Spanned SST: {:#?}", sst);
-    let ffi = ffi_core();
     let mut compiler = Compiler::base(ffi, todo!());
     compiler.walk(&sst)?;
     return Ok(compiler.lambda);
