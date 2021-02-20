@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::common::{
     opcode::Opcode,
     data::Data,
@@ -5,49 +7,58 @@ use crate::common::{
     span::Span,
 };
 
-use std::fmt;
+use crate::core::ffi::FFIFunction;
 
+/// Represents a variable visible in the current scope.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Captured {
-    /// The index on the stack if the variable is local to the current scope
+    /// The index on the stack if the variable is local to the current scope.
     Local(usize),
-    /// The index of the upvalue in the enclosing scope
+    /// The index of the upvalue in the enclosing scope.
     Nonlocal(usize),
 }
 
 /// Represents a single interpretable chunk of bytecode,
-/// Think a function.
-#[derive(Debug, Clone, Eq, PartialEq)]
+/// think a function.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Lambda {
+    // TODO: make this a list of variable names
+    // So structs can be made, and state preserved in the repl.
+    /// Number of variables declared in this scope.
+    pub decls: usize,
     /// Each byte is an opcode or a number-stream.
     pub code: Vec<u8>,
     /// Each usize indexes the bytecode op that begins each line.
     pub spans: Vec<(usize, Span)>,
-    /// number-stream indexed, used to load constants.
+    /// Number-stream indexed, used to load constants.
     pub constants: Vec<Data>,
     /// List of positions of locals in the scope where this lambda is defined,
     /// indexes must be gauranteed to be data on the heap.
     pub captures: Vec<Captured>,
-
+    /// List of FFI functions (i.e. Rust functions)
+    /// that can be called from this function.
+    pub ffi: Vec<FFIFunction>,
 }
 
 impl Lambda {
-    /// Creates a new empty Lambda to be filled.
+    /// Creates a new empty `Lambda` to be filled.
     pub fn empty() -> Lambda {
         Lambda {
+            decls:     0,
             code:      vec![],
             spans:     vec![],
             constants: vec![],
-            captures:    vec![],
+            captures:  vec![],
+            ffi:       vec![],
         }
     }
 
-    /// Emits an opcode as a byte
+    /// Emits an opcode as a byte.
     pub fn emit(&mut self, op: Opcode) {
         self.code.push(op as u8)
     }
 
-    /// Emits a series of bytes
+    /// Emits a series of bytes.
     pub fn emit_bytes(&mut self, bytes: &mut Vec<u8>) {
         self.code.append(bytes)
     }
@@ -59,7 +70,7 @@ impl Lambda {
         self.spans.push((self.code.len(), span.clone()))
     }
 
-    /// Removes the last emitted byte
+    /// Removes the last emitted byte.
     pub fn demit(&mut self) {
         self.code.pop();
     }
@@ -80,7 +91,7 @@ impl Lambda {
     }
 
     /// Look up the nearest span at or before the index of a specific bytecode op.
-    pub fn index_span(&mut self, index: usize) -> Span {
+    pub fn index_span(&self, index: usize) -> Span {
         let mut best = &Span::empty();
 
         for (i, span) in self.spans.iter() {
@@ -90,11 +101,22 @@ impl Lambda {
 
         return best.clone();
     }
+
+    /// Adds a ffi function to the ffi table,
+    /// without checking for duplicates.
+    /// The `Compiler` ensures that functions are valid
+    /// and not duplicated during codegen.
+    pub fn add_ffi(&mut self, function: FFIFunction) -> usize {
+        self.ffi.push(function);
+        self.ffi.len() - 1
+    }
 }
 
 impl fmt::Display for Lambda {
+    /// Dump a human-readable breakdown of a `Lambda`'s bytecode.
+    /// Including constants, captures, and variables declared.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "\n-- Dumping Constants:")?;
+        writeln!(f, "-- Dumping Constants:")?;
         for constant in self.constants.iter() {
             writeln!(f, "{:?}", constant)?;
         }
@@ -109,6 +131,8 @@ impl fmt::Display for Lambda {
             writeln!(f, "{:?}", capture)?;
         }
 
+        writeln!(f, "-- Dumping Variables: {}", self.decls)?;
+
         writeln!(f, "-- Dumping Bytecode:")?;
         writeln!(f, "Inst.   \tArgs\tValue?")?;
         let mut index = 0;
@@ -121,7 +145,8 @@ impl fmt::Display for Lambda {
                     index += consumed;
                     writeln!(f, "Load Con\t{}\t{:?}", constant_index, self.constants[constant_index])?;
                 },
-                Opcode::Del => { writeln!(f, "Delete  \t\t--")?; },
+                Opcode::NotInit => { writeln!(f, "NotInit \t\tDeclare variable")?; }
+                Opcode::Del     => { writeln!(f, "Delete  \t\t--")?; },
                 Opcode::Capture => {
                     let (local_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
@@ -160,9 +185,24 @@ impl fmt::Display for Lambda {
                 },
                 Opcode::Print   => { writeln!(f, "Print    \t\t--")?; },
                 Opcode::Label   => { writeln!(f, "Label    \t\t--")?; },
+                Opcode::Tuple => {
+                    let (length, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    writeln!(f, "Tuple   \t{}\tValues tupled together", length)?;
+                },
                 Opcode::UnLabel => { writeln!(f, "UnLabel  \t\t--")?; },
                 Opcode::UnData  => { writeln!(f, "UnData   \t\t--")?; },
+                Opcode::UnTuple => {
+                    let (item_index, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    writeln!(f, "UnTuple \t{}\tItem accessed", item_index)?;
+                },
                 Opcode::Copy    => { writeln!(f, "Copy     \t\t--")?; },
+                Opcode::FFICall => {
+                    let (ffi_index, consumed) = build_number(&self.code[index..]);
+                    index += consumed;
+                    writeln!(f, "Return  \t{}\tIndexed FFI function called", ffi_index)?;
+                },
             }
         }
 

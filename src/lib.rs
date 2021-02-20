@@ -1,8 +1,6 @@
 //! # Passerine
 //! This repository contains the core of the Passerine Programming Language,
 //! including the compiler, VM, and various utilities.
-//! If you're looking for the documentation for Passerine's CLI, Aspen,
-//! you're not in the right place.
 //!
 //! ## Running Passerine
 //! Passerine is primarily run through Aspen,
@@ -19,8 +17,8 @@
 //! or developing the core Passerine compiler and VM.
 //! If that's the case, read on!
 //!
-//! > NOTE: Write `aspen` install script.
-//! > TODO: direct users to the installation location.
+//! You can install Passerine by following the instructions at
+//! [passerine.io](https://www.passerine.io/#install).
 //!
 //! ## Embedding Passerine in Rust
 //! > TODO: Clean up crate visibility, create `run` function.
@@ -41,8 +39,6 @@
 //!     passerine::run("print \"Hello from Passerine!\"");
 //! }
 //! ```
-//! > NOTE: print statements are not yet implemented.
-//! > They'll be implemented by version 0.11, once the FFI is solidified
 //!
 //! ## Overview of the compilation process
 //! > NOTE: For a more detail, read through the documentation
@@ -72,10 +68,14 @@
 //!
 //! The next phase of compilation is parsing.
 //! The parser takes a spanned token stream,
-//! and builts a spanned Abstract Syntax Tree (CST).
+//! and builts a spanned Abstract Syntax Tree (AST).
 //! The parser used is a modified Pratt parser.
 //! (It's modified to handle the special function-call syntax used.)
 //! To parse a token stream, use the `compiler::parse::parse` function.
+//!
+//! The AST is then traversed and simplified;
+//! this is where macro expansion and so on take place.
+//! The result is a simplified Concrete Syntax Tree (CST).
 //!
 //! After constructing the CST, bytecode is generated.
 //! Bytecode is just a vector of u8s, interlaced with split numbers.
@@ -105,15 +105,16 @@
 //! # fn main() {
 //! # let source = Source::source("pi = 3.14");
 //! # let bytecode = Closure::wrap(gen(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap());
-//! // Initialize the VM:
-//! let mut vm = VM::init();
-//! // Run some bytecode:
-//! vm.run(bytecode);
+//! // Initialize a VM with some bytecode:
+//! let mut vm = VM::init(bytecode);
+//! // Run the initialized VM:
+//! vm.run();
 //! # }
 //! ```
 //!
 //! The `VM` is just a simple light stack-based VM.
 
 pub mod common;
+pub mod core;
 pub mod compiler;
 pub mod vm;

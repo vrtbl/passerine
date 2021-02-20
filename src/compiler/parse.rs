@@ -32,8 +32,15 @@ pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
 pub enum Prec {
     None = 0,
     Assign,
+    Pair,
     Lambda,
-    Compose,
+
+    Logic,
+
+    AddSub,
+    MulDiv,
+
+    Compose, // TODO: where should this be, precedence-wise?
     Call,
     End,
 }
@@ -45,6 +52,7 @@ impl Prec {
     /// ```build
     /// Prec::Addition.associate_left()
     /// ```
+    /// `a + b + c` left-associated becomes `(a + b) + c`.
     /// By default, the parser accociates right.
     pub fn associate_left(&self) -> Prec {
         if let Prec::End = self { panic!("Can not associate further left") }
@@ -80,7 +88,9 @@ impl Parser {
         }
     }
 
-    // // TODO: merge with sep?
+    // TODO: merge with sep?
+    /// Returns the next non-sep tokens,
+    /// without advancing the parser.
     pub fn draw(&self) -> &Spanned<Token> {
         let mut offset = 0;
 
@@ -144,6 +154,7 @@ impl Parser {
             Token::OpenBracket => self.block(),
             Token::Symbol      => self.symbol(),
             Token::Print       => self.print(),
+            Token::Magic       => self.magic(),
             Token::Label       => self.label(),
             Token::Keyword(_)  => self.keyword(),
 
@@ -162,11 +173,19 @@ impl Parser {
         match self.skip().item {
             Token::Assign  => self.assign(left),
             Token::Lambda  => self.lambda(left),
+            Token::Pair    => self.pair(left),
             Token::Compose => self.compose(left),
 
-            Token::End    => Err(self.unexpected()),
-            Token::Sep    => unreachable!(),
-            _             => self.call(left),
+            Token::Add => self.add(left),
+            Token::Sub => self.sub(left),
+            Token::Mul => self.mul(left),
+            Token::Div => self.div(left),
+
+            Token::Equal => self.equal(left),
+
+            Token::End => Err(self.unexpected()),
+            Token::Sep => unreachable!(),
+            _          => self.call(left),
         }
     }
 
@@ -177,20 +196,32 @@ impl Parser {
         let sep = next != current;
 
         let prec = match next {
+            // infix
             Token::Assign  => Prec::Assign,
             Token::Lambda  => Prec::Lambda,
+            Token::Pair    => Prec::Pair,
             Token::Compose => Prec::Compose,
 
+            Token::Equal => Prec::Logic,
+
+              Token::Add
+            | Token::Sub => Prec::AddSub,
+
+              Token::Mul
+            | Token::Div => Prec::MulDiv,
+
+            // postfix
               Token::End
             | Token::CloseParen
             | Token::CloseBracket => Prec::End,
 
-            // prefix rules
+            // prefix
               Token::OpenParen
             | Token::OpenBracket
             | Token::Unit
             | Token::Syntax
             | Token::Print
+            | Token::Magic
             | Token::Symbol
             | Token::Keyword(_)
             | Token::Label
@@ -270,9 +301,9 @@ impl Parser {
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::OpenParen)?.span.clone();
-        let ast   = self.expression(Prec::None.associate_left(), true)?.item;
+        let ast   = self.expression(Prec::None.associate_left(), true)?;
         let end   = self.consume(Token::CloseParen)?.span.clone();
-        Ok(Spanned::new(ast, Span::combine(&start, &end)))
+        Ok(Spanned::new(AST::group(ast), Span::combine(&start, &end)))
     }
 
     /// Parses the body of a block.
@@ -354,6 +385,34 @@ impl Parser {
         ))
     }
 
+    /// Parse an `extern` statement.
+    /// used for compiler magic and other glue.
+    /// takes the form:
+    /// ```ignore
+    /// magic "FFI String Name" data_to_pass_out
+    /// ```
+    /// and evaluates to the value returned by the ffi function.
+    pub fn magic(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let start = self.consume(Token::Magic)?.span.clone();
+
+        let Spanned { item: token, span } = self.advance();
+        let name = match token {
+            Token::String(Data::String(s))  => s.clone(),
+            unexpected => return Err(Syntax::error(
+                &format!("Expected a string, found {}", unexpected),
+                &span
+            )),
+        };
+
+        let ast = self.expression(Prec::End, false)?;
+        let end = ast.span.clone();
+
+        return Ok(Spanned::new(
+            AST::ffi(&name, ast),
+            Span::combine(&start, &end),
+        ));
+    }
+
     /// Parse a label.
     /// A label takes the form of `<Label> <expression>`
     pub fn label(&mut self) -> Result<Spanned<AST>, Syntax> {
@@ -368,6 +427,8 @@ impl Parser {
 
     // Infix:
 
+    /// Parses an argument pattern,
+    /// Which converts an `AST` into an `ArgPat`.
     pub fn arg_pat(ast: Spanned<AST>) -> Result<Spanned<ArgPat>, Syntax> {
         let item = match ast.item {
             AST::Symbol(s) => ArgPat::Symbol(s),
@@ -412,11 +473,80 @@ impl Parser {
         Ok(Spanned::new(AST::lambda(pattern, expression), combined))
     }
 
+    // TODO: trailing comma must be grouped
+    /// Parses a pair operator, i.e. the comma used to build tuples: `a, b, c`.
+    pub fn pair(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        let left_span = left.span.clone();
+        self.consume(Token::Pair)?;
+
+        let mut tuple = match left.item {
+            AST::Tuple(t) => t,
+            _ => vec![left],
+        };
+
+        let index = self.index;
+        let span = if let Ok(item) = self.expression(Prec::Pair.associate_left(), false) {
+            let combined = Span::combine(&left_span, &item.span);
+            tuple.push(item);
+            combined
+        } else {
+            // restore parser to location right after trailing comma
+            self.index = index;
+            left_span
+        };
+
+        return Ok(Spanned::new(AST::Tuple(tuple), span));
+    }
+
+    /// Parses a function composition, i.e. `a . b`
     pub fn compose(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         self.consume(Token::Compose)?;
         let right = self.expression(Prec::Compose.associate_left(), false)?;
         let combined = Span::combine(&left.span, &right.span);
-        return Ok(Spanned::new(AST::composition(left, right), combined))
+        return Ok(Spanned::new(AST::composition(left, right), combined));
+    }
+
+    // TODO: names must be full qualified paths.
+
+    /// Parses a left-associative binary operator.
+    fn binop(
+        &mut self,
+        op: Token,
+        prec: Prec,
+        name: &str,
+        left: Spanned<AST>
+    ) -> Result<Spanned<AST>, Syntax> {
+        self.consume(op)?;
+        let right = self.expression(prec.associate_left(), false)?;
+        let combined = Span::combine(&left.span, &right.span);
+
+        let arguments = Spanned::new(AST::Tuple(vec![left, right]), combined.clone());
+        return Ok(Spanned::new(AST::ffi(name, arguments), combined));
+    }
+
+    /// Parses an addition, calls out to FFI.
+    pub fn add(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        return self.binop(Token::Add, Prec::AddSub, "add", left);
+    }
+
+    /// Parses a subraction, calls out to FFI.
+    pub fn sub(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        return self.binop(Token::Sub, Prec::AddSub, "sub", left);
+    }
+
+    /// Parses a multiplication, calls out to FFI.
+    pub fn mul(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        return self.binop(Token::Mul, Prec::MulDiv, "mul", left);
+    }
+
+    /// Parses a division, calls out to FFI.
+    pub fn div(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        return self.binop(Token::Div, Prec::MulDiv, "div", left);
+    }
+
+    /// Parses an equality, calls out to FFI.
+    pub fn equal(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        return self.binop(Token::Equal, Prec::Logic, "equal", left);
     }
 
     /// Parses a function call.

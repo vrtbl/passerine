@@ -17,8 +17,18 @@ use crate::compiler::{
 // TODO: add context for macro application
 // NOTE: add spans?
 
+/// When a macro is expanded, `AST` slices captured by the macro Argument Pattern
+/// Are spliced into the macro body.
+/// A `Binding` relates a name (within an Argument Pattern),
+/// to an `AST` slice.
 type Bindings = HashMap<String, Spanned<AST>>;
 
+/// A rule has an Argument Pattern and an `AST`.
+/// When a form matches the `ArgPat`,
+/// A set of bindings are produced,
+/// which are then spliced into the Rule's `AST`
+/// To make a new `AST`.
+/// This is done in a hygenic manner.
 #[derive(Debug, Clone)]
 pub struct Rule {
     pub arg_pat: Spanned<ArgPat>,
@@ -82,11 +92,18 @@ impl Rule {
     pub fn bind(arg_pat: &Spanned<ArgPat>, mut reversed_form: &mut Vec<Spanned<AST>>)
     -> Option<Result<Bindings, Syntax>> {
         match &arg_pat.item {
-            ArgPat::Keyword(expected) => {
-                if let AST::Symbol(name) = reversed_form.pop()?.item {
-                    if &name == expected { Some(Ok(HashMap::new())) }
-                    else                 { None                     }
-                } else                   { None                     }
+            // TODO: right now, if a macro is invoked from another macro,
+            // passerine won't recognize it,
+            // because the pseudokeywords are hygenically replaced.
+            // this should return true if a substituted pseudokeword
+            // matches as well.
+            // substitution scheme could be: `#name#tag`
+            // and if name matches whole symbol matches.
+            ArgPat::Keyword(expected) => match reversed_form.pop()?.item {
+                AST::Symbol(name) if &Rule::remove_tag(&name) == expected => {
+                    Some(Ok(HashMap::new()))
+                },
+                _ => None,
             },
             ArgPat::Symbol(symbol) => Some(Ok(
                 vec![(symbol.clone(), reversed_form.pop()?)]
@@ -109,16 +126,24 @@ impl Rule {
         }
     }
 
+    /// Turns a tagged random identifier, like
+    /// `<base>#XXXXXXXX` back into `<base>`.
+    /// If the identifier is not tagged, this function just
+    /// returns `<base>`.
+    pub fn remove_tag(base: &str) -> String {
+        base.split("#").collect::<Vec<&str>>()[0].to_string()
+    }
+
     /// Turns a base identifier into a random identifier
-    /// of the format `#_<base>_XXXXXXXX`,
+    /// of the format `<base>#XXXXXXXX`,
     /// Gauranteed not to exist in bindings.
-    pub fn unique_identifier(base: String, bindings: &Bindings) -> String {
+    pub fn unique_tag(base: String, bindings: &Bindings) -> String {
         let mut tries = 0;
         for _ in 0..1024 {
             let stamp = stamp(tries);
-            // for example, `foo` may become `#_foo_d56aea12`
+            // for example, `foo` may become `foo#d56aea12`
             // this should not be constructible as a symbol.
-            let modified = format!("#_{}_{}", base, stamp);
+            let modified = format!("{}#{}", base, stamp);
             if !bindings.contains_key(&modified) {
                 // println!("{}", modified);
                 return modified;
@@ -128,11 +153,15 @@ impl Rule {
         panic!("Generated 1024 new unique identifiers for macro expansion, but all were already in use!");
     }
 
+    /// Resolves a symbol.
+    /// If the symbol has been bound, i.e. is defined in the Argument Pattern,
+    /// We simply splice that in.
+    /// If not, we hygenically replace it with a unique variable.
     pub fn resolve_symbol(name: String, span: Span, bindings: &mut Bindings) -> Spanned<AST> {
         if let Some(bound_tree) = bindings.get(&name) {
             bound_tree.clone()
         } else {
-            let unique = Rule::unique_identifier(name.clone(), bindings);
+            let unique = Rule::unique_tag(name.clone(), bindings);
             let spanned = Spanned::new(AST::Symbol(unique.clone()), span.clone());
             bindings.insert(name, spanned);
             Spanned::new(AST::Symbol(unique), span)
@@ -141,37 +170,76 @@ impl Rule {
 
     // TODO: move expansions to ast?
 
+    /// Expands the bindings in a pattern.
     pub fn expand_pattern(
         pattern: Spanned<ASTPattern>,
         bindings: &mut Bindings,
     ) -> Result<Spanned<ASTPattern>, Syntax> {
         Ok(
             match pattern.item {
-                ASTPattern::Symbol(name) => Rule::resolve_symbol(name, pattern.span, bindings)
-                    .map(ASTPattern::try_from).unwrap(),
+                ASTPattern::Symbol(name) => {
+                    let span = pattern.span.clone();
+
+                    Rule::resolve_symbol(name, pattern.span, bindings)
+                    .map(ASTPattern::try_from)
+                    .map_err(|s| Syntax::error(&s, &span))?
+                },
                 ASTPattern::Data(_) => pattern,
-                // treat name as symbol?
+                // TODO: treat name as symbol?
                 ASTPattern::Label(name, pattern) => {
                     let span = pattern.span.clone();
                     Spanned::new(
                         ASTPattern::label(name, Rule::expand_pattern(*pattern, bindings)?), span,
                     )
                 },
-                ASTPattern::Chain(_) => todo!(),
+                ASTPattern::Chain(chain) => {
+                    let span = Spanned::build(&chain);
+                    let expanded = chain.into_iter()
+                        .map(|b| Rule::expand_pattern(b, bindings))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Spanned::new(ASTPattern::Chain(expanded), span)
+                },
+                ASTPattern::Tuple(tuple) => {
+                    let span = Spanned::build(&tuple);
+                    let expanded = tuple.into_iter()
+                        .map(|b| Rule::expand_pattern(b, bindings))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Spanned::new(ASTPattern::Tuple(expanded), span)
+                }
             }
         )
     }
 
-    // Macros inside of macros is a bit too meta for me to think about atm.
+    /// ~Macros inside of macros is a bit too meta for me to think about atm.~
+    /// No longer!
+    /// A macro inside a macro is a macro completely local to that macro.
+    /// The argument patterns inside a macro can be extended.
     pub fn expand_arg_pat(
-        _arg_pat: Spanned<ArgPat>,
-        _bindings: &mut Bindings,
+        arg_pat: Spanned<ArgPat>,
+        bindings: &mut Bindings,
     ) -> Result<Spanned<ArgPat>, Syntax> {
-        Err(Syntax::error(
-            "Macros in macros are not yet implemented",
-            &Span::empty(),
-        ))
+        Ok(
+            match arg_pat.item {
+                ArgPat::Keyword(_) => arg_pat,
+                ArgPat::Symbol(name) => {
+                    let span = arg_pat.span.clone();
+
+                    Rule::resolve_symbol(name, arg_pat.span, bindings)
+                    .map(ArgPat::try_from)
+                    .map_err(|s| Syntax::error(&s, &span))?
+                },
+                ArgPat::Group(sub_pat) => {
+                    let span = Spanned::build(&sub_pat);
+                    let expanded = sub_pat.into_iter()
+                        .map(|b| Rule::expand_arg_pat(b, bindings))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Spanned::new(ArgPat::Group(expanded), span)
+                },
+            }
+        )
     }
+
+    // TODO: break expand out into functions
 
     /// Takes a macro's tree and a set of bindings and produces a new hygenic tree.
     pub fn expand(tree: Spanned<AST>, mut bindings: &mut Bindings)
@@ -201,6 +269,8 @@ impl Rule {
                     .map(|b| Rule::expand(b, bindings))
                     .collect::<Result<Vec<_>, _>>()?
             ),
+
+            AST::Group(expression) => AST::group(Rule::expand(*expression, bindings)?),
 
             // Appy the transformation to the left and right sides of the composition
             AST::Composition { argument, function } => {
@@ -240,12 +310,27 @@ impl Rule {
                 kind, Box::new(Rule::expand(*expression, bindings)?)
             ),
 
+            AST::Tuple(tuple) => AST::Tuple(
+                tuple.into_iter()
+                    .map(|b| Rule::expand(b, bindings))
+                    .collect::<Result<Vec<_>, _>>()?
+            ),
+
             // a macro inside a macro. not sure how this should work yet
             AST::Syntax { arg_pat, expression } => {
                 let ap = Rule::expand_arg_pat(*arg_pat, bindings)?;
                 let e = Rule::expand(*expression, bindings)?;
-                AST::syntax(ap, e)
+                AST::syntax(ap, e);
+                return Err(Syntax::error(
+                    "Nested macros are not allowed",
+                    &tree.span,
+                ))?;
             },
+
+            AST::FFI { name, expression } => AST::ffi(
+                &name,
+                Rule::expand(*expression, bindings)?
+            ),
         };
 
         return Ok(Spanned::new(item, tree.span));

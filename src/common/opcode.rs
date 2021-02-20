@@ -2,38 +2,46 @@
 /// Under the hood, it's just a byte.
 /// This allows non opcode bytes to be inserted in bytecode streams.
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Opcode {
     /// Load a constant.
     Con = 0,
+    /// Load uninitialized Data.
+    NotInit = 1,
     /// Delete a value off the stack.
-    Del = 1,
+    Del = 2,
+    /// Calls out to a Rust function via FFI
+    FFICall = 3,
     /// Copies topmost value on the stack.
-    Copy = 2,
+    Copy = 4,
     /// Moves a variable onto the heap.
-    Capture = 3,
+    Capture = 5,
     /// Save a constant into a variable.
-    Save = 4,
+    Save = 6,
     /// Save a value to a captured variable.
-    SaveCap = 5,
+    SaveCap = 7,
     /// Push a copy of a variable onto the stack.
-    Load = 6,
+    Load = 8,
     /// Load a copy of a captured variable.
-    LoadCap = 7,
+    LoadCap = 9,
     /// Call a function.
-    Call = 8,
+    Call = 10,
     /// Return from a function.
-    Return = 9,
+    Return = 11,
     /// Creates a closure over the current local environment.
-    Closure = 10,
+    Closure = 12,
     /// Prints a value.
-    Print = 11,
+    Print = 13,
     /// Constructs a label.
-    Label = 12,
+    Label = 14,
+    // Constructs a tuple.
+    Tuple = 15,
+    /// Destructures atomic data by asserting it matches exactly.
+    UnData = 16,
     /// Destructures a label.
-    UnLabel = 13,
-    /// Destructures atomic data by asserting it matches exactly
-    UnData = 14,
+    UnLabel = 17,
+    /// Sestructures a tuple.
+    UnTuple = 18,
 }
 
 impl Opcode {

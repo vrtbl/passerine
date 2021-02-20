@@ -95,6 +95,13 @@ impl Lexer {
             Box::new(Lexer::assign),
             Box::new(Lexer::lambda),
             Box::new(Lexer::compose),
+            Box::new(Lexer::pair),
+            Box::new(Lexer::add),
+            Box::new(Lexer::sub),
+            Box::new(Lexer::mul),
+            Box::new(Lexer::div),
+            Box::new(Lexer::equal),
+            Box::new(Lexer::magic),
             Box::new(Lexer::print), // remove print statements after FFI
 
             // variants
@@ -183,6 +190,7 @@ impl Lexer {
         Ok((kind, Lexer::expect(source, literal)?))
     }
 
+    // TODO: macro for token classifiers?
     // token classifiers
 
     /// Matches a literal opening bracket `{`.
@@ -225,9 +233,39 @@ impl Lexer {
         Lexer::literal(source, "->", Token::Lambda)
     }
 
-    /// Matches a literal lambda arrow `->`.
+    /// Matches a literal function application ".".
     pub fn compose(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "|>", Token::Compose)
+        Lexer::literal(source, ".", Token::Compose)
+    }
+
+    /// Matches a literal tuple pair ",".
+    pub fn pair(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, ",", Token::Pair)
+    }
+
+    /// Matches a literal addition "+".
+    pub fn add(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "+", Token::Add)
+    }
+
+    /// Matches a literal subtraction "-".
+    pub fn sub(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "-", Token::Sub)
+    }
+
+    /// Matches a literal multiplication "*".
+    pub fn mul(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "*", Token::Mul)
+    }
+
+    /// Matches a literal division "/".
+    pub fn div(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "/", Token::Div)
+    }
+
+    /// Matches a literal equality test "==".
+    pub fn equal(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "==", Token::Equal)
     }
 
     /// Matches a `print` expression.
@@ -235,8 +273,16 @@ impl Lexer {
         Lexer::literal(source, "print", Token::Print)
     }
 
+    /// Matches an external FFI call, which takes the form:
+    /// `magic "String Name of Function" data`.
+    pub fn magic(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "magic", Token::Magic)
+    }
+
     // TODO: refactor comment and multi-line for doc-comments
 
+    /// Parses a single-line comment,
+    /// which ignores from "--" until the next newline.
     pub fn comment(source: &str) -> usize {
         let mut len = match Lexer::expect(source, "--") {
             Ok(n) => n,
@@ -251,6 +297,8 @@ impl Lexer {
         return len;
     }
 
+    /// Parses a nestable multi-line comment,
+    /// Which begins with `-{` and ends with `}-`.
     pub fn multi_comment(source: &str) -> usize {
         let mut len: usize = match Lexer::expect(source, "-{") {
             Ok(n) => n,
@@ -372,6 +420,7 @@ impl Lexer {
                     '\\' => '\\',
                     'n'  => '\n',
                     't'  => '\t',
+                    'r'  => '\r',
                     o    => return Err(format!("Unknown escape code '\\{}'", o)),
                 })
             } else {

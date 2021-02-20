@@ -5,6 +5,7 @@ use std::{
 };
 
 use crate::common::data::Data;
+use crate::vm::slot::Slot;
 
 // TODO: add fallback for 32-bit systems and so on.
 /// `Tagged` implements Nan-tagging around the `Data` enum.
@@ -48,23 +49,25 @@ const N_FLAG: u64 = 0x0000_0000_0000_0004; // not initialized
 
 impl Tagged {
     /// Wraps `Data` to create a new tagged pointer.
-    pub fn new(data: Data) -> Tagged {
-        match data {
+    pub fn new(slot: Slot) -> Tagged {
+        match slot {
             // Real
-            Data::Real(f) => Tagged(f.to_bits()),
+            Slot::Data(Data::Real(f)) => Tagged(f.to_bits()),
             // Unit
-            Data::Unit => Tagged(QNAN | U_FLAG),
+            Slot::Data(Data::Unit) => Tagged(QNAN | U_FLAG),
             // True and false
-            Data::Boolean(false) => Tagged(QNAN | F_FLAG),
-            Data::Boolean(true)  => Tagged(QNAN | T_FLAG),
+            Slot::Data(Data::Boolean(false)) => Tagged(QNAN | F_FLAG),
+            Slot::Data(Data::Boolean(true))  => Tagged(QNAN | T_FLAG),
             // Stack frame
-            Data::Frame => Tagged(QNAN | S_FLAG),
+            Slot::Frame => Tagged(QNAN | S_FLAG),
             // Not Initialized
-            Data::NotInit => Tagged(QNAN | N_FLAG),
+            Slot::NotInit => Tagged(QNAN | N_FLAG),
 
             // on the heap
             // TODO: layout to make sure pointer is the right size when boxing
-            other => Tagged(P_FLAG | QNAN | (P_MASK & (Box::into_raw(Box::new(other))) as u64)),
+            other @ Slot::Data(_)
+            | other @ Slot::Suspend { .. }
+            => Tagged(P_FLAG | QNAN | (P_MASK & (Box::into_raw(Box::new(other))) as u64)),
         }
     }
 
@@ -72,47 +75,46 @@ impl Tagged {
     /// Creates a new stack frame.
     #[inline]
     pub fn frame() -> Tagged {
-        Tagged::new(Data::Frame)
+        Tagged::new(Slot::Frame)
     }
 
+    /// Shortcut for creating a new `Tagged(Slot::NotInit)`.
     #[inline]
     pub fn not_init() -> Tagged {
-        Tagged::new(Data::NotInit)
+        Tagged::new(Slot::NotInit)
     }
 
     /// Returns the underlying `Data` (or a pointer to that `Data`).
-    unsafe fn extract(&self) -> Result<Data, Box<Data>> {
+    unsafe fn extract(&self) -> Result<Slot, Box<Slot>> {
         // println!("-- Extracting...");
         let Tagged(bits) = self;
 
         return match bits {
-            n if (n & QNAN) != QNAN    => Ok(Data::Real(f64::from_bits(*n))),
-            u if u == &(QNAN | U_FLAG) => Ok(Data::Unit),
-            f if f == &(QNAN | F_FLAG) => Ok(Data::Boolean(false)),
-            t if t == &(QNAN | T_FLAG) => Ok(Data::Boolean(true)),
-            s if s == &(QNAN | S_FLAG) => Ok(Data::Frame),
-            n if n == &(QNAN | N_FLAG) => Ok(Data::NotInit),
+            n if (n & QNAN) != QNAN    => Ok(Slot::Data(Data::Real(f64::from_bits(*n)))),
+            u if u == &(QNAN | U_FLAG) => Ok(Slot::Data(Data::Unit)),
+            f if f == &(QNAN | F_FLAG) => Ok(Slot::Data(Data::Boolean(false))),
+            t if t == &(QNAN | T_FLAG) => Ok(Slot::Data(Data::Boolean(true))),
+            s if s == &(QNAN | S_FLAG) => Ok(Slot::Frame),
+            n if n == &(QNAN | N_FLAG) => Ok(Slot::NotInit),
             p if (p & P_FLAG) == P_FLAG => Err({
                 // println!("{:#x}", p & P_MASK);
                 // unsafe part
-                Box::from_raw((bits & P_MASK) as *mut Data)
+                Box::from_raw((bits & P_MASK) as *mut Slot)
             }),
             _ => unreachable!("Corrupted tagged data"),
         }
     }
 
-    // TODO: use deref trait
-    // Can't for not because of E0515 caused by &Data result
     /// Unwrapps a tagged number into the appropriate datatype,
     /// consuming the tagged number.
-    pub fn data(self) -> Data {
+    pub fn slot(self) -> Slot {
         // println!("-- Data...");
 
         let d = unsafe {
             match self.extract() {
-                Ok(data) => data,
-                Err(boxed) => {
-                    *boxed
+                Ok(slot) => slot,
+                Err(slot) => {
+                    *slot
                 }
             }
         };
@@ -124,11 +126,11 @@ impl Tagged {
     }
 
     /// Deeply copies some `Tagged` data.
-    pub fn copy(&self) -> Data {
+    pub fn copy(&self) -> Slot {
         // println!("-- Copy...");
         unsafe {
             match self.extract() {
-                Ok(data) => data.to_owned(),
+                Ok(slot) => slot.to_owned(),
                 Err(boxed) => {
                     let copy = boxed.clone();
                     // println!("-- Leaking...");
@@ -153,21 +155,6 @@ impl Drop for Tagged {
 
 impl Debug for Tagged {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        // println!("-- Fmt...");
-        // let Tagged(bits) = &self;
-        // let pointer = P_FLAG | QNAN;
-        //
-        // if (pointer & bits) == pointer {
-        //     let item = unsafe { Box::from_raw((bits & P_MASK) as *mut Data) };
-        //     write!(f, "Data {:?}", item)?;
-        //     mem::forget(item);
-        // } else {
-        //     write!(f, "Real {}", f64::from_bits(bits.clone()))?;
-        // }
-        //
-        // Ok(())
-        // // write an exact copy of the data
-
         write!(f, "Tagged({:?})", self.copy())
     }
 }
@@ -190,8 +177,8 @@ mod test {
 
         for n in &[positive, negative, nan, neg_inf] {
             let data    = Data::Real(*n);
-            let wrapped = Tagged::new(data);
-            match wrapped.data() {
+            let wrapped = Tagged::new(Slot::Data(data));
+            match wrapped.copy().data() {
                 Data::Real(f) if f.is_nan() => assert!(n.is_nan()),
                 Data::Real(f) => assert_eq!(*n, f),
                 _             => panic!("Didn't unwrap to a real"),
@@ -201,19 +188,22 @@ mod test {
 
     #[test]
     fn bool_and_back() {
-        assert_eq!(Data::Boolean(true),  Tagged::new(Data::Boolean(true) ).data());
-        assert_eq!(Data::Boolean(false), Tagged::new(Data::Boolean(false)).data());
+        assert_eq!(Data::Boolean(true),  Tagged::new(Slot::Data(Data::Boolean(true) )).copy().data());
+        assert_eq!(Data::Boolean(false), Tagged::new(Slot::Data(Data::Boolean(false))).copy().data());
     }
 
     #[test]
     fn unit() {
-        assert_eq!(Data::Unit, Tagged::new(Data::Unit).data());
+        assert_eq!(Data::Unit, Tagged::new(Slot::Data(Data::Unit)).copy().data());
     }
 
     #[test]
     fn size() {
         let data_size = mem::size_of::<Data>();
         let tag_size  = mem::size_of::<Tagged>();
+
+        println!("Data size: {} bytes", data_size);
+        println!("Tagged size: {} bytes", tag_size);
 
         // Tag == u64 == f64 == 64
         // If the tag is larger than the data, we're doing something wrong
@@ -229,9 +219,9 @@ mod test {
 
         for item in &[s, three, x] {
             let data    = Data::String(item.clone());
-            let wrapped = Tagged::new(data);
+            let wrapped = Tagged::new(Slot::Data(data));
             // println!("{:#b}", u64::from(wrapped));
-            match wrapped.data() {
+            match wrapped.copy().data() {
                 Data::String(s) => { assert_eq!(item, &s) },
                 _ => {
                     // println!("{:#b}", u64::from(wrapped));
@@ -261,15 +251,13 @@ mod test {
             Data::String("Hello, World!".to_string()),
             Data::String("".to_string()),
             Data::String("Whoop 😋".to_string()),
-            Data::Frame,
-            Data::NotInit,
         ];
 
         for test in tests {
             // println!("test: {:?}", test);
-            let tagged = Tagged::new(test.clone());
+            let tagged = Tagged::new(Slot::Data(test.clone()));
             // println!("tagged: {:?}", tagged);
-            let untagged = tagged.data();
+            let untagged = tagged.copy().data();
             // println!("untagged: {:?}", untagged);
             // println!("---");
 
@@ -293,9 +281,9 @@ mod test {
         let location = "This is a string".to_string();
 
         // drop dereferenced data
-        let tagged = Tagged::new(Data::String(location.clone()));
+        let tagged = Tagged::new(Slot::Data(Data::String(location.clone())));
         let pointer = tagged.0 & P_MASK;
-        let untagged = tagged.data();
+        let untagged = tagged.copy().data();
         // println!("-- Casting...");
         let data = unsafe { Box::from_raw(pointer as *mut Data) };
         // println!("before drop: {:?}", data);
@@ -309,7 +297,7 @@ mod test {
         let location = "This is a string".to_string();
 
         // drop tagged data
-        let tagged = Tagged::new(Data::String(location.clone()));
+        let tagged = Tagged::new(Slot::Data(Data::String(location.clone())));
         let pointer = tagged.0 & P_MASK;
         let data = unsafe { Box::from_raw(pointer as *mut Data) };
         // println!("-- Dropping...");

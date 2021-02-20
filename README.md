@@ -1,6 +1,6 @@
 <p align="center">
     <a href="https://passerine.io">
-        <img src="./Logotype.png">
+        <img src="./Logotype.svg">
     </a>
 </p>
 <h3 align="center">The Passerine Programming Language</h3>
@@ -23,21 +23,25 @@
 </p>
 
 ## Why Passerine?
-[Passerine](https://www.passerine.io) is a small, concise, extensible functional scripting language, powered by a VM¹ written in [Rust](https://www.rust-lang.org).
+[Passerine](https://www.passerine.io) is a small, concise, extensible functional scripting language, powered by a VM¹ written in [Rust](https://www.rust-lang.org). Here's a small taste:
 
 <p align="center">
     <a href="https://gist.githubusercontent.com/slightknack/1b7c45ae5a3013f1c7bb58b3b9f7683f/raw/e053aaf0817fdd1c371936801f926e12e65f0b42/example.pn" target="_blank" rel="noopener noreferrer">
-        <img src="./Example.png">
+        <img src="./Example.svg">
     </a>
 </p>
+
+Passerine has roots in Scheme and ML-flavored languages — it's the culmination of everything I expect from a programming language, including the desire to keep everything as minimalistic yet concise as possible. At its core, Passerine is lambda-calculus with pattern-matching, structural types, fiber-based concurrency, and syntactic extension.
 
 > 1: It's a bytecode VM with a few optimizations, so I'd say it's fast enough to be useful.
 
 ### Who started this?
-This is first project of The Veritable Computation Initiative. Our goal is to improve the tools developers use to write software.
+This is first project of The Veritable Computation Initiative. Our goal is to improve the tools developers use to write software. We're planning release a site with more information about Veritable soon.
 
-Passerine is currently being developed by [Isaac Clayton](https://github.com/slightknack), a high-school student with too much free time on his hands. A few people have offered feedback and suggestions from time to time. Huge thanks to [Raul](https://github.com/spaceface777),
+Passerine is currently being developed by [Isaac Clayton](https://github.com/slightknack), a high-school student with too much free time on his hands. A few people have offered feedback and suggestions from time to time. Huge thanks to
+[Raul](https://github.com/spaceface777),
 [Hamza](https://github.com/hhhapz),
+[Rishi](htps://github.com/rishiosaur),
 [Lúcás](https://github.com/cronokirby),
 [Anton](https://github.com/jesyspa/),
 [Yasser](https://github.com/realnegate),
@@ -48,8 +52,6 @@ and others!
 Where this overview gets really exciting is when we dive into [macros](#macros). If you're here to give Passerine a try, [skip to Installation](#installation).
 
 **⚠️ Note that Passerine is a *work in progress*: features mentioned in this overview may not be implemented yet.**
-
-> TODO: Why Learn Passerine?
 
 ### Syntax
 The goal of Passerine's syntax is to make all expressions as *concise* as possible while still conserving the 'feel' of *different types* of expressions.
@@ -159,7 +161,7 @@ sorted_lower
 
 Although this is not a particularly long expression, splitting up lines by operations can help improve the legibility of some expressions.
 
-#### Function Composition
+#### Function Application
 Before we move on, here's a clever implementation of FizzBuzz in Passerine:
 
 ```passerine
@@ -171,20 +173,20 @@ fizzbuzz = n -> {
 
     fizz = test 3 "Fizz"
     buzz = test 5 "Buzz"
-    "{n}" |> fizz (buzz (i -> i))
+    "{n}" . fizz (buzz (i -> i))
 }
 
-1..100 |> fizzbuzz |> print
+1..100 . fizzbuzz . print
 ```
 
-`|>` is the function composition operator:
+`.` is the function application operator:
 
 ```passerine
 -- the comopsition
-a |> b c |> d
+a . b c . d
 
 -- is left-associative
-(a |> (b c)) |> d
+(a . (b c)) . d
 
 -- and equivalent to
 d ((b c) a)
@@ -215,6 +217,7 @@ Passerine supports algebraic data types, and all of these types can be matched a
 | tuple    | `(p₀, ...)`      | Matches each element of a tuple, which is a group of elements, of potentially different types. Unit `()` is the empty tuple. |
 | list     | `[]`/`[p₀ & p₁]` | `[]` Matches an empty list - `p₀` matches the head of a list, p₁ matches the tail.
 | record   | `{f₀: p₀, ...}`  | A record, i.e. a struct. This is a series of field-pattern pairs. If a field does not exist in the target record, an error is raised. |
+| enum     | `{p₀; ...}`      | An enumeration, i.e. a union. Matches if any of the patterns hold. |
 | is       | `p₀: p₁`         | A type annotation. Matches against `p₀` only if `p₁` holds, errors otherwise. |
 | where    | `p \| e`         | A bit different from the other patterns so far. Matches `p` only if the expression `e` is true. |
 
@@ -316,7 +319,7 @@ Banana (color, _): Banana (_, "soft") = fruit
 
 In this example, `color` will be bound if `fruit` is a `Banana` whose 1nd* tuple item is `"soft"`.
 
-> - Read as 'firnd', corresponds to the 1-indexed *second* item. Zerost, firnd, secord, thirth, fourth, fifth...
+> \* Read as 'firnd', corresponds to the 1-indexed *second* item. Zerost, firnd, secord, thirth, fourth, fifth...
 
 Finally, we'll address my favorite pattern, *where*. Where allows for arbitrary code check the validity of a pattern. This can go a long way. For example, let's define natural numbers in terms of integers:
 
@@ -350,6 +353,8 @@ How does passerine handle errors? What about concurrency?
 What do prime sieves, exceptions, and for-loops have in common? If you guessed concurrency, you won a bajillion points! Structured concurrency is a difficult problem to tackle, given how pervasive it is in the field language design.
 
 It's important to point out that concurrency is *not* the same thing as parallelism. Concurrent systems may be parallel, but that's not always the case. Passerine subscribes to the coroutine model of structured concurrency – more succinctly, Passerine uses *fibers* – as exemplified by [Wren](https://wren.io). A fiber is a lightweight process of execution that is cooperatively scheduled with other fibers. Each fiber is like a little system unto itself that can pass messages to other fibers.
+
+> TODO: Algebraic Effects?
 
 #### Error handling
 Passerine uses a combination of *exceptions* and algebraic data types to handle errors. Errors that are expected to happen should be wrapped in a `Result` type:
@@ -516,7 +521,7 @@ Passerine has a rich hygienic* syntactic macro system that extends the language 
 
 *Syntactic macros*, quite simply, are bits of code that *hygienically* produce more code when invoked at compile time. Macros use a small, simple-yet-powerful set of rules to transform code.
 
-> - Having read Doug Hoyte's exellent [Let Over Lambda](https://letoverlambda.com/), I understand the raw power of a rich *unhygenic* macro system. However, such systems are hard to comprehend, and harder to master. Passerine aims to be as simple and powerful as possible without losing *transparency*: hygienic macro systems are much more transparent then their opaque unhygenic counterparts.
+> \* Having read Doug Hoyte's exellent [Let Over Lambda](https://letoverlambda.com/), I understand the raw power of a rich *unhygenic* macro system. However, such systems are hard to comprehend, and harder to master. Passerine aims to be as simple and powerful as possible without losing *transparency*: hygienic macro systems are much more transparent then their opaque unhygenic counterparts.
 
 #### Hygiene
 Extensions are defined with the `syntax` keyword, followed by some *argument patterns*, followed by the code that the captured arguments will be spliced into. Here's a simple example: we're using a macro to define `swap` operator:
@@ -609,7 +614,7 @@ print {
 
 Evidently, `It contains 2` would be printed.
 
-> - Custom operators defined in this manner will always have the lowest precedence, and must be explicitly grouped when ambiguous. For this reason, Passerine already has a number of built-in operators (with proper precedence) which can be overloaded. It's important to note that macros serve to introduce new constructs that just *happen* to be composable – syntactic macros can be used to make custom operators, but they can be used for *so much more*. I think this is a fair trade-off to make.
+> \* Custom operators defined in this manner will always have the lowest precedence, and must be explicitly grouped when ambiguous. For this reason, Passerine already has a number of built-in operators (with proper precedence) which can be overloaded. It's important to note that macros serve to introduce new constructs that just *happen* to be composable – syntactic macros can be used to make custom operators, but they can be used for *so much more*. I think this is a fair trade-off to make.
 
 *Modifiers* are postfix symbols that allow for flexibility within argument patterns. Here are some modifiers:
 
@@ -767,12 +772,60 @@ description = match Banana ("yellow", "soft") {
 }
 ```
 
-> - Plot twist: we just defined the `match` expression we've been using throughout this entire overview.
+> \* Plot twist: we just defined the `match` expression we've been using throughout this entire overview.
+
+### Modules
+
+> TODO: Write about module system.
 
 ### Concluding Thoughts
 Thanks for reading this far. Passerine has been a joy for me to work on, and I hope you find it a joy to use.
 
 A few of the features discussed in this overview haven't been implemented yet. We're not trying to sell you short, it's just that developing a programming language and bootstrapping a community around it at the same time is not exactly *easy*. If you'd like something added to Passerine, [open an issue or pull request](#Contributing), or check out the [roadmap](#roadmap).
+
+## FAQ
+**Q:** Is Passerine ready for production use?
+
+**A:** Not yet. Passerine is still in early stages of development, with frequent breaking changes. See the project roadmap (down below 👇) to get an idea of what's in development.
+
+**Q:** Is Passerine statically typed?
+
+**A:** so currently Passerine is strongly and dynamically¹ typed (technically structurally typed). This is partially out of necessity – Types are defined by patterns, and patterns can be where predicated. However, I've been doing a lot of research into Hindley-Milder type systems, and the various extensions that can be applied to them.
+
+I'm working towards making a compile-time type-checker for the language, based on Hindley-Milner type inference. With this system in place, I can make some assumptions to speed up the interpreter further and perhaps monomorphize/generate LLVM IR / WASM.
+
+This type checker is actually the target of the next release, so stay tuned!
+
+**Q:** What about algebraic effects and kind-based macros?
+
+**A:** I'm interested in eventually adding both these things to the language, but first I need to implement a nice type-checker and do some more research. Algebraic Effects would fill the design space of fibers, and kind based macros would provide a more solid base for passerine's macro system. Got any fresh language features you think would complement Passerine's design philosophy? Reach out!
+
+**Q:** What is vaporization memory management?
+
+**A:** When I was first designing Passerine, I was big into automatic compile-time memory management. Currently, there are a few ways to do this: from Rust's borrow-checker, to µ-Mitten's Proust ASAP, to Koka's Perceus, there are a lot of new and exciting ways to approach this problem.
+
+Vaporization is an automatic memory management system that allows for *Functional but in Place* style programming. For vaporization to work, three invariants must hold:
+
+1. All functions params are passed by value via a copy-on-write reference. This means that only the lifetimes of the returned objects need to be preserved, all others will be deleted when they go out of scope.
+2. A form of SSA is performed, where the last usage of any value is not a copy of that value.
+3. All closure references are immutable copies of a value. These copies may be reference-counted in an acyclical manner.
+
+With these invariants in place, vaporization ensures two things:
+
+1. Values are only alive where they are still *useful*.
+2. Code may be written in a functional style, but all mutations occur in-place as per rule 2.
+
+What's most interesting is that this system requires minimal interference from the compiler when used in conjunction with a VM. All the compiler has to do is annotate the last usage of the value of any variables; the rest can be done automatically and very efficiently at runtime.
+
+Why not use this? Mainly because of rule 3: 'closure references are immutable'. Passerine is pass-by-value, but currently allows mutation in the current scope a la let-style redefinition. But this is subject to change; and once it does, it's vaporization all the way, baby!
+
+**Q:** Aren't there already enough programming languages?
+
+**A:** Frankly, I think we've barely *scratched* the surface of programming language design. To say that Programming Language Design is saturated and at a local maxima is to not understand the nature of software development. Passerine is largely a test as to whether I can build a modern compiler pipeline. But what I'm even more interested in is the tooling that surrounds development environments.
+
+Case in point: text-based entry for programming languages has been around forever because it's fast. However, it's not always semantically correct. The number of correct programs is an infinity smaller than the number of possible text files. Yet it's still possible to make text-based entry systems that ensure semantic correctness while encouraging exploration. In the future, we need to develop new tools that more closely blur the line between language and environment. Pharo is a step in the right direction, as are Unison and similar efforts.
+
+I'd like to focus more on this in the future. An interesting project would be an editor/environment like Pharo/Unison for a small minimal language, like Scheme, or perhaps even Passerine.
 
 ## Installation
 Passerine is still very much so a work in progress. We've done a lot, but there's still a so much more to do!

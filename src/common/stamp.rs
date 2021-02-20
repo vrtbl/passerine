@@ -1,6 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Returns a pseudorandom byte formatted as a hexadecimal string.
+/// Generates a pseudorandom byte, which is them formatted
+/// as a two-character hexadecimal string.
 pub fn shuffle(seed: u128) -> String {
     let now = SystemTime::now();
     let time = now.duration_since(UNIX_EPOCH)

@@ -5,12 +5,20 @@ use crate::common::{
     data::Data,
 };
 
+/// Represents a Pattern during the AST phase of compilation.
+/// A pattern is like a very general type,
+/// because Passerine uses structural row-based typing.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ASTPattern {
     Symbol(String),
     Data(Data),
-    Chain(Vec<Spanned<ASTPattern>>),
+    Chain(Vec<Spanned<ASTPattern>>), // used inside lambdas
     Label(String, Box<Spanned<ASTPattern>>),
+    Tuple(Vec<Spanned<ASTPattern>>),
+    // Where {
+    //     pattern: Box<ASTPattern>,
+    //     expression: Box<AST>,
+    // },
 }
 
 impl ASTPattern {
@@ -23,6 +31,11 @@ impl ASTPattern {
 impl TryFrom<AST> for ASTPattern {
     type Error = String;
 
+    /// Tries to convert an `AST` into a `Pattern`.
+    /// Patterns mirror the `AST`s they are designed to destructure.
+    /// During parsing, they are just parsed as `AST`s -
+    /// When the compiler can determine that an AST is actually a pattern,
+    /// It performs this conversion.
     fn try_from(ast: AST) -> Result<Self, Self::Error> {
         Ok(
             match ast {
@@ -37,12 +50,22 @@ impl TryFrom<AST> for ASTPattern {
                     }
                     ASTPattern::Chain(patterns)
                 },
+                AST::Tuple(t) => {
+                    let mut patterns = vec![];
+                    for item in t {
+                        patterns.push(item.map(ASTPattern::try_from)?);
+                    }
+                    ASTPattern::Tuple(patterns)
+                }
+                AST::Group(e) => e.map(ASTPattern::try_from)?.item,
                 _ => Err("Unexpected construct inside pattern")?,
             }
         )
     }
 }
 
+/// Represents an argument pattern,
+/// i.e. the mini language used to match macros.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArgPat {
     Keyword(String),
@@ -53,6 +76,8 @@ pub enum ArgPat {
 impl TryFrom<AST> for ArgPat {
     type Error = String;
 
+    /// Like `ASTPattern`s, `ArgPat`s are represented as ASTs,
+    /// Then converted into `ArgPat`s when the compiler determines it so.
     fn try_from(ast: AST) -> Result<Self, Self::Error> {
         Ok(
             match ast {
@@ -69,9 +94,6 @@ impl TryFrom<AST> for ArgPat {
     }
 }
 
-// NOTE: there are a lot of similar items (i.e. binops, (p & e), etc.)
-// Store class of item in AST, then delegate exact type to external enum?
-
 /// Represents an item in a sugared `AST`.
 /// Which is the direct result of parsing
 /// Each syntax-level construct has it's own `AST` variant.
@@ -84,8 +106,10 @@ pub enum AST {
     Data(Data),
     Block(Vec<Spanned<AST>>),
     Form(Vec<Spanned<AST>>),
+    Group(Box<Spanned<AST>>),
     Pattern(ASTPattern),
     ArgPat(ArgPat),
+    Tuple(Vec<Spanned<AST>>),
     Assign {
         pattern:    Box<Spanned<ASTPattern>>,
         expression: Box<Spanned<AST>>,
@@ -103,7 +127,13 @@ pub enum AST {
     Syntax {
         arg_pat:    Box<Spanned<ArgPat>>,
         expression: Box<Spanned<AST>>,
-    }
+    },
+    // TODO: Currently quite basic
+    // Use a symbol or the like?
+    FFI {
+        name:       String,
+        expression: Box<Spanned<AST>>,
+    },
 }
 
 impl AST {
@@ -149,5 +179,18 @@ impl AST {
             arg_pat:    Box::new(arg_pat),
             expression: Box::new(expression),
         }
+    }
+
+    // Shortcut for creating an `AST::FFI` variant.
+    pub fn ffi(name: &str, expression: Spanned<AST>) -> AST {
+        AST::FFI {
+            name: name.to_string(),
+            expression: Box::new(expression),
+        }
+    }
+
+    // Shortcut for creating an `AST::Group` variant.
+    pub fn group(expression: Spanned<AST>) -> AST {
+        AST::Group(Box::new(expression))
     }
 }

@@ -5,6 +5,8 @@ use std::{
     rc::Rc,
 };
 
+// TODO: make path optional
+
 /// `Source` represents some literal source code.
 /// Whether a repl session, a file on disk, or some library code.
 /// It's essentially a string with a path, the path serving as the source's name.

@@ -48,15 +48,16 @@ impl Span {
         self.source == None
     }
 
+    /// Return the index of the end of the `Span`.
     pub fn end(&self) -> usize {
         self.offset + self.length
     }
 
     /// Compares two Spans.
-    /// returns true if this span starts the latest
+    /// Returns true if this span starts the latest
     /// or is the longest in the case of a tie
     /// but false there is a total tie
-    /// or otherwise
+    /// or otherwise.
     pub fn later_than(&self, other: &Span) -> bool {
         self.offset > other.offset
            || (self.offset == other.offset
@@ -113,12 +114,13 @@ impl Span {
 
     // NOTE: once split_inclusive is included in rust's stdlib,
     // just replace this method with the std version.
-    /// Splits a string by the newline character into a Vector of string slices.
+    /// Splits a string by the newline character ('\n') into a Vector of string slices.
     /// Includes the trailing newline in each slice.
     fn lines_newline(string: &str) -> Vec<String> {
         return string.split("\n").map(|l| l.to_string() + "\n").collect();
     }
 
+    /// Split a string by newline (`'\n'`), but do include the newline in each splice.
     fn lines(string: &str) -> Vec<String> {
         return string.split("\n").map(|l| l.to_string()).collect();
     }
@@ -134,6 +136,7 @@ impl Span {
 }
 
 impl Debug for Span {
+    // TODO: use the field, etc. constructor.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if !self.is_empty() {
             write!(f, "Span {{ {:?}, ({}, {}) }}", self.contents(), self.offset, self.length)
@@ -243,13 +246,13 @@ pub struct Spanned<T> {
     pub span: Span,
 }
 
-// TODO: docs
 impl<T> Spanned<T> {
-    /// Takes a prede
+    /// Takes a generic item, and wraps in in a `Span` to make it `Spanned`.
     pub fn new(item: T, span: Span) -> Spanned<T> {
         Spanned { item, span }
     }
 
+    /// Joins a Vector of spanned items into a single span.
     pub fn build(spanneds: &Vec<Spanned<T>>) -> Span {
         let spans = spanneds.iter()
             .map(|s| s.span.clone())
@@ -257,6 +260,7 @@ impl<T> Spanned<T> {
         Span::join(spans)
     }
 
+    /// Applies a function a `Spanned`'s item.
     pub fn map<B, E>(self, f: fn(T) -> Result<B, E>) -> Result<Spanned<B>, E> {
         Ok(Spanned::new(f(self.item)?, self.span))
     }

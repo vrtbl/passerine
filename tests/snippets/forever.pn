@@ -1,0 +1,23 @@
+-- action: run
+-- outcome: success
+
+zero = f x -> x
+succ = n f x -> f (n f x)
+
+print_number = number -> {
+    number { x -> print " o " } ()
+    print "---"
+}
+
+syntax 'loop do {
+    l = ()
+    l = () -> { do; l () }
+    l ()
+}
+
+counter = zero
+
+-- loop {
+--     print_number counter
+--     counter = succ counter
+-- }

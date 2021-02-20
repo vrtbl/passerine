@@ -13,12 +13,15 @@ pub enum Token {
     OpenParen,
     CloseParen,
     Sep,
+    Pair,
 
+    // Keywords
     Syntax,
     Assign,
     Lambda,
     Compose,
     Print,
+    Magic,
     // pseudokeywords
     Keyword(String),
 
@@ -32,8 +35,14 @@ pub enum Token {
     Symbol,
     Label,
 
+    // Operators
+    Add, Sub,
+    Mul, Div,
+
+    Equal,
+
     // EoS
-    End
+    End,
 }
 
 impl Display for Token {
@@ -51,15 +60,21 @@ impl Display for Token {
             Token::Lambda       => "a lambda",
             Token::Compose      => "a composition",
             Token::Unit         => "the Unit, '()'",
+            Token::Pair         => "a tuple",
             Token::Print        => "a print keyword",
+            Token::Magic        => "a magic keyword",
             Token::Symbol       => "a symbol",
             Token::Label        => "a Label", // capitilized to mimic actual labels
             Token::Number(_)    => "a number",
             Token::String(_)    => "a string",
+            Token::Add          => "an addition",
+            Token::Sub          => "a subtraction",
+            Token::Mul          => "a multiplication",
+            Token::Div          => "a division",
+            Token::Equal        => "an equality test",
             Token::End          => "end of source",
             Token::Keyword(k) => { return write!(f, "the pseudokeyword '{}", k); },
-            Token::Boolean(b) => { return write!(f, "the boolean {}",         b); },
-
+            Token::Boolean(b) => { return write!(f, "the boolean {}",        b); },
         };
         write!(f, "{}", message)
     }
