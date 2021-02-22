@@ -182,7 +182,7 @@ fizzbuzz = n -> {
 `.` is the function application operator:
 
 ```passerine
--- the comopsition
+-- the composition
 a . b c . d
 
 -- is left-associative
@@ -743,7 +743,7 @@ description = match_function Banana ("yellow", "soft") [
 ]
 ```
 
-This is already orders of magnitude better, but passing a list of functions still feels a bit... hacky. Let's use our `match` macro definition from eariler to make this more ergonomic:
+This is already orders of magnitude better, but passing a list of functions still feels a bit... hacky. Let's use our `match` macro definition from earlier to make this more ergonomic:
 
 ```passerine
 syntax 'match value { arms... } {
@@ -839,7 +839,7 @@ sh <(curl -sSf https://www.passerine.io/install.sh)
 ```
 
 > 1. If you're having trouble getting started, reach out on the community [Discord server](https://discord.gg/yMhUyhw).
-> 2. Tested on Arch (btw) and macOS.  
+> 2. Tested on Arch (btw) and macOS.
 > 3. In the future, we plan to distribute prebuilt binaries, but for now, both Git and Cargo are required.
 
 ## Contributing
