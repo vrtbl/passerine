@@ -49,7 +49,7 @@ A test snippet starts with a series of comments, each one forming a key-value pa
 - `compile`
 - `run`
 
-The outcome specifies the spefic result:
+The outcome specifies the specific result:
 
 - No errors are raised: `success`
 - A syntax error is raised: `syntax`
