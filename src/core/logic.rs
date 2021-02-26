@@ -11,3 +11,8 @@ pub fn equal(data: Data) -> Result<Data, String> {
     let (left, right) = binop(data);
     return Ok(Data::Boolean(left == right));
 }
+
+pub fn greater_than(data: Data) -> Result<Data, String> {
+    let (left, right) = binop(data);
+    return Ok(Data::Boolean(left > right));
+}

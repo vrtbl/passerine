@@ -32,6 +32,7 @@ pub fn ffi_core() -> FFI {
 
     // logic
     ffi.add("equal", FFIFunction::new(Box::new(logic::equal))).unwrap();
+    ffi.add("greater", FFIFunction::new(Box::new(logic::greater_than))).unwrap();
 
     return ffi;
 }
