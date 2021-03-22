@@ -22,6 +22,33 @@
     <br>
 </p>
 
+Table of Contents
+=================
+
+* [Why Passerine?](#why-passerine)
+    * [Who started this?](#who-started-this)
+* [An Overview](#an-overview)
+    * [Syntax](#syntax)
+    * [A Quick(-sort) Example](#a-quick-sort-example)
+    * [Function Application](#function-application)
+    * [Pattern Matching](#pattern-matching)
+    * [What are patterns?](#what-are-patterns)
+    * [Fibers](#fibers)
+    * [Error handling](#error-handling)
+    * [Concurrency](#concurrency)
+    * [Macros](#macros)
+    * [Hygiene](#hygiene)
+    * [Argument Patterns](#argument-patterns)
+    * [Building a match expression](#building-a-match-expression)
+    * [Modules](#modules)
+    * [Concluding Thoughts](#concluding-thoughts)
+* [FAQ](#faq)
+* [Installation](#installation)
+* [Contributing](#contributing)
+* [Roadmap](#roadmap)
+
+
+
 ## Why Passerine?
 [Passerine](https://www.passerine.io) is a small, concise, extensible functional scripting language, powered by a VM¹ written in [Rust](https://www.rust-lang.org). Here's a small taste:
 
