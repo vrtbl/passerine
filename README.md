@@ -45,6 +45,7 @@ Passerine is currently being developed by [Isaac Clayton](https://github.com/sli
 [Lúcás](https://github.com/cronokirby),
 [Anton](https://github.com/jesyspa/),
 [Yasser](https://github.com/realnegate),
+[Shaw](https://github.com/shawsumma),
 Xal,
 and others!
 
