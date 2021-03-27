@@ -87,9 +87,9 @@ impl Hoister {
         let item = match pattern.item {
             CSTPattern::Symbol(name) => SSTPattern::Symbol(self.resolve_assign(&name, declare)),
             CSTPattern::Data(d)      => SSTPattern::Data(d),
-            CSTPattern::Label(n, p)  => SSTPattern::Label(n, Box::new(self.walk_pattern(*p, shadow))),
+            CSTPattern::Label(n, p)  => SSTPattern::Label(n, Box::new(self.walk_pattern(*p, declare))),
             CSTPattern::Tuple(t)     => SSTPattern::Tuple(
-                t.into_iter().map(|c| self.walk_pattern(c, shadow)).collect::<Vec<_>>()
+                t.into_iter().map(|c| self.walk_pattern(c, declare)).collect::<Vec<_>>()
             )
         };
 
@@ -102,32 +102,14 @@ impl Hoister {
         return UniqueSymbol(index);
     }
 
-    fn resolve_local(&mut self, name: &str) -> Option<UniqueSymbol> {
+    fn local_symbol(&self, name: &str) -> Option<UniqueSymbol> {
         for local in self.borrow_local_scope().locals.iter() {
             let local_name = &self.symbol_table[local.0];
             if local_name == name {
                 return Some(*local);
             }
         }
-
         return None;
-    }
-
-    fn resolve_symbol(&mut self, name: &str) -> UniqueSymbol {
-        // if the symbol is not defined in any scopes,
-        // it must be a new symbol
-
-        // if an unresolved symbol of the same name exists, use that symbol
-        let unique_symbol = match self.unresolved_hoists.get(name) {
-            Some(us) => *us,
-            None => self.new_symbol(name),
-        };
-
-        // if we are hoisting the variable,
-        // mark the variable as being used before its lexical definition
-        self.unresolved_hoists.insert(name.to_string(), unique_symbol);
-
-        return unique_symbol;
     }
 
     // TODO: simplify
@@ -138,32 +120,50 @@ impl Hoister {
     /// once this variable is discovered, we remove the definitions
     /// in all scopes below this one.
     fn resolve_assign(&mut self, name: &str, declare: bool) -> UniqueSymbol {
+        if declare { return self.new_symbol(name); }
+
         // if the symbol is defined in the local scope, return that symbol
-        for local in self.borrow_local_scope().locals.iter() {
-            let local_name = &self.symbol_table[local.0];
-            if local_name == name {
-                return *local;
-            }
+        if let Some(symbol) = self.local_symbol(name) {
+            return symbol;
         }
 
         // if the symbol is defined in the enclosing scope,
         // return that symbol and marked it as being captured by the current scope
         if let Some(scope) = self.exit_scope() {
-            let unique_symbol = self.resolve(name, hoist);
+            let unique_symbol = self.resolve_assign(name, declare);
             self.reenter_scope(scope);
             self.local_scope().nonlocals.push(unique_symbol);
             return unique_symbol;
         }
 
-        self.unresolved_hoists.remove(name);
+        // if the symbol is not in any enclosing scopes, we declare it
+        // and remove all references to it in lower scopes
+        let unique_symbol = match self.unresolved_hoists.remove(name) {
+            Some(uv) => uv,
+            None => self.new_symbol(name),
+        };
+
         self.local_scope().locals.push(unique_symbol);
+
+        todo!()
     }
 
     // TODO: merge with resolve?
 
     /// Replaces a symbol name with a unique identifier for that symbol
     pub fn symbol(&mut self, name: &str) -> SST {
-        let unique_symbol = self.resolve(name, false, true);
+        // if the symbol is not defined in any scopes,
+        // it must be a new symbol
+        // if an unresolved symbol of the same name exists, use that symbol
+        let unique_symbol = match self.unresolved_hoists.get(name) {
+            Some(us) => *us,
+            None => self.new_symbol(name),
+        };
+
+        // if we are hoisting the variable,
+        // mark the variable as being used before its lexical definition
+        self.unresolved_hoists.insert(name.to_string(), unique_symbol);
+
         return SST::Symbol(unique_symbol);
     }
 
@@ -200,7 +200,7 @@ impl Hoister {
     pub fn lambda(&mut self, pattern: Spanned<CSTPattern>, expression: Spanned<CST>) -> Result<SST, Syntax> {
         self.enter_scope();
         // TODO: make sure that the lambda arguments are redeclared
-        let sst_pattern = self.walk_pattern(pattern, false);
+        let sst_pattern = self.walk_pattern(pattern, true);
         let sst_expression = self.walk(expression)?;
         let scope = self.exit_scope().unwrap();
 
