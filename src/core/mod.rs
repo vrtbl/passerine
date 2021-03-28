@@ -21,6 +21,7 @@ pub fn ffi_core() -> FFI {
     ffi.add("sub", FFIFunction::new(Box::new(math::sub))).unwrap();
     ffi.add("mul", FFIFunction::new(Box::new(math::mul))).unwrap();
     ffi.add("div", FFIFunction::new(Box::new(math::div))).unwrap();
+    ffi.add("remainder", FFIFunction::new(Box::new(math::remainder))).unwrap();
 
     // io
     ffi.add("println", FFIFunction::new(Box::new(io::println))).unwrap();
