@@ -11,3 +11,12 @@ pub fn equal(data: Data) -> Result<Data, String> {
     let (left, right) = binop(data);
     return Ok(Data::Boolean(left == right));
 }
+
+pub fn greater(data: Data) -> Result<Data, String> {
+    let (left, right) = match binop(data) {
+        (Data::Real(left), Data::Real(right)) => (left, right),
+        _ => Err("Expected two numbers")?,
+    };
+
+    return Ok(Data::Boolean(left > right));
+}
