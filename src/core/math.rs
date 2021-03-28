@@ -48,3 +48,17 @@ pub fn div(data: Data) -> Result<Data, String> {
 
     return Ok(result);
 }
+
+/// remainder of left operand by right operand division.
+/// Raises a runtime error if there is a division by zero.
+pub fn remainder(data: Data) -> Result<Data, String> {
+    let result = match binop(data) {
+        (Data::Real(_),   Data::Real(r)) if r == 0.0 => Err("Division by zero")?,
+        (Data::Real(l),   Data::Real(r)) => Data::Real(l.rem_euclid(r)),
+        (Data::Integer(_), Data::Integer(n)) if n == 0 => Err("Division by zero")?,
+        (Data::Integer(l), Data::Integer(r)) => Data::Integer(l.rem_euclid(r)),
+        _ => Err("Division between unsupported datatypes")?,
+    };
+
+    return Ok(result);
+}

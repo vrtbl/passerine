@@ -101,6 +101,7 @@ impl Lexer {
             Box::new(Lexer::mul),
             Box::new(Lexer::div),
             Box::new(Lexer::equal),
+            Box::new(Lexer::remainder),
             Box::new(Lexer::magic),
             Box::new(Lexer::print), // remove print statements after FFI
 
@@ -269,6 +270,9 @@ impl Lexer {
         Lexer::literal(source, "==", Token::Equal)
     }
 
+    pub fn remainder(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "%", Token::Rem)
+    }
     /// Matches a `print` expression.
     pub fn print(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "print", Token::Print)
