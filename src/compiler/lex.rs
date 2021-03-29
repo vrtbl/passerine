@@ -269,9 +269,11 @@ impl Lexer {
         Lexer::literal(source, "==", Token::Equal)
     }
 
+    /// Mateches a literal remainder sign "%"
     pub fn percent(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "%", Token::Percent)
     }
+    
     /// Matches a `print` expression.
     pub fn print(source: &str) -> Result<Bite, String> {
         Lexer::literal(source, "print", Token::Print)
