@@ -552,7 +552,7 @@ impl Parser {
         return self.binop(Token::Equal, Prec::Logic, "equal", left);
     }
 
-    /// Parses an equality, calls out to FFI.
+    /// Parses an remainder, calls out to FFI.
     pub fn remainder(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         return self.binop(Token::Percent, Prec::MulDiv, "remainder", left);
     }
