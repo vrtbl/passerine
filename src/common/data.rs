@@ -24,6 +24,9 @@ pub enum Data {
     // Passerine Data (Atomic)
     /// Real Numbers, represented as double-precision floating points.
     Real(f64),
+    // TODO: arbitrary precision integers.
+    /// Integers, currently 64-bit.
+    Integer(u64),
     /// A boolean, like true or false.
     Boolean(bool),
     /// A UTF-8 encoded string.
@@ -65,6 +68,7 @@ impl Display for Data {
         match self {
             Data::Heaped(_)   => unreachable!("Can not display heaped data"),
             Data::Real(n)     => write!(f, "{}", n),
+            Data::Integer(n)  => write!(f, "{}", n),
             Data::Boolean(b)  => write!(f, "{}", if *b { "true" } else { "false" }),
             Data::String(s)   => write!(f, "{}", s),
             Data::Lambda(_)   => unreachable!("Can not display naked functions"),
@@ -88,6 +92,7 @@ impl Debug for Data {
         match self {
             Data::Heaped(h)   => write!(f, "Heaped({:?})", h.borrow()),
             Data::Real(n)     => write!(f, "Real({:?})", n),
+            Data::Integer(n)  => write!(f, "Integer({:?})", n),
             Data::Boolean(b)  => write!(f, "Boolean({:?})", b),
             Data::String(s)   => write!(f, "String({:?})", s),
             Data::Lambda(_)   => write!(f, "Function(...)"),
