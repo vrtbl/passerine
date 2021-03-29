@@ -26,7 +26,7 @@ pub enum Data {
     Real(f64),
     // TODO: arbitrary precision integers.
     /// Integers, currently 64-bit.
-    Integer(u64),
+    Integer(i64),
     /// A boolean, like true or false.
     Boolean(bool),
     /// A UTF-8 encoded string.
