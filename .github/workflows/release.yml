@@ -24,6 +24,8 @@ jobs:
           repository: vrtbl/aspen
           path: aspen
 
+      - run: cd aspen
+
       - name: Compile and Release
         uses: Douile/rust-build.action@v0.1.26
         env:
