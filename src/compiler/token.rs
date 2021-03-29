@@ -26,6 +26,7 @@ pub enum Token {
     Keyword(String),
 
     // Datatypes
+    // TODO: just have one variant, `Data`
     Unit,
     Number(Data),
     String(Data),

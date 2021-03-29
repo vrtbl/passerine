@@ -1,0 +1,5 @@
+-- action: run
+-- outcome: success
+-- expect: 2
+
+print (1 + 3 - 2)

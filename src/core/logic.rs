@@ -13,10 +13,12 @@ pub fn equal(data: Data) -> Result<Data, String> {
 }
 
 pub fn greater(data: Data) -> Result<Data, String> {
-    let (left, right) = match binop(data) {
-        (Data::Real(left), Data::Real(right)) => (left, right),
-        _ => Err("Expected two numbers")?,
+    // TODO: type coercion
+    let result = match binop(data) {
+        (Data::Real(left),    Data::Real(right))    => left > right,
+        (Data::Integer(left), Data::Integer(right)) => left > right,
+        _ => Err("Expected two numbers of the same type")?,
     };
 
-    return Ok(Data::Boolean(left > right));
+    return Ok(Data::Boolean(result));
 }
