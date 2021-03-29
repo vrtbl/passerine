@@ -404,7 +404,7 @@ impl Lexer {
         let mut len = 0;
         len += Lexer::eat_digits(source)?;
 
-        let number = match u64::from_str(&source[..len]) {
+        let number = match i64::from_str(&source[..len]) {
             Ok(n) => n,
             Err(_) => panic!("Could not convert source to supposed integer"),
         };
