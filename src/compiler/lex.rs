@@ -110,6 +110,7 @@ impl Lexer {
 
             // dynamic
             Box::new(Lexer::real),
+            Box::new(Lexer::integer),
             Box::new(Lexer::string),
 
             // keep this @ the bottom, lmao
@@ -397,6 +398,19 @@ impl Lexer {
         };
 
         return Ok((Token::Number(Data::Real(number)), len));
+    }
+
+    pub fn integer(source: &str) -> Result<Bite, String> {
+        let mut len = 0;
+        len += Lexer::eat_digits(source)?;
+
+        let number = match u64::from_str(&source[..len]) {
+            Ok(n) => n,
+            Err(_) => panic!("Could not convert source to supposed integer"),
+        };
+
+        // TODO: introduce new token?
+        return Ok((Token::Number(Data::Integer(number)), len));
     }
 
     /// Matches a string, converting escapes.
