@@ -1,0 +1,13 @@
+-- action: hoist
+-- outcome: success
+
+flubber = () -> {
+    foo = () -> {
+        print (pi + e)
+    }
+    pi = 3.14
+    foo ()
+}
+e = 2.72
+
+flubber ()

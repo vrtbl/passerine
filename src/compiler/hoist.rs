@@ -19,8 +19,25 @@ use crate::compiler::{
 
 /// Simple function that a scoped syntax tree (`SST`) from an `CST`.
 pub fn hoist(cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
+    println!("starting");
+
     let mut hoister = Hoister::new();
     let sst = hoister.walk(cst)?;
+
+    println!("done hoisting");
+    println!("{:#?}", sst);
+
+    if !hoister.unresolved_hoists.is_empty() {
+        // TODO: Actual errors
+        println!("{:#?}",hoister.unresolved_hoists);
+        return Err(Syntax::error(
+            &format!(
+                "Variable {} referenced before assignment",
+                hoister.unresolved_hoists.iter().next().unwrap().0
+            ),
+            &Span::empty(),
+        ))
+    }
 
     return Ok(sst);
 }
@@ -45,14 +62,17 @@ impl Hoister {
     }
 
     fn enter_scope(&mut self) {
+        println!("entering");
         self.scopes.push(Scope::new());
     }
 
     fn reenter_scope(&mut self, scope: Scope) {
+        println!("reentering");
         self.scopes.push(scope)
     }
 
     fn exit_scope(&mut self) -> Option<Scope> {
+        println!("exiting");
         if self.scopes.len() == 1 { return None; }
         return self.scopes.pop()
     }
@@ -68,6 +88,7 @@ impl Hoister {
     }
 
     pub fn walk(&mut self, cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
+        println!("walking SST");
         let sst: SST = match cst.item {
             CST::Data(data) => SST::Data(data),
             CST::Symbol(name) => self.symbol(&name),
@@ -84,6 +105,7 @@ impl Hoister {
     }
 
     pub fn walk_pattern(&mut self, pattern: Spanned<CSTPattern>, declare: bool) -> Spanned<SSTPattern> {
+        println!("walking Pattern");
         let item = match pattern.item {
             CSTPattern::Symbol(name) => SSTPattern::Symbol(self.resolve_assign(&name, declare)),
             CSTPattern::Data(d)      => SSTPattern::Data(d),
@@ -99,6 +121,7 @@ impl Hoister {
     fn new_symbol(&mut self, name: &str) -> UniqueSymbol {
         let index = self.symbol_table.len();
         self.symbol_table.push(name.to_string());
+        println!("Created new symbol {}", index);
         return UniqueSymbol(index);
     }
 
@@ -114,37 +137,36 @@ impl Hoister {
 
 
     fn declare(&mut self, name: &str) -> UniqueSymbol {
+        println!("Declaring symbol {}", name);
         let resolved_symbol = match self.unresolved_hoists.get(name) {
             Some(unique_symbol) => *unique_symbol,
             None => {
+                println!("symbol is new {}", name);
                 let new_symbol = self.new_symbol(name);
                 self.local_scope().locals.push(new_symbol);
                 return new_symbol;
             },
         };
 
+        println!("declaring Removing from unresolved {}", name);
         // declare the local in the local scope
         // and remove it as unresolved.
         self.local_scope().locals.push(resolved_symbol);
         self.unresolved_hoists.remove(name);
 
+        println!("removing from enclosing");
+        println!("{:#?}", self.scopes);
         // remove it as nonlocal in this scope and all enclosing scopes
-        if let Some(nonlocal_index) = self.local_scope().nonlocal_index(resolved_symbol) {
-            self.local_scope().nonlocals.remove(nonlocal_index);
-        } else {
-            // TODO: should be unreachable
-            todo!();
+        for scope in self.scopes[1..].iter_mut() {
+            let nonlocal_index = scope.nonlocal_index(resolved_symbol).unwrap();
+            scope.nonlocals.remove(nonlocal_index);
         }
 
-        if let Some(scope) = self.exit_scope() {
-            let unique_symbol = self.resolve_symbol(name);
-            self.reenter_scope(scope);
-            self.local_scope().nonlocals.push(unique_symbol);
-            return unique_symbol;
-        }
-
-        todo!()
+        return resolved_symbol;
     }
+
+    // TODO: currently we walk nonlocals on every declaration
+    // which is a bit innefficient.
 
     /// Returns the unique usize of a local symbol.
     /// If a variable is referenced before assignment,
@@ -152,30 +174,37 @@ impl Hoister {
     /// once this variable is discovered, we remove the definitions
     /// in all scopes below this one.
     fn resolve_assign(&mut self, name: &str, declare: bool) -> UniqueSymbol {
+        println!("resolving assignment for {} declaring: {}", name, declare);
+
         if declare || self.unresolved_hoists.contains_key(name) {
             return self.declare(name);
         }
 
         if let Some(unique_symbol) = self.local_symbol(name) { return unique_symbol; }
+        println!("symbol not local, searching backwards");
 
         // if the symbol is defined in the enclosing scope,
         // return that symbol and marked it as being captured by the current scope
         if let Some(scope) = self.exit_scope() {
-            let unique_symbol = self.resolve_symbol(name);
+            let unique_symbol = self.resolve_assign(name, declare);
             self.reenter_scope(scope);
             self.local_scope().nonlocals.push(unique_symbol);
             return unique_symbol;
         }
 
-        match self.unresolved_hoists.get(name) {
+        println!("declare symbol");
 
-        }
 
-        todo!()
+        // if the symbol does not exist in an enclosing scope, we declare it:
+        return self.declare(name);
     }
 
     fn resolve_symbol(&mut self, name: &str) -> UniqueSymbol {
+        println!("resolving symbol {}", name);
+
         if let Some(unique_symbol) = self.local_symbol(name) { return unique_symbol; }
+
+        println!("not local {}", name);
 
         // if the symbol is defined in the enclosing scope,
         // return that symbol and marked it as being captured by the current scope
@@ -185,6 +214,8 @@ impl Hoister {
             self.local_scope().nonlocals.push(unique_symbol);
             return unique_symbol;
         }
+
+        println!("new symbol, unresolved {}", name);
 
         // at this point there are no enclosing scopes and name has not been declared
         return match self.unresolved_hoists.get(name) {
@@ -255,3 +286,13 @@ impl Hoister {
         ));
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//
+//     #[test]
+//     fn messing_around() {
+//         let result =
+//     }
+// }

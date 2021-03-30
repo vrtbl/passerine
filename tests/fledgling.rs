@@ -48,6 +48,7 @@ pub enum Action {
     Lex,
     Parse,
     Desugar,
+    Hoist,
     Gen,
     Run,
 }
@@ -58,6 +59,7 @@ impl Action {
             l if l == "lex"     => Action::Lex,
             p if p == "parse"   => Action::Parse,
             d if d == "desugar" => Action::Desugar,
+            d if d == "hoist"   => Action::Hoist,
             g if g == "gen"     => Action::Gen,
             r if r == "run"     => Action::Run,
             invalid => {
@@ -153,6 +155,12 @@ fn test_snippet(source: Rc<Source>, strat: TestStrat) {
             .and_then(desugar)
             .is_ok() { Outcome::Success } else { Outcome::Syntax },
 
+        Action::Hoist => if lex(source)
+            .and_then(parse)
+            .and_then(desugar)
+            .and_then(hoist)
+            .is_ok() { Outcome::Success } else { Outcome::Syntax },
+
         Action::Gen => if lex(source)
             .and_then(parse)
             .and_then(desugar)
@@ -200,9 +208,8 @@ fn test_snippet(source: Rc<Source>, strat: TestStrat) {
     }
 }
 
-#[test]
-fn test_snippets() {
-    let paths = fs::read_dir("./tests/snippets")
+fn snippets(dir: &str) {
+    let paths = fs::read_dir(dir)
         .expect("You must be in the base passerine directory, snippets in ./tests/snippets");
 
     let mut to_run: Vec<PathBuf> = vec![];
@@ -223,4 +230,14 @@ fn test_snippets() {
     }
 
     println!("All tests passed!\n");
+}
+
+#[test]
+fn test_snippets() {
+    snippets("./tests/snippets")
+}
+
+#[test]
+fn test_snippets_anvil() {
+    snippets("./tests/snippets_anvil")
 }
