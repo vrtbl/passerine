@@ -21,7 +21,7 @@ pub enum SSTPattern {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope {
-    pub locals:   Vec<UniqueSymbol>,
+    pub locals:    Vec<UniqueSymbol>,
     pub nonlocals: Vec<UniqueSymbol>,
 }
 

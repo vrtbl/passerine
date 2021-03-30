@@ -7,8 +7,9 @@
 # Hidden files
 **/.*
 
-# scratchpad
+# scratchpad and anvil
 /scratchpad
+/tests/snippets_anvil/*
 
 # But not:
 !.gitignore
