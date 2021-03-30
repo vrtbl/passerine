@@ -20,17 +20,14 @@ use crate::compiler::{
 // 2. Build up a table of which symbols are accessible in what scopes.
 
 /// Simple function that a scoped syntax tree (`SST`) from an `CST`.
-pub fn hoist(cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
+pub fn hoist(cst: Spanned<CST>) -> Result<(Spanned<SST>, Scope, Vec<String>), Syntax> {
     let mut hoister = Hoister::new();
     let sst = hoister.walk(cst)?;
     let scope = hoister.scopes.pop().unwrap();
-
-    println!("{:#?}", sst);
-    println!("{:#?}", scope);
+    let symbol_table = hoister.symbol_table;
 
     if !hoister.unresolved_hoists.is_empty() {
         // TODO: Actual errors
-        println!("{:#?}", hoister.unresolved_hoists);
         return Err(Syntax::error(
             &format!(
                 "Variable {} referenced before assignment",
@@ -40,7 +37,7 @@ pub fn hoist(cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
         ))
     }
 
-    return Ok(sst);
+    return Ok((sst, scope, symbol_table));
 }
 
 pub struct Hoister {
@@ -103,9 +100,9 @@ impl Hoister {
                              else       { self.resolve_assign(&name) };
                 SSTPattern::Symbol(symbol)
             },
-            CSTPattern::Data(d)      => SSTPattern::Data(d),
-            CSTPattern::Label(n, p)  => SSTPattern::Label(n, Box::new(self.walk_pattern(*p, declare))),
-            CSTPattern::Tuple(t)     => SSTPattern::Tuple(
+            CSTPattern::Data(d)     => SSTPattern::Data(d),
+            CSTPattern::Label(n, p) => SSTPattern::Label(n, Box::new(self.walk_pattern(*p, declare))),
+            CSTPattern::Tuple(t)    => SSTPattern::Tuple(
                 t.into_iter().map(|c| self.walk_pattern(c, declare)).collect::<Vec<_>>()
             )
         };
@@ -138,6 +135,7 @@ impl Hoister {
     }
 
     fn declare(&mut self, name: &str) -> UniqueSymbol {
+        println!("declaring {}", name);
         let resolved_symbol = match self.unresolved_hoists.get(name) {
             Some(unique_symbol) => *unique_symbol,
             None => self.new_symbol(name),
@@ -198,6 +196,14 @@ impl Hoister {
             },
         };
     }
+
+    // 1. If the variable is local to the scope, add it to `locals` in the current `Scope`
+    // 2. If the variable is not local to the scope, search backwards through all enclosing scopes. If it is found and add it to the `nonlocals` of all the scopes we've searched through
+    // 3. If the variable can not be found:
+    //     a. If this is a declaration, i.e. `x = true` or `x -> {}` check `unresolved_captures` for `x`.
+    //         i. If `x` is in unresolved captures, define it in the local scope, *remove* it from `unresolved_captures` and then *remove* it as captured in all enclosing scopes (a la rule 2).
+    //     b. If this is an access, i.e `print x`, add `x` to a table called `unresolved_captures`, and mark `x` as captured a la rule 2 in all enclosing scopes.
+    // 4. After compilation, if there are still variables in `unresolved_captures`, raise the error 'variable(s) referenced before assignment' (obviously point out which variables and where this occurred).
 
     /// Replaces a symbol name with a unique identifier for that symbol
     pub fn symbol(&mut self, name: &str) -> SST {

@@ -131,14 +131,15 @@ impl VM {
         let mut result = Ok(());
 
         while !self.is_terminated() {
-            // println!("before: {:#?}", self.stack.stack);
-            // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            println!("before: {:#?}", self.stack.stack);
+            println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
+            println!("at: {}", self.current_span());
             result = self.step();
             if result.is_err() { break; }
-            // println!("---");
+            println!("---");
         }
-        // println!("after: {:?}", self.stack.stack);
-        // println!("---");
+        println!("after: {:?}", self.stack.stack);
+        println!("---");
 
         if let Err(mut trace) = result {
             while self.stack.unwind_frame() {

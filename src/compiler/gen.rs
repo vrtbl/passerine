@@ -26,14 +26,15 @@ use crate::core::{
 
 /// Simple function that generates unoptimized bytecode from an `SST`.
 /// Exposes the functionality of the `Compiler`.
-pub fn gen(sst: Spanned<SST>) -> Result<Lambda, Syntax> {
+pub fn gen(sst: (Spanned<SST>, Scope, Vec<String>)) -> Result<Lambda, Syntax> {
     return gen_with_ffi(sst, ffi_core());
 }
 
-pub fn gen_with_ffi(sst: Spanned<SST>, ffi: FFI) -> Result<Lambda, Syntax> {
-    println!("Spanned SST: {:#?}", sst);
-    let mut compiler = Compiler::base(ffi, todo!());
-    compiler.walk(&sst)?;
+pub fn gen_with_ffi(sst: (Spanned<SST>, Scope, Vec<String>), ffi: FFI) -> Result<Lambda, Syntax> {
+    println!("{:#?}", sst.0);
+    let mut compiler = Compiler::base(ffi, sst.1);
+    compiler.walk(&sst.0)?;
+    println!("{}", compiler.lambda);
     return Ok(compiler.lambda);
 }
 
