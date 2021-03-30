@@ -147,7 +147,6 @@ impl VM {
                 trace.add_context(self.current_span());
             }
 
-            println!("{}", trace);
             result = Err(trace);
         };
 
