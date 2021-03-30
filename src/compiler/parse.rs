@@ -180,6 +180,7 @@ impl Parser {
             Token::Sub => self.sub(left),
             Token::Mul => self.mul(left),
             Token::Div => self.div(left),
+            Token::Rem => self.remainder(left),
 
             Token::Equal => self.equal(left),
 
@@ -208,7 +209,8 @@ impl Parser {
             | Token::Sub => Prec::AddSub,
 
               Token::Mul
-            | Token::Div => Prec::MulDiv,
+	    | Token::Div
+            | Token::Rem => Prec::MulDiv,
 
             // postfix
               Token::End
@@ -548,6 +550,11 @@ impl Parser {
     /// Parses an equality, calls out to FFI.
     pub fn equal(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         return self.binop(Token::Equal, Prec::Logic, "equal", left);
+    }
+
+    /// Parses an equality, calls out to FFI.
+    pub fn remainder(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        return self.binop(Token::Rem, Prec::MulDiv, "remainder", left);
     }
 
     /// Parses a function call.
