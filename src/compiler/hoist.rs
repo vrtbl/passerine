@@ -20,7 +20,7 @@ use crate::compiler::{
 // 2. Build up a table of which symbols are accessible in what scopes.
 
 /// Simple function that a scoped syntax tree (`SST`) from an `CST`.
-pub fn hoist(cst: Spanned<CST>) -> Result<(Spanned<SST>, Scope, Vec<String>), Syntax> {
+pub fn hoist(cst: Spanned<CST>) -> Result<(Spanned<SST>, Scope), Syntax> {
     let mut hoister = Hoister::new();
     let sst = hoister.walk(cst)?;
     let scope = hoister.scopes.pop().unwrap();
@@ -96,9 +96,7 @@ impl Hoister {
     pub fn walk_pattern(&mut self, pattern: Spanned<CSTPattern>, declare: bool) -> Spanned<SSTPattern> {
         let item = match pattern.item {
             CSTPattern::Symbol(name) => {
-                let symbol = if declare { self.declare(&name)        }
-                             else       { self.resolve_assign(&name) };
-                SSTPattern::Symbol(symbol)
+                SSTPattern::Symbol(self.resolve(&name, declare))
             },
             CSTPattern::Data(d)     => SSTPattern::Data(d),
             CSTPattern::Label(n, p) => SSTPattern::Label(n, Box::new(self.walk_pattern(*p, declare))),
@@ -134,43 +132,54 @@ impl Hoister {
         return None;
     }
 
-    fn declare(&mut self, name: &str) -> UniqueSymbol {
-        println!("declaring {}", name);
-        let resolved_symbol = match self.unresolved_hoists.get(name) {
-            Some(unique_symbol) => *unique_symbol,
-            None => self.new_symbol(name),
-        };
-
-        // declare the local in the local scope
-        // and remove it as unresolved.
-        self.local_scope().locals.push(resolved_symbol);
-        self.unresolved_hoists.remove(name);
-
-        // remove it as nonlocal in all scopes
+    fn capture_all(&mut self, unique_symbol: UniqueSymbol) {
         for scope in self.scopes.iter_mut() {
-            if let Some(nonlocal_index) = scope.nonlocal_index(resolved_symbol) {
-                scope.nonlocals.remove(nonlocal_index);
-            }
+            scope.nonlocals.push(unique_symbol);
         }
-
-        return resolved_symbol;
     }
 
-    // TODO: currently we walk nonlocals on every declaration
-    // which is a bit innefficient.
+    fn uncapture_all(&mut self, unique_symbol: UniqueSymbol) {
+        for scope in self.scopes.iter_mut() {
+            // TODO: if let?
+            let index = scope.nonlocal_index(unique_symbol).unwrap();
+            scope.nonlocals.remove(index);
+        }
+    }
+
+    // 1. If the variable is local to the scope, add it to `locals` in the current `Scope`
+    // 2. If the variable is not local to the scope, search backwards through all enclosing scopes. If it is found and add it to the `nonlocals` of all the scopes we've searched through
+    // 3. If the variable can not be found:
+    //     a. If this is a declaration, i.e. `x = true` or `x -> {}` check `unresolved_captures` for `x`.
+    //         i. If `x` is in unresolved captures, define it in the local scope, *remove* it from `unresolved_captures` and then *remove* it as captured in all enclosing scopes (a la rule 2).
+    //     b. If this is an access, i.e `print x`, add `x` to a table called `unresolved_captures`, and mark `x` as captured a la rule 2 in all enclosing scopes.
+    // 4. After compilation, if there are still variables in `unresolved_captures`, raise the error 'variable(s) referenced before assignment' (obviously point out which variables and where this occurred).
 
     /// Returns the unique usize of a local symbol.
     /// If a variable is referenced before assignment,
     /// this function will define it in all lexical scopes
     /// once this variable is discovered, we remove the definitions
     /// in all scopes below this one.
-    fn resolve_assign(&mut self, name: &str) -> UniqueSymbol {
-        if !self.unresolved_hoists.contains_key(name) {
-            self.resolve_symbol(name);
+    fn resolve(&mut self, name: &str, declare: bool) -> Option<UniqueSymbol> {
+        if let Some(unique_symbol) = self.unresolved_hoists.get(name) {
+
         }
 
-        // if the symbol does not exist in an enclosing scope, we declare it:
-        return self.declare(name);
+        if let Some(unique_symbol) = self.local_symbol(name)    { return Some(unique_symbol); }
+        if let Some(unique_symbol) = self.nonlocal_symbol(name) { return Some(unique_symbol); }
+
+        if let Some(scope) = self.exit_scope() {
+            if let Some(unique_symbol) = self.resolve(name, false) {
+                self.local_scope().nonlocals.push(unique_symbol);
+                self.reenter_scope(scope);
+                return Some(unique_symbol);
+            }
+        }
+
+        if declare
+
+        let unique_symbol = self.new_symbol(name);
+        self.unresolved_hoists.insert(name.to_string(), unique_symbol);
+        return Some(unique_symbol);
     }
 
     fn resolve_symbol(&mut self, name: &str) -> UniqueSymbol {
@@ -196,14 +205,6 @@ impl Hoister {
             },
         };
     }
-
-    // 1. If the variable is local to the scope, add it to `locals` in the current `Scope`
-    // 2. If the variable is not local to the scope, search backwards through all enclosing scopes. If it is found and add it to the `nonlocals` of all the scopes we've searched through
-    // 3. If the variable can not be found:
-    //     a. If this is a declaration, i.e. `x = true` or `x -> {}` check `unresolved_captures` for `x`.
-    //         i. If `x` is in unresolved captures, define it in the local scope, *remove* it from `unresolved_captures` and then *remove* it as captured in all enclosing scopes (a la rule 2).
-    //     b. If this is an access, i.e `print x`, add `x` to a table called `unresolved_captures`, and mark `x` as captured a la rule 2 in all enclosing scopes.
-    // 4. After compilation, if there are still variables in `unresolved_captures`, raise the error 'variable(s) referenced before assignment' (obviously point out which variables and where this occurred).
 
     /// Replaces a symbol name with a unique identifier for that symbol
     pub fn symbol(&mut self, name: &str) -> SST {

@@ -30,7 +30,7 @@ pub fn gen(sst: (Spanned<SST>, Scope, Vec<String>)) -> Result<Lambda, Syntax> {
     return gen_with_ffi(sst, ffi_core());
 }
 
-pub fn gen_with_ffi(sst: (Spanned<SST>, Scope, Vec<String>), ffi: FFI) -> Result<Lambda, Syntax> {
+pub fn gen_with_ffi(sst: (Spanned<SST>, Scope), ffi: FFI) -> Result<Lambda, Syntax> {
     println!("{:#?}", sst.0);
     let mut compiler = Compiler::base(ffi, sst.1);
     compiler.walk(&sst.0)?;
