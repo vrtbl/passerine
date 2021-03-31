@@ -193,10 +193,7 @@ fn test_snippet(source: Rc<Source>, strat: TestStrat) {
                         Err(_) => Outcome::Trace
                     }
                 }
-                Err(e) => {
-                    println!("{}", e);
-                    Outcome::Syntax
-                }
+                Err(e) => { println!("{}", e); Outcome::Syntax }
             }
         }
     };

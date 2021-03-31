@@ -26,7 +26,7 @@ use crate::core::{
 
 /// Simple function that generates unoptimized bytecode from an `SST`.
 /// Exposes the functionality of the `Compiler`.
-pub fn gen(sst: (Spanned<SST>, Scope, Vec<String>)) -> Result<Lambda, Syntax> {
+pub fn gen(sst: (Spanned<SST>, Scope)) -> Result<Lambda, Syntax> {
     return gen_with_ffi(sst, ffi_core());
 }
 

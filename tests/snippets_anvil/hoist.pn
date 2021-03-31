@@ -1,4 +1,4 @@
--- action: hoist
+-- action: run
 -- outcome: success
 
 flubber = () -> {

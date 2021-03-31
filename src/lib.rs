@@ -26,7 +26,7 @@
 //! Add passerine to your `Cargo.toml`:
 //! ```toml
 //! # make sure this is the latest version
-//! passerine = 0.7
+//! passerine = 0.9
 //! ```
 //! Then simply:
 //! ```ignore
