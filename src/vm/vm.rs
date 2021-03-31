@@ -133,7 +133,9 @@ impl VM {
         while !self.is_terminated() {
             println!("before: {:#?}", self.stack.stack);
             println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
-            println!("at: {}", self.current_span());
+            if !self.current_span().is_empty() {
+                println!("at: {}", self.current_span());
+            }
             result = self.step();
             if result.is_err() { break; }
             println!("---");

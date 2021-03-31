@@ -39,7 +39,7 @@ pub fn hoist(cst: Spanned<CST>) -> Result<(Spanned<SST>, Scope), Syntax> {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            &Span::empty(),
+            &sst.span,
         ))
     }
 
@@ -152,6 +152,15 @@ impl Hoister {
         }
     }
 
+    // TODO: given something like:
+    // () -> bar
+    // bar = 0
+    // should resolve
+    // but something like:
+    // bar
+    // bar = 0
+    // should not.
+
     fn try_resolve(&mut self, name: &str) -> Option<UniqueSymbol> {
         if let Some(unique_symbol) = self.local_symbol(name)    { return Some(unique_symbol); }
         if let Some(unique_symbol) = self.nonlocal_symbol(name) { return Some(unique_symbol); }
@@ -183,15 +192,10 @@ impl Hoister {
     /// once this variable is discovered, we remove the definitions
     /// in all scopes below this one.
     fn resolve_assign(&mut self, name: &str, redeclare: bool) -> UniqueSymbol {
-        let declaration = match self.unresolved_hoists.get(name) {
-            Some(us)          => Some(*us),
-            None if redeclare => Some(self.new_symbol(name)),
-            None              => None,
-        };
-
         // if we've seen the symbol before but don't know where it's defined
-        if let Some(unique_symbol) = declaration {
+        if let Some(unique_symbol) = self.unresolved_hoists.get(name) {
             // this is a definition; we've resolved it!
+            let unique_symbol = *unique_symbol;
             self.uncapture_all(unique_symbol);
             self.unresolved_hoists.remove(name);
             self.local_scope().locals.push(unique_symbol);
@@ -200,9 +204,11 @@ impl Hoister {
 
         // if we haven't seen the symbol before,
         // we search backwards through scopes and build a hoisting chain
-        if let Some(unique_symbol) = self.try_resolve(name) { return unique_symbol; }
+        if !redeclare {
+            if let Some(unique_symbol) = self.try_resolve(name) { return unique_symbol; }
+        }
 
-        // if we didn't find it by searching backwards, we mark it as unresolved
+        // if we didn't find it by searching backwards, we declare it in the current scope
         let unique_symbol = self.new_symbol(name);
         self.local_scope().locals.push(unique_symbol);
         return unique_symbol;

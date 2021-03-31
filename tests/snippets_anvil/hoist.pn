@@ -1,7 +1,7 @@
 -- action: run
 -- outcome: success
 
-flubber = () -> {
+-{ flubber = () -> {
     foo = () -> {
         print (pi + e)
     }
@@ -10,4 +10,4 @@ flubber = () -> {
 }
 e = 2.72
 
-flubber ()
+flubber () }-
