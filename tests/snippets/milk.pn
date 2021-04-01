@@ -14,7 +14,6 @@ syntax 'if cond then 'else else {
     branch()
 }
 
-bottles = ()
 bottles = n -> if (n == 0.0) {
     n
 } else {

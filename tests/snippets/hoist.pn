@@ -1,7 +1,8 @@
 -- action: run
 -- outcome: success
+-- expect: 5
 
--{ flubber = () -> {
+flubber = () -> {
     foo = () -> {
         print (pi + e)
     }
@@ -10,4 +11,4 @@
 }
 e = 2.72
 
-flubber () }-
+flubber ()

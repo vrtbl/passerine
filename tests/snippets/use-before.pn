@@ -1,0 +1,6 @@
+-- action: run
+-- outcome: trace
+
+function = () -> value
+print value
+value = 7.0

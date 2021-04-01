@@ -35,10 +35,8 @@ pub fn gen(sst: (Spanned<SST>, Scope)) -> Result<Lambda, Syntax> {
 /// So it's required you generate a core ffi with `core::ffi_core()`,
 /// Then merge it with your ffi with `FFI::combine(...)`.
 pub fn gen_with_ffi(sst: (Spanned<SST>, Scope), ffi: FFI) -> Result<Lambda, Syntax> {
-    println!("{:#?}", sst.0);
     let mut compiler = Compiler::base(ffi, sst.1);
     compiler.walk(&sst.0)?;
-    println!("{}", compiler.lambda);
     return Ok(compiler.lambda);
 }
 

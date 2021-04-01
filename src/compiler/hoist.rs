@@ -25,9 +25,6 @@ pub fn hoist(cst: Spanned<CST>) -> Result<(Spanned<SST>, Scope), Syntax> {
     let sst = hoister.walk(cst)?;
     let scope = hoister.scopes.pop().unwrap();
 
-    println!("{:#?}", sst);
-    println!("{:#?}", scope);
-
     if !hoister.unresolved_hoists.is_empty() {
         // TODO: Actual errors
         return Err(Syntax::error(

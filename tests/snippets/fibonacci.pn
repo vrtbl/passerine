@@ -36,7 +36,6 @@ syntax a 'equals b {
 syntax 'while condition do {
     test = () -> condition
 
-    l = ()
     l = () -> {
         recurse = magic "if" (
             test (),
@@ -54,7 +53,6 @@ print_no_line = x -> magic "print" x
 print "starting"
 
 -- a simple recursive fibonacci implementation
-fib = ()
 fib = n -> {
     base = { n equals 0.0 } or { n equals 1.0 }
 

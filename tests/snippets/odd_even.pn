@@ -21,9 +21,6 @@ syntax a 'equals b {
 
 not = n -> if n { false } else { true }
 
--- TODO: remove this explicit hoist garbage
-odd = ()
-
 even = n -> if (n equals 0.0) {
     true
 } else {
