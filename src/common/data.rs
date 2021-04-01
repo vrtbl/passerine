@@ -20,6 +20,8 @@ use crate::common::{
 pub enum Data {
     /// Data on the heap.
     Heaped(Rc<RefCell<Data>>),
+    /// Uninitialized data.
+    NotInit,
 
     // Passerine Data (Atomic)
     /// Real Numbers, represented as double-precision floating points.
@@ -67,6 +69,7 @@ impl Display for Data {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Data::Heaped(_)   => unreachable!("Can not display heaped data"),
+            Data::NotInit     => unreachable!("found uninitialized data on top of stack"),
             Data::Real(n)     => write!(f, "{}", n),
             Data::Integer(n)  => write!(f, "{}", n),
             Data::Boolean(b)  => write!(f, "{}", if *b { "true" } else { "false" }),
@@ -85,12 +88,15 @@ impl Display for Data {
     }
 }
 
+
+
 impl Debug for Data {
     /// Displays some Passerine Data following Rust conventions,
     /// with certain fields omitted.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Data::Heaped(h)   => write!(f, "Heaped({:?})", h.borrow()),
+            Data::NotInit     => write!(f, "NotInit"),
             Data::Real(n)     => write!(f, "Real({:?})", n),
             Data::Integer(n)  => write!(f, "Integer({:?})", n),
             Data::Boolean(b)  => write!(f, "Boolean({:?})", b),

@@ -98,6 +98,9 @@ impl Compiler {
     /// A malformed SST will cause a panic, as SSTs should be correct at this stage,
     /// and for them to be incorrect is an error in the compiler itself.
     pub fn walk(&mut self, sst: &Spanned<SST>) -> Result<(), Syntax> {
+        // TODO: move this to a better spot
+        self.lambda.decls = self.scope.locals.len();
+
         // the entire span of the current node
         self.lambda.emit_span(&sst.span);
 
@@ -296,7 +299,10 @@ impl Compiler {
         let mut captures = vec![];
         for nonlocal in scope.nonlocals.iter() {
             let captured = if self.scope.is_local(*nonlocal) {
-                Captured::Local(self.scope.local_index(*nonlocal).unwrap())
+                let index = self.scope.local_index(*nonlocal).unwrap();
+                self.lambda.emit(Opcode::Capture);
+                self.lambda.emit_bytes(&mut split_number(index));
+                Captured::Local(index)
             } else {
                 Captured::Nonlocal(self.scope.nonlocal_index(*nonlocal).unwrap())
             };
