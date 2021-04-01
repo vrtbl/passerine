@@ -233,8 +233,3 @@ fn snippets(dir: &str) {
 fn test_snippets() {
     snippets("./tests/snippets")
 }
-
-#[test]
-fn test_snippets_anvil() {
-    snippets("./tests/snippets_anvil")
-}

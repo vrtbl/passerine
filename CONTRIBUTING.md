@@ -59,12 +59,3 @@ The outcome specifies the specific result:
 Optionally, if the action is `run` an `outcome` may be specified. This treats the snippet like a function body, and compares the returned value with the expected value.
 
 Whenever you add a feature, add snippet tests that demonstrate how this feature should (and should not) work.
-
-## Test Snippet Anvil
-If you're working on a new feature and want to work on new test snippets, put them in `tests/snippets_anvil/`, and test them with:
-
-```
-cargo test anvil -- --nocapture
-```
-
-Files in `snippets_anvil` are `.gitignore`d, so make sure to move them to `snippets` before committing!
