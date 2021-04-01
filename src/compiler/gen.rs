@@ -74,7 +74,7 @@ impl Compiler {
     /// and moving the FFI into the current compiler.
     pub fn enter_scope(&mut self, scope: Scope) {
         let ffi        = mem::replace(&mut self.ffi, FFI::new());
-        let mut nested = Compiler::base(ffi, scope);
+        let nested     = Compiler::base(ffi, scope);
         let enclosing  = mem::replace(self, nested);
         self.enclosing = Some(Box::new(enclosing));
     }
@@ -115,56 +115,8 @@ impl Compiler {
         };
     }
 
-    // // TODO: nested too deep :(
-    // /// Returns the relative position on the stack of a declared local,
-    // /// if it exists in the current scope.
-    // pub fn local(&self, name: &str) -> Option<usize> {
-    //     for (index, l) in self.locals.iter().enumerate() {
-    //         if name == l.name {
-    //             return Some(index)
-    //         }
-    //     }
-    //
-    //     return None;
-    // }
-
-    /// Tries to resolve a variable in enclosing scopes
-    /// if resolution it successful, it captures the variable in the original scope
-    /// then builds a chain of upvalues to hoist that upvalue where it's needed.
-    // pub fn captured(&mut self, name: &str) -> Option<Captured> {
-    //     if let Some(index) = self.local(name) {
-    //         let already = self.captures.contains(&index);
-    //         if !already {
-    //             self.captures.push(index);
-    //             self.lambda.emit(Opcode::Capture);
-    //             self.lambda.emit_bytes(&mut split_number(index));
-    //         }
-    //         return Some(Captured::Local(index));
-    //     }
-    //
-    //     if let Some(enclosing) = self.enclosing.as_mut() {
-    //         if let Some(captured) = enclosing.captured(name) {
-    //             let included = self.lambda.captures.contains(&captured);
-    //             let upvalue = if !included {
-    //                 self.lambda.captures.push(captured);
-    //                 self.lambda.captures.len() - 1
-    //             } else {
-    //                 self.lambda.captures.iter().position(|c| c == &captured).unwrap()
-    //             };
-    //             return Some(Captured::Nonlocal(upvalue));
-    //         }
-    //     }
-    //
-    //     return None
-    // }
-    //
-    // /// Returns the index of a captured non-local.
-    // pub fn captured_upvalue(&mut self, name: &str) -> Option<usize> {
-    //     match self.captured(name) {
-    //         Some(Captured::Nonlocal(upvalue)) => Some(upvalue),
-    //         _ => None,
-    //     }
-    // }
+    // TODO: closures are just lambdas + records
+    // refactor as such?
 
     pub fn symbol(&mut self, unique_symbol: UniqueSymbol) {
         let index = if let Some(i) = self.scope.local_index(unique_symbol) {
@@ -340,10 +292,23 @@ impl Compiler {
         expression: Spanned<SST>,
         scope: Scope,
     ) -> Result<(), Syntax> {
+        // build a list of captures at the boundary
+        let mut captures = vec![];
+        for nonlocal in scope.nonlocals.iter() {
+            let captured = if self.scope.is_local(*nonlocal) {
+                Captured::Local(self.scope.local_index(*nonlocal).unwrap())
+            } else {
+                Captured::Nonlocal(self.scope.nonlocal_index(*nonlocal).unwrap())
+            };
+            captures.push(captured);
+        }
+
         // just so the parallel is visually apparent
         self.enter_scope(scope);
         {
-            // TODO: push lambda locals and captures onto lambda
+            // push locals and captures into lambda
+            self.lambda.captures = captures;
+
             // match the argument against the pattern, binding variables
             self.destructure(pattern, true);
 

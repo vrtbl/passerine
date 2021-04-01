@@ -219,8 +219,6 @@ impl VM {
     #[inline]
     pub fn load_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
-        // NOTE: should heaped data should only be present for variables?
-        // self.closure.captures[index].borrow().to_owned()
         self.stack.push_data(self.closure.captures[index].borrow().to_owned());
         self.done()
     }

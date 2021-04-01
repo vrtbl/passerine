@@ -1,10 +1,6 @@
-use std::{
-    mem,
-    collections::HashMap,
-};
+use std::collections::HashMap;
 
-use crate::common::span::{Span, Spanned};
-
+use crate::common::span::Spanned;
 use crate::compiler::{
     cst::{CST, CSTPattern},
     sst::{SST, SSTPattern, UniqueSymbol, Scope},

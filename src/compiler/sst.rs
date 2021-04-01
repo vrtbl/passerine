@@ -1,5 +1,5 @@
 use crate::common::{
-    span::{Span, Spanned},
+    span::Spanned,
     data::Data,
 };
 
@@ -80,9 +80,9 @@ pub enum SST {
     },
 }
 
-pub struct ScopeContext {
-    interns: Vec<String>,
-}
+// pub struct ScopeContext {
+//     interns: Vec<String>,
+// }
 
 impl SST {
     /// Shortcut for creating an `SST::Assign` variant.
@@ -105,7 +105,7 @@ impl SST {
         SST::Lambda {
             pattern:    Box::new(pattern),
             expression: Box::new(expression),
-            scope:      scope,
+            scope,
         }
     }
 
