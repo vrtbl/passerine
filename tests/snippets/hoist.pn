@@ -1,6 +1,6 @@
 -- action: run
 -- outcome: success
--- expect: 5
+-- expect: 5.86
 
 flubber = () -> {
     foo = () -> {

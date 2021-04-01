@@ -207,7 +207,17 @@ impl VM {
     #[inline]
     pub fn load(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
-        let data = self.stack.local_data(index);
+        let mut data = self.stack.local_data(index);
+
+        if let Data::Heaped(d) = data { data = d.borrow().to_owned() };
+        if let Data::NotInit = data {
+            return Err(Trace::error(
+                "Reference",
+                &format!("This local variable was referenced before assignment"),
+                vec![self.current_span()],
+            ));
+        };
+
         self.stack.push_data(data);
         self.done()
     }
@@ -216,7 +226,17 @@ impl VM {
     #[inline]
     pub fn load_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
-        self.stack.push_data(self.closure.captures[index].borrow().to_owned());
+        let data = self.closure.captures[index].borrow().to_owned();
+
+        if let Data::NotInit = data {
+            return Err(Trace::error(
+                "Reference",
+                &format!("This captured variable was referenced before assignment"),
+                vec![self.current_span()],
+            ));
+        };
+
+        self.stack.push_data(data);
         self.done()
     }
 
@@ -275,7 +295,7 @@ impl VM {
 
         if data != expected {
             return Err(Trace::error(
-                "CSTPattern Matching",
+                "Pattern Matching",
                 &format!("The data '{}' does not match the expected data '{}'", data, expected),
                 vec![self.current_span()],
             ));
@@ -293,7 +313,7 @@ impl VM {
         let d = match self.stack.pop_data() {
             Data::Label(n, d) if *n == kind => d,
             other => return Err(Trace::error(
-                "CSTPattern Matching",
+                "Pattern Matching",
                 &format!("The data '{}' does not match the Label '{}'", other, kind),
                 vec![self.current_span()],
             )),
@@ -308,7 +328,7 @@ impl VM {
         let t = match self.stack.pop_data() {
             Data::Tuple(t) => t,
             other => return Err(Trace::error(
-                "CSTPattern Matching",
+                "Pattern Matching",
                 &format!("The data '{}' is not a tuple", other),
                 vec![self.current_span()],
             )),
