@@ -30,6 +30,10 @@ pub fn gen(sst: (Spanned<SST>, Scope)) -> Result<Lambda, Syntax> {
     return gen_with_ffi(sst, ffi_core());
 }
 
+/// Generates unoptimized bytecode from a `SST`,
+/// Given a specific FFI. Note that this doesn't even assume the core ffi,
+/// So it's required you generate a core ffi with `core::ffi_core()`,
+/// Then merge it with your ffi with `FFI::combine(...)`.
 pub fn gen_with_ffi(sst: (Spanned<SST>, Scope), ffi: FFI) -> Result<Lambda, Syntax> {
     println!("{:#?}", sst.0);
     let mut compiler = Compiler::base(ffi, sst.1);
@@ -121,6 +125,7 @@ impl Compiler {
     // TODO: closures are just lambdas + records
     // refactor as such?
 
+    /// Resovles a symbol lookup, e.g. something like `x`.
     pub fn symbol(&mut self, unique_symbol: UniqueSymbol) {
         let index = if let Some(i) = self.scope.local_index(unique_symbol) {
             self.lambda.emit(Opcode::Load); i
@@ -238,10 +243,6 @@ impl Compiler {
 
         self.lambda.emit_bytes(&mut split_number(index));
     }
-
-    // TODO: simplify destructure.
-    // because declarations can only happen with Symbol,
-    // there can be at most one declaration
 
     /// Destructures a pattern into
     /// a series of unpack and assign instructions.

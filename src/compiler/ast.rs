@@ -158,6 +158,7 @@ impl AST {
         }
     }
 
+    /// Shortcut for creating an `AST::Composition` variant.
     pub fn composition(
         argument: Spanned<AST>,
         function: Spanned<AST>,
@@ -185,7 +186,7 @@ impl AST {
         AST::Label(name.to_string(), Box::new(expression))
     }
 
-    // Shortcut for creating an `AST::FFI` variant.
+    /// Shortcut for creating an `AST::FFI` variant.
     pub fn ffi(name: &str, expression: Spanned<AST>) -> AST {
         AST::FFI {
             name: name.to_string(),
@@ -193,7 +194,7 @@ impl AST {
         }
     }
 
-    // Shortcut for creating an `AST::Group` variant.
+    /// Shortcut for creating an `AST::Group` variant.
     pub fn group(expression: Spanned<AST>) -> AST {
         AST::Group(Box::new(expression))
     }

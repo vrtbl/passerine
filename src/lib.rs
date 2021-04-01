@@ -99,12 +99,18 @@
 //!
 //! ```
 //! # use passerine::common::{closure::Closure, source::Source};
-//! # use passerine::compiler::{lex, parse, desugar, gen};
+//! # use passerine::compiler::{lex, parse, desugar, hoist, gen};
 //! # use passerine::vm::vm::VM;
 //! #
 //! # fn main() {
 //! # let source = Source::source("pi = 3.14");
-//! # let bytecode = Closure::wrap(gen(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap());
+//! # let bytecode = Closure::wrap(
+//! # lex(source)
+//! #     .and_then(parse)
+//! #     .and_then(desugar)
+//! #     .and_then(hoist)
+//! #     .and_then(gen)
+//! #     .unwrap());
 //! // Initialize a VM with some bytecode:
 //! let mut vm = VM::init(bytecode);
 //! // Run the initialized VM:

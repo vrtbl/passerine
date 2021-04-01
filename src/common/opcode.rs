@@ -7,41 +7,41 @@ pub enum Opcode {
     /// Load a constant.
     Con = 0,
     /// Load uninitialized Data.
-    NotInit = 1,
+    NotInit,
     /// Delete a value off the stack.
-    Del = 2,
+    Del,
     /// Calls out to a Rust function via FFI
-    FFICall = 3,
+    FFICall,
     /// Copies topmost value on the stack.
-    Copy = 4,
+    Copy,
     /// Moves a variable onto the heap.
-    Capture = 5,
+    Capture,
     /// Save a constant into a variable.
-    Save = 6,
+    Save,
     /// Save a value to a captured variable.
-    SaveCap = 7,
+    SaveCap,
     /// Push a copy of a variable onto the stack.
-    Load = 8,
+    Load,
     /// Load a copy of a captured variable.
-    LoadCap = 9,
+    LoadCap,
     /// Call a function.
-    Call = 10,
+    Call,
     /// Return from a function.
-    Return = 11,
+    Return,
     /// Creates a closure over the current local environment.
-    Closure = 12,
+    Closure,
     /// Prints a value.
-    Print = 13,
+    Print,
     /// Constructs a label.
-    Label = 14,
+    Label,
     // Constructs a tuple.
-    Tuple = 15,
+    Tuple,
     /// Destructures atomic data by asserting it matches exactly.
-    UnData = 16,
+    UnData,
     /// Destructures a label.
-    UnLabel = 17,
+    UnLabel,
     /// Sestructures a tuple.
-    UnTuple = 18,
+    UnTuple,
 }
 
 impl Opcode {

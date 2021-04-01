@@ -17,6 +17,9 @@ use crate::compiler::{
 // 2. Build up a table of which symbols are accessible in what scopes.
 
 /// Simple function that a scoped syntax tree (`SST`) from an `CST`.
+/// Replaces all symbols with unique identifiers;
+/// symbols by the same name in different scopes will get different identifiers.
+/// Also resolves closure captures and closure hoisting.
 pub fn hoist(cst: Spanned<CST>) -> Result<(Spanned<SST>, Scope), Syntax> {
     let mut hoister = Hoister::new();
     let sst = hoister.walk(cst)?;
@@ -42,6 +45,10 @@ pub fn hoist(cst: Spanned<CST>) -> Result<(Spanned<SST>, Scope), Syntax> {
     return Ok((sst, scope));
 }
 
+/// Keeps track of:
+/// 1. Local and nonlocal variables in each scope.
+/// 2. All variables declared.
+/// 3. Variables that have been used but not declared.
 pub struct Hoister {
     /// The unique local symbols in the current scope.
     scopes: Vec<Scope>,
@@ -53,6 +60,8 @@ pub struct Hoister {
 }
 
 impl Hoister {
+    /// Creates a new hoisted in a root scope.
+    /// Note that the hoister will always have a root scope.
     pub fn new() -> Hoister {
         Hoister {
             scopes:            vec![Scope::new()],
@@ -61,24 +70,32 @@ impl Hoister {
         }
     }
 
+    /// Enters a new scope, called when entering a new function.
     fn   enter_scope(&mut self)               { self.scopes.push(Scope::new()); }
+    /// Enters an existing scope, called when resolving variables
     fn reenter_scope(&mut self, scope: Scope) { self.scopes.push(scope)         }
 
+    /// Exits the current scope, returning it.
     fn exit_scope(&mut self) -> Option<Scope> {
          if self.scopes.len() == 1 { return None; }
         return self.scopes.pop()
     }
 
+    /// Returns the topmost, i.e. local, scope, mutably.
     fn local_scope(&mut self) -> &mut Scope {
         let last = self.scopes.len() - 1;
         &mut self.scopes[last]
     }
 
+    /// Returns the topmost scope immutably.
     fn borrow_local_scope(&self) -> &Scope {
         let last = self.scopes.len() - 1;
         &self.scopes[last]
     }
 
+    /// Walks a `CST` to produce an `SST`.
+    /// This is fairly standard - hoisting happens in
+    ///`self.assign`, `self.lambda`, and `self.symbol`.
     pub fn walk(&mut self, cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
         let sst: SST = match cst.item {
             CST::Data(data) => SST::Data(data),
@@ -95,6 +112,8 @@ impl Hoister {
         return Ok(Spanned::new(sst, cst.span))
     }
 
+    /// Walks a pattern. If `declare` is true, we shadow variables in existing scopes
+    /// and creates a new variable in the local scope.
     pub fn walk_pattern(&mut self, pattern: Spanned<CSTPattern>, declare: bool) -> Spanned<SSTPattern> {
         let item = match pattern.item {
             CSTPattern::Symbol(name) => {
@@ -110,12 +129,14 @@ impl Hoister {
         return Spanned::new(item, pattern.span);
     }
 
+    /// Creates a new symbol that is guaranteed to be unique.
     fn new_symbol(&mut self, name: &str) -> UniqueSymbol {
         let index = self.symbol_table.len();
         self.symbol_table.push(name.to_string());
         return UniqueSymbol(index);
     }
 
+    /// Looks to see whether a name is defined as a local in the current scope.
     fn local_symbol(&self, name: &str) -> Option<UniqueSymbol> {
         for local in self.borrow_local_scope().locals.iter() {
             let local_name = &self.symbol_table[local.0];
@@ -125,6 +146,7 @@ impl Hoister {
         return None;
     }
 
+    /// Looks to see whether a name is used as a nonlocal in the current scope.
     fn nonlocal_symbol(&self, name: &str) -> Option<UniqueSymbol> {
         for nonlocal in self.borrow_local_scope().nonlocals.iter() {
             let nonlocal_name = &self.symbol_table[nonlocal.0];
@@ -134,12 +156,16 @@ impl Hoister {
         return None;
     }
 
+    /// Adds a symbol as a captured variable in all scopes.
+    /// Used in conjunction with `uncapture_all` to build hoisting chains.
     fn capture_all(&mut self, unique_symbol: UniqueSymbol) {
         for scope in self.scopes.iter_mut() {
             scope.nonlocals.push(unique_symbol);
         }
     }
 
+    /// Removes a symbol as a captured variable in all scopes.
+    /// This ensures that the hoisting chain only goes back to the most recent declaration.
     fn uncapture_all(&mut self, unique_symbol: UniqueSymbol) {
         for scope in self.scopes.iter_mut() {
             // TODO: if let?
@@ -148,15 +174,10 @@ impl Hoister {
         }
     }
 
-    // TODO: given something like:
-    // () -> bar
-    // bar = 0
-    // should resolve
-    // but something like:
-    // bar
-    // bar = 0
-    // should not.
-
+    /// Tries to resolve a variable lookup:
+    /// 1. If this variable is local or nonlocal to this scope, use it.
+    /// 2. If this variable is defined in an enclosing scope, capture it and use it.
+    /// 3. If this variable is not defined, return `None`.
     fn try_resolve(&mut self, name: &str) -> Option<UniqueSymbol> {
         if let Some(unique_symbol) = self.local_symbol(name)    { return Some(unique_symbol); }
         if let Some(unique_symbol) = self.nonlocal_symbol(name) { return Some(unique_symbol); }
@@ -210,6 +231,8 @@ impl Hoister {
         return unique_symbol;
     }
 
+    /// This function wraps try_resolve,
+    /// but checks that the symbol is unresolved first.
     fn resolve_symbol(&mut self, name: &str) -> UniqueSymbol {
         // if we've seen the symbol before but don't know where it's defined
         if let Some(unique_symbol) = self.unresolved_hoists.get(name) {
@@ -234,6 +257,7 @@ impl Hoister {
         return SST::Symbol(self.resolve_symbol(name));
     }
 
+    /// Walks a block, nothing fancy here.
     pub fn block(&mut self, block: Vec<Spanned<CST>>) -> Result<SST, Syntax> {
         let mut expressions = vec![];
         for expression in block {
@@ -243,7 +267,7 @@ impl Hoister {
         Ok(SST::Block(expressions))
     }
 
-    /// Nothing fancy here.
+    /// Walks a tuple, nothing fancy here.
     pub fn tuple(&mut self, tuple: Vec<Spanned<CST>>) -> Result<SST, Syntax> {
         let mut expressions = vec![];
         for expression in tuple {
@@ -253,6 +277,9 @@ impl Hoister {
         Ok(SST::Tuple(expressions))
     }
 
+    /// Walks an assignment.
+    /// Delegates to `walk_pattern` for capturing.
+    /// Assignments can capture existing variables
     pub fn assign(&mut self, pattern: Spanned<CSTPattern>, expression: Spanned<CST>) -> Result<SST, Syntax> {
         let sst_pattern = self.walk_pattern(pattern, false);
         let sst_expression = self.walk(expression)?;
@@ -263,7 +290,9 @@ impl Hoister {
         ));
     }
 
-    // TODO: function always declares
+    /// Walks a function definition.
+    /// Like `assign`, delegates to `walk_pattern` for capturing.
+    /// But any paramaters will shadow those in outer scopes.
     pub fn lambda(&mut self, pattern: Spanned<CSTPattern>, expression: Spanned<CST>) -> Result<SST, Syntax> {
         self.enter_scope();
         let sst_pattern = self.walk_pattern(pattern, true);
@@ -277,6 +306,7 @@ impl Hoister {
         ));
     }
 
+    /// Walks a function call.
     pub fn call(&mut self, fun: Spanned<CST>, arg: Spanned<CST>) -> Result<SST, Syntax> {
         return Ok(SST::call(
             self.walk(fun)?,

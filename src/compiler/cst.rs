@@ -109,7 +109,7 @@ impl CST {
         }
     }
 
-    // Shortcut for creating an `CST::FFI` variant.
+    /// Shortcut for creating an `CST::FFI` variant.
     pub fn ffi(name: &str, expression: Spanned<CST>) -> CST {
         CST::FFI {
             name: name.to_string(),
