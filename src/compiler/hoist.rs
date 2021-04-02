@@ -93,7 +93,7 @@ impl Hoister {
 
     /// Walks a `CST` to produce an `SST`.
     /// This is fairly standard - hoisting happens in
-    ///`self.assign`, `self.lambda`, and `self.symbol`.
+    /// `self.assign`, `self.lambda`, and `self.symbol`.
     pub fn walk(&mut self, cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
         let sst: SST = match cst.item {
             CST::Data(data) => SST::Data(data),
@@ -192,14 +192,6 @@ impl Hoister {
         // variable is not defined in this or enclosing scopes
         return None;
     }
-
-    // 1. If the variable is local to the scope, add it to `locals` in the current `Scope`
-    // 2. If the variable is not local to the scope, search backwards through all enclosing scopes. If it is found and add it to the `nonlocals` of all the scopes we've searched through
-    // 3. If the variable can not be found:
-    //     a. If this is a declaration, i.e. `x = true` or `x -> {}` check `unresolved_captures` for `x`.
-    //         i. If `x` is in unresolved captures, define it in the local scope, *remove* it from `unresolved_captures` and then *remove* it as captured in all enclosing scopes (a la rule 2).
-    //     b. If this is an access, i.e `print x`, add `x` to a table called `unresolved_captures`, and mark `x` as captured a la rule 2 in all enclosing scopes.
-    // 4. After compilation, if there are still variables in `unresolved_captures`, raise the error 'variable(s) referenced before assignment' (obviously point out which variables and where this occurred).
 
     /// Returns the unique usize of a local symbol.
     /// If a variable is referenced before assignment,
@@ -312,13 +304,3 @@ impl Hoister {
         ));
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     #[test]
-//     fn messing_around() {
-//         let result =
-//     }
-// }

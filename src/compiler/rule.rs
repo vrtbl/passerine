@@ -17,17 +17,17 @@ use crate::compiler::{
 // TODO: add context for macro application
 // NOTE: add spans?
 
-/// When a macro is expanded, `AST` slices captured by the macro Argument CSTPattern
-/// Are spliced into the macro body.
+/// When a macro is expanded, `AST` slices captured by the macro Argument Pattern
+/// are spliced into the macro body.
 /// A `Binding` relates a name (within an Argument CSTPattern),
 /// to an `AST` slice.
 type Bindings = HashMap<String, Spanned<AST>>;
 
-/// A rule has an Argument CSTPattern and an `AST`.
+/// A rule has an Argument Pattern and an `AST`.
 /// When a form matches the `ArgPattern`,
-/// A set of bindings are produced,
+/// a set of bindings are produced,
 /// which are then spliced into the Rule's `AST`
-/// To make a new `AST`.
+/// to make a new `AST`.
 /// This is done in a hygenic manner.
 #[derive(Debug, Clone)]
 pub struct Rule {
@@ -155,7 +155,7 @@ impl Rule {
 
     /// Resolves a symbol.
     /// If the symbol has been bound, i.e. is defined in the Argument CSTPattern,
-    /// We simply splice that in.
+    /// we simply splice that in.
     /// If not, we hygenically replace it with a unique variable.
     pub fn resolve_symbol(name: String, span: Span, bindings: &mut Bindings) -> Spanned<AST> {
         if let Some(bound_tree) = bindings.get(&name) {

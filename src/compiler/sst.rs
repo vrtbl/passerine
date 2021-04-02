@@ -11,7 +11,7 @@ pub struct UniqueSymbol(pub usize);
 pub enum SSTPattern {
     Symbol(UniqueSymbol),
     Data(Data),
-    Label(String, Box<Spanned<SSTPattern>>), // todo usize for label
+    Label(String, Box<Spanned<SSTPattern>>), // TODO: usize for label
     Tuple(Vec<Spanned<SSTPattern>>),
     // Where {
     //     pattern: Box<ASTPattern>,
