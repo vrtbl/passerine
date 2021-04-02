@@ -80,10 +80,6 @@ pub enum SST {
     },
 }
 
-// pub struct ScopeContext {
-//     interns: Vec<String>,
-// }
-
 impl SST {
     /// Shortcut for creating an `SST::Assign` variant.
     pub fn assign(
