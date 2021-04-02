@@ -46,6 +46,7 @@ A test snippet starts with a series of comments, each one forming a key-value pa
 - `lex`
 - `parse`
 - `desugar`
+- `hoist`
 - `compile`
 - `run`
 

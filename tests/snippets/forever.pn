@@ -10,7 +10,6 @@ print_number = number -> {
 }
 
 syntax 'loop do {
-    l = ()
     l = () -> { do; l () }
     l ()
 }

@@ -10,6 +10,7 @@ use crate::compiler::ast::ASTPattern;
 // TODO: create a pattern specific to the CST?
 // Once where (i.e. `x | x > 0`) is added?
 
+/// A pattern that mirrors the structure of some Data.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CSTPattern {
     Symbol(String),
@@ -64,7 +65,6 @@ pub enum CST {
         fun: Box<Spanned<CST>>,
         arg: Box<Spanned<CST>>,
     },
-    Print(Box<Spanned<CST>>),
     Label(String, Box<Spanned<CST>>),
     Tuple(Vec<Spanned<CST>>),
     FFI {
@@ -96,6 +96,11 @@ impl CST {
         }
     }
 
+    /// Shortcut for creating a `CST::Label` variant.
+    pub fn label(name: &str, expression: Spanned<CST>) -> CST {
+        CST::Label(name.to_string(), Box::new(expression))
+    }
+
     /// Shortcut for creating a `CST::Lambda` variant.
     pub fn call(fun: Spanned<CST>, arg: Spanned<CST>) -> CST {
         CST::Call {
@@ -104,7 +109,7 @@ impl CST {
         }
     }
 
-    // Shortcut for creating an `CST::FFI` variant.
+    /// Shortcut for creating an `CST::FFI` variant.
     pub fn ffi(name: &str, expression: Spanned<CST>) -> CST {
         CST::FFI {
             name: name.to_string(),

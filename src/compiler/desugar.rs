@@ -7,7 +7,7 @@ use crate::common::span::{Span, Spanned};
 
 use crate::compiler::{
     rule::Rule,
-    ast::{AST, ASTPattern, ArgPat},
+    ast::{AST, ASTPattern, ArgPattern},
     cst::{CST, CSTPattern},
     syntax::Syntax
 };
@@ -42,9 +42,8 @@ impl Transformer {
             AST::Form(f) => self.form(f)?,
             AST::Group(a) => self.walk(*a)?.item,
             AST::Tuple(t) => self.tuple(t)?,
-            AST::Pattern(_) => return Err(Syntax::error("Unexpected pattern", &ast.span)),
-            AST::ArgPat(_)  => return Err(Syntax::error("Unexpected argument pattern", &ast.span)),
-            AST::Print(e) => CST::Print(Box::new(self.walk(*e)?)),
+            AST::CSTPattern(_) => return Err(Syntax::error("Unexpected pattern", &ast.span)),
+            AST::ArgPattern(_)  => return Err(Syntax::error("Unexpected argument pattern", &ast.span)),
             AST::Label(n, e) => CST::Label(n, Box::new(self.walk(*e)?)),
             AST::Syntax { arg_pat, expression } => self.rule(*arg_pat, *expression)?,
             AST::Assign { pattern, expression } => self.assign(*pattern, *expression)?,
@@ -198,7 +197,7 @@ impl Transformer {
     /// Desugar a FFI call.
     /// We walk the expression that may be passed to the FFI.
     pub fn ffi(&mut self, name: String, expression: Spanned<AST>) -> Result<CST, Syntax> {
-        Ok(CST::FFI{ name, expression: Box::new(self.walk(expression)?) })
+        Ok(CST::FFI { name, expression: Box::new(self.walk(expression)?) })
     }
 
     /// Desugars a block,
@@ -250,7 +249,7 @@ impl Transformer {
     /// That determines which variables are declared where,
     /// Which macros are declared when,
     /// And removes all such valueless declarations from the AST.
-    pub fn rule(&mut self, arg_pat: Spanned<ArgPat>, tree: Spanned<AST>) -> Result<CST, Syntax> {
+    pub fn rule(&mut self, arg_pat: Spanned<ArgPattern>, tree: Spanned<AST>) -> Result<CST, Syntax> {
         let patterns_span = arg_pat.span.clone();
         let rule = Rule::new(arg_pat, tree)?;
         self.rules.push(Spanned::new(rule, patterns_span));

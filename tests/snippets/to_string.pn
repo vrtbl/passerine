@@ -6,4 +6,4 @@ to_string = data -> magic "to_string" data
 
 age = 5.5
 
-print ("I am " + to_string age + " years old")
+print ("I am " + age.to_string + " years old")

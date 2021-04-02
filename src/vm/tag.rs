@@ -61,7 +61,7 @@ impl Tagged {
             // Stack frame
             Slot::Frame => Tagged(QNAN | S_FLAG),
             // Not Initialized
-            Slot::NotInit => Tagged(QNAN | N_FLAG),
+            Slot::Data(Data::NotInit) => Tagged(QNAN | N_FLAG),
 
             // on the heap
             // TODO: layout to make sure pointer is the right size when boxing
@@ -81,7 +81,7 @@ impl Tagged {
     /// Shortcut for creating a new `Tagged(Slot::NotInit)`.
     #[inline]
     pub fn not_init() -> Tagged {
-        Tagged::new(Slot::NotInit)
+        Tagged::new(Slot::Data(Data::NotInit))
     }
 
     /// Returns the underlying `Data` (or a pointer to that `Data`).
@@ -95,7 +95,7 @@ impl Tagged {
             f if f == &(QNAN | F_FLAG) => Ok(Slot::Data(Data::Boolean(false))),
             t if t == &(QNAN | T_FLAG) => Ok(Slot::Data(Data::Boolean(true))),
             s if s == &(QNAN | S_FLAG) => Ok(Slot::Frame),
-            n if n == &(QNAN | N_FLAG) => Ok(Slot::NotInit),
+            n if n == &(QNAN | N_FLAG) => Ok(Slot::Data(Data::NotInit)),
             p if (p & P_FLAG) == P_FLAG => Err({
                 // println!("{:#x}", p & P_MASK);
                 // unsafe part

@@ -1,5 +1,5 @@
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     io::Read,
     fs::File,
     rc::Rc,
@@ -23,13 +23,13 @@ impl Source {
     /// Note that this function does not check that the contents of the file
     /// match the source.
     /// `Source::path` or `Source::source` should be used instead.
-    pub fn new(source: &str, path: PathBuf) -> Rc<Source> {
-        Rc::new(Source { contents: source.to_string(), path })
+    pub fn new(source: &str, path: &Path) -> Rc<Source> {
+        Rc::new(Source { contents: source.to_string(), path: path.to_owned() })
     }
 
     /// Build a `Source` from a path.
     /// This will read a file to create a new source.
-    pub fn path(path: PathBuf) -> std::io::Result<Rc<Source>> {
+    pub fn path(path: &Path) -> std::io::Result<Rc<Source>> {
         let mut source = String::new();
         let mut file   = File::open(path.clone())?;
         file.read_to_string(&mut source)?;
@@ -40,6 +40,6 @@ impl Source {
     /// Build an empty `Source` containing just a string.
     /// Note that this source will point towards `./source`.
     pub fn source(source: &str) -> Rc<Source> {
-        Source::new(&source.to_string(), PathBuf::from("./source"))
+        Source::new(&source.to_string(), &PathBuf::from("./source"))
     }
 }

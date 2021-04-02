@@ -1,0 +1,14 @@
+-- action: run
+-- outcome: success
+-- expect: 5.86
+
+flubber = () -> {
+    foo = () -> {
+        print (pi + e)
+    }
+    pi = 3.14
+    foo ()
+}
+e = 2.72
+
+flubber ()

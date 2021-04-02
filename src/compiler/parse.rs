@@ -11,7 +11,7 @@ use crate::common::{
 use crate::compiler::{
     syntax::Syntax,
     token::Token,
-    ast::{AST, ASTPattern, ArgPat},
+    ast::{AST, ASTPattern, ArgPattern},
 };
 
 /// Simple function that parses a token stream into an AST.
@@ -271,10 +271,10 @@ impl Parser {
     }
 
     /// Parses a keyword.
-    /// Note that this is wrapped in a Pattern node.
+    /// Note that this is wrapped in a CSTPattern node.
     pub fn keyword(&mut self) -> Result<Spanned<AST>, Syntax> {
         if let Spanned { item: Token::Keyword(name), span } = self.advance() {
-            let wrapped = AST::ArgPat(ArgPat::Keyword(name.clone()));
+            let wrapped = AST::ArgPattern(ArgPattern::Keyword(name.clone()));
             Ok(Spanned::new(wrapped, span.clone()))
         } else {
             unreachable!("Expected a keyword");
@@ -381,10 +381,11 @@ impl Parser {
         let start = self.consume(Token::Print)?.span.clone();
         let ast = self.expression(Prec::Call, false)?;
         let end = ast.span.clone();
-        return Ok(Spanned::new(
-            AST::Print(Box::new(ast)),
-            Span::combine(&start, &end),
-        ))
+
+        return Ok(
+            Spanned::new(AST::ffi("println", ast),
+            Span::combine(&start, &end))
+        );
     }
 
     /// Parse an `extern` statement.
@@ -430,15 +431,15 @@ impl Parser {
     // Infix:
 
     /// Parses an argument pattern,
-    /// Which converts an `AST` into an `ArgPat`.
-    pub fn arg_pat(ast: Spanned<AST>) -> Result<Spanned<ArgPat>, Syntax> {
+    /// Which converts an `AST` into an `ArgPattern`.
+    pub fn arg_pat(ast: Spanned<AST>) -> Result<Spanned<ArgPattern>, Syntax> {
         let item = match ast.item {
-            AST::Symbol(s) => ArgPat::Symbol(s),
-            AST::ArgPat(p) => p,
+            AST::Symbol(s) => ArgPattern::Symbol(s),
+            AST::ArgPattern(p) => p,
             AST::Form(f) => {
                 let mut mapped = vec![];
                 for a in f { mapped.push(Parser::arg_pat(a)?); }
-                ArgPat::Group(mapped)
+                ArgPattern::Group(mapped)
             }
             _ => Err(Syntax::error(
                 "Unexpected construct inside argument pattern",

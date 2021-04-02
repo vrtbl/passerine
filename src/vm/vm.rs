@@ -207,7 +207,17 @@ impl VM {
     #[inline]
     pub fn load(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
-        let data = self.stack.local_data(index);
+        let mut data = self.stack.local_data(index);
+
+        if let Data::Heaped(d) = data { data = d.borrow().to_owned() };
+        if let Data::NotInit = data {
+            return Err(Trace::error(
+                "Reference",
+                &format!("This local variable was referenced before assignment"),
+                vec![self.current_span()],
+            ));
+        };
+
         self.stack.push_data(data);
         self.done()
     }
@@ -216,9 +226,17 @@ impl VM {
     #[inline]
     pub fn load_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
-        // NOTE: should heaped data should only be present for variables?
-        // self.closure.captures[index].borrow().to_owned()
-        self.stack.push_data(self.closure.captures[index].borrow().to_owned());
+        let data = self.closure.captures[index].borrow().to_owned();
+
+        if let Data::NotInit = data {
+            return Err(Trace::error(
+                "Reference",
+                &format!("This captured variable was referenced before assignment"),
+                vec![self.current_span()],
+            ));
+        };
+
+        self.stack.push_data(data);
         self.done()
     }
 
@@ -457,9 +475,10 @@ impl VM {
 mod test {
     use super::*;
     use crate::compiler::{
+        lex::lex,
         parse::parse,
         desugar::desugar,
-        lex::lex,
+        hoist::hoist,
         gen::gen,
     };
     use crate::common::source::Source;
@@ -468,6 +487,7 @@ mod test {
         let lambda = lex(Source::source(source))
             .and_then(parse)
             .and_then(desugar)
+            .and_then(hoist)
             .and_then(gen)
             .map_err(|e| println!("{}", e))
             .unwrap();
@@ -529,8 +549,20 @@ mod test {
         ");
     }
 
+    #[test]
+    fn hoist_later() {
+        inspect("\
+            w = 0.5
+            later = n -> thing 10.0 - w\n\
+            thing = x -> x + 20.0\n\
+            -- later 5.0\n\
+        ");
+    }
+
     // TODO: figure out how to make the following passerine code into a test
     // without entering into an infinite loop (which is the intended behaviour)
+    // maybe try running it a large number of times,
+    // and check the size of the stack?
     // loop = ()
     // loop = y -> x -> {
     //     print y

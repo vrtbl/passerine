@@ -5,8 +5,8 @@
 last = 0.0
 
 tuple = (
-    {last = 1.0; 3.0},
-    {last = 2.0; 5.0}, -- last should be 2.0
+    { last = 1.0; 3.0 },
+    { last = 2.0; 5.0 }, -- last should be 2.0
 )
 
 three, five = tuple
