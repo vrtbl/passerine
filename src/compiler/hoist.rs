@@ -49,10 +49,10 @@ pub fn hoist(cst: Spanned<CST>) -> Result<(Spanned<SST>, Scope), Syntax> {
 pub struct Hoister {
     /// The unique local symbols in the current scope.
     scopes: Vec<Scope>,
-    /// Maps integers (index in vector) to string representation of symbol.
     // TODO: make it it's own type
+    /// Maps integers (index in vector) to string representation of symbol.
     symbol_table: Vec<String>,
-    /// keeps track of variables that were referenced before assignment.
+    /// Keeps track of variables that were referenced before assignment.
     unresolved_hoists: HashMap<String, UniqueSymbol>,
 }
 
@@ -73,6 +73,7 @@ impl Hoister {
     fn reenter_scope(&mut self, scope: Scope) { self.scopes.push(scope) }
 
     /// Exits the current scope, returning it.
+    /// If there are no enclosing scopes, returns `None`.
     fn exit_scope(&mut self) -> Option<Scope> {
          if self.scopes.len() == 1 { return None; }
         return self.scopes.pop()
