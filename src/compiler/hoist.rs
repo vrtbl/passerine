@@ -68,9 +68,9 @@ impl Hoister {
     }
 
     /// Enters a new scope, called when entering a new function.
-    fn   enter_scope(&mut self)               { self.scopes.push(Scope::new()); }
-    /// Enters an existing scope, called when resolving variables
-    fn reenter_scope(&mut self, scope: Scope) { self.scopes.push(scope)         }
+    fn   enter_scope(&mut self) { self.scopes.push(Scope::new()); }
+    /// Enters an existing scope, called when resolving variables.
+    fn reenter_scope(&mut self, scope: Scope) { self.scopes.push(scope) }
 
     /// Exits the current scope, returning it.
     fn exit_scope(&mut self) -> Option<Scope> {
