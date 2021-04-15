@@ -1,7 +1,4 @@
-use std::{
-    mem,
-    convert::TryFrom,
-};
+use std::convert::TryFrom;
 
 use crate::common::{
     span::{Span, Spanned},
@@ -46,6 +43,25 @@ pub enum Prec {
 }
 
 impl Prec {
+    fn from_byte(byte: u8) -> Self {
+        match byte {
+            0 => Self::None,
+            1 => Self::Assign,
+            2 => Self::Pair,
+            3 => Self::Lambda,
+
+            4 => Self::Logic,
+
+            5 => Self::AddSub,
+            6 => Self::MulDiv,
+
+            7 => Self::Compose,
+            8 => Self::Call,
+            9 => Self::End,
+            _ => panic!("precedence too far left: {}", byte)
+        }
+    }
+    
     /// Increments precedence level to cause the
     /// parser to associate infix operators to the left.
     /// For example, addition is left-associated:
@@ -55,8 +71,7 @@ impl Prec {
     /// `a + b + c` left-associated becomes `(a + b) + c`.
     /// By default, the parser accociates right.
     pub fn associate_left(&self) -> Prec {
-        if let Prec::End = self { panic!("Can not associate further left") }
-        return unsafe { mem::transmute(self.clone() as u8 + 1) };
+        Self::from_byte(self.clone() as u8 + 1)
     }
 }
 

@@ -46,12 +46,28 @@ pub enum Opcode {
 
 impl Opcode {
     /// Convert a raw byte to an opcode.
-    /// Note that non-opcode bytes should never be interpreted as an opcode.
-    /// Under the hood, this is just a transmute, so the regular cautions apply.
-    /// This *should* never cause a crash
-    /// and if it does, the vm's designed to crash hard
-    /// so it'll be pretty obvious.
     pub fn from_byte(byte: u8) -> Opcode {
-        unsafe { std::mem::transmute(byte) }
+        match byte {
+            0 => Self::Con,
+            1 => Self::NotInit,
+            2 => Self::Del,
+            3 => Self::FFICall,
+            4 => Self::Copy,
+            5 => Self::Capture,
+            6 => Self::Save,
+            7 => Self::SaveCap,
+            8 => Self::Load,
+            9 => Self::LoadCap,
+            10 => Self::Call,
+            11 => Self::Return,
+            12 => Self::Closure,
+            13 => Self::Print,
+            14 => Self::Label,
+            15 => Self::Tuple,
+            16 => Self::UnData,
+            17 => Self::UnLabel,
+            18 => Self::UnTuple,
+            _ => unreachable!("invalid opcode {}", byte)
+        }
     }
 }
