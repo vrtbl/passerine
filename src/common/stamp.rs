@@ -14,9 +14,11 @@ pub fn shuffle(seed: u128) -> String {
 
 /// Returns a pseudorandom 8 character hexadecimal string.
 pub fn stamp(seed: u128) -> String {
-    let mut combined = "".to_string();
-    for i in 0..4 {
-        combined += &shuffle(i + seed);
-    }
-    return combined;
+    return seed.to_string();
+
+    // let mut combined = "".to_string();
+    // for i in 0..4 {
+    //     combined += &shuffle(i + seed);
+    // }
+    // return combined;
 }

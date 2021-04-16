@@ -46,6 +46,9 @@ Passerine is currently being developed by [Isaac Clayton](https://github.com/sli
 [Anton](https://github.com/jesyspa/),
 [Yasser](https://github.com/realnegate),
 [Shaw](https://github.com/shawsumma),
+[Plecra](https://github.com/plecra),
+[IFcoltransG](https://github.com/IFcoltransG),
+[Jack](https://github.com/nivpgir),
 Xal,
 and others!
 
@@ -865,7 +868,8 @@ sh <(curl -sSf https://www.passerine.io/install.sh)
 
 > 1. If you're having trouble getting started, reach out on the community [Discord server](https://discord.gg/yMhUyhw).
 > 2. Tested on Arch (btw) and macOS.
-> 3. In the future, we plan to distribute prebuilt binaries, but for now, both Git and Cargo are required.
+> 3. Now tested on Windows™!
+> 4. In the future, we plan to distribute prebuilt binaries, but for now, both Git and Cargo are required.
 
 ## Contributing
 Contributions are welcome!
