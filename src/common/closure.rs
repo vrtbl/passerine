@@ -36,8 +36,8 @@ impl Closure {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::common::lambda::Lambda;
+    // use super::*;
+    // use crate::common::lambda::Lambda;
 
     // #[test]
     // fn unique() {
