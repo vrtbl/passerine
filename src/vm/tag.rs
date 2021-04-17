@@ -85,71 +85,53 @@ impl Tagged {
     }
 
     /// Returns the underlying `Data` (or a pointer to that `Data`).
-    unsafe fn extract(&self) -> Result<Slot, Box<Slot>> {
-        // println!("-- Extracting...");
-        let Tagged(bits) = self;
-
-        return match bits {
-            n if (n & QNAN) != QNAN    => Ok(Slot::Data(Data::Real(f64::from_bits(*n)))),
-            u if u == &(QNAN | U_FLAG) => Ok(Slot::Data(Data::Unit)),
-            f if f == &(QNAN | F_FLAG) => Ok(Slot::Data(Data::Boolean(false))),
-            t if t == &(QNAN | T_FLAG) => Ok(Slot::Data(Data::Boolean(true))),
-            s if s == &(QNAN | S_FLAG) => Ok(Slot::Frame),
-            n if n == &(QNAN | N_FLAG) => Ok(Slot::Data(Data::NotInit)),
-            p if (p & P_FLAG) == P_FLAG => Err({
-                // println!("{:#x}", p & P_MASK);
-                // unsafe part
-                Box::from_raw((bits & P_MASK) as *mut Slot)
-            }),
+    /// Unpacks the encoding used by [`Tagged`].
+    ///
+    /// `dereference` will be called with a valid raw pointer to a [`Box<Slot>`]
+    ///
+    /// The aliasing requirements on the source `Tagged` must be followed on this
+    /// pointer.
+    ///
+    /// If the caller moves out of this pointer, the original [`Tagged`] must
+    /// not be dropped
+    fn extract(&self, dereference: impl FnOnce(*mut Slot) -> Slot) -> Slot {
+        match self.0 {
+            n if (n & QNAN) != QNAN     => Slot::Data(Data::Real(f64::from_bits(n))),
+            u if u == (QNAN | U_FLAG)   => Slot::Data(Data::Unit),
+            f if f == (QNAN | F_FLAG)   => Slot::Data(Data::Boolean(false)),
+            t if t == (QNAN | T_FLAG)   => Slot::Data(Data::Boolean(true)),
+            s if s == (QNAN | S_FLAG)   => Slot::Frame,
+            n if n == (QNAN | N_FLAG)   => Slot::Data(Data::NotInit),
+            p if (p & P_FLAG) == P_FLAG => dereference((p & P_MASK) as *mut Slot),
             _ => unreachable!("Corrupted tagged data"),
         }
     }
 
-    /// Unwrapps a tagged number into the appropriate datatype,
+    /// Unwraps a tagged number into the appropriate datatype,
     /// consuming the tagged number.
     pub fn slot(self) -> Slot {
-        // println!("-- Data...");
-
-        let d = unsafe {
-            match self.extract() {
-                Ok(slot) => slot,
-                Err(slot) => {
-                    *slot
-                }
-            }
-        };
-
-        // println!("-- Forgetting...");
-        mem::drop(self.0);
-        mem::forget(self);
-        return d;
+        let this = mem::ManuallyDrop::new(self);
+        this.extract(|p| *unsafe {
+            // Safety: We own `self` and the `Tagged` has been forgotten
+            Box::from_raw(p)
+        })
     }
 
     /// Deeply copies some `Tagged` data.
     pub fn copy(&self) -> Slot {
-        // println!("-- Copy...");
-        unsafe {
-            match self.extract() {
-                Ok(slot) => slot.to_owned(),
-                Err(boxed) => {
-                    let copy = boxed.clone();
-                    // println!("-- Leaking...");
-                    // we took ownership to clone the pointer,
-                    // but we do not own the pointer,
-                    // so we 'leak' it - &self still holds a reference
-                    Box::leak(boxed);
-                    *copy
-                },
-            }
-        }
+        self.extract(|p| unsafe {
+            // Safety: We have a shared borrow of `self`
+            &*p
+        }.clone())
     }
 }
 
 impl Drop for Tagged {
     fn drop(&mut self) {
-        // println!("-- Dropping...");
-        // println!("{:#x}", self.0 & P_MASK);
-        unsafe { mem::drop(self.extract()) };
+        self.extract(|p| *unsafe {
+            // Safety: self will not be used again, so the contents can be consumed
+            Box::from_raw(p)
+        });
     }
 }
 
