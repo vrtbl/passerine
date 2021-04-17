@@ -96,12 +96,12 @@ impl Tagged {
     /// not be dropped
     fn extract(&self, dereference: impl FnOnce(*mut Slot) -> Slot) -> Slot {
         match self.0 {
-            n if (n & QNAN) != QNAN    => Slot::Data(Data::Real(f64::from_bits(n))),
-            u if u == (QNAN | U_FLAG) => Slot::Data(Data::Unit),
-            f if f == (QNAN | F_FLAG) => Slot::Data(Data::Boolean(false)),
-            t if t == (QNAN | T_FLAG) => Slot::Data(Data::Boolean(true)),
-            s if s == (QNAN | S_FLAG) => Slot::Frame,
-            n if n == (QNAN | N_FLAG) => Slot::Data(Data::NotInit),
+            n if (n & QNAN) != QNAN     => Slot::Data(Data::Real(f64::from_bits(n))),
+            u if u == (QNAN | U_FLAG)   => Slot::Data(Data::Unit),
+            f if f == (QNAN | F_FLAG)   => Slot::Data(Data::Boolean(false)),
+            t if t == (QNAN | T_FLAG)   => Slot::Data(Data::Boolean(true)),
+            s if s == (QNAN | S_FLAG)   => Slot::Frame,
+            n if n == (QNAN | N_FLAG)   => Slot::Data(Data::NotInit),
             p if (p & P_FLAG) == P_FLAG => dereference((p & P_MASK) as *mut Slot),
             _ => unreachable!("Corrupted tagged data"),
         }

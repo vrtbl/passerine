@@ -36,15 +36,15 @@ impl Closure {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::common::lambda::Lambda;
+    // use super::*;
+    // use crate::common::lambda::Lambda;
 
-    #[test]
-    fn unique() {
-        let lambda = Lambda::empty();
-        let a = Closure::wrap(lambda.clone());
-        let b = Closure::wrap(lambda.clone());
-
-        assert_ne!(a.id, b.id);
-    }
+    // #[test]
+    // fn unique() {
+    //     let lambda = Lambda::empty();
+    //     let a = Closure::wrap(lambda.clone());
+    //     let b = Closure::wrap(lambda.clone());
+    //
+    //     assert_ne!(a.id, b.id);
+    // }
 }
