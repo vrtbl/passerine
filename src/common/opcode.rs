@@ -51,7 +51,7 @@ impl Opcode {
     /// This *should* never cause a crash
     /// and if it does, the vm's designed to crash hard
     /// so it'll be pretty obvious.
-    pub fn from_byte(byte: u8) -> Opcode {
-        unsafe { std::mem::transmute(byte) }
+    pub unsafe fn from_byte(byte: u8) -> Opcode {
+        std::mem::transmute(byte)
     }
 }

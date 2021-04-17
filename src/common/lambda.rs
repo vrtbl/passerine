@@ -27,6 +27,7 @@ pub struct Lambda {
     /// Number of variables declared in this scope.
     pub decls: usize,
     /// Each byte is an opcode or a number-stream.
+    /// Guaranteed to be valid bytecode
     pub code: Vec<u8>,
     /// Each usize indexes the bytecode op that begins each line.
     pub spans: Vec<(usize, Span)>,
@@ -54,12 +55,12 @@ impl Lambda {
     }
 
     /// Emits an opcode as a byte.
-    pub fn emit(&mut self, op: Opcode) {
+    pub unsafe fn emit(&mut self, op: Opcode) {
         self.code.push(op as u8)
     }
 
     /// Emits a series of bytes.
-    pub fn emit_bytes(&mut self, bytes: &mut Vec<u8>) {
+    pub unsafe fn emit_bytes(&mut self, bytes: &mut Vec<u8>) {
         self.code.append(bytes)
     }
 
@@ -71,7 +72,7 @@ impl Lambda {
     }
 
     /// Removes the last emitted byte.
-    pub fn demit(&mut self) {
+    pub unsafe fn demit(&mut self) {
         self.code.pop();
     }
 
@@ -139,7 +140,7 @@ impl fmt::Display for Lambda {
 
         while index < self.code.len() {
             index += 1;
-            match Opcode::from_byte(self.code[index - 1]) {
+            match unsafe { Opcode::from_byte(self.code[index - 1]) } {
                 Opcode::Con => {
                     let (constant_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;

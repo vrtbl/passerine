@@ -24,6 +24,7 @@ use crate::vm::{
 pub struct VM {
     pub closure: Closure,
     pub stack:   Stack,
+    /// Guaranteed to be pointing at a valid OpCode (between calls)
     pub ip:      usize,
 }
 
@@ -47,16 +48,16 @@ impl VM {
 
     /// Advances to the next instruction.
     #[inline]
-    pub fn next(&mut self)                           { self.ip += 1; }
+    pub unsafe fn next(&mut self)                           { self.ip += 1; }
     /// Advances IP, returns `Ok`. Used in Bytecode implementations.
     #[inline]
-    pub fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
+    pub unsafe fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
     /// Returns the current instruction as a byte.
     #[inline]
     pub fn peek_byte(&mut self) -> u8                { self.closure.lambda.code[self.ip] }
     /// Advances IP and returns the current instruction as a byte.
     #[inline]
-    pub fn next_byte(&mut self) -> u8                { self.next(); self.peek_byte() }
+    pub unsafe fn next_byte(&mut self) -> u8                { self.next(); self.peek_byte() }
 
     /// Returns whether the program has terminated
     #[inline]
@@ -67,7 +68,7 @@ impl VM {
     /// Builds the next number in the bytecode stream.
     /// See `utils::number` for more.
     #[inline]
-    pub fn next_number(&mut self) -> usize {
+    pub unsafe fn next_number(&mut self) -> usize {
         self.next();
         let remaining      = &self.closure.lambda.code[self.ip..];
         let (index, eaten) = build_number(remaining);
@@ -86,28 +87,28 @@ impl VM {
     /// The op definitions follow in the next `impl` block.
     /// To see what each op does, check `common::opcode::Opcode`.
     pub fn step(&mut self) -> Result<(), Trace> {
-        let opcode = Opcode::from_byte(self.peek_byte());
-
-        match opcode {
-            Opcode::Con     => self.con(),
-            Opcode::NotInit => self.not_init(),
-            Opcode::Del     => self.del(),
-            Opcode::FFICall => self.ffi_call(),
-            Opcode::Copy    => self.copy_val(),
-            Opcode::Capture => self.capture(),
-            Opcode::Save    => self.save(),
-            Opcode::SaveCap => self.save_cap(),
-            Opcode::Load    => self.load(),
-            Opcode::LoadCap => self.load_cap(),
-            Opcode::Call    => self.call(),
-            Opcode::Return  => self.return_val(),
-            Opcode::Closure => self.closure(),
-            Opcode::Print   => self.print(),
-            Opcode::Label   => self.label(),
-            Opcode::Tuple   => self.tuple(),
-            Opcode::UnData  => self.un_data(),
-            Opcode::UnLabel => self.un_label(),
-            Opcode::UnTuple => self.un_tuple(),
+        unsafe {
+            match Opcode::from_byte(self.peek_byte()) {
+                Opcode::Con     => self.con(),
+                Opcode::NotInit => self.not_init(),
+                Opcode::Del     => self.del(),
+                Opcode::FFICall => self.ffi_call(),
+                Opcode::Copy    => self.copy_val(),
+                Opcode::Capture => self.capture(),
+                Opcode::Save    => self.save(),
+                Opcode::SaveCap => self.save_cap(),
+                Opcode::Load    => self.load(),
+                Opcode::LoadCap => self.load_cap(),
+                Opcode::Call    => self.call(),
+                Opcode::Return  => self.return_val(),
+                Opcode::Closure => self.closure(),
+                Opcode::Print   => self.print(),
+                Opcode::Label   => self.label(),
+                Opcode::Tuple   => self.tuple(),
+                Opcode::UnData  => self.un_data(),
+                Opcode::UnLabel => self.un_label(),
+                Opcode::UnTuple => self.un_tuple(),
+            }
         }
     }
 
@@ -163,7 +164,7 @@ impl VM {
 
     /// Load a constant and push it onto the stack.
     #[inline]
-    pub fn con(&mut self) -> Result<(), Trace> {
+    pub unsafe fn con(&mut self) -> Result<(), Trace> {
         // get the constant index
         let index = self.next_number();
 
@@ -172,7 +173,7 @@ impl VM {
     }
 
     #[inline]
-    pub fn not_init(&mut self) -> Result<(), Trace> {
+    pub unsafe fn not_init(&mut self) -> Result<(), Trace> {
         self.stack.push_not_init();
         self.done()
     }
@@ -180,7 +181,7 @@ impl VM {
     /// Moves the top value on the stack to the heap,
     /// replacing it with a reference to the heapified value.
     #[inline]
-    pub fn capture(&mut self) -> Result<(), Trace> {
+    pub unsafe fn capture(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         self.stack.heapify(index);   // move value to the heap
         self.done()
@@ -188,7 +189,7 @@ impl VM {
 
     /// Save the topmost value on the stack into a variable.
     #[inline]
-    pub fn save(&mut self) -> Result<(), Trace> {
+    pub unsafe fn save(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         self.stack.set_local(index);
         self.done()
@@ -196,7 +197,7 @@ impl VM {
 
     /// Save the topmost value on the stack into a captured variable.
     #[inline]
-    pub fn save_cap(&mut self) -> Result<(), Trace> {
+    pub unsafe fn save_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         let data  = self.stack.pop_data();
         mem::drop(self.closure.captures[index].replace(data));
@@ -205,7 +206,7 @@ impl VM {
 
     /// Push a copy of a variable's value onto the stack.
     #[inline]
-    pub fn load(&mut self) -> Result<(), Trace> {
+    pub unsafe fn load(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         let mut data = self.stack.local_data(index);
 
@@ -224,7 +225,7 @@ impl VM {
 
     /// Load a captured variable from the current closure.
     #[inline]
-    pub fn load_cap(&mut self) -> Result<(), Trace> {
+    pub unsafe fn load_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         let data = self.closure.captures[index].borrow().to_owned();
 
@@ -242,7 +243,7 @@ impl VM {
 
     /// Delete the top item of the stack.
     #[inline]
-    pub fn del(&mut self) -> Result<(), Trace> {
+    pub unsafe fn del(&mut self) -> Result<(), Trace> {
         mem::drop(self.stack.pop_data());
         self.done()
     }
@@ -250,7 +251,7 @@ impl VM {
     /// Copy the top data of the stack, i.e.
     /// `[F, D]` becomes `[F, D, D]`.
     #[inline]
-    pub fn copy_val(&mut self) -> Result<(), Trace> {
+    pub unsafe fn copy_val(&mut self) -> Result<(), Trace> {
         let data = self.stack.pop_data();
         self.stack.push_data(data.clone());
         self.stack.push_data(data);
@@ -258,7 +259,7 @@ impl VM {
     }
 
     #[inline]
-    pub fn print(&mut self) -> Result<(), Trace> {
+    pub unsafe fn print(&mut self) -> Result<(), Trace> {
         let data = self.stack.pop_data();
         println!("{}", data);
         self.stack.push_data(data);
@@ -266,7 +267,7 @@ impl VM {
     }
 
     #[inline]
-    pub fn label(&mut self) -> Result<(), Trace> {
+    pub unsafe fn label(&mut self) -> Result<(), Trace> {
         let kind = match self.stack.pop_data() {
             Data::Kind(n) => n,
             _ => unreachable!(),
@@ -277,7 +278,7 @@ impl VM {
     }
 
     #[inline]
-    pub fn tuple(&mut self) -> Result<(), Trace> {
+    pub unsafe fn tuple(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         let mut items = vec![];
         for _ in 0..index {
@@ -289,7 +290,7 @@ impl VM {
         self.done()
     }
 
-    fn un_data(&mut self) -> Result<(), Trace> {
+    unsafe fn un_data(&mut self) -> Result<(), Trace> {
         let expected = self.stack.pop_data();
         let data = self.stack.pop_data();
 
@@ -304,7 +305,7 @@ impl VM {
         self.done()
     }
 
-    fn un_label(&mut self) -> Result<(), Trace> {
+    unsafe fn un_label(&mut self) -> Result<(), Trace> {
         let kind = match self.stack.pop_data() {
             Data::Kind(n) => n,
             _ => unreachable!(),
@@ -323,7 +324,7 @@ impl VM {
         self.done()
     }
 
-    fn un_tuple(&mut self) -> Result<(), Trace> {
+    unsafe fn un_tuple(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         let t = match self.stack.pop_data() {
             Data::Tuple(t) => t,
@@ -353,7 +354,7 @@ impl VM {
     }
 
     /// Call a function on the top of the stack, passing the next value as an argument.
-    pub fn call(&mut self) -> Result<(), Trace> {
+    pub unsafe fn call(&mut self) -> Result<(), Trace> {
         // get the function and argument to run
         let fun = match self.stack.pop_data() {
             Data::Closure(c) => *c,
@@ -409,7 +410,7 @@ impl VM {
     /// Takes the number of locals on the stack
     /// Relpaces the last frame with the value on the top of the stack.
     /// Expects the stack to be a `[..., Frame, Local 1, ..., Local N, Data]`
-    pub fn return_val(&mut self) -> Result<(), Trace> {
+    pub unsafe fn return_val(&mut self) -> Result<(), Trace> {
         // the value to be returned
         let val = self.stack.pop_data();
 
@@ -427,7 +428,7 @@ impl VM {
         Ok(())
     }
 
-    pub fn closure(&mut self) -> Result<(), Trace> {
+    pub unsafe fn closure(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
 
         let lambda = match self.closure.lambda.constants[index].clone() {
@@ -454,7 +455,7 @@ impl VM {
         self.done()
     }
 
-    pub fn ffi_call(&mut self) -> Result<(), Trace> {
+    pub unsafe fn ffi_call(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
         let ffi_function = &self.closure.lambda.ffi[index];
 

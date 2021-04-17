@@ -125,23 +125,27 @@ impl Compiler {
 
     /// Resovles a symbol lookup, e.g. something like `x`.
     pub fn symbol(&mut self, unique_symbol: UniqueSymbol) {
-        let index = if let Some(i) = self.scope.local_index(unique_symbol) {
-            self.lambda.emit(Opcode::Load); i
-        } else if let Some(i) = self.scope.nonlocal_index(unique_symbol) {
-            self.lambda.emit(Opcode::LoadCap); i
-        } else {
-            // unreachable?
-            todo!();
-        };
+        unsafe {
+            let index = if let Some(i) = self.scope.local_index(unique_symbol) {
+                self.lambda.emit(Opcode::Load); i
+            } else if let Some(i) = self.scope.nonlocal_index(unique_symbol) {
+                self.lambda.emit(Opcode::LoadCap); i
+            } else {
+                // unreachable?
+                todo!();
+            };
 
-        self.lambda.emit_bytes(&mut split_number(index));
+            self.lambda.emit_bytes(&mut split_number(index));
+        }
     }
 
     /// Takes a `Data` leaf and and produces some code to load the constant
     pub fn data(&mut self, data: Data) {
-        self.lambda.emit(Opcode::Con);
-        let mut split = split_number(self.lambda.index_data(data));
-        self.lambda.emit_bytes(&mut split);
+        unsafe {
+            self.lambda.emit(Opcode::Con);
+            let mut split = split_number(self.lambda.index_data(data));
+            self.lambda.emit_bytes(&mut split);
+        }
     }
 
     /// A block is a series of expressions where the last is returned.
@@ -154,11 +158,15 @@ impl Compiler {
 
         for child in children {
             self.walk(&child)?;
-            self.lambda.emit(Opcode::Del);
+            unsafe {
+                self.lambda.emit(Opcode::Del);
+            }
         }
 
         // remove the last delete instruction
-        self.lambda.demit();
+        unsafe {
+            self.lambda.demit();
+        }
         Ok(())
     }
 
@@ -168,7 +176,9 @@ impl Compiler {
     /// it'll no longer be one.
     pub fn print(&mut self, expression: Spanned<SST>) -> Result<(), Syntax> {
         self.walk(&expression)?;
-        self.lambda.emit(Opcode::Print);
+        unsafe {
+            self.lambda.emit(Opcode::Print);
+        }
         Ok(())
     }
 
@@ -177,7 +187,9 @@ impl Compiler {
     pub fn label(&mut self, name: String, expression: Spanned<SST>) -> Result<(), Syntax> {
         self.walk(&expression)?;
         self.data(Data::Kind(name));
-        self.lambda.emit(Opcode::Label);
+        unsafe {
+            self.lambda.emit(Opcode::Label);
+        }
         Ok(())
     }
 
@@ -190,9 +202,10 @@ impl Compiler {
         for item in tuple.into_iter() {
             self.walk(&item)?;
         }
-
-        self.lambda.emit(Opcode::Tuple);
-        self.lambda.emit_bytes(&mut split_number(length));
+        unsafe {
+            self.lambda.emit(Opcode::Tuple);
+            self.lambda.emit_bytes(&mut split_number(length));
+        }
         Ok(())
     }
 
@@ -222,24 +235,27 @@ impl Compiler {
         };
 
         self.lambda.emit_span(&span);
-        self.lambda.emit(Opcode::FFICall);
-        self.lambda.emit_bytes(&mut split_number(index));
+        unsafe {
+            self.lambda.emit(Opcode::FFICall);
+            self.lambda.emit_bytes(&mut split_number(index));
+        }
         Ok(())
     }
 
     /// Resolves the assignment of a variable
     /// returns true if the variable was declared.
     pub fn resolve_assign(&mut self, unique_symbol: UniqueSymbol) {
-        let index = if let Some(i) = self.scope.local_index(unique_symbol) {
-            self.lambda.emit(Opcode::Save); i
-        } else if let Some(i) = self.scope.nonlocal_index(unique_symbol) {
-            self.lambda.emit(Opcode::SaveCap); i
-        } else {
-            // unreachable?
-            todo!()
-        };
-
-        self.lambda.emit_bytes(&mut split_number(index));
+        unsafe {
+            let index = if let Some(i) = self.scope.local_index(unique_symbol) {
+                self.lambda.emit(Opcode::Save); i
+            } else if let Some(i) = self.scope.nonlocal_index(unique_symbol) {
+                self.lambda.emit(Opcode::SaveCap); i
+            } else {
+                // unreachable?
+                todo!()
+            };
+            self.lambda.emit_bytes(&mut split_number(index));
+        }
     }
 
     /// Destructures a pattern into
@@ -255,21 +271,29 @@ impl Compiler {
             },
             SSTPattern::Data(expected) => {
                 self.data(expected);
-                self.lambda.emit(Opcode::UnData);
+                unsafe {
+                    self.lambda.emit(Opcode::UnData);
+                }
             }
             SSTPattern::Label(name, pattern) => {
                 self.data(Data::Kind(name));
-                self.lambda.emit(Opcode::UnLabel);
+                unsafe {
+                    self.lambda.emit(Opcode::UnLabel);
+                }
                 self.destructure(*pattern, redeclare);
             }
             SSTPattern::Tuple(tuple) => {
                 for (index, sub_pattern) in tuple.into_iter().enumerate() {
-                    self.lambda.emit(Opcode::UnTuple);
-                    self.lambda.emit_bytes(&mut split_number(index));
+                    unsafe {
+                        self.lambda.emit(Opcode::UnTuple);
+                        self.lambda.emit_bytes(&mut split_number(index));
+                    }
                     self.destructure(sub_pattern, redeclare);
                 }
                 // Delete the tuple moved to the top of the stack.
-                self.lambda.emit(Opcode::Del);
+                unsafe {
+                    self.lambda.emit(Opcode::Del);
+                }
             },
         }
     }
@@ -299,8 +323,10 @@ impl Compiler {
         for nonlocal in scope.nonlocals.iter() {
             let captured = if self.scope.is_local(*nonlocal) {
                 let index = self.scope.local_index(*nonlocal).unwrap();
-                self.lambda.emit(Opcode::Capture);
-                self.lambda.emit_bytes(&mut split_number(index));
+                unsafe {
+                    self.lambda.emit(Opcode::Capture);
+                    self.lambda.emit_bytes(&mut split_number(index));
+                }
                 Captured::Local(index)
             } else {
                 Captured::Nonlocal(self.scope.nonlocal_index(*nonlocal).unwrap())
@@ -321,15 +347,19 @@ impl Compiler {
             self.walk(&expression)?;
 
             // return the result
-            self.lambda.emit(Opcode::Return);
-            self.lambda.emit_bytes(&mut split_number(self.scope.locals.len()));
+            unsafe {
+                self.lambda.emit(Opcode::Return);
+                self.lambda.emit_bytes(&mut split_number(self.scope.locals.len()));
+            }
         }
         let lambda = self.exit_scope().lambda;
 
         // push the lambda object onto the callee's stack.
         let lambda_index = self.lambda.index_data(Data::Lambda(Box::new(lambda)));
-        self.lambda.emit(Opcode::Closure);
-        self.lambda.emit_bytes(&mut split_number(lambda_index));
+        unsafe {
+            self.lambda.emit(Opcode::Closure);
+            self.lambda.emit_bytes(&mut split_number(lambda_index));
+        }
 
         Ok(())
     }
@@ -341,7 +371,9 @@ impl Compiler {
         self.walk(&fun)?;
 
         self.lambda.emit_span(&Span::combine(&fun.span, &arg.span));
-        self.lambda.emit(Opcode::Call);
+        unsafe {
+            self.lambda.emit(Opcode::Call);
+        }
         Ok(())
     }
 }
