@@ -431,7 +431,7 @@ impl VM {
         let index = self.next_number();
 
         let lambda = match self.closure.lambda.constants[index].clone() {
-            Data::Lambda(lambda) => *lambda,
+            Data::Lambda(lambda) => lambda,
             _ => unreachable!("Expected a lambda to be wrapped with a closure"),
         };
 

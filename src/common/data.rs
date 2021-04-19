@@ -34,7 +34,7 @@ pub enum Data {
     /// A UTF-8 encoded string.
     String(String),
     /// Represents a function, ie.e some bytecode without a context.
-    Lambda(Box<Lambda>),
+    Lambda(Rc<Lambda>),
     /// Some bytecode with a context that can be run.
     Closure(Box<Closure>),
 
