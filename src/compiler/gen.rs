@@ -1,4 +1,7 @@
-use std::mem;
+use std::{
+    mem,
+    rc::Rc,
+};
 
 use crate::common::{
     number::split_number,
@@ -26,7 +29,7 @@ use crate::core::{
 
 /// Simple function that generates unoptimized bytecode from an `SST`.
 /// Exposes the functionality of the `Compiler`.
-pub fn gen(sst: (Spanned<SST>, Scope)) -> Result<Lambda, Syntax> {
+pub fn gen(sst: (Spanned<SST>, Scope)) -> Result<Rc<Lambda>, Syntax> {
     return gen_with_ffi(sst, ffi_core());
 }
 
@@ -34,10 +37,10 @@ pub fn gen(sst: (Spanned<SST>, Scope)) -> Result<Lambda, Syntax> {
 /// Given a specific FFI. Note that this doesn't even assume the core ffi,
 /// So it's required you generate a core ffi with `core::ffi_core()`,
 /// Then merge it with your ffi with `FFI::combine(...)`.
-pub fn gen_with_ffi(sst: (Spanned<SST>, Scope), ffi: FFI) -> Result<Lambda, Syntax> {
+pub fn gen_with_ffi(sst: (Spanned<SST>, Scope), ffi: FFI) -> Result<Rc<Lambda>, Syntax> {
     let mut compiler = Compiler::base(ffi, sst.1);
     compiler.walk(&sst.0)?;
-    return Ok(compiler.lambda);
+    return Ok(Rc::new(compiler.lambda));
 }
 
 /// Compiler is a bytecode generator that walks an SST and produces (unoptimized) Bytecode.
@@ -327,7 +330,7 @@ impl Compiler {
         let lambda = self.exit_scope().lambda;
 
         // push the lambda object onto the callee's stack.
-        let lambda_index = self.lambda.index_data(Data::Lambda(Box::new(lambda)));
+        let lambda_index = self.lambda.index_data(Data::Lambda(Rc::new(lambda)));
         self.lambda.emit(Opcode::Closure);
         self.lambda.emit_bytes(&mut split_number(lambda_index));
 

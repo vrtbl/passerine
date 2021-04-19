@@ -18,14 +18,14 @@ use crate::common::{
 #[derive(Debug, Clone, PartialEq)]
 pub struct Closure {
     pub id: String,
-    pub lambda: Lambda,
+    pub lambda: Rc<Lambda>,
     pub captures: Vec<Rc<RefCell<Data>>>,
 }
 
 impl Closure {
     /// Constructs a new `Closure` by wrapping a `Lambda`.
     /// This closure has no captured variables when constructed.
-    pub fn wrap(lambda: Lambda) -> Closure {
+    pub fn wrap(lambda: Rc<Lambda>) -> Closure {
         Closure {
             id: stamp(0),
             lambda,
