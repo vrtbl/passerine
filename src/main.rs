@@ -6,7 +6,7 @@ use passerine::{
 
 pub fn main() -> Result<(), String> {
     let path = std::env::args_os().nth(1).expect("Usage: <path>");
-    
+
     let source = Source::path(path.as_ref())
         .map_err(|_| format!("Could not find source entrypoint {:?}", path))?;
 
