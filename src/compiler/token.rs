@@ -1,6 +1,8 @@
 use std::fmt::Display;
 use crate::common::data::Data;
 
+// TODO: remove associated data from tokens.
+
 /// These are the different tokens the lexer will output.
 /// `Token`s with data contain that data,
 /// e.g. a boolean will be a `Data::Boolean(...)`, not just a string.
@@ -72,7 +74,7 @@ impl Display for Token {
             Token::Sub          => "a subtraction",
             Token::Mul          => "a multiplication",
             Token::Div          => "a division",
-            Token::Rem          => "a remainder operator",
+            Token::Rem          => "a rem operator",
             Token::Equal        => "an equality test",
             Token::End          => "end of source",
             Token::Keyword(k) => { return write!(f, "the pseudokeyword '{}", k); },
