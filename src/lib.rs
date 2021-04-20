@@ -124,3 +124,42 @@ pub mod common;
 pub mod core;
 pub mod compiler;
 pub mod vm;
+
+// exported functions:
+// TODO: clean up exports
+
+use std::rc::Rc;
+use common::{closure::Closure, source::Source};
+use compiler::{lex, parse, desugar, hoist, gen::{gen, gen_with_ffi}, syntax::Syntax};
+use crate::core::ffi::FFI;
+use vm::{vm::VM, trace::Trace};
+
+/// Compiles a [`Source`] to some bytecode.
+pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {
+    let tokens   =   lex(source)?;
+    let ast      = parse(tokens)?;
+    let cst      =  desugar(ast)?;
+    let sst      =    hoist(cst)?;
+    let bytecode =      gen(sst)?;
+
+    return Ok(Closure::wrap(bytecode));
+}
+
+/// Compiles a [`Source`] to some bytecode,
+/// With a specific [`FFI`].
+pub fn compile_with_ffi(source: Rc<Source>, ffi: FFI) -> Result<Closure, Syntax> {
+    let tokens   =            lex(source)?;
+    let ast      =          parse(tokens)?;
+    let cst      =           desugar(ast)?;
+    let sst      =             hoist(cst)?;
+    let bytecode = gen_with_ffi(sst, ffi)?;
+
+    return Ok(Closure::wrap(bytecode));
+}
+
+/// Run a compiled [`Closure`].
+pub fn run(closure: Closure) -> Result<(), Trace> {
+    let mut vm = VM::init(closure);
+    vm.run()?;
+    Ok(())
+}
