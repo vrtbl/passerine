@@ -74,7 +74,7 @@ impl Display for Token {
             Token::Sub          => "a subtraction",
             Token::Mul          => "a multiplication",
             Token::Div          => "a division",
-            Token::Rem          => "a rem operator",
+            Token::Rem          => "a remainder",
             Token::Equal        => "an equality test",
             Token::End          => "end of source",
             Token::Keyword(k) => { return write!(f, "the pseudokeyword '{}", k); },
