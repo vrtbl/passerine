@@ -17,6 +17,29 @@ use crate::compiler::{
 
 type Bite = (Token, usize);
 
+/// A static token.
+/// This _must_ be sorted by length.
+pub const STATIC_TOKENS: &[(&str, Token)] = &[
+    ("syntax", Token::Syntax),
+    ("magic", Token::Magic),
+    ("print", Token::Print), // remove print statements after FFI & prelude
+    ("()", Token::Unit),
+    ("->", Token::Lambda),
+    ("==", Token::Equal),
+    ("{", Token::OpenBracket),
+    ("}", Token::CloseBracket),
+    ("(", Token::OpenParen),
+    (")", Token::CloseParen),
+    ("=", Token::Assign),
+    (".", Token::Compose),
+    (",", Token::Pair),
+    ("+", Token::Add),
+    ("-", Token::Sub),
+    ("*", Token::Mul),
+    ("/", Token::Div),
+    ("%", Token::Rem),
+];
+
 /// Simple function that lexes a source file into a token stream.
 /// Exposes the functionality of the `Lexer`.
 pub fn lex(source: Rc<Source>) -> Result<Vec<Spanned<Token>>, Syntax> {
@@ -86,24 +109,7 @@ impl Lexer {
             // think 'or' as literal or 'or' as operator
 
             // static
-            Box::new(Lexer::unit),
-            Box::new(Lexer::open_bracket),
-            Box::new(Lexer::close_bracket),
-            Box::new(Lexer::open_paren),
-            Box::new(Lexer::close_paren),
-            Box::new(Lexer::syntax),
-            Box::new(Lexer::assign),
-            Box::new(Lexer::lambda),
-            Box::new(Lexer::compose),
-            Box::new(Lexer::pair),
-            Box::new(Lexer::add),
-            Box::new(Lexer::sub),
-            Box::new(Lexer::mul),
-            Box::new(Lexer::div),
-            Box::new(Lexer::equal),
-            Box::new(Lexer::remainder),
-            Box::new(Lexer::magic),
-            Box::new(Lexer::print), // remove print statements after FFI
+            Box::new(Lexer::static_token),
 
             // variants
             Box::new(Lexer::sep),
@@ -192,96 +198,16 @@ impl Lexer {
         Ok((kind, Lexer::expect(source, literal)?))
     }
 
-    // TODO: macro for token classifiers?
     // token classifiers
 
-    /// Matches a literal opening bracket `{`.
-    pub fn open_bracket(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "{", Token::OpenBracket)
-    }
-
-    /// Matches a literal closing bracket `{``.
-    pub fn close_bracket(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "}", Token::CloseBracket)
-    }
-
-    /// Matches a literal closing parenthesis `)`.
-    pub fn unit(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "()", Token::Unit)
-    }
-
-    /// Matches a literal opening parenthesis `(`.
-    pub fn open_paren(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "(", Token::OpenParen)
-    }
-
-    /// Matches a literal closing parenthesis `)`.
-    pub fn close_paren(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, ")", Token::CloseParen)
-    }
-
-    /// Matches a macro definition, `syntax`.
-    pub fn syntax(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "syntax", Token::Syntax)
-    }
-
-    /// Matches a literal assignment equal sign `=`.
-    pub fn assign(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "=", Token::Assign)
-    }
-
-    /// Matches a literal lambda arrow `->`.
-    pub fn lambda(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "->", Token::Lambda)
-    }
-
-    /// Matches a literal function application ".".
-    pub fn compose(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, ".", Token::Compose)
-    }
-
-    /// Matches a literal tuple pair ",".
-    pub fn pair(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, ",", Token::Pair)
-    }
-
-    /// Matches a literal addition "+".
-    pub fn add(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "+", Token::Add)
-    }
-
-    /// Matches a literal subtraction "-".
-    pub fn sub(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "-", Token::Sub)
-    }
-
-    /// Matches a literal multiplication "*".
-    pub fn mul(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "*", Token::Mul)
-    }
-
-    /// Matches a literal division "/".
-    pub fn div(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "/", Token::Div)
-    }
-
-    /// Matches a literal equality test "==".
-    pub fn equal(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "==", Token::Equal)
-    }
-
-    pub fn remainder(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "%", Token::Rem)
-    }
-    /// Matches a `print` expression.
-    pub fn print(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "print", Token::Print)
-    }
-
-    /// Matches an external FFI call, which takes the form:
-    /// `magic "String Name of Function" data`.
-    pub fn magic(source: &str) -> Result<Bite, String> {
-        Lexer::literal(source, "magic", Token::Magic)
+    /// Parses a static token, like an operator or a keyword.
+    pub fn static_token(source: &str) -> Result<Bite, String> {
+        for token in STATIC_TOKENS {
+            if let t @ Ok(_) = Lexer::literal(source, token.0, token.1.to_owned()) {
+                return t;
+            }
+        }
+        return Err("Expected a token literal".to_string());
     }
 
     // TODO: refactor comment and multi-line for doc-comments

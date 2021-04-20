@@ -22,3 +22,36 @@ pub fn greater(data: Data) -> Result<Data, String> {
 
     return Ok(Data::Boolean(result));
 }
+
+pub fn less(data: Data) -> Result<Data, String> {
+    // TODO: type coercion
+    let result = match binop(data) {
+        (Data::Real(left),    Data::Real(right))    => left < right,
+        (Data::Integer(left), Data::Integer(right)) => left < right,
+        _ => Err("Expected two numbers of the same type")?,
+    };
+
+    return Ok(Data::Boolean(result));
+}
+
+pub fn greater_equal(data: Data) -> Result<Data, String> {
+    // TODO: type coercion
+    let result = match binop(data) {
+        (Data::Real(left),    Data::Real(right))    => left >= right,
+        (Data::Integer(left), Data::Integer(right)) => left >= right,
+        _ => Err("Expected two numbers of the same type")?,
+    };
+
+    return Ok(Data::Boolean(result));
+}
+
+pub fn less_equal(data: Data) -> Result<Data, String> {
+    // TODO: type coercion
+    let result = match binop(data) {
+        (Data::Real(left),    Data::Real(right))    => left <= right,
+        (Data::Integer(left), Data::Integer(right)) => left <= right,
+        _ => Err("Expected two numbers of the same type")?,
+    };
+
+    return Ok(Data::Boolean(result));
+}
