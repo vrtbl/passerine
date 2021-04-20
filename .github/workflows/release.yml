@@ -24,11 +24,10 @@ jobs:
           repository: vrtbl/aspen
           path: aspen
 
-      - run: cd aspen
-
       - name: Compile and Release
-        uses: Douile/rust-build.action@v0.1.26
+        uses: Douile/rust-build.action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUSTTARGET: ${{ matrix.target }}
           EXTRA_FILES: "README.md LICENSE"
+          SRC_DIR: "aspen"
