@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
 use crate::common::span::Spanned;
-use crate::compiler::{
+use crate::compiler::syntax::Syntax;
+use crate::construct::{
     cst::{CST, CSTPattern},
-    sst::{SST, SSTPattern, UniqueSymbol, Scope},
-    syntax::Syntax,
+    sst::{SST, SSTPattern, Scope},
+    symbol::UniqueSymbol,
 };
 
 // TODO: hoisting before expansion.

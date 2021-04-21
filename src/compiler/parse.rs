@@ -274,7 +274,7 @@ impl Parser {
     /// Parses a keyword.
     /// Note that this is wrapped in a CSTPattern node.
     pub fn keyword(&mut self) -> Result<Spanned<AST>, Syntax> {
-        if let Spanned { item: Token::Keyword(name), span } = self.advance() {
+        if let Spanned { item: Token::Keyword, span } = self.advance() {
             let wrapped = AST::ArgPattern(ArgPattern::Keyword(name.clone()));
             Ok(Spanned::new(wrapped, span.clone()))
         } else {
@@ -303,15 +303,9 @@ impl Parser {
     /// Constructs the ast for a group,
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start   = self.consume(Token::OpenParen)?.span.clone();
-        let mut ast = self.expression(Prec::None.associate_left(), true)?;
-        let end     = self.consume(Token::CloseParen)?.span.clone();
-
-        ast.item = match ast.item {
-            AST::RawTuple(t) => AST::Tuple(t),
-            other => other,
-        };
-
+        let start = self.consume(Token::OpenParen)?.span.clone();
+        let ast   = self.expression(Prec::None.associate_left(), true)?;
+        let end   = self.consume(Token::CloseParen)?.span.clone();
         Ok(Spanned::new(AST::group(ast), Span::combine(&start, &end)))
     }
 
@@ -344,7 +338,7 @@ impl Parser {
         // construct a record if applicable
         match ast {
             AST::Block(ref b) if b.len() == 0 => match b[0].item {
-                AST::RawTuple(ref t) => {
+                AST::Tuple(ref t) => {
                     ast = AST::Record(t.clone())
                 },
                 _ => (),
@@ -502,7 +496,7 @@ impl Parser {
         self.consume(Token::Pair)?;
 
         let mut tuple = match left.item {
-            AST::RawTuple(t) => t,
+            AST::Tuple(t) => t,
             _ => vec![left],
         };
 
@@ -517,7 +511,7 @@ impl Parser {
             left_span
         };
 
-        return Ok(Spanned::new(AST::RawTuple(tuple), span));
+        return Ok(Spanned::new(AST::Tuple(tuple), span));
     }
 
     /// Parses a function composition, i.e. `a . b`

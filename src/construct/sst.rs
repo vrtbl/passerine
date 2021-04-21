@@ -2,9 +2,7 @@ use crate::common::{
     span::Spanned,
     data::Data,
 };
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct UniqueSymbol(pub usize);
+use crate::construct::symbol::UniqueSymbol;
 
 /// A pattern that mirrors the structure of some Data.
 #[derive(Debug, Clone, PartialEq)]

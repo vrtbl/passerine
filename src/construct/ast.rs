@@ -4,13 +4,14 @@ use crate::common::{
     span::Spanned,
     data::Data,
 };
+use crate::construct::symbol::SharedSymbol;
 
 /// Represents an argument pattern,
 /// i.e. the mini language used to match macros.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArgPattern {
-    Keyword(String),
-    Symbol(String),
+    Keyword(SharedSymbol),
+    Symbol(SharedSymbol),
     Group(Vec<Spanned<ArgPattern>>),
 }
 
@@ -40,7 +41,7 @@ impl TryFrom<AST> for ArgPattern {
 /// because Passerine uses structural row-based typing.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ASTPattern {
-    Symbol(String),
+    Symbol(SharedSymbol),
     Data(Data),
     Chain(Vec<Spanned<ASTPattern>>), // used inside lambdas
     Label(String, Box<Spanned<ASTPattern>>),
@@ -102,7 +103,7 @@ impl TryFrom<AST> for ASTPattern {
 /// and represents language-level constructs
 #[derive(Debug, Clone, PartialEq)]
 pub enum AST {
-    Symbol(String),
+    Symbol(SharedSymbol),
     Data(Data),
 
     Block(Vec<Spanned<AST>>),
@@ -113,12 +114,11 @@ pub enum AST {
     ArgPattern(ArgPattern),
 
     Label(String, Box<Spanned<AST>>),
-    RawTuple(Vec<Spanned<AST>>),
     Tuple(Vec<Spanned<AST>>),
     Record(Vec<Spanned<AST>>),
 
-    RawIs {
-        field:      String,
+    Is {
+        field:      Box<Spanned<AST>>,
         expression: Box<Spanned<AST>>,
     },
 
@@ -208,5 +208,12 @@ impl AST {
     /// Shortcut for creating an `AST::Group` variant.
     pub fn group(expression: Spanned<AST>) -> AST {
         AST::Group(Box::new(expression))
+    }
+
+    pub fn is(field: Spanned<AST>, expression: Spanned<AST>) -> AST {
+        AST::Is {
+            field: Box::new(field),
+            expression: Box::new(expression),
+        }
     }
 }

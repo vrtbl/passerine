@@ -39,6 +39,7 @@ pub enum Data {
     Closure(Box<Closure>),
 
     // TODO: rework how labels and tags work
+    // TODO: make Kind(usize),
     /// `Kind` is the base component of an unconstructed label
     Kind(String),
     /// A Label is similar to a type, and wraps some data.

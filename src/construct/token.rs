@@ -26,7 +26,7 @@ pub enum Token {
     Print,
     Magic,
     // pseudokeywords
-    Keyword(String),
+    Keyword,
 
     // Datatypes
     // TODO: just have one variant, `Data`
@@ -79,8 +79,8 @@ impl Display for Token {
             Token::Rem          => "a remainder",
             Token::Equal        => "an equality test",
             Token::End          => "end of source",
-            Token::Keyword(k) => { return write!(f, "the pseudokeyword '{}", k); },
-            Token::Boolean(b) => { return write!(f, "the boolean {}",        b); },
+            Token::Keyword      => "a pseudokeword",
+            Token::Boolean(b) => { return write!(f, "the boolean {}", b); },
         };
         write!(f, "{}", message)
     }

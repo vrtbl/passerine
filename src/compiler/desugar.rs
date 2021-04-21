@@ -50,6 +50,8 @@ impl Transformer {
             AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression)?,
             AST::Composition { argument, function } => self.composition(*argument, *function)?,
             AST::FFI { name, expression } => self.ffi(name, *expression)?,
+            AST::Record(_) => todo!(),
+            AST::Is { .. } => todo!(),
         };
 
         return Ok(Spanned::new(cst, ast.span))

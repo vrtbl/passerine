@@ -8,7 +8,7 @@ use crate::common::{
     span::{Span, Spanned},
 };
 
-use crate::compiler::{
+use crate::construct::{
     ast::{AST, ASTPattern, ArgPattern},
     syntax::Syntax
 };
@@ -318,7 +318,7 @@ impl Rule {
                 let e = Rule::expand(*expression, bindings)?;
                 AST::syntax(ap, e);
                 return Err(Syntax::error(
-                    "Nested macros are not allowed",
+                    "Nested macros are not allowed at the moment",
                     &tree.span,
                 ))?;
             },
@@ -327,6 +327,17 @@ impl Rule {
                 &name,
                 Rule::expand(*expression, bindings)?
             ),
+
+            AST::Record(record) => AST::Record(
+                record.into_iter()
+                    .map(|b| Rule::expand(b, bindings))
+                    .collect::<Result<Vec<_>, _>>()?
+            ),
+
+            AST::Is { field, expression } => AST::is(
+                Rule::expand(*field,      bindings)?,
+                Rule::expand(*expression, bindings)?,
+            )
         };
 
         return Ok(Spanned::new(item, tree.span));

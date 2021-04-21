@@ -124,13 +124,21 @@ pub mod common;
 pub mod core;
 pub mod compiler;
 pub mod vm;
+pub mod construct;
 
 // exported functions:
 // TODO: clean up exports
 
 use std::rc::Rc;
 use common::{closure::Closure, source::Source};
-use compiler::{lex, parse, desugar, hoist, gen::{gen, gen_with_ffi}, syntax::Syntax};
+use compiler::{
+    lex::lex,
+    parse::parse,
+    desugar::desugar,
+    hoist::hoist,
+    gen::{gen, gen_with_ffi},
+    syntax::Syntax
+};
 use crate::core::ffi::FFI;
 use vm::{vm::VM, trace::Trace};
 
