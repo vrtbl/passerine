@@ -33,6 +33,7 @@ pub enum Prec {
     None = 0,
     Assign,
     Pair,
+    Is,
     Lambda,
 
     Logic,
@@ -201,6 +202,7 @@ impl Parser {
             Token::Assign  => Prec::Assign,
             Token::Lambda  => Prec::Lambda,
             Token::Pair    => Prec::Pair,
+            Token::Is      => Prec::Is,
             Token::Compose => Prec::Compose,
 
             Token::Equal => Prec::Logic,
@@ -209,7 +211,7 @@ impl Parser {
             | Token::Sub => Prec::AddSub,
 
               Token::Mul
-	    | Token::Div
+            | Token::Div
             | Token::Rem => Prec::MulDiv,
 
             // postfix

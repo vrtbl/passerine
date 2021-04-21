@@ -33,6 +33,7 @@ pub const STATIC_TOKENS: &[(&str, Token)] = &[
     ("=", Token::Assign),
     (".", Token::Compose),
     (",", Token::Pair),
+    (":", Token::Is),
     ("+", Token::Add),
     ("-", Token::Sub),
     ("*", Token::Mul),

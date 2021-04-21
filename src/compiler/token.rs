@@ -16,6 +16,7 @@ pub enum Token {
     CloseParen,
     Sep,
     Pair,
+    Is,
 
     // Keywords
     Syntax,
@@ -64,6 +65,7 @@ impl Display for Token {
             Token::Compose      => "a composition",
             Token::Unit         => "the Unit, '()'",
             Token::Pair         => "a tuple",
+            Token::Is           => "a ':'",
             Token::Print        => "a print keyword",
             Token::Magic        => "a magic keyword",
             Token::Symbol       => "a symbol",
