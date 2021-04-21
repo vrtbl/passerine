@@ -72,7 +72,7 @@ impl TryFrom<AST> for ASTPattern {
                 AST::Symbol(s) => ASTPattern::Symbol(s),
                 AST::Data(d) => ASTPattern::Data(d),
                 AST::Label(k, a) => ASTPattern::Label(k, Box::new(a.map(ASTPattern::try_from)?)),
-                AST::CSTPattern(p) => p,
+                AST::Pattern(p) => p,
                 AST::Form(f) => {
                     let mut patterns = vec![];
                     for item in f {
@@ -104,12 +104,24 @@ impl TryFrom<AST> for ASTPattern {
 pub enum AST {
     Symbol(String),
     Data(Data),
+
     Block(Vec<Spanned<AST>>),
     Form(Vec<Spanned<AST>>),
     Group(Box<Spanned<AST>>),
-    CSTPattern(ASTPattern),
+
+    Pattern(ASTPattern),
     ArgPattern(ArgPattern),
+
+    Label(String, Box<Spanned<AST>>),
+    RawTuple(Vec<Spanned<AST>>),
     Tuple(Vec<Spanned<AST>>),
+    Record(Vec<Spanned<AST>>),
+
+    RawIs {
+        field:      String,
+        expression: Box<Spanned<AST>>,
+    },
+
     Assign {
         pattern:    Box<Spanned<ASTPattern>>,
         expression: Box<Spanned<AST>>,
@@ -122,13 +134,12 @@ pub enum AST {
         argument: Box<Spanned<AST>>,
         function: Box<Spanned<AST>>,
     },
-    Label(String, Box<Spanned<AST>>),
+
     Syntax {
         arg_pat:    Box<Spanned<ArgPattern>>,
         expression: Box<Spanned<AST>>,
     },
-    // TODO: Currently quite basic
-    // Use a symbol or the like?
+    // TODO: Use a symbol or the like?
     FFI {
         name:       String,
         expression: Box<Spanned<AST>>,

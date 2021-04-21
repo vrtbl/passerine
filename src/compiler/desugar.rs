@@ -42,7 +42,7 @@ impl Transformer {
             AST::Form(f) => self.form(f)?,
             AST::Group(a) => self.walk(*a)?.item,
             AST::Tuple(t) => self.tuple(t)?,
-            AST::CSTPattern(_) => return Err(Syntax::error("Unexpected pattern", &ast.span)),
+            AST::Pattern(_) => return Err(Syntax::error("Unexpected pattern", &ast.span)),
             AST::ArgPattern(_)  => return Err(Syntax::error("Unexpected argument pattern", &ast.span)),
             AST::Label(n, e) => CST::Label(n, Box::new(self.walk(*e)?)),
             AST::Syntax { arg_pat, expression } => self.rule(*arg_pat, *expression)?,
@@ -258,5 +258,3 @@ impl Transformer {
         Ok(CST::Block(vec![]))
     }
 }
-
-// TODO: tests!

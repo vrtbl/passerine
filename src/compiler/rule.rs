@@ -280,9 +280,9 @@ impl Rule {
             },
 
             // replace the variables in (argument) patterns
-            AST::CSTPattern(pattern) => {
+            AST::Pattern(pattern) => {
                 let spanned = Spanned::new(pattern, tree.span.clone());
-                AST::CSTPattern(Rule::expand_pattern(spanned, bindings)?.item)
+                AST::Pattern(Rule::expand_pattern(spanned, bindings)?.item)
             },
             AST::ArgPattern(arg_pat) => {
                 let spanned = Spanned::new(arg_pat, tree.span.clone());
