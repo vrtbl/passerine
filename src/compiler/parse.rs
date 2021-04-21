@@ -177,13 +177,12 @@ impl Parser {
             Token::Pair    => self.pair(left),
             Token::Compose => self.compose(left),
 
-            Token::Add => self.add(left),
-            Token::Sub => self.sub(left),
-            Token::Mul => self.mul(left),
-            Token::Div => self.div(left),
-            Token::Rem => self.rem(left),
-
-            Token::Equal => self.equal(left),
+            Token::Add => self.binop(Prec::AddSub, "add", left),
+            Token::Sub => self.binop(Prec::AddSub, "sub", left),
+            Token::Mul => self.binop(Prec::MulDiv, "mul", left),
+            Token::Div => self.binop(Prec::MulDiv, "div", left),
+            Token::Rem => self.binop(Prec::MulDiv, "rem", left),
+            Token::Equal => self.binop(Prec::Logic, "equal", left),
 
             Token::End => Err(self.unexpected()),
             Token::Sep => unreachable!(),
@@ -516,47 +515,18 @@ impl Parser {
     /// Parses a left-associative binary operator.
     fn binop(
         &mut self,
-        op: Token,
+        // op: Token,
         prec: Prec,
         name: &str,
         left: Spanned<AST>
     ) -> Result<Spanned<AST>, Syntax> {
-        self.consume(op)?;
+        // self.consume(op)?;
+        self.advance();
         let right = self.expression(prec.associate_left(), false)?;
         let combined = Span::combine(&left.span, &right.span);
 
         let arguments = Spanned::new(AST::Tuple(vec![left, right]), combined.clone());
         return Ok(Spanned::new(AST::ffi(name, arguments), combined));
-    }
-
-    /// Parses an addition, calls out to FFI.
-    pub fn add(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Add, Prec::AddSub, "add", left);
-    }
-
-    /// Parses a subraction, calls out to FFI.
-    pub fn sub(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Sub, Prec::AddSub, "sub", left);
-    }
-
-    /// Parses a multiplication, calls out to FFI.
-    pub fn mul(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Mul, Prec::MulDiv, "mul", left);
-    }
-
-    /// Parses a division, calls out to FFI.
-    pub fn div(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Div, Prec::MulDiv, "div", left);
-    }
-
-    /// Parses an equality, calls out to FFI.
-    pub fn equal(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Equal, Prec::Logic, "equal", left);
-    }
-
-    /// Parses an equality, calls out to FFI.
-    pub fn rem(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Rem, Prec::MulDiv, "rem", left);
     }
 
     /// Parses a function call.

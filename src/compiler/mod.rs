@@ -14,6 +14,9 @@
 //! Note that more steps (e.g. ones applying typechecking operations, optimization passes, etc.)
 //! may be implemented in the future.
 
+// TODO: wrap ast in module
+// TODO: abstract out AST?
+
 pub mod lex;
 pub mod parse;
 pub mod desugar;
