@@ -14,11 +14,11 @@ use crate::common::{
 // TODO: do a pass where we hoist and resolve variables?
 // may work well for types too.
 
-use crate::compiler::{
-    sst::{UniqueSymbol, Scope, SST, SSTPattern},
-    // TODO: pattern for where?
-    syntax::Syntax,
+use crate::construct::{
+    sst::{Scope, SST, SSTPattern},
+    symbol::UniqueSymbol,
 };
+use crate::compiler::syntax::Syntax;
 
 use crate::core::{
     ffi_core,

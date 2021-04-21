@@ -39,6 +39,8 @@ impl Scope {
         self.nonlocals.contains(&unique_symbol)
     }
 
+    // TODO: these are linear, should be constant
+
     pub fn local_index(&self, unique_symbol: UniqueSymbol) -> Option<usize> {
         self.locals.iter().position(|l| l == &unique_symbol)
     }
