@@ -41,7 +41,7 @@ impl Debug for Slot {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Slot::Frame      => write!(f, "Frame"),
-            Slot::Suspend(s) => write!(f, "Suspend({}, {})", s.closure.id, s.ip),
+            Slot::Suspend(s) => write!(f, "Suspend({})", s.ip),
             Slot::Data(d)    => write!(f, "Data({:?})", d),
         }
     }

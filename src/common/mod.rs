@@ -12,4 +12,3 @@ pub mod number;
 pub mod opcode;
 pub mod lambda;
 pub mod closure;
-pub mod stamp;

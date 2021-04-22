@@ -191,20 +191,20 @@ impl fmt::Display for Lambda {
     /// Dump a human-readable breakdown of a `Lambda`'s bytecode.
     /// Including constants, captures, and variables declared.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "-- Dumping Constants:")?;
+        writeln!(f, "Dumping Constants:")?;
         for constant in self.constants.iter() {
             writeln!(f, "{:?}", constant)?;
         }
 
-        writeln!(f, "-- Dumping Captures:")?;
+        writeln!(f, "Dumping Captures:")?;
         for capture in self.captures.iter() {
             writeln!(f, "{:?}", capture)?;
         }
 
-        writeln!(f, "-- Dumping Variables: {}", self.decls)?;
+        writeln!(f, "Dumping Variables: {}", self.decls)?;
 
-        writeln!(f, "-- Dumping Bytecode:")?;
-        writeln!(f, "Inst.   \tArgs\tValue?")?;
+        writeln!(f, "Dumping Bytecode:")?;
+        writeln!(f, "Inst    \tArgs")?;
 
         let mut index = 0;
 
@@ -213,22 +213,33 @@ impl fmt::Display for Lambda {
             let opcode = match Opcode::from_byte_safe(self.code[index]) {
                 Some(o) => o,
                 None => {
-                    writeln!(f, "Invalid Opcode at index {}", index);
+                    writeln!(f, "Invalid Opcode at index {}", index)?;
                     break;
                 },
             };
+
+            write!(f, "{:8?}", opcode)?;
 
             index += 1;
             let bounds = self.bounds(opcode);
             let args_result = self.args_safe(index, bounds);
 
-            index += match args_result {
-                Some((_args, consumed)) => consumed,
+            let (args, consumed) = match args_result {
+                Some((a, c)) => (a, c),
                 None => {
-                    writeln!(f, "Invalid Opcode argument at index {}", index);
+                    writeln!(f, "Invalid Opcode argument at index {}", index)?;
                     break;
                 },
-            }
+            };
+
+            index += consumed;
+            writeln!(
+                f, "{}",
+                args.iter()
+                    .map(|n| n.to_string())
+                    .collect::<Vec<String>>()
+                    .join("\t")
+            );
         }
 
         return fmt::Result::Ok(());

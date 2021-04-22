@@ -5,7 +5,10 @@ use crate::common::{
     data::Data,
 };
 
-use crate::compiler::ast::ASTPattern;
+use crate::construct::{
+    ast::ASTPattern,
+    symbol::SharedSymbol,
+};
 
 // TODO: create a pattern specific to the CST?
 // Once where (i.e. `x | x > 0`) is added?
@@ -13,7 +16,7 @@ use crate::compiler::ast::ASTPattern;
 /// A pattern that mirrors the structure of some Data.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CSTPattern {
-    Symbol(String),
+    Symbol(SharedSymbol),
     Data(Data),
     Label(String, Box<Spanned<CSTPattern>>),
     Tuple(Vec<Spanned<CSTPattern>>),
@@ -50,7 +53,7 @@ impl TryFrom<ASTPattern> for CSTPattern {
 /// Whereas it's originally parsed as a `AST::Form`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CST {
-    Symbol(String),
+    Symbol(SharedSymbol),
     Data(Data),
     Block(Vec<Spanned<CST>>),
     Assign {

@@ -5,7 +5,7 @@ use crate::compiler::syntax::Syntax;
 use crate::construct::{
     cst::{CST, CSTPattern},
     sst::{SST, SSTPattern, Scope},
-    symbol::UniqueSymbol,
+    symbol::{SharedSymbol, UniqueSymbol},
 };
 
 // TODO: hoisting before expansion.
@@ -52,9 +52,9 @@ pub struct Hoister {
     scopes: Vec<Scope>,
     // TODO: make it it's own type
     /// Maps integers (index in vector) to string representation of symbol.
-    symbol_table: Vec<String>,
+    symbol_table: Vec<SharedSymbol>,
     /// Keeps track of variables that were referenced before assignment.
-    unresolved_hoists: HashMap<String, UniqueSymbol>,
+    unresolved_hoists: HashMap<SharedSymbol, UniqueSymbol>,
 }
 
 impl Hoister {
@@ -98,7 +98,7 @@ impl Hoister {
     pub fn walk(&mut self, cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
         let sst: SST = match cst.item {
             CST::Data(data) => SST::Data(data),
-            CST::Symbol(name) => self.symbol(&name),
+            CST::Symbol(name) => self.symbol(name),
             CST::Block(block) => self.block(block)?,
             CST::Label(name, expression) => SST::Label(name, Box::new(self.walk(*expression)?)),
             CST::Tuple(tuple) => self.tuple(tuple)?,
@@ -116,7 +116,7 @@ impl Hoister {
     pub fn walk_pattern(&mut self, pattern: Spanned<CSTPattern>, declare: bool) -> Spanned<SSTPattern> {
         let item = match pattern.item {
             CSTPattern::Symbol(name) => {
-                SSTPattern::Symbol(self.resolve_assign(&name, declare))
+                SSTPattern::Symbol(self.resolve_assign(name, declare))
             },
             CSTPattern::Data(d)     => SSTPattern::Data(d),
             CSTPattern::Label(n, p) => SSTPattern::Label(n, Box::new(self.walk_pattern(*p, declare))),
@@ -129,16 +129,16 @@ impl Hoister {
     }
 
     /// Creates a new symbol that is guaranteed to be unique.
-    fn new_symbol(&mut self, name: &str) -> UniqueSymbol {
+    fn new_symbol(&mut self, name: SharedSymbol) -> UniqueSymbol {
         let index = self.symbol_table.len();
-        self.symbol_table.push(name.to_string());
+        self.symbol_table.push(name);
         return UniqueSymbol(index);
     }
 
     /// Looks to see whether a name is defined as a local in the current scope.
-    fn local_symbol(&self, name: &str) -> Option<UniqueSymbol> {
+    fn local_symbol(&self, name: SharedSymbol) -> Option<UniqueSymbol> {
         for local in self.borrow_local_scope().locals.iter() {
-            let local_name = &self.symbol_table[local.0];
+            let local_name = self.symbol_table[local.0];
             if local_name == name { return Some(*local); }
         }
 
@@ -146,9 +146,9 @@ impl Hoister {
     }
 
     /// Looks to see whether a name is used as a nonlocal in the current scope.
-    fn nonlocal_symbol(&self, name: &str) -> Option<UniqueSymbol> {
+    fn nonlocal_symbol(&self, name: SharedSymbol) -> Option<UniqueSymbol> {
         for nonlocal in self.borrow_local_scope().nonlocals.iter() {
-            let nonlocal_name = &self.symbol_table[nonlocal.0];
+            let nonlocal_name = self.symbol_table[nonlocal.0];
             if nonlocal_name == name { return Some(*nonlocal); }
         }
 
@@ -177,7 +177,7 @@ impl Hoister {
     /// 1. If this variable is local or nonlocal to this scope, use it.
     /// 2. If this variable is defined in an enclosing scope, capture it and use it.
     /// 3. If this variable is not defined, return `None`.
-    fn try_resolve(&mut self, name: &str) -> Option<UniqueSymbol> {
+    fn try_resolve(&mut self, name: SharedSymbol) -> Option<UniqueSymbol> {
         if let Some(unique_symbol) = self.local_symbol(name)    { return Some(unique_symbol); }
         if let Some(unique_symbol) = self.nonlocal_symbol(name) { return Some(unique_symbol); }
 
@@ -199,13 +199,13 @@ impl Hoister {
     /// this function will define it in all lexical scopes
     /// once this variable is discovered, we remove the definitions
     /// in all scopes below this one.
-    fn resolve_assign(&mut self, name: &str, redeclare: bool) -> UniqueSymbol {
+    fn resolve_assign(&mut self, name: SharedSymbol, redeclare: bool) -> UniqueSymbol {
         // if we've seen the symbol before but don't know where it's defined
-        if let Some(unique_symbol) = self.unresolved_hoists.get(name) {
+        if let Some(unique_symbol) = self.unresolved_hoists.get(&name) {
             // this is a definition; we've resolved it!
             let unique_symbol = *unique_symbol;
             self.uncapture_all(unique_symbol);
-            self.unresolved_hoists.remove(name);
+            self.unresolved_hoists.remove(&name);
             self.local_scope().locals.push(unique_symbol);
             return unique_symbol;
         }
@@ -224,9 +224,9 @@ impl Hoister {
 
     /// This function wraps try_resolve,
     /// but checks that the symbol is unresolved first.
-    fn resolve_symbol(&mut self, name: &str) -> UniqueSymbol {
+    fn resolve_symbol(&mut self, name: SharedSymbol) -> UniqueSymbol {
         // if we've seen the symbol before but don't know where it's defined
-        if let Some(unique_symbol) = self.unresolved_hoists.get(name) {
+        if let Some(unique_symbol) = self.unresolved_hoists.get(&name) {
             return *unique_symbol;
         }
 
@@ -237,12 +237,12 @@ impl Hoister {
         // if we didn't find it by searching backwards, we mark it as unresolved
         let unique_symbol = self.new_symbol(name);
         self.capture_all(unique_symbol);
-        self.unresolved_hoists.insert(name.to_string(), unique_symbol);
+        self.unresolved_hoists.insert(name, unique_symbol);
         return unique_symbol;
     }
 
     /// Replaces a symbol name with a unique identifier for that symbol
-    pub fn symbol(&mut self, name: &str) -> SST {
+    pub fn symbol(&mut self, name: SharedSymbol) -> SST {
         // if we are hoisting the variable,
         // mark the variable as being used before its lexical definition
         return SST::Symbol(self.resolve_symbol(name));

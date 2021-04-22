@@ -5,11 +5,12 @@ use std::{
 
 use crate::common::span::{Span, Spanned};
 
-use crate::compiler::{
+use crate::compiler::syntax::Syntax;
+use crate::construct::{
     rule::Rule,
     ast::{AST, ASTPattern, ArgPattern},
     cst::{CST, CSTPattern},
-    syntax::Syntax
+    symbol::SharedSymbol,
 };
 
 // TODO: separate macro step and desugaring into two different steps?
@@ -115,7 +116,7 @@ impl Transformer {
         // no macros were matched
         if matches.len() == 0 {
             // collect all in-scope pseudokeywords
-            let mut pseudokeywords: HashSet<String> = HashSet::new();
+            let mut pseudokeywords: HashSet<SharedSymbol> = HashSet::new();
             for rule in self.rules.iter() {
                 for pseudokeyword in Rule::keywords(&rule.item.arg_pat) {
                     pseudokeywords.insert(pseudokeyword);
@@ -124,14 +125,13 @@ impl Transformer {
 
             // into a set for quick membership checking
             let potential_keywords = form.iter()
-                .filter(|i| if let AST::Symbol(_) = &i.item { true } else { false })
-                .map(   |i| if let AST::Symbol(s) = &i.item { s.to_string() } else { unreachable!() })
-                .collect::<HashSet<String>>();
+                .filter(|i| if let AST::Symbol(_) = i.item { true } else { false })
+                .map(   |i| if let AST::Symbol(s) = i.item { s } else { unreachable!() })
+                .collect::<HashSet<SharedSymbol>>();
 
             // calculate pseudokeyword collisions in case of ambiguity
             let intersection = potential_keywords.intersection(&pseudokeywords)
-                .map(|s| s.to_string())
-                .collect::<Vec<String>>();
+                .map(|s| *s).collect::<Vec<SharedSymbol>>();
 
             // no collisions? process the form as a function call instead
             if intersection.is_empty() { return self.call(form); }

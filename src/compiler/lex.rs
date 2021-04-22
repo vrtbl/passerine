@@ -10,10 +10,8 @@ use crate::common::{
     data::Data,
 };
 
-use crate::compiler::{
-    token::Token,
-    syntax::Syntax,
-};
+use crate::construct::token::Token;
+use crate::compiler::syntax::Syntax;
 
 type Bite = (Token, usize);
 
@@ -306,7 +304,7 @@ impl Lexer {
 
         if let (Token::Symbol, l) = Lexer::identifier(&source[len..])? {
             let keyword = source[len..len+l].to_string();
-            Ok((Token::Keyword(keyword), len + l))
+            Ok((Token::Keyword, len + l))
         } else {
             Err("Expected a pseudokeyword".to_string())
         }

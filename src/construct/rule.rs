@@ -3,14 +3,11 @@ use std::{
     collections::HashMap,
 };
 
-use crate::common::{
-    stamp::stamp,
-    span::{Span, Spanned},
-};
-
+use crate::common::span::{Span, Spanned};
+use crate::compiler::syntax::Syntax;
 use crate::construct::{
     ast::{AST, ASTPattern, ArgPattern},
-    syntax::Syntax
+    symbol::SharedSymbol,
 };
 
 // TODO: immutably capture external values used by macro
@@ -19,9 +16,9 @@ use crate::construct::{
 
 /// When a macro is expanded, `AST` slices captured by the macro Argument Pattern
 /// are spliced into the macro body.
-/// A `Binding` relates a name (within an Argument CSTPattern),
+/// A `Binding` relates a name (within an Argument Pattern),
 /// to an `AST` slice.
-type Bindings = HashMap<String, Spanned<AST>>;
+type Bindings = HashMap<SharedSymbol, Spanned<AST>>;
 
 /// A rule has an Argument Pattern and an `AST`.
 /// When a form matches the `ArgPattern`,
@@ -52,7 +49,7 @@ impl Rule {
 
     /// Returns all keywords, as strings, used by the macro, in order of usage.
     /// Does not filter for duplicates.
-    pub fn keywords(arg_pat: &Spanned<ArgPattern>) -> Vec<String> {
+    pub fn keywords(arg_pat: &Spanned<ArgPattern>) -> Vec<SharedSymbol> {
         match &arg_pat.item {
             ArgPattern::Group(pats) => {
                 let mut keywords = vec![];
@@ -126,43 +123,16 @@ impl Rule {
         }
     }
 
-    /// Turns a tagged random identifier, like
-    /// `<base>#XXXXXXXX` back into `<base>`.
-    /// If the identifier is not tagged, this function just
-    /// returns `<base>`.
-    pub fn remove_tag(base: &str) -> String {
-        base.split("#").collect::<Vec<&str>>()[0].to_string()
-    }
-
-    /// Turns a base identifier into a random identifier
-    /// of the format `<base>#XXXXXXXX`,
-    /// Gauranteed not to exist in bindings.
-    pub fn unique_tag(base: String, bindings: &Bindings) -> String {
-        let mut tries = 0;
-        for _ in 0..1024 {
-            let stamp = stamp(tries);
-            // for example, `foo` may become `foo#d56aea12`
-            // this should not be constructible as a symbol.
-            let modified = format!("{}#{}", base, stamp);
-            if !bindings.contains_key(&modified) {
-                // println!("{}", modified);
-                return modified;
-            }
-            tries += 1;
-        }
-        panic!("Generated 1024 new unique identifiers for macro expansion, but all were already in use!");
-    }
-
     /// Resolves a symbol.
     /// If the symbol has been bound, i.e. is defined in the Argument CSTPattern,
     /// we simply splice that in.
     /// If not, we hygenically replace it with a unique variable.
-    pub fn resolve_symbol(name: String, span: Span, bindings: &mut Bindings) -> Spanned<AST> {
+    pub fn resolve_symbol(name: SharedSymbol, span: Span, bindings: &mut Bindings) -> Spanned<AST> {
         if let Some(bound_tree) = bindings.get(&name) {
             bound_tree.clone()
         } else {
-            let unique = Rule::unique_tag(name.clone(), bindings);
-            let spanned = Spanned::new(AST::Symbol(unique.clone()), span.clone());
+            let unique = Rule::unique_tag(name, bindings);
+            let spanned = Spanned::new(AST::Symbol(unique), span.clone());
             bindings.insert(name, spanned);
             Spanned::new(AST::Symbol(unique), span)
         }

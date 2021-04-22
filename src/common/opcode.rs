@@ -34,7 +34,7 @@ pub enum Opcode {
     Print,
     /// Constructs a label.
     Label,
-    // Constructs a tuple.
+    /// Constructs a tuple.
     Tuple,
     /// Destructures atomic data by asserting it matches exactly.
     UnData,

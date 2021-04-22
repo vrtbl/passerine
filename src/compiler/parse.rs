@@ -8,8 +8,8 @@ use crate::common::{
     data::Data,
 };
 
-use crate::compiler::{
-    syntax::Syntax,
+use crate::compiler::syntax::Syntax;
+use crate::construct::{
     token::Token,
     ast::{AST, ASTPattern, ArgPattern},
 };
@@ -157,7 +157,7 @@ impl Parser {
             Token::Print       => self.print(),
             Token::Magic       => self.magic(),
             Token::Label       => self.label(),
-            Token::Keyword(_)  => self.keyword(),
+            Token::Keyword     => self.keyword(),
 
             Token::Unit
             | Token::Number(_)
@@ -226,7 +226,7 @@ impl Parser {
             | Token::Print
             | Token::Magic
             | Token::Symbol
-            | Token::Keyword(_)
+            | Token::Keyword
             | Token::Label
             | Token::Number(_)
             | Token::String(_)
@@ -268,14 +268,16 @@ impl Parser {
     /// Constructs an AST for a symbol.
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
         let symbol = self.consume(Token::Symbol)?;
-        Ok(Spanned::new(AST::Symbol(symbol.span.contents()), symbol.span.clone()))
+        // TODO: create new symbol.
+        Ok(Spanned::new(AST::Symbol(todo!()), symbol.span.clone()))
     }
 
     /// Parses a keyword.
     /// Note that this is wrapped in a CSTPattern node.
     pub fn keyword(&mut self) -> Result<Spanned<AST>, Syntax> {
         if let Spanned { item: Token::Keyword, span } = self.advance() {
-            let wrapped = AST::ArgPattern(ArgPattern::Keyword(name.clone()));
+            // TODO: create a new symbol
+            let wrapped = AST::ArgPattern(ArgPattern::Keyword(todo!()));
             Ok(Spanned::new(wrapped, span.clone()))
         } else {
             unreachable!("Expected a keyword");
