@@ -438,7 +438,7 @@ impl Parser {
         let ast = self.expression(Prec::End, false)?;
         let end = ast.span.clone();
         return Ok(Spanned::new(
-            AST::Label(start.contents(), Box::new(ast)),
+            AST::label(todo!(), ast),
             Span::combine(&start, &end),
         ));
     }

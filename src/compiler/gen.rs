@@ -177,9 +177,9 @@ impl Compiler {
 
     /// Generates a Label construction
     /// that loads the variant, then wraps some data
-    pub fn label(&mut self, name: String, expression: Spanned<SST>) -> Result<(), Syntax> {
+    pub fn label(&mut self, name: UniqueSymbol, expression: Spanned<SST>) -> Result<(), Syntax> {
         self.walk(&expression)?;
-        self.data(Data::Kind(name));
+        self.data(Data::Kind(name.0));
         self.lambda.emit(Opcode::Label);
         Ok(())
     }
@@ -261,7 +261,7 @@ impl Compiler {
                 self.lambda.emit(Opcode::UnData);
             }
             SSTPattern::Label(name, pattern) => {
-                self.data(Data::Kind(name));
+                self.data(Data::Kind(name.0));
                 self.lambda.emit(Opcode::UnLabel);
                 self.destructure(*pattern, redeclare);
             }

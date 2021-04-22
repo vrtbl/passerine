@@ -38,6 +38,7 @@ pub enum Opcode {
     Tuple,
     /// Destructures atomic data by asserting it matches exactly.
     UnData,
+    // TODO: make unlabel take the label index as an arg.
     /// Destructures a label.
     UnLabel,
     /// Destructures a tuple.

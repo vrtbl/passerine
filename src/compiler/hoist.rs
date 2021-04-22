@@ -100,7 +100,11 @@ impl Hoister {
             CST::Data(data) => SST::Data(data),
             CST::Symbol(name) => self.symbol(name),
             CST::Block(block) => self.block(block)?,
-            CST::Label(name, expression) => SST::Label(name, Box::new(self.walk(*expression)?)),
+            // TODO: hoist as well
+            CST::Label(name, expression) => SST::label(
+                self.resolve_symbol(name),
+                self.walk(*expression)?,
+            ),
             CST::Tuple(tuple) => self.tuple(tuple)?,
             CST::FFI    { name,    expression } => SST::ffi(&name, self.walk(*expression)?),
             CST::Assign { pattern, expression } => self.assign(*pattern, *expression)?,
@@ -119,7 +123,7 @@ impl Hoister {
                 SSTPattern::Symbol(self.resolve_assign(name, declare))
             },
             CSTPattern::Data(d)     => SSTPattern::Data(d),
-            CSTPattern::Label(n, p) => SSTPattern::Label(n, Box::new(self.walk_pattern(*p, declare))),
+            CSTPattern::Label(n, p) => SSTPattern::Label(todo!(), Box::new(self.walk_pattern(*p, declare))),
             CSTPattern::Tuple(t)    => SSTPattern::Tuple(
                 t.into_iter().map(|c| self.walk_pattern(c, declare)).collect::<Vec<_>>()
             )

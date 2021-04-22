@@ -39,12 +39,12 @@ pub enum Data {
     Closure(Box<Closure>),
 
     // TODO: rework how labels and tags work
-    // TODO: make Kind(usize),
+    // TODO: just remove Kind
     /// `Kind` is the base component of an unconstructed label
-    Kind(String),
+    Kind(usize),
     /// A Label is similar to a type, and wraps some data.
     /// in the future labels will have associated namespaces.
-    Label(Box<String>, Box<Data>),
+    Label(usize, Box<Data>),
 
     // TODO: equivalence between Unit and Tuple(vec![])?
 

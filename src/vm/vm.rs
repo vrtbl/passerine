@@ -273,7 +273,7 @@ impl VM {
             _ => unreachable!(),
         };
         let data = self.stack.pop_data();
-        self.stack.push_data(Data::Label(Box::new(kind), Box::new(data)));
+        self.stack.push_data(Data::Label(kind, Box::new(data)));
         self.done()
     }
 
@@ -312,7 +312,7 @@ impl VM {
         };
 
         let d = match self.stack.pop_data() {
-            Data::Label(n, d) if *n == kind => d,
+            Data::Label(n, d) if n == kind => d,
             other => return Err(Trace::error(
                 "Pattern Matching",
                 &format!("The data '{}' does not match the Label '{}'", other, kind),

@@ -44,7 +44,7 @@ pub enum ASTPattern {
     Symbol(SharedSymbol),
     Data(Data),
     Chain(Vec<Spanned<ASTPattern>>), // used inside lambdas
-    Label(String, Box<Spanned<ASTPattern>>),
+    Label(SharedSymbol, Box<Spanned<ASTPattern>>),
     Tuple(Vec<Spanned<ASTPattern>>),
     // Where {
     //     pattern: Box<ASTPattern>,
@@ -54,7 +54,7 @@ pub enum ASTPattern {
 
 impl ASTPattern {
     // Shortcut for creating a `CSTPattern::Label` variant
-    pub fn label(name: String, pattern: Spanned<ASTPattern>) -> ASTPattern {
+    pub fn label(name: SharedSymbol, pattern: Spanned<ASTPattern>) -> ASTPattern {
         ASTPattern::Label(name, Box::new(pattern))
     }
 }
@@ -113,7 +113,7 @@ pub enum AST {
     Pattern(ASTPattern),
     ArgPattern(ArgPattern),
 
-    Label(String, Box<Spanned<AST>>),
+    Label(SharedSymbol, Box<Spanned<AST>>),
     Tuple(Vec<Spanned<AST>>),
     Record(Vec<Spanned<AST>>),
 
@@ -193,8 +193,8 @@ impl AST {
     }
 
     /// Shortcut for creating a `AST::Label` variant.
-    pub fn label(name: &str, expression: Spanned<AST>) -> AST {
-        AST::Label(name.to_string(), Box::new(expression))
+    pub fn label(name: SharedSymbol, expression: Spanned<AST>) -> AST {
+        AST::Label(name, Box::new(expression))
     }
 
     /// Shortcut for creating an `AST::FFI` variant.

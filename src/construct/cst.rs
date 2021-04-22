@@ -18,7 +18,7 @@ use crate::construct::{
 pub enum CSTPattern {
     Symbol(SharedSymbol),
     Data(Data),
-    Label(String, Box<Spanned<CSTPattern>>),
+    Label(SharedSymbol, Box<Spanned<CSTPattern>>),
     Tuple(Vec<Spanned<CSTPattern>>),
     // Where {
     //     pattern: Box<ASTPattern>,
@@ -68,7 +68,7 @@ pub enum CST {
         fun: Box<Spanned<CST>>,
         arg: Box<Spanned<CST>>,
     },
-    Label(String, Box<Spanned<CST>>),
+    Label(SharedSymbol, Box<Spanned<CST>>),
     Tuple(Vec<Spanned<CST>>),
     FFI {
         name:       String,
@@ -100,8 +100,8 @@ impl CST {
     }
 
     /// Shortcut for creating a `CST::Label` variant.
-    pub fn label(name: &str, expression: Spanned<CST>) -> CST {
-        CST::Label(name.to_string(), Box::new(expression))
+    pub fn label(name: SharedSymbol, expression: Spanned<CST>) -> CST {
+        CST::Label(name, Box::new(expression))
     }
 
     /// Shortcut for creating a `CST::Lambda` variant.

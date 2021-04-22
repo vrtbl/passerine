@@ -9,7 +9,7 @@ use crate::construct::symbol::UniqueSymbol;
 pub enum SSTPattern {
     Symbol(UniqueSymbol),
     Data(Data),
-    Label(String, Box<Spanned<SSTPattern>>), // TODO: usize for label
+    Label(UniqueSymbol, Box<Spanned<SSTPattern>>), // TODO: usize for label
     Tuple(Vec<Spanned<SSTPattern>>),
     // Where {
     //     pattern: Box<ASTPattern>,
@@ -72,7 +72,7 @@ pub enum SST {
         fun: Box<Spanned<SST>>,
         arg: Box<Spanned<SST>>,
     },
-    Label(String, Box<Spanned<SST>>),
+    Label(UniqueSymbol, Box<Spanned<SST>>),
     Tuple(Vec<Spanned<SST>>),
     FFI {
         name:       String,
@@ -106,8 +106,8 @@ impl SST {
     }
 
     /// Shortcut for creating a `SST::Label` variant.
-    pub fn label(name: &str, expression: Spanned<SST>) -> SST {
-        SST::Label(name.to_string(), Box::new(expression))
+    pub fn label(name: UniqueSymbol, expression: Spanned<SST>) -> SST {
+        SST::Label(name, Box::new(expression))
     }
 
     /// Shortcut for creating a `SST::Lambda` variant.
