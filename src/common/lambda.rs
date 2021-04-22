@@ -53,6 +53,48 @@ impl Lambda {
         }
     }
 
+    /// Constructs a number of bytecode arguments,
+    /// ensuring each is within a specific bound.
+    /// If any bounds are violated, we return `None`.
+    pub fn args_safe(&self, index: usize, within: &[usize]) -> Option<(Vec<usize>, usize)> {
+        let mut offset  = 0;
+        let mut numbers = vec![];
+
+        for bound in within.iter() {
+            let (arg, consumed) = build_number(&self.code[index + offset..]);
+            if arg >= *bound { return None; }
+            numbers.push(arg);
+            offset += consumed;
+        }
+
+        return Some((numbers, offset));
+    }
+
+    pub fn bounds(&self, opcode: Opcode) -> &[usize] {
+        match opcode {
+            Opcode::Con     => &[self.constants.len()],
+            Opcode::NotInit => &[],
+            Opcode::Del     => &[],
+            Opcode::FFICall => &[self.ffi.len()],
+            Opcode::Copy    => &[],
+            Opcode::Capture => &[self.decls], // TODO: correct bounds check?
+            Opcode::Save    => &[self.decls],
+            Opcode::SaveCap => &[self.captures.len()],
+            Opcode::Load    => &[self.decls],
+            Opcode::LoadCap => &[self.captures.len()],
+            Opcode::Call    => &[],
+            Opcode::Return  => &[self.decls], // TODO: correct bounds check?
+            Opcode::Closure => &[],
+            Opcode::Print   => &[],
+            Opcode::Label   => &[],
+            Opcode::Tuple   => &[usize::MAX], // TODO: stricter bounds
+            Opcode::UnData  => &[],
+            Opcode::UnLabel => &[],
+            Opcode::UnTuple => &[usize::MAX], // TODO: stricter bounds
+            Opcode::Noop    => &[],
+        }
+    }
+
     /// NOTE: WIP, do not use.
     /// Statically verifies some bytecode safely,
     /// By ensuring bytecode ops are within bounds,
@@ -66,38 +108,22 @@ impl Lambda {
 
         while index < self.code.len() {
             // safely decode an opcode
-            index += 1;
-            // let opcode = match Opcode::from_byte_safe(self.code[index - 1]) {
-            //     Some(o) => o,
-            //     None => { return false; },
-            // };
+            let opcode = match Opcode::from_byte_safe(self.code[index]) {
+                Some(o) => o,
+                None => { return false; },
+            };
 
-            // match opcode {
-            //     Con,
-            //     NotInit,
-            //     Del,
-            //     FFICall,
-            //     Copy,
-            //     Capture,
-            //     Save,
-            //     SaveCap,
-            //     Load,
-            //     LoadCap,
-            //     Call,
-            //     Return,
-            //     Closure,
-            //     Print,
-            //     Label,
-            //     Tuple,
-            //     UnData,
-            //     UnLabel,
-            //     UnTuple,
-            //     Noop,
-            // }
+            index += 1;
+            let bounds = self.bounds(opcode);
+            let args_result = self.args_safe(index, bounds);
+
+            index += match args_result {
+                Some((_args, consumed)) => consumed,
+                None => { return false; },
+            }
         }
 
-        todo!();
-        // return true;
+        return true;
     }
 
     /// Emits an opcode as a byte.
@@ -170,11 +196,6 @@ impl fmt::Display for Lambda {
             writeln!(f, "{:?}", constant)?;
         }
 
-        // writeln!(f, "-- Dumping Spans:")?;
-        // for span in self.spans.iter() {
-        //     writeln!(f, "{:?}", span)?;
-        // }
-
         writeln!(f, "-- Dumping Captures:")?;
         for capture in self.captures.iter() {
             writeln!(f, "{:?}", capture)?;
@@ -184,78 +205,32 @@ impl fmt::Display for Lambda {
 
         writeln!(f, "-- Dumping Bytecode:")?;
         writeln!(f, "Inst.   \tArgs\tValue?")?;
+
         let mut index = 0;
 
         while index < self.code.len() {
+            // safely decode an opcode
+            let opcode = match Opcode::from_byte_safe(self.code[index]) {
+                Some(o) => o,
+                None => {
+                    writeln!(f, "Invalid Opcode at index {}", index);
+                    break;
+                },
+            };
+
             index += 1;
-            match Opcode::from_byte(self.code[index - 1]) {
-                Opcode::Con => {
-                    let (constant_index, consumed) = build_number(&self.code[index..]);
-                    index += consumed;
-                    writeln!(f, "Load Con\t{}\t{:?}", constant_index, self.constants[constant_index])?;
+            let bounds = self.bounds(opcode);
+            let args_result = self.args_safe(index, bounds);
+
+            index += match args_result {
+                Some((_args, consumed)) => consumed,
+                None => {
+                    writeln!(f, "Invalid Opcode argument at index {}", index);
+                    break;
                 },
-                Opcode::NotInit => { writeln!(f, "NotInit \t\tDeclare variable")?; }
-                Opcode::Del     => { writeln!(f, "Delete  \t\t--")?; },
-                Opcode::Capture => {
-                    let (local_index, consumed) = build_number(&self.code[index..]);
-                    index += consumed;
-                    writeln!(f, "Capture \t{}\tIndexed local moved to heap", local_index)?;
-                },
-                Opcode::Save => {
-                    let (local_index, consumed) = build_number(&self.code[index..]);
-                    index += consumed;
-                    writeln!(f, "Save    \t{}\tIndexed local", local_index)?;
-                },
-                Opcode::SaveCap => {
-                    let (upvalue_index, consumed) = build_number(&self.code[index..]);
-                    index += consumed;
-                    writeln!(f, "Save Cap\t{}\tIndexed upvalue on heap", upvalue_index)?;
-                },
-                Opcode::Load => {
-                    let (local_index, consumed) = build_number(&self.code[index..]);
-                    index += consumed;
-                    writeln!(f, "Load    \t{}\tIndexed local", local_index)?;
-                },
-                Opcode::LoadCap => {
-                    let (upvalue_index, consumed) = build_number(&self.code[index..]);
-                    index += consumed;
-                    writeln!(f, "Load Cap\t{}\tIndexed upvalue on heap", upvalue_index)?;
-                },
-                Opcode::Call => { writeln!(f, "Call    \t\tRun top function using next stack value")?; }
-                Opcode::Return => {
-                    let (num_locals, consumed) = build_number(&self.code[index..]);
-                    index += consumed;
-                    writeln!(f, "Return  \t{}\tLocals on stack deleted", num_locals)?;
-                },
-                Opcode::Closure => {
-                    let (todo_index, consumed) = build_number(&self.code[index..]);
-                    index += consumed;
-                    writeln!(f, "Closure \t{}\tIndex of lambda to be wrapped", todo_index)?;
-                },
-                Opcode::Print   => { writeln!(f, "Print    \t\t--")?; },
-                Opcode::Label   => { writeln!(f, "Label    \t\t--")?; },
-                Opcode::Tuple => {
-                    let (length, consumed) = build_number(&self.code[index..]);
-                    index += consumed;
-                    writeln!(f, "Tuple   \t{}\tValues tupled together", length)?;
-                },
-                Opcode::UnLabel => { writeln!(f, "UnLabel  \t\t--")?; },
-                Opcode::UnData  => { writeln!(f, "UnData   \t\t--")?; },
-                Opcode::UnTuple => {
-                    let (item_index, consumed) = build_number(&self.code[index..]);
-                    index += consumed;
-                    writeln!(f, "UnTuple \t{}\tItem accessed", item_index)?;
-                },
-                Opcode::Copy    => { writeln!(f, "Copy     \t\t--")?; },
-                Opcode::FFICall => {
-                    let (ffi_index, consumed) = build_number(&self.code[index..]);
-                    index += consumed;
-                    writeln!(f, "Return  \t{}\tIndexed FFI function called", ffi_index)?;
-                },
-                Opcode::Noop    => { writeln!(f, "Noop     \t")?; },
             }
         }
 
-        Ok(())
+        return fmt::Result::Ok(());
     }
 }
