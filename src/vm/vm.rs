@@ -108,6 +108,7 @@ impl VM {
             Opcode::UnData  => self.un_data(),
             Opcode::UnLabel => self.un_label(),
             Opcode::UnTuple => self.un_tuple(),
+            Opcode::Noop    => self.done(),
         }
     }
 

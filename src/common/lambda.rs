@@ -53,6 +53,53 @@ impl Lambda {
         }
     }
 
+    /// NOTE: WIP, do not use.
+    /// Statically verifies some bytecode safely,
+    /// By ensuring bytecode ops are within bounds,
+    /// As well as the arguments those ops take.
+    /// Returns `false` if the bytecode is invalid.
+    pub fn verify(&self) -> bool {
+        // go through each opcode
+        // check the number of arguments
+        // check that the arguments are valid
+        let mut index = 0;
+
+        while index < self.code.len() {
+            // safely decode an opcode
+            index += 1;
+            // let opcode = match Opcode::from_byte_safe(self.code[index - 1]) {
+            //     Some(o) => o,
+            //     None => { return false; },
+            // };
+
+            // match opcode {
+            //     Con,
+            //     NotInit,
+            //     Del,
+            //     FFICall,
+            //     Copy,
+            //     Capture,
+            //     Save,
+            //     SaveCap,
+            //     Load,
+            //     LoadCap,
+            //     Call,
+            //     Return,
+            //     Closure,
+            //     Print,
+            //     Label,
+            //     Tuple,
+            //     UnData,
+            //     UnLabel,
+            //     UnTuple,
+            //     Noop,
+            // }
+        }
+
+        todo!();
+        // return true;
+    }
+
     /// Emits an opcode as a byte.
     pub fn emit(&mut self, op: Opcode) {
         self.code.push(op as u8)
@@ -111,6 +158,8 @@ impl Lambda {
         self.ffi.len() - 1
     }
 }
+
+// TODO: switch to using the same mechanism as verify bytecode.
 
 impl fmt::Display for Lambda {
     /// Dump a human-readable breakdown of a `Lambda`'s bytecode.
@@ -203,6 +252,7 @@ impl fmt::Display for Lambda {
                     index += consumed;
                     writeln!(f, "Return  \t{}\tIndexed FFI function called", ffi_index)?;
                 },
+                Opcode::Noop    => { writeln!(f, "Noop     \t")?; },
             }
         }
 
