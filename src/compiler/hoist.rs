@@ -122,9 +122,12 @@ impl Hoister {
             CSTPattern::Symbol(name) => {
                 SSTPattern::Symbol(self.resolve_assign(name, declare))
             },
-            CSTPattern::Data(d)     => SSTPattern::Data(d),
-            CSTPattern::Label(n, p) => SSTPattern::Label(todo!(), Box::new(self.walk_pattern(*p, declare))),
-            CSTPattern::Tuple(t)    => SSTPattern::Tuple(
+            CSTPattern::Data(d) => SSTPattern::Data(d),
+            CSTPattern::Label(n, p) => SSTPattern::Label(
+                self.resolve_symbol(n),
+                Box::new(self.walk_pattern(*p, declare)),
+            ),
+            CSTPattern::Tuple(t) => SSTPattern::Tuple(
                 t.into_iter().map(|c| self.walk_pattern(c, declare)).collect::<Vec<_>>()
             )
         };

@@ -1,3 +1,5 @@
+// use std::collections::HashMap;
+
 /// Represents a symbol that corresponds to a name.
 /// In other words, if two variables have the same name,
 /// even if they exist in different scopes,
@@ -10,3 +12,21 @@ pub struct SharedSymbol(pub usize);
 /// They will have different [`UniqueSymbol`]s.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct UniqueSymbol(pub usize);
+
+// pub struct SymbolTable<T> {
+//     symbols: Vec<T>,
+//     lookup:  HashMap<T, usize>,
+// }
+//
+// impl<T> SymbolTable<T> {
+//     pub fn new() -> SymbolTable<T> {
+//         SymbolTable { symbols: vec![], lookup: HashMap::new() }
+//     }
+//
+//     pub fn insert(&mut self, value: T) {
+//         if let Some(index) = self.lookup.get(&value) { return index; }
+//
+//         self.symbols.push(value);
+//         self.lookup.insert(value, self.symbols.len() - 1);
+//     }
+// }

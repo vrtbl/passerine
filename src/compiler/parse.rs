@@ -1,6 +1,7 @@
 use std::{
     mem,
     convert::TryFrom,
+    collections::HashMap,
 };
 
 use crate::common::{
@@ -12,6 +13,7 @@ use crate::compiler::syntax::Syntax;
 use crate::construct::{
     token::Token,
     ast::{AST, ASTPattern, ArgPattern},
+    symbol::SharedSymbol,
 };
 
 /// Simple function that parses a token stream into an AST.
@@ -66,14 +68,15 @@ impl Prec {
 /// use the `parse` function instead.
 #[derive(Debug)]
 pub struct Parser {
-    tokens: Vec<Spanned<Token>>,
-    index:  usize,
+    tokens:  Vec<Spanned<Token>>,
+    index:   usize,
+    symbols: HashMap<String, SharedSymbol>,
 }
 
 impl Parser {
     /// Create a new `parser`.
     pub fn new(tokens: Vec<Spanned<Token>>) -> Parser {
-        Parser { tokens, index: 0 }
+        Parser { tokens, index: 0, symbols: HashMap::new() }
     }
 
     // Cookie Monster's Helper Functions:
@@ -143,6 +146,16 @@ impl Parser {
         }
     }
 
+    pub fn intern_symbol(&mut self, name: String) -> SharedSymbol {
+        if let Some(symbol) = self.symbols.get(&name) {
+            *symbol
+        } else {
+            let symbol = SharedSymbol(self.symbols.len());
+            self.symbols.insert(name.to_string(), symbol);
+            symbol
+        }
+    }
+
     // Core Pratt Parser:
 
     /// Looks at the current token and parses an infix expression
@@ -159,7 +172,7 @@ impl Parser {
             Token::Label       => self.label(),
             Token::Keyword     => self.keyword(),
 
-            Token::Unit
+              Token::Unit
             | Token::Number(_)
             | Token::String(_)
             | Token::Boolean(_) => self.literal(),
@@ -269,15 +282,20 @@ impl Parser {
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
         let symbol = self.consume(Token::Symbol)?;
         // TODO: create new symbol.
-        Ok(Spanned::new(AST::Symbol(todo!()), symbol.span.clone()))
+        Ok(Spanned::new(AST::Symbol(
+            self.intern_symbol(symbol.span.contents())),
+            symbol.span.clone(),
+        ))
     }
 
     /// Parses a keyword.
-    /// Note that this is wrapped in a CSTPattern node.
+    /// Note that this is wrapped in a Arg Pattern node.
     pub fn keyword(&mut self) -> Result<Spanned<AST>, Syntax> {
         if let Spanned { item: Token::Keyword, span } = self.advance() {
             // TODO: create a new symbol
-            let wrapped = AST::ArgPattern(ArgPattern::Keyword(todo!()));
+            let wrapped = AST::ArgPattern(ArgPattern::Keyword(
+                self.intern_symbol(span.contents()[1..].to_string())
+            ));
             Ok(Spanned::new(wrapped, span.clone()))
         } else {
             unreachable!("Expected a keyword");
@@ -438,7 +456,7 @@ impl Parser {
         let ast = self.expression(Prec::End, false)?;
         let end = ast.span.clone();
         return Ok(Spanned::new(
-            AST::label(todo!(), ast),
+            AST::label(self.intern_symbol(start.contents()), ast),
             Span::combine(&start, &end),
         ));
     }
@@ -565,11 +583,7 @@ impl Parser {
 
 #[cfg(test)]
 mod test {
-    use crate::common::{
-        data::Data,
-        source::Source
-    };
-
+    use crate::common::source::Source;
     use crate::compiler::lex::lex;
     use super::*;
 
@@ -580,62 +594,5 @@ mod test {
         assert_eq!(ast, Spanned::new(AST::Block(vec![]), Span::empty()));
     }
 
-    #[test]
-    pub fn literal() {
-        let source = Source::source("x = 55.0");
-        let ast = parse(lex(source.clone()).unwrap()).unwrap();
-        assert_eq!(
-            ast,
-            Spanned::new(
-                AST::Block(
-                    vec![
-                        Spanned::new(
-                            AST::assign(
-                                Spanned::new(ASTPattern::Symbol("x".to_string()), Span::new(&source, 0, 1)),
-                                Spanned::new(
-                                    AST::Data(Data::Real(55.0)),
-                                    Span::new(&source, 4, 4),
-                                ),
-                            ),
-                            Span::new(&source, 0, 8),
-                        )
-                    ]
-                ),
-                Span::empty(),
-            )
-        );
-    }
-
-    #[test]
-    pub fn lambda() {
-        let source = Source::source("x = y -> 3.141592");
-        let ast = parse(lex(source.clone()).unwrap()).unwrap();
-        // println!("{:#?}", ast);
-        assert_eq!(
-            ast,
-            Spanned::new(
-                AST::Block(
-                    vec![
-                        Spanned::new(
-                            AST::assign(
-                                Spanned::new(ASTPattern::Symbol("x".to_string()), Span::new(&source, 0, 1)),
-                                Spanned::new(
-                                    AST::lambda(
-                                        Spanned::new(ASTPattern::Symbol("y".to_string()), Span::new(&source, 4, 1)),
-                                        Spanned::new(
-                                            AST::Data(Data::Real(3.141592)),
-                                            Span::new(&source, 9, 8),
-                                        ),
-                                    ),
-                                    Span::new(&source, 4, 13),
-                                ),
-                            ),
-                            Span::new(&source, 0, 17),
-                        ),
-                    ],
-                ),
-                Span::empty(),
-            )
-        );
-    }
+    // TODO: fuzzing
 }
