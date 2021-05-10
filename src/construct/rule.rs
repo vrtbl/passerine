@@ -29,7 +29,9 @@ type Bindings = HashMap<SharedSymbol, Spanned<AST>>;
 #[derive(Debug, Clone)]
 pub struct Rule {
     pub arg_pat: Spanned<ArgPattern>,
-    pub tree: Spanned<AST>,
+    pub tree:    Spanned<AST>,
+    // maps mangled symbols to unmangled symbols.
+    pub mangles: HashMap<UniqueSymbol, UniqueSymbol>,
 }
 
 impl Rule {

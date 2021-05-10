@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::common::span::Spanned;
+use crate::common::span::{Span, Spanned};
 use crate::compiler::syntax::Syntax;
 use crate::construct::{
     cst::{CST, CSTPattern},
@@ -12,6 +12,8 @@ use crate::construct::{
 // TODO: hoist labels? how are labels declared? types?
 // TODO: once modules exist, the entire program should be wrapped in a module.
 // TODO: add a hoisting method to finalize hoists.
+// TODO: keep track of syntax, do hoisting before macro expansion?
+// TLDR: shouldn't the scope fo types and macros be determined?
 
 // NOTE: two goals:
 // 1. replace all same-reference symbols with a unique integer
@@ -31,8 +33,8 @@ pub fn hoist(cst: Spanned<CST>) -> Result<(Spanned<SST>, Scope), Syntax> {
         return Err(Syntax::error(
             &format!(
                 "{} were referenced before assignment",
-                hoister.unresolved_hoists.keys()
-                    .map(|s| format!("'{}'", s))
+                hoister.unresolved_hoists.values()
+                    .map(|s| s.span.contents())
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
@@ -54,7 +56,7 @@ pub struct Hoister {
     /// Maps integers (index in vector) to string representation of symbol.
     symbol_table: Vec<SharedSymbol>,
     /// Keeps track of variables that were referenced before assignment.
-    unresolved_hoists: HashMap<SharedSymbol, UniqueSymbol>,
+    unresolved_hoists: HashMap<SharedSymbol, Spanned<UniqueSymbol>>,
 }
 
 impl Hoister {
@@ -98,11 +100,11 @@ impl Hoister {
     pub fn walk(&mut self, cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
         let sst: SST = match cst.item {
             CST::Data(data) => SST::Data(data),
-            CST::Symbol(name) => self.symbol(name),
+            CST::Symbol(name) => self.symbol(name, cst.span),
             CST::Block(block) => self.block(block)?,
             // TODO: hoist as well
             CST::Label(name, expression) => SST::label(
-                self.resolve_symbol(name),
+                self.resolve_symbol(name, cst.span),
                 self.walk(*expression)?,
             ),
             CST::Tuple(tuple) => self.tuple(tuple)?,
@@ -124,7 +126,7 @@ impl Hoister {
             },
             CSTPattern::Data(d) => SSTPattern::Data(d),
             CSTPattern::Label(n, p) => SSTPattern::Label(
-                self.resolve_symbol(n),
+                self.resolve_symbol(n, pattern.span),
                 Box::new(self.walk_pattern(*p, declare)),
             ),
             CSTPattern::Tuple(t) => SSTPattern::Tuple(
@@ -210,7 +212,7 @@ impl Hoister {
         // if we've seen the symbol before but don't know where it's defined
         if let Some(unique_symbol) = self.unresolved_hoists.get(&name) {
             // this is a definition; we've resolved it!
-            let unique_symbol = *unique_symbol;
+            let unique_symbol = unique_symbol.item;
             self.uncapture_all(unique_symbol);
             self.unresolved_hoists.remove(&name);
             self.local_scope().locals.push(unique_symbol);
@@ -231,10 +233,10 @@ impl Hoister {
 
     /// This function wraps try_resolve,
     /// but checks that the symbol is unresolved first.
-    fn resolve_symbol(&mut self, name: SharedSymbol) -> UniqueSymbol {
+    fn resolve_symbol(&mut self, name: SharedSymbol, span: Span) -> UniqueSymbol {
         // if we've seen the symbol before but don't know where it's defined
         if let Some(unique_symbol) = self.unresolved_hoists.get(&name) {
-            return *unique_symbol;
+            return unique_symbol.item;
         }
 
         // if we haven't seen the symbol before,
@@ -244,15 +246,15 @@ impl Hoister {
         // if we didn't find it by searching backwards, we mark it as unresolved
         let unique_symbol = self.new_symbol(name);
         self.capture_all(unique_symbol);
-        self.unresolved_hoists.insert(name, unique_symbol);
+        self.unresolved_hoists.insert(name, Spanned::new(unique_symbol, span));
         return unique_symbol;
     }
 
     /// Replaces a symbol name with a unique identifier for that symbol
-    pub fn symbol(&mut self, name: SharedSymbol) -> SST {
+    pub fn symbol(&mut self, name: SharedSymbol, span: Span) -> SST {
         // if we are hoisting the variable,
         // mark the variable as being used before its lexical definition
-        return SST::Symbol(self.resolve_symbol(name));
+        return SST::Symbol(self.resolve_symbol(name, span));
     }
 
     /// Walks a block, nothing fancy here.
