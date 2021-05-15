@@ -8,8 +8,6 @@ use crate::common::{
     data::Data,
 };
 
-// TODO: take a reference to lambda?
-
 /// Wraps a `Lambda` with some scope context.
 /// Each closure is unique when constructed,
 /// Because it depends on the surrounding environment it was constructed in.

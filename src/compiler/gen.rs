@@ -11,8 +11,7 @@ use crate::common::{
     data::Data,
 };
 
-// TODO: do a pass where we hoist and resolve variables?
-// may work well for types too.
+// TODO: hoist and resolve types
 
 use crate::construct::{
     sst::{Scope, SST, SSTPattern},
@@ -211,6 +210,7 @@ impl Compiler {
         let index = match self.ffi_names.iter().position(|n| n == &name) {
             Some(p) => p,
             None => {
+                // TODO: switch ffi to symbol, just use unique symbol?
                 // TODO: keeping track of state
                 // in two different places is a code smell imo
                 // Reason: don't want to include strings in lambda

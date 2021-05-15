@@ -15,6 +15,11 @@ use crate::vm::{
     stack::Stack,
 };
 
+// TODO: algebraic effects
+// more than just Trace, Runtime - mechanism for raising effects
+// fiber scheduling environment handles FFI, no more holding refs to rust functions.
+// TODO: convert VM to Fiber
+
 /// A `VM` executes bytecode lambda closures.
 /// (That's a mouthful - think bytecode + some context).
 /// VM initialization overhead is tiny,

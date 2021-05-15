@@ -185,8 +185,6 @@ impl Lambda {
     }
 }
 
-// TODO: switch to using the same mechanism as verify bytecode.
-
 impl fmt::Display for Lambda {
     /// Dump a human-readable breakdown of a `Lambda`'s bytecode.
     /// Including constants, captures, and variables declared.

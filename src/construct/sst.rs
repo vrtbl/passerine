@@ -9,7 +9,7 @@ use crate::construct::symbol::UniqueSymbol;
 pub enum SSTPattern {
     Symbol(UniqueSymbol),
     Data(Data),
-    Label(UniqueSymbol, Box<Spanned<SSTPattern>>), // TODO: usize for label
+    Label(UniqueSymbol, Box<Spanned<SSTPattern>>),
     Tuple(Vec<Spanned<SSTPattern>>),
     // Where {
     //     pattern: Box<ASTPattern>,

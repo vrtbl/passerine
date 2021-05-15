@@ -95,6 +95,10 @@ impl TryFrom<AST> for ASTPattern {
     }
 }
 
+// TODO: mod - base AST node
+// will hold scope info, ect, during hoisting.
+// is the basis of a vm fiber, i.e. fibers can be initted on module boundaries.
+
 /// Represents an item in a sugared `AST`.
 /// Which is the direct result of parsing
 /// Each syntax-level construct has it's own `AST` variant.

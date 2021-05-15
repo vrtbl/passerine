@@ -3,6 +3,8 @@ use std::{
     hash::Hash,
 };
 
+// TODO: should SharedSymbol be hash of name or something similar?
+
 /// Represents a symbol that corresponds to a name.
 /// In other words, if two variables have the same name,
 /// even if they exist in different scopes,

@@ -7,7 +7,7 @@ use crate::common::span::{Span, Spanned};
 use crate::compiler::syntax::Syntax;
 use crate::construct::{
     ast::{AST, ASTPattern, ArgPattern},
-    symbol::SharedSymbol,
+    symbol::{SharedSymbol, UniqueSymbol},
 };
 
 // TODO: immutably capture external values used by macro
@@ -31,7 +31,8 @@ pub struct Rule {
     pub arg_pat: Spanned<ArgPattern>,
     pub tree:    Spanned<AST>,
     // maps mangled symbols to unmangled symbols.
-    pub mangles: HashMap<UniqueSymbol, UniqueSymbol>,
+    lowest:  usize,
+    mangles: HashMap<SharedSymbol, SharedSymbol>,
 }
 
 impl Rule {
@@ -46,7 +47,7 @@ impl Rule {
                 &arg_pat.span,
             ));
         }
-        Ok(Rule { arg_pat, tree })
+        Ok(Rule { arg_pat, tree, mangles: HashMap::new() })
     }
 
     /// Returns all keywords, as strings, used by the macro, in order of usage.

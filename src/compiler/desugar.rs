@@ -69,7 +69,6 @@ impl Transformer {
     /// Recursively build up a call from a flat form.
     /// Basically turns `(a b c d)` into `(((a b) c) d)`.
     pub fn call(&mut self, mut f: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
-        // TODO: clean up nested logic.
         match f.len() {
             0 => unreachable!("A call must have at least two values - a function and an expression"),
             1 => match f.pop().unwrap().item {
@@ -90,7 +89,7 @@ impl Transformer {
         }
     }
 
-    // TODO: Make it possible for forms with less than one value to exist?
+    // TODO: Make it possible for forms with zero values to exist?
     /// Desugars a form.
     /// This is where most of the macro logic resides.
     /// Applying a macro really happens in four broad strokes:
@@ -256,6 +255,7 @@ impl Transformer {
         let rule = Rule::new(arg_pat, tree)?;
         self.rules.push(Spanned::new(rule, patterns_span));
 
+        // TODO: do a pre-pass where macros are scoped and removed?
         // TODO: return nothing?
         Ok(CST::Block(vec![]))
     }

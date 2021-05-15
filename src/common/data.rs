@@ -18,6 +18,8 @@ use crate::common::{
 /// Built-in Passerine datatypes.
 #[derive(Clone, PartialEq)]
 pub enum Data {
+    // TODO: make heap data immutable
+    // TODO: CoW
     /// Data on the heap.
     Heaped(Rc<RefCell<Data>>),
     /// Uninitialized data.
@@ -38,7 +40,6 @@ pub enum Data {
     /// Some bytecode with a context that can be run.
     Closure(Box<Closure>),
 
-    // TODO: rework how labels and tags work
     // TODO: just remove Kind
     /// `Kind` is the base component of an unconstructed label
     Kind(usize),
