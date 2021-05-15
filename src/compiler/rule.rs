@@ -318,7 +318,7 @@ impl Rule {
                 let e = Rule::expand(*expression, bindings)?;
                 AST::syntax(ap, e);
                 return Err(Syntax::error(
-                    "Nested macros are not allowed",
+                    "Nested macros are not allowed yet",
                     &tree.span,
                 ))?;
             },
