@@ -5,7 +5,7 @@ use crate::compiler::syntax::Syntax;
 use crate::construct::{
     cst::{CST, CSTPattern},
     sst::{SST, SSTPattern, Scope},
-    symbol::{SharedSymbol, UniqueSymbol},
+    symbol::{SharedSymbol, UniqueSymbol, SymbolTable},
 };
 
 // TODO: hoisting before expansion.
@@ -54,7 +54,7 @@ pub struct Hoister {
     scopes: Vec<Scope>,
     // TODO: make it it's own type
     /// Maps integers (index in vector) to string representation of symbol.
-    symbol_table: Vec<SharedSymbol>,
+    symbol_table: SymbolTable,
     /// Keeps track of variables that were referenced before assignment.
     unresolved_hoists: HashMap<SharedSymbol, Spanned<UniqueSymbol>>,
 }
@@ -65,7 +65,7 @@ impl Hoister {
     pub fn new() -> Hoister {
         Hoister {
             scopes:            vec![Scope::new()],
-            symbol_table:      vec![],
+            symbol_table:      SymbolTable::new(),
             unresolved_hoists: HashMap::new(),
         }
     }
@@ -137,17 +137,10 @@ impl Hoister {
         return Spanned::new(item, pattern.span);
     }
 
-    /// Creates a new symbol that is guaranteed to be unique.
-    fn new_symbol(&mut self, name: SharedSymbol) -> UniqueSymbol {
-        let index = self.symbol_table.len();
-        self.symbol_table.push(name);
-        return UniqueSymbol(index);
-    }
-
     /// Looks to see whether a name is defined as a local in the current scope.
     fn local_symbol(&self, name: SharedSymbol) -> Option<UniqueSymbol> {
         for local in self.borrow_local_scope().locals.iter() {
-            let local_name = self.symbol_table[local.0];
+            let local_name = self.symbol_table.name(local);
             if local_name == name { return Some(*local); }
         }
 
@@ -157,7 +150,7 @@ impl Hoister {
     /// Looks to see whether a name is used as a nonlocal in the current scope.
     fn nonlocal_symbol(&self, name: SharedSymbol) -> Option<UniqueSymbol> {
         for nonlocal in self.borrow_local_scope().nonlocals.iter() {
-            let nonlocal_name = self.symbol_table[nonlocal.0];
+            let nonlocal_name = self.symbol_table.name(nonlocal);
             if nonlocal_name == name { return Some(*nonlocal); }
         }
 
@@ -226,7 +219,7 @@ impl Hoister {
         }
 
         // if we didn't find it by searching backwards, we declare it in the current scope
-        let unique_symbol = self.new_symbol(name);
+        let unique_symbol = self.symbol_table.push(name);
         self.local_scope().locals.push(unique_symbol);
         return unique_symbol;
     }
@@ -244,7 +237,7 @@ impl Hoister {
         if let Some(unique_symbol) = self.try_resolve(name) { return unique_symbol; }
 
         // if we didn't find it by searching backwards, we mark it as unresolved
-        let unique_symbol = self.new_symbol(name);
+        let unique_symbol = self.symbol_table.push(name);
         self.capture_all(unique_symbol);
         self.unresolved_hoists.insert(name, Spanned::new(unique_symbol, span));
         return unique_symbol;

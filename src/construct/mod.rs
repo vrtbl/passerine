@@ -1,4 +1,5 @@
 pub mod symbol;
+pub mod module;
 
 pub mod token;
 pub mod ast; // high level pre-macro IR

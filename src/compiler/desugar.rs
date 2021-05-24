@@ -11,26 +11,28 @@ use crate::construct::{
     ast::{AST, ASTPattern, ArgPattern},
     cst::{CST, CSTPattern},
     symbol::SharedSymbol,
+    module::Module,
 };
 
 // TODO: separate macro step and desugaring into two different steps?
 
 /// Desugares an `AST` into a `CST`, applying macro transformations along the way.
-pub fn desugar(ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
-    let mut transformer = Transformer::new();
-    let cst = transformer.walk(ast)?;
+pub fn desugar(ast: Module<Spanned<AST>, usize>) -> Result<Spanned<CST>, Syntax> {
+    let mut transformer = Transformer::new(ast.associated);
+    let cst = transformer.walk(ast.syntax_tree)?;
     return Ok(cst);
 }
 
 /// Applies compile-time transformations to the AST.
 pub struct Transformer {
     rules: Vec<Spanned<Rule>>,
+    lowest_shared: usize,
 }
 
 impl Transformer {
     /// Creates a new transformer with no macro transformation rules.
-    pub fn new() -> Transformer {
-        Transformer { rules: vec![] }
+    pub fn new(lowest_shared: usize) -> Transformer {
+        Transformer { rules: vec![], lowest_shared }
     }
 
     /// Desugars an `AST` into a `CST`,

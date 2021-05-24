@@ -18,41 +18,26 @@ pub struct SharedSymbol(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct UniqueSymbol(pub usize);
 
-// pub struct AddOnlySet<K: Eq + Hash, V> {
-//     values: Vec<K>,
-//     keys:   HashMap<K, usize>,
-// }
-//
-// impl<K: Eq + Hash> AddOnlySet<K> {
-//     pub fn new() -> AddOnlySet<K> {
-//         AddOnlySet { keys: HashMap::new() }
-//     }
-//
-//     pub fn add(&mut self, key: &K) -> usize {
-//         if let Some(index) = self.keys.contains_key(key) { return index; }
-//         let index = self.keys.len();
-//         self.keys.insert
-//     }
-//
-//     pub fn contains() -> Option<usize> {
-//
-//     }
-// }
+/// Represents a set of symbols, whether they be unique by name
+/// Or unique by some other measure.
+pub struct SymbolTable {
+    // Ordered list of symbols.
+    // A symbol is in the symbol table if it's inner number is less than lowest
+    interns: Vec<SharedSymbol>,
+}
 
-// pub struct SymbolTable<T> {
-//     symbols: Vec<T>,
-//     lookup:  HashMap<T, usize>,
-// }
-//
-// impl<T> SymbolTable<T> {
-//     pub fn new() -> SymbolTable<T> {
-//         SymbolTable { symbols: vec![], lookup: HashMap::new() }
-//     }
-//
-//     pub fn insert(&mut self, value: T) {
-//         if let Some(index) = self.lookup.get(&value) { return index; }
-//
-//         self.symbols.push(value);
-//         self.lookup.insert(value, self.symbols.len() - 1);
-//     }
-// }
+impl SymbolTable {
+    pub fn new() -> SymbolTable {
+        SymbolTable { interns: vec![] }
+    }
+
+    pub fn name(&self, unique: &UniqueSymbol) -> SharedSymbol {
+        return self.interns[unique.0];
+    }
+
+    pub fn push(&mut self, shared: SharedSymbol) -> UniqueSymbol {
+        let index = self.interns.len();
+        self.interns.push(shared);
+        return UniqueSymbol(index);
+    }
+}

@@ -14,15 +14,21 @@ use crate::construct::{
     token::Token,
     ast::{AST, ASTPattern, ArgPattern},
     symbol::SharedSymbol,
+    module::Module,
 };
 
 /// Simple function that parses a token stream into an AST.
 /// Exposes the functionality of the `Parser`.
-pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
+pub fn parse(tokens: Vec<Spanned<Token>>)
+    -> Result<Module<Spanned<AST>, usize>, Syntax>
+{
     let mut parser = Parser::new(tokens);
     let ast = parser.body(Token::End)?;
     parser.consume(Token::End)?;
-    return Ok(Spanned::new(ast, Span::empty()));
+    return Ok(Module::new(
+        Spanned::new(ast, Span::empty()),
+        parser.symbols.len()
+    ));
 }
 
 /// We're using a Pratt parser, so this little enum
