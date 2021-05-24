@@ -105,7 +105,10 @@ impl Transformer {
         let mut matches = vec![];
         for rule in self.rules.iter() {
             let mut reversed_remaining = form.clone().into_iter().rev().collect();
-            let possibility = Rule::bind(&rule.item.arg_pat, &mut reversed_remaining);
+            let possibility = Rule::bind(
+                &rule.item.arg_pat,
+                &mut reversed_remaining
+            );
 
             if let Some(bindings) = possibility {
                 if reversed_remaining.is_empty() {
