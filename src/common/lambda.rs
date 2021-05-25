@@ -70,28 +70,28 @@ impl Lambda {
         return Some((numbers, offset));
     }
 
-    pub fn bounds(&self, opcode: Opcode) -> &[usize] {
+    pub fn bounds(&self, opcode: Opcode) -> Vec<usize> {
         match opcode {
-            Opcode::Con     => &[self.constants.len()],
-            Opcode::NotInit => &[],
-            Opcode::Del     => &[],
-            Opcode::FFICall => &[self.ffi.len()],
-            Opcode::Copy    => &[],
-            Opcode::Capture => &[self.decls], // TODO: correct bounds check?
-            Opcode::Save    => &[self.decls],
-            Opcode::SaveCap => &[self.captures.len()],
-            Opcode::Load    => &[self.decls],
-            Opcode::LoadCap => &[self.captures.len()],
-            Opcode::Call    => &[],
-            Opcode::Return  => &[self.decls], // TODO: correct bounds check?
-            Opcode::Closure => &[],
-            Opcode::Print   => &[],
-            Opcode::Label   => &[],
-            Opcode::Tuple   => &[usize::MAX], // TODO: stricter bounds
-            Opcode::UnData  => &[],
-            Opcode::UnLabel => &[],
-            Opcode::UnTuple => &[usize::MAX], // TODO: stricter bounds
-            Opcode::Noop    => &[],
+            Opcode::Con     => vec![self.constants.len()],
+            Opcode::NotInit => vec![],
+            Opcode::Del     => vec![],
+            Opcode::FFICall => vec![self.ffi.len()],
+            Opcode::Copy    => vec![],
+            Opcode::Capture => vec![self.decls], // TODO: correct bounds check?
+            Opcode::Save    => vec![self.decls],
+            Opcode::SaveCap => vec![self.captures.len()],
+            Opcode::Load    => vec![self.decls],
+            Opcode::LoadCap => vec![self.captures.len()],
+            Opcode::Call    => vec![],
+            Opcode::Return  => vec![self.decls], // TODO: correct bounds check?
+            Opcode::Closure => vec![],
+            Opcode::Print   => vec![],
+            Opcode::Label   => vec![],
+            Opcode::Tuple   => vec![usize::MAX], // TODO: stricter bounds
+            Opcode::UnData  => vec![],
+            Opcode::UnLabel => vec![],
+            Opcode::UnTuple => vec![usize::MAX], // TODO: stricter bounds
+            Opcode::Noop    => vec![],
         }
     }
 
@@ -115,7 +115,7 @@ impl Lambda {
 
             index += 1;
             let bounds = self.bounds(opcode);
-            let args_result = self.args_safe(index, bounds);
+            let args_result = self.args_safe(index, &bounds);
 
             index += match args_result {
                 Some((_args, consumed)) => consumed,
@@ -220,7 +220,7 @@ impl fmt::Display for Lambda {
 
             index += 1;
             let bounds = self.bounds(opcode);
-            let args_result = self.args_safe(index, bounds);
+            let args_result = self.args_safe(index, &bounds);
 
             let (args, consumed) = match args_result {
                 Some((a, c)) => (a, c),
@@ -237,7 +237,7 @@ impl fmt::Display for Lambda {
                     .map(|n| n.to_string())
                     .collect::<Vec<String>>()
                     .join("\t")
-            );
+            )?;
         }
 
         return fmt::Result::Ok(());

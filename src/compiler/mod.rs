@@ -23,3 +23,4 @@ pub mod hoist;
 pub mod gen;
 
 pub mod syntax;
+pub mod lower;

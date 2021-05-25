@@ -100,11 +100,11 @@ impl Hoister {
     pub fn walk(&mut self, cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
         let sst: SST = match cst.item {
             CST::Data(data) => SST::Data(data),
-            CST::Symbol(name) => self.symbol(name, cst.span),
+            CST::Symbol(name) => self.symbol(name, cst.span.clone()),
             CST::Block(block) => self.block(block)?,
             // TODO: hoist as well
             CST::Label(name, expression) => SST::label(
-                self.resolve_symbol(name, cst.span),
+                self.resolve_symbol(name, cst.span.clone()),
                 self.walk(*expression)?,
             ),
             CST::Tuple(tuple) => self.tuple(tuple)?,
@@ -126,7 +126,7 @@ impl Hoister {
             },
             CSTPattern::Data(d) => SSTPattern::Data(d),
             CSTPattern::Label(n, p) => SSTPattern::Label(
-                self.resolve_symbol(n, pattern.span),
+                self.resolve_symbol(n, pattern.span.clone()),
                 Box::new(self.walk_pattern(*p, declare)),
             ),
             CSTPattern::Tuple(t) => SSTPattern::Tuple(

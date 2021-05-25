@@ -104,7 +104,7 @@ impl Debug for Data {
             Data::Boolean(b)  => write!(f, "Boolean({:?})", b),
             Data::String(s)   => write!(f, "String({:?})", s),
             Data::Lambda(_)   => write!(f, "Function(...)"),
-            Data::Closure(c)  => write!(f, "Closure(...)"), // TODO: how to differentiate?
+            Data::Closure(_c)  => write!(f, "Closure(...)"), // TODO: how to differentiate?
             Data::Kind(n)     => write!(f, "Kind({})", n),
             Data::Label(n, v) => write!(f, "Label({}, {:?})", n, v),
             Data::Unit        => write!(f, "Unit"),

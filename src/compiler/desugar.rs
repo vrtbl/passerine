@@ -1,6 +1,6 @@
 use std::{
     convert::TryFrom,
-    collections::HashSet,
+    collections::{HashMap, HashSet},
 };
 
 use crate::common::span::{Span, Spanned};
@@ -17,7 +17,7 @@ use crate::construct::{
 // TODO: separate macro step and desugaring into two different steps?
 
 /// Desugares an `AST` into a `CST`, applying macro transformations along the way.
-pub fn desugar(ast: Module<Spanned<AST>, usize>) -> Result<Spanned<CST>, Syntax> {
+pub fn desugar(ast: Module<Spanned<AST>, usize>) -> Result<Module<Spanned<CST>, ()>, Syntax> {
     let mut transformer = Transformer::new(ast.associated);
     let cst = transformer.walk(ast.syntax_tree)?;
     return Ok(cst);
@@ -25,14 +25,15 @@ pub fn desugar(ast: Module<Spanned<AST>, usize>) -> Result<Spanned<CST>, Syntax>
 
 /// Applies compile-time transformations to the AST.
 pub struct Transformer {
-    rules: Vec<Spanned<Rule>>,
+    rules:         Vec<Spanned<Rule>>,
     lowest_shared: usize,
+    mangles:       HashMap<SharedSymbol, SharedSymbol>,
 }
 
 impl Transformer {
     /// Creates a new transformer with no macro transformation rules.
     pub fn new(lowest_shared: usize) -> Transformer {
-        Transformer { rules: vec![], lowest_shared }
+        Transformer { rules: vec![], lowest_shared, mangles: HashMap::new() }
     }
 
     /// Desugars an `AST` into a `CST`,
@@ -107,7 +108,9 @@ impl Transformer {
             let mut reversed_remaining = form.clone().into_iter().rev().collect();
             let possibility = Rule::bind(
                 &rule.item.arg_pat,
-                &mut reversed_remaining
+                &mut reversed_remaining,
+                &mut self.lowest_shared,
+                &mut self.mangles,
             );
 
             if let Some(bindings) = possibility {
@@ -120,21 +123,22 @@ impl Transformer {
         // no macros were matched
         if matches.len() == 0 {
             // collect all in-scope pseudokeywords
-            let mut pseudokeywords: HashSet<SharedSymbol> = HashSet::new();
+            let mut pseudokeywords: HashMap<SharedSymbol, String> = HashMap::new();
             for rule in self.rules.iter() {
-                for pseudokeyword in Rule::keywords(&rule.item.arg_pat) {
-                    pseudokeywords.insert(pseudokeyword);
+                for (pseudokeyword, name) in Rule::keywords(&rule.item.arg_pat) {
+                    pseudokeywords.insert(pseudokeyword, name);
                 }
             }
 
             // into a set for quick membership checking
             let potential_keywords = form.iter()
-                .filter(|i| if let AST::Symbol(_) = i.item { true } else { false })
-                .map(   |i| if let AST::Symbol(s) = i.item { s } else { unreachable!() })
+                .filter(|i| if let AST::Symbol(_) = i.item { true } else { false          })
+                .map(   |i| if let AST::Symbol(s) = i.item { s    } else { unreachable!() })
                 .collect::<HashSet<SharedSymbol>>();
 
             // calculate pseudokeyword collisions in case of ambiguity
-            let intersection = potential_keywords.intersection(&pseudokeywords)
+            let intersection = potential_keywords
+                .intersection(&pseudokeywords.keys().cloned().collect())
                 .map(|s| *s).collect::<Vec<SharedSymbol>>();
 
             // no collisions? process the form as a function call instead
@@ -146,7 +150,7 @@ impl Transformer {
                     "In-scope pseudokeyword{} {} used, but no macros match the form.",
                     if intersection.len() == 1 { "" } else { "s" },
                     intersection.iter()
-                        .map(|kw| format!("'{}'", kw))
+                        .map(|kw| format!("'{}'", pseudokeywords.get(kw).unwrap()))
                         .collect::<Vec<String>>()
                         .join(", ")
                 ),
@@ -162,10 +166,10 @@ impl Transformer {
             return Err(Syntax::error(
                 &format!(
                     "This form matched multiple macros:\n\n{}\
-                    Note: A form may only match one macro, this must be unambiguious;\n\
-                    Try using variable names different than those of pseudokeywords currently in scope,\n\
-                    Adjusting the definitions of locally-defined macros,\n\
-                    or using parenthesis '( ... )' or curlies '{{ ... }}' to group nested macros",
+                    Note: A form may only match one macro, this must be unambiguious; \
+                    try using variable names different than those of pseudokeywords currently in scope, \
+                    Adjusting the definitions of locally-defined macros, \
+                    or using parenthesis '( ... )' or curlies '{{ ... }}' to group nested macros.Sized",
                     matches.iter()
                         .map(|s| format!("{}", s.0.span))
                         .collect::<Vec<String>>()
@@ -177,7 +181,13 @@ impl Transformer {
 
         // apply the rule to apply the macro!
         let (rule, mut bindings) = matches.pop().unwrap();
-        let expanded = Rule::expand(rule.item.tree.clone(), &mut bindings)?;
+        let expanded = Rule::expand(
+            rule.item.tree.clone(),
+            &mut bindings,
+            &mut self.lowest_shared,
+            &mut self.mangles
+        )?;
+
         return Ok(self.walk(expanded)?.item);
     }
 

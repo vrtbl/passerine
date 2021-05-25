@@ -54,16 +54,17 @@ impl Rule {
         Ok(Rule { arg_pat, tree })
     }
 
-    /// Returns all keywords, as strings, used by the macro, in order of usage.
+    /// Returns all keywords, as a `(SharedSymbol, String) `tuple,
+    /// used by the macro, in order of usage.
     /// Does not filter for duplicates.
-    pub fn keywords(arg_pat: &Spanned<ArgPattern>) -> Vec<SharedSymbol> {
+    pub fn keywords(arg_pat: &Spanned<ArgPattern>) -> Vec<(SharedSymbol, String)> {
         match &arg_pat.item {
             ArgPattern::Group(pats) => {
                 let mut keywords = vec![];
                 for pat in pats { keywords.append(&mut Rule::keywords(&pat)) }
                 keywords
             },
-            ArgPattern::Keyword(name) => vec![name.clone()],
+            ArgPattern::Keyword(name) => vec![(*name, arg_pat.span.contents())],
             _ => vec![],
         }
     }
@@ -121,9 +122,8 @@ impl Rule {
         arg_pat:           &Spanned<ArgPattern>,
         mut reversed_form: &mut Vec<Spanned<AST>>,
         lowest_shared:     &mut usize,
-    ) -> Option<Result<(Bindings, Mangles), Syntax>> {
-        let mut mangles = HashMap::new();
-
+        mangles:           &mut Mangles,
+    ) -> Option<Result<Bindings, Syntax>> {
         match &arg_pat.item {
             // TODO: right now, if a macro is invoked from another macro,
             // passerine won't recognize it,

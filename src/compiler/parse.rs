@@ -286,10 +286,11 @@ impl Parser {
 
     /// Constructs an AST for a symbol.
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let symbol = self.consume(Token::Symbol)?;
+        let symbol = self.consume(Token::Symbol)?.clone();
+        let index = self.intern_symbol(symbol.span.contents());
         // TODO: create new symbol.
-        Ok(Spanned::new(AST::Symbol(
-            self.intern_symbol(symbol.span.contents())),
+        Ok(Spanned::new(
+            AST::Symbol(index),
             symbol.span.clone(),
         ))
     }
@@ -297,15 +298,18 @@ impl Parser {
     /// Parses a keyword.
     /// Note that this is wrapped in a Arg Pattern node.
     pub fn keyword(&mut self) -> Result<Spanned<AST>, Syntax> {
-        if let Spanned { item: Token::Keyword, span } = self.advance() {
-            // TODO: create a new symbol
-            let wrapped = AST::ArgPattern(ArgPattern::Keyword(
-                self.intern_symbol(span.contents()[1..].to_string())
-            ));
-            Ok(Spanned::new(wrapped, span.clone()))
+        let span = if let Spanned { item: Token::Keyword, span } = self.advance() {
+            span.clone()
         } else {
             unreachable!("Expected a keyword");
-        }
+        };
+
+        // TODO: create a new symbol
+        let wrapped = AST::ArgPattern(ArgPattern::Keyword(
+            self.intern_symbol(span.contents()[1..].to_string())
+        ));
+
+        Ok(Spanned::new(wrapped, span.clone()))
     }
 
     /// Constructs the AST for a literal, such as a number or string.

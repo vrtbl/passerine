@@ -12,3 +12,5 @@ impl<A, B> Module<A, B> {
         Module { syntax_tree: st, associated }
     }
 }
+
+pub type ThinModule<A> = Module<A, ()>;

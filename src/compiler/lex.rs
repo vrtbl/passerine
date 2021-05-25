@@ -10,8 +10,8 @@ use crate::common::{
     data::Data,
 };
 
-use crate::construct::token::Token;
-use crate::compiler::syntax::Syntax;
+use crate::construct::{module::ThinModule, token::Token};
+use crate::compiler::{lower::Lower, syntax::Syntax};
 
 type Bite = (Token, usize);
 
@@ -38,6 +38,15 @@ pub const STATIC_TOKENS: &[(&str, Token)] = &[
     ("/", Token::Div),
     ("%", Token::Rem),
 ];
+
+impl Lower
+for  ThinModule<Rc<Source>> {
+    type Out = ThinModule<Vec<Spanned<Token>>>;
+
+    fn lower(self) -> Result<Self::Out, Syntax> {
+        todo!()
+    }
+}
 
 /// Simple function that lexes a source file into a token stream.
 /// Exposes the functionality of the `Lexer`.
@@ -303,7 +312,7 @@ impl Lexer {
         len += Lexer::expect(&source, "'")?;
 
         if let (Token::Symbol, l) = Lexer::identifier(&source[len..])? {
-            let keyword = source[len..len+l].to_string();
+            // let keyword = source[len..len+l].to_string();
             Ok((Token::Keyword, len + l))
         } else {
             Err("Expected a pseudokeyword".to_string())
