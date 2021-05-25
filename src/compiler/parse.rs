@@ -9,13 +9,25 @@ use crate::common::{
     data::Data,
 };
 
-use crate::compiler::syntax::Syntax;
+use crate::compiler::{lower::Lower, syntax::Syntax};
+
 use crate::construct::{
     token::Token,
     ast::{AST, ASTPattern, ArgPattern},
     symbol::SharedSymbol,
     module::Module,
 };
+
+impl Lower for ThinModule<Rc<Source>> {
+    type Out = ThinModule<Vec<Spanned<Token>>>;
+
+    /// Simple function that lexes a source file into a token stream.
+    /// Exposes the functionality of the `Lexer`.
+    fn lower(self) -> Result<Self::Out, Syntax> {
+        let mut lexer = Lexer::new(&self.repr);
+        return Ok(Module::new(lexer.all()?, ()));
+    }
+}
 
 /// Simple function that parses a token stream into an AST.
 /// Exposes the functionality of the `Parser`.

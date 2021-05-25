@@ -17,7 +17,8 @@ use crate::construct::{
     sst::{Scope, SST, SSTPattern},
     symbol::UniqueSymbol,
 };
-use crate::compiler::syntax::Syntax;
+
+use crate::compiler::{lower::Lower, syntax::Syntax};
 
 use crate::core::{
     ffi_core,

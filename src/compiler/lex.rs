@@ -10,7 +10,11 @@ use crate::common::{
     data::Data,
 };
 
-use crate::construct::{module::ThinModule, token::Token};
+use crate::construct::{
+    module::{Module, ThinModule},
+    token::Token
+};
+
 use crate::compiler::{lower::Lower, syntax::Syntax};
 
 type Bite = (Token, usize);
@@ -39,20 +43,15 @@ pub const STATIC_TOKENS: &[(&str, Token)] = &[
     ("%", Token::Rem),
 ];
 
-impl Lower
-for  ThinModule<Rc<Source>> {
+impl Lower for ThinModule<Rc<Source>> {
     type Out = ThinModule<Vec<Spanned<Token>>>;
 
+    /// Simple function that lexes a source file into a token stream.
+    /// Exposes the functionality of the `Lexer`.
     fn lower(self) -> Result<Self::Out, Syntax> {
-        todo!()
+        let mut lexer = Lexer::new(&self.repr);
+        return Ok(Module::new(lexer.all()?, ()));
     }
-}
-
-/// Simple function that lexes a source file into a token stream.
-/// Exposes the functionality of the `Lexer`.
-pub fn lex(source: Rc<Source>) -> Result<Vec<Spanned<Token>>, Syntax> {
-    let mut lexer = Lexer::new(&source);
-    return lexer.all();
 }
 
 /// This represents a lexer object.
@@ -442,7 +441,7 @@ mod test {
     #[test]
     fn empty() {
         // no source code? no tokens!
-        let result = lex(Source::source(""));
+        let result = Module::new(Source::source(""), ()).lower();
         let target: Result<Vec<Spanned<Token>>, Syntax> =
             Ok(vec![Spanned::new(Token::End, Span::empty())]);
 
@@ -460,7 +459,7 @@ mod test {
             Spanned::new(Token::End,                          Span::empty()),
         ];
 
-        assert_eq!(lex(source), Ok(result));
+        assert_eq!(Module::new(source, ()).lower(), Ok(result));
     }
 
     #[test]
@@ -474,7 +473,7 @@ mod test {
 
         ];
 
-        assert_eq!(lex(source), Ok(result));
+        assert_eq!(Module::new(source, ()).lower(), Ok(result));
     }
 
     #[test]
@@ -496,7 +495,7 @@ mod test {
             Spanned::new(Token::End,                          Span::empty()),
         ];
 
-        assert_eq!(lex(source), Ok(result));
+        assert_eq!(Module::new(source, ()).lower(), Ok(result));
     }
 
     #[test]
@@ -517,7 +516,7 @@ mod test {
             Spanned::new(Token::End,                          Span::empty()),
         ];
 
-        assert_eq!(lex(source), Ok(result));
+        assert_eq!(Module::new(source, ()).lower(), Ok(result));
     }
 
     // helper function for the following tests
@@ -606,7 +605,7 @@ mod test {
     #[test]
     fn comma() {
         let source = Source::source("heck\\ man");
-        let tokens = lex(source.clone());
+        let tokens = Module::new(source.clone(), ()).lower();
         assert_eq!(tokens, Err(Syntax::error("Unexpected token", &Span::new(&source, 4, 0))));
     }
 }
