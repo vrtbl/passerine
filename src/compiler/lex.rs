@@ -11,7 +11,7 @@ use crate::common::{
 };
 
 use crate::construct::{
-    module::{Module, ThinModule},
+    module::ThinModule,
     token::Token
 };
 
@@ -50,7 +50,7 @@ impl Lower for ThinModule<Rc<Source>> {
     /// Exposes the functionality of the `Lexer`.
     fn lower(self) -> Result<Self::Out, Syntax> {
         let mut lexer = Lexer::new(&self.repr);
-        return Ok(Module::new(lexer.all()?, ()));
+        return Ok(ThinModule::thin(lexer.all()?));
     }
 }
 
@@ -441,7 +441,7 @@ mod test {
     #[test]
     fn empty() {
         // no source code? no tokens!
-        let result = Module::new(Source::source(""), ()).lower();
+        let result = ThinModule::thin(Source::source("")).lower();
         let target: Result<Vec<Spanned<Token>>, Syntax> =
             Ok(vec![Spanned::new(Token::End, Span::empty())]);
 
@@ -459,7 +459,7 @@ mod test {
             Spanned::new(Token::End,                          Span::empty()),
         ];
 
-        assert_eq!(Module::new(source, ()).lower(), Ok(result));
+        assert_eq!(ThinModule::thin(source).lower(), Ok(result));
     }
 
     #[test]
@@ -473,14 +473,12 @@ mod test {
 
         ];
 
-        assert_eq!(Module::new(source, ()).lower(), Ok(result));
+        assert_eq!(ThinModule::thin(source).lower(), Ok(result));
     }
 
     #[test]
     fn block() {
         let source = Source::source("{\n\thello = true\n\thello\n}");
-
-        // TODO: finish test
 
         let result = vec![
             Spanned::new(Token::OpenBracket,                  Span::new(&source, 0, 1)),
@@ -495,12 +493,13 @@ mod test {
             Spanned::new(Token::End,                          Span::empty()),
         ];
 
-        assert_eq!(Module::new(source, ()).lower(), Ok(result));
+        assert_eq!(ThinModule::thin(source).lower(), Ok(result));
     }
 
     #[test]
     fn function() {
         let source = Source::source("identity = x -> x\nidentity (identity \"heck\")");
+
         let result = vec![
             Spanned::new(Token::Symbol,                                   Span::new(&source, 0, 8)),
             Spanned::new(Token::Assign,                                   Span::new(&source, 9, 1)),
@@ -516,7 +515,7 @@ mod test {
             Spanned::new(Token::End,                          Span::empty()),
         ];
 
-        assert_eq!(Module::new(source, ()).lower(), Ok(result));
+        assert_eq!(ThinModule::thin(source).lower(), Ok(result));
     }
 
     // helper function for the following tests
@@ -605,7 +604,7 @@ mod test {
     #[test]
     fn comma() {
         let source = Source::source("heck\\ man");
-        let tokens = Module::new(source.clone(), ()).lower();
+        let tokens = ThinModule::thin(source).lower();
         assert_eq!(tokens, Err(Syntax::error("Unexpected token", &Span::new(&source, 4, 0))));
     }
 }

@@ -5,23 +5,34 @@ use std::{
 
 use crate::common::span::{Span, Spanned};
 
-use crate::compiler::syntax::Syntax;
+use crate::compiler::{lower::Lower, syntax::Syntax};
+
 use crate::construct::{
     rule::Rule,
     ast::{AST, ASTPattern, ArgPattern},
     cst::{CST, CSTPattern},
     symbol::SharedSymbol,
-    module::Module,
+    module::{ThinModule, Module},
 };
+
+impl Lower for Module<Spanned<AST>, usize> {
+    type Out = ThinModule<Spanned<CST>>;
+
+    /// Desugares an `AST` into a `CST`, applying macro transformations along the way.
+    fn lower(self) -> Result<Self::Out, Syntax> {
+        let mut transformer = Transformer::new(self.assoc);
+        let cst = transformer.walk(self.repr)?;
+        return Ok(ThinModule::thin(cst));
+    }
+}
 
 // TODO: separate macro step and desugaring into two different steps?
 
-/// Desugares an `AST` into a `CST`, applying macro transformations along the way.
-pub fn desugar(ast: Module<Spanned<AST>, usize>) -> Result<Module<Spanned<CST>, ()>, Syntax> {
-    let mut transformer = Transformer::new(ast.associated);
-    let cst = transformer.walk(ast.syntax_tree)?;
-    return Ok(cst);
-}
+// pub fn desugar(ast: Module<Spanned<AST>, usize>) -> Result<Module<Spanned<CST>, ()>, Syntax> {
+//     let mut transformer = Transformer::new(ast.associated);
+//     let cst = transformer.walk(ast.syntax_tree)?;
+//     return Ok(cst);
+// }
 
 /// Applies compile-time transformations to the AST.
 pub struct Transformer {

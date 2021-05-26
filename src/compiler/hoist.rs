@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
 use crate::common::span::{Span, Spanned};
-use crate::compiler::syntax::Syntax;
+use crate::compiler::{lower::Lower, syntax::Syntax};
 use crate::construct::{
     cst::{CST, CSTPattern},
     sst::{SST, SSTPattern, Scope},
     symbol::{SharedSymbol, UniqueSymbol, SymbolTable},
+    module::{ThinModule, Module},
 };
 
 // TODO: hoisting before expansion.
@@ -19,30 +20,34 @@ use crate::construct::{
 // 1. replace all same-reference symbols with a unique integer
 // 2. Build up a table of which symbols are accessible in what scopes.
 
-/// Simple function that a scoped syntax tree (`SST`) from an `CST`.
-/// Replaces all symbols with unique identifiers;
-/// symbols by the same name in different scopes will get different identifiers.
-/// Also resolves closure captures and closure hoisting.
-pub fn hoist(cst: Spanned<CST>) -> Result<(Spanned<SST>, Scope), Syntax> {
-    let mut hoister = Hoister::new();
-    let sst = hoister.walk(cst)?;
-    let scope = hoister.scopes.pop().unwrap();
+impl Lower for ThinModule<Spanned<CST>> {
+    type Out = Module<Spanned<SST>, Scope>;
 
-    if !hoister.unresolved_hoists.is_empty() {
-        // TODO: Actual errors
-        return Err(Syntax::error(
-            &format!(
-                "{} were referenced before assignment",
-                hoister.unresolved_hoists.values()
-                    .map(|s| s.span.contents())
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            ),
-            &sst.span,
-        ))
+    /// Simple function that a scoped syntax tree (`SST`) from an `CST`.
+    /// Replaces all symbols with unique identifiers;
+    /// symbols by the same name in different scopes will get different identifiers.
+    /// Also resolves closure captures and closure hoisting.
+    fn lower(self) -> Result<Self::Out, Syntax> {
+        let mut hoister = Hoister::new();
+        let sst = hoister.walk(self.repr)?;
+        let scope = hoister.scopes.pop().unwrap();
+
+        if !hoister.unresolved_hoists.is_empty() {
+            // TODO: Actual errors
+            return Err(Syntax::error(
+                &format!(
+                    "{} were referenced before assignment",
+                    hoister.unresolved_hoists.values()
+                        .map(|s| s.span.contents())
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                ),
+                &sst.span,
+            ))
+        }
+
+        return Ok(Module::new(sst, scope));
     }
-
-    return Ok((sst, scope));
 }
 
 /// Keeps track of:

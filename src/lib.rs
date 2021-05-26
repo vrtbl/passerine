@@ -130,25 +130,19 @@ pub mod construct;
 // TODO: clean up exports
 
 use std::rc::Rc;
-use common::{closure::Closure, source::Source};
-use compiler::{
-    lex::lex,
-    parse::parse,
-    desugar::desugar,
-    hoist::hoist,
-    gen::{gen, gen_with_ffi},
-    syntax::Syntax
-};
-use crate::core::ffi::FFI;
-use vm::{vm::VM, trace::Trace};
+pub use common::{source::Source, closure::Closure, data::Data, span::Spanned};
+pub use compiler::{lower::Lower, syntax::Syntax};
+pub use construct::module::{ThinModule, Module};
+pub use crate::core::ffi::FFI;
+pub use vm::{vm::VM, trace::Trace};
 
 /// Compiles a [`Source`] to some bytecode.
 pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {
-    let tokens   =   lex(source)?;
-    let ast      = parse(tokens)?;
-    let cst      =  desugar(ast)?;
-    let sst      =    hoist(cst)?;
-    let bytecode =      gen(sst)?;
+    let tokens   = ThinModule::thin(source).lower()?;
+    let ast      = tokens.lower()?;
+    let cst      = ast.lower()?;
+    let sst      = cst.lower()?;
+    let bytecode = sst.lower()?;
 
     return Ok(Closure::wrap(bytecode));
 }
@@ -156,11 +150,12 @@ pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {
 /// Compiles a [`Source`] to some bytecode,
 /// With a specific [`FFI`].
 pub fn compile_with_ffi(source: Rc<Source>, ffi: FFI) -> Result<Closure, Syntax> {
-    let tokens   =            lex(source)?;
-    let ast      =          parse(tokens)?;
-    let cst      =           desugar(ast)?;
-    let sst      =             hoist(cst)?;
-    let bytecode = gen_with_ffi(sst, ffi)?;
+    let tokens   = ThinModule::thin(source).lower()?;
+    let ast      = tokens.lower()?;
+    let cst      = ast.lower()?;
+    let sst      = cst.lower()?;
+    let sst_ffi  = Module::new(sst.repr, (sst.assoc, ffi));
+    let bytecode = sst_ffi.lower()?;
 
     return Ok(Closure::wrap(bytecode));
 }

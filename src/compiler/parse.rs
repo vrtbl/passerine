@@ -15,33 +15,25 @@ use crate::construct::{
     token::Token,
     ast::{AST, ASTPattern, ArgPattern},
     symbol::SharedSymbol,
-    module::Module,
+    module::{ThinModule, Module},
 };
 
-impl Lower for ThinModule<Rc<Source>> {
-    type Out = ThinModule<Vec<Spanned<Token>>>;
+impl Lower for ThinModule<Vec<Spanned<Token>>> {
+    type Out = Module<Spanned<AST>, usize>;
 
-    /// Simple function that lexes a source file into a token stream.
-    /// Exposes the functionality of the `Lexer`.
+    /// Simple function that parses a token stream into an AST.
+    /// Exposes the functionality of the `Parser`.
     fn lower(self) -> Result<Self::Out, Syntax> {
-        let mut lexer = Lexer::new(&self.repr);
-        return Ok(Module::new(lexer.all()?, ()));
+        let mut parser = Parser::new(self.repr);
+        let ast = parser.body(Token::End)?;
+        parser.consume(Token::End)?;
+        return Ok(Module::new(
+            Spanned::new(ast, Span::empty()),
+            parser.symbols.len()
+        ));
     }
 }
 
-/// Simple function that parses a token stream into an AST.
-/// Exposes the functionality of the `Parser`.
-pub fn parse(tokens: Vec<Spanned<Token>>)
-    -> Result<Module<Spanned<AST>, usize>, Syntax>
-{
-    let mut parser = Parser::new(tokens);
-    let ast = parser.body(Token::End)?;
-    parser.consume(Token::End)?;
-    return Ok(Module::new(
-        Spanned::new(ast, Span::empty()),
-        parser.symbols.len()
-    ));
-}
 
 /// We're using a Pratt parser, so this little enum
 /// defines different precedence levels.
@@ -606,13 +598,12 @@ impl Parser {
 #[cfg(test)]
 mod test {
     use crate::common::source::Source;
-    use crate::compiler::lex::lex;
     use super::*;
 
     #[test]
     pub fn empty() {
         let source = Source::source("");
-        let ast = parse(lex(source.clone()).unwrap()).unwrap();
+        let ast = Module::thin(source).lower().unwrap().lower();
         assert_eq!(ast, Spanned::new(AST::Block(vec![]), Span::empty()));
     }
 

@@ -71,13 +71,13 @@ impl Display for Data {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Data::Heaped(_)   => unreachable!("Can not display heaped data"),
-            Data::NotInit     => unreachable!("found uninitialized data on top of stack"),
+            Data::NotInit     => unreachable!("Can not display uninitialized data"),
             Data::Real(n)     => write!(f, "{}", n),
             Data::Integer(n)  => write!(f, "{}", n),
             Data::Boolean(b)  => write!(f, "{}", if *b { "true" } else { "false" }),
             Data::String(s)   => write!(f, "{}", s),
             Data::Lambda(_)   => unreachable!("Can not display naked functions"),
-            Data::Closure(c)  => write!(f, "Function"),
+            Data::Closure(_)  => write!(f, "Function"),
             Data::Kind(_)     => unreachable!("Can not display naked labels"),
             Data::Label(n, v) => write!(f, "{} {}", n, v),
             Data::Unit        => write!(f, "()"),

@@ -7,18 +7,7 @@ use std::{
     rc::Rc,
 };
 
-use passerine::{
-    common::{
-        source::Source,
-        data::Data,
-        closure::Closure,
-    },
-    compiler::{
-        lex, parse, desugar, hoist, gen,
-        ast::AST,
-    },
-    vm::vm::VM,
-};
+use passerine::*;
 
 /// Represents specific success/failure modes of a snippet test.
 #[derive(Debug, PartialEq, Eq)]
@@ -43,7 +32,7 @@ impl Outcome {
 }
 
 /// Represents what part of the compiler a snippet tests.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Action {
     Lex,
     Parse,
@@ -95,8 +84,11 @@ impl TestStrat {
                 o if o == "outcome" => outcome = Some(Outcome::parse(result)),
                 a if a == "action"  => action  = Some(Action::parse(result)),
                 e if e == "expect"  => expect  = {
-                    let tokens = lex(Source::source(result)).expect("Could not lex expectation");
-                    let ast    = parse(tokens).expect("Could not parse expectation");
+                    use passerine::construct::ast::AST;
+                    let ast: Spanned<AST> = ThinModule::thin(Source::source(result))
+                        .lower().expect("Could not lex expectation")
+                        .lower().expect("Could not parse expectation")
+                        .repr;
 
                     if let AST::Block(b) = ast.item {
                         if let AST::Data(d) = &b[0].item {
@@ -141,66 +133,51 @@ impl TestStrat {
     }
 }
 
-fn test_snippet(source: Rc<Source>, strat: TestStrat) {
-    let actual_outcome: Outcome = match strat.action {
-        Action::Lex => if lex(source)
-            .is_ok() { Outcome::Success } else { Outcome::Syntax },
+fn snippet_outcome(source: Rc<Source>, strat: &TestStrat) -> Outcome {
+    let outcome = |t| if t { Outcome::Success } else { Outcome::Syntax };
+    let module = ThinModule::thin(source);
 
-        Action::Parse => if lex(source)
-            .and_then(parse)
-            .is_ok() { Outcome::Success } else { Outcome::Syntax },
+    let tokens = module.lower();
+    if strat.action == Action::Lex     { return outcome(  tokens.is_ok()); }
+    let ast = tokens.and_then(Lower::lower);
+    if strat.action == Action::Parse   { return outcome(     ast.is_ok()); }
+    let cst = ast.and_then(Lower::lower);
+    if strat.action == Action::Desugar { return outcome(     cst.is_ok()); }
+    let sst = cst.and_then(Lower::lower);
+    if strat.action == Action::Hoist   { return outcome(     sst.is_ok()); }
+    let bytecode = sst.and_then(Lower::lower);
+    if strat.action == Action::Gen     { return outcome(bytecode.is_ok()); }
 
-        Action::Desugar => if lex(source)
-            .and_then(parse)
-            .and_then(desugar)
-            .is_ok() { Outcome::Success } else { Outcome::Syntax },
-
-        Action::Hoist => if lex(source)
-            .and_then(parse)
-            .and_then(desugar)
-            .and_then(hoist)
-            .is_ok() { Outcome::Success } else { Outcome::Syntax },
-
-        Action::Gen => if lex(source)
-            .and_then(parse)
-            .and_then(desugar)
-            .and_then(hoist)
-            .and_then(gen)
-            .is_ok() { Outcome::Success } else { Outcome::Syntax },
-
-        Action::Run => {
-            match lex(source)
-                .and_then(parse)
-                .and_then(desugar)
-                .and_then(hoist)
-                .and_then(gen)
-            {
-                Ok(lambda) => {
-                    let mut vm = VM::init(Closure::wrap(lambda));
-
-                    match vm.run() {
-                        Ok(()) => {
-                            if let Some(expected) = &strat.expect {
-                                let top = vm.stack.pop_data();
-                                if expected != &top {
-                                    println!("Top: {}", top);
-                                    println!("Expected: {}", expected);
-                                    panic!("Top stack data does not match")
-                                }
-                            }
-                            Outcome::Success
-                        },
-                        Err(_) => Outcome::Trace
-                    }
-                }
-                Err(e) => { println!("{}", e); Outcome::Syntax }
-            }
-        }
+    let lambda = match bytecode {
+        Ok(l) => l,
+        Err(_) => return Outcome::Syntax,
     };
 
-    if actual_outcome != strat.outcome {
+    let mut vm = VM::init(Closure::wrap(lambda));
+
+    let run_outcome = match vm.run() {
+        Ok(()) => {
+            if let Some(expected) = &strat.expect {
+                let top = vm.stack.pop_data();
+                if expected != &top {
+                    println!("Top: {}", top);
+                    println!("Expected: {}", expected);
+                    panic!("Top stack data does not match")
+                }
+            }
+            return Outcome::Success;
+        },
+        Err(_) => Outcome::Trace,
+    };
+
+    return run_outcome;
+}
+
+fn test_snippet(source: Rc<Source>, strat: &TestStrat) {
+    let outcome = snippet_outcome(source, strat);
+    if outcome != strat.outcome {
         println!("expected outcome {:?}", strat.outcome);
-        println!("actual outcome {:?}", actual_outcome);
+        println!("actual outcome {:?}", outcome);
         panic!("test failed, outcomes are not the same");
     }
 }
@@ -222,7 +199,7 @@ fn snippets(dir: &str) {
         let source = Source::path(&path).expect("Could not get snippet source");
         let test_strat = TestStrat::snippet(&source);
 
-        test_snippet(source, test_strat);
+        test_snippet(source, &test_strat);
         counter += 1;
     }
 

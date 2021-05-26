@@ -14,3 +14,9 @@ impl<A, B> Module<A, B> {
 }
 
 pub type ThinModule<A> = Module<A, ()>;
+
+impl<A> ThinModule<A> {
+    pub fn thin(repr: A) -> ThinModule<A> {
+        Module::new(repr, ())
+    }
+}

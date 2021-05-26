@@ -480,26 +480,15 @@ impl VM {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::compiler::{
-        lex::lex,
-        parse::parse,
-        desugar::desugar,
-        hoist::hoist,
-        gen::gen,
-    };
+    use crate::compile;
     use crate::common::source::Source;
 
     fn inspect(source: &str) -> VM {
-        let lambda = lex(Source::source(source))
-            .and_then(parse)
-            .and_then(desugar)
-            .and_then(hoist)
-            .and_then(gen)
+        let closure = compile(Source::source(source))
             .map_err(|e| println!("{}", e))
             .unwrap();
 
-        // println!("{:?}", lambda);
-        let mut vm = VM::init(Closure::wrap(lambda));
+        let mut vm = VM::init(closure);
 
         match vm.run() {
             Ok(()) => vm,

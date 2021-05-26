@@ -16,6 +16,7 @@ use crate::common::{
 use crate::construct::{
     sst::{Scope, SST, SSTPattern},
     symbol::UniqueSymbol,
+    module::Module,
 };
 
 use crate::compiler::{lower::Lower, syntax::Syntax};
@@ -27,20 +28,29 @@ use crate::core::{
 
 // TODO: namespaces for FFIs?
 
-/// Simple function that generates unoptimized bytecode from an `SST`.
-/// Exposes the functionality of the `Compiler`.
-pub fn gen(sst: (Spanned<SST>, Scope)) -> Result<Rc<Lambda>, Syntax> {
-    return gen_with_ffi(sst, ffi_core());
+impl Lower for Module<Spanned<SST>, Scope> {
+    type Out = Rc<Lambda>;
+
+    /// Simple function that generates unoptimized bytecode from an `SST`.
+    /// Exposes the functionality of the `Compiler`.
+    fn lower(self) -> Result<Self::Out, Syntax> {
+        let module = Module::new(self.repr, (self.assoc, ffi_core()));
+        return module.lower();
+    }
 }
 
-/// Generates unoptimized bytecode from a `SST`,
-/// Given a specific FFI. Note that this doesn't even assume the core ffi,
-/// So it's required you generate a core ffi with `core::ffi_core()`,
-/// Then merge it with your ffi with `FFI::combine(...)`.
-pub fn gen_with_ffi(sst: (Spanned<SST>, Scope), ffi: FFI) -> Result<Rc<Lambda>, Syntax> {
-    let mut compiler = Compiler::base(ffi, sst.1);
-    compiler.walk(&sst.0)?;
-    return Ok(Rc::new(compiler.lambda));
+impl Lower for Module<Spanned<SST>, (Scope, FFI)> {
+    type Out = Rc<Lambda>;
+
+    /// Generates unoptimized bytecode from a `SST`,
+    /// Given a specific FFI. Note that this doesn't even assume the core ffi,
+    /// So it's required you generate a core ffi with `core::ffi_core()`,
+    /// Then merge it with your ffi with `FFI::combine(...)`.
+    fn lower(self) -> Result<Self::Out, Syntax> {
+        let mut compiler = Compiler::base(self.assoc.1, self.assoc.0);
+        compiler.walk(&self.repr)?;
+        return Ok(Rc::new(compiler.lambda));
+    }
 }
 
 /// Compiler is a bytecode generator that walks an SST and produces (unoptimized) Bytecode.
@@ -353,18 +363,18 @@ impl Compiler {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::compiler::{
-        lex::lex,
-        parse::parse,
-        desugar::desugar,
-        hoist::hoist,
-    };
+    use crate::construct::module::ThinModule;
     use crate::common::source::Source;
 
     #[test]
     fn constants() {
         let source = Source::source("heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"");
-        let lambda = gen(hoist(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap()).unwrap();
+        let lambda = ThinModule::thin(source)
+            .lower().unwrap()
+            .lower().unwrap()
+            .lower().unwrap()
+            .lower().unwrap()
+            .lower().unwrap();
 
         let result = vec![
             Data::Boolean(true),
@@ -380,7 +390,12 @@ mod test {
     #[test]
     fn bytecode() {
         let source = Source::source("heck = true; lol = heck; lmao = false");
-        let lambda = gen(hoist(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap()).unwrap();
+        let lambda = ThinModule::thin(source)
+            .lower().unwrap()
+            .lower().unwrap()
+            .lower().unwrap()
+            .lower().unwrap()
+            .lower().unwrap();
 
         let result = vec![
             (Opcode::Con as u8), 128, (Opcode::Save as u8), 128,  // con true, save to heck,
