@@ -2,6 +2,7 @@
 
 /// Represents a module during the compilation process,
 /// i.e. a syntax tree + some state needed to resolve it.
+#[derive(Debug, PartialEq, Eq)]
 pub struct Module<A, B> {
     pub repr:  A,
     pub assoc: B,

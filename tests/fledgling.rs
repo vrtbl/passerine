@@ -85,7 +85,7 @@ impl TestStrat {
                 a if a == "action"  => action  = Some(Action::parse(result)),
                 e if e == "expect"  => expect  = {
                     use passerine::construct::ast::AST;
-                    let ast: Spanned<AST> = ThinModule::thin(Source::source(result))
+                    let ast: Spanned<AST> = Module::thin(Source::source(result))
                         .lower().expect("Could not lex expectation")
                         .lower().expect("Could not parse expectation")
                         .repr;
@@ -135,7 +135,7 @@ impl TestStrat {
 
 fn snippet_outcome(source: Rc<Source>, strat: &TestStrat) -> Outcome {
     let outcome = |t| if t { Outcome::Success } else { Outcome::Syntax };
-    let module = ThinModule::thin(source);
+    let module = Module::thin(source);
 
     let tokens = module.lower();
     if strat.action == Action::Lex     { return outcome(  tokens.is_ok()); }

@@ -603,8 +603,9 @@ mod test {
     #[test]
     pub fn empty() {
         let source = Source::source("");
-        let ast = Module::thin(source).lower().unwrap().lower();
-        assert_eq!(ast, Spanned::new(AST::Block(vec![]), Span::empty()));
+        let ast = ThinModule::thin(source).lower().unwrap().lower();
+        let result = Module::new(Spanned::new(AST::Block(vec![]), Span::empty()), 0);
+        assert_eq!(ast, Ok(result));
     }
 
     // TODO: fuzzing

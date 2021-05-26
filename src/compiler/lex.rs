@@ -442,8 +442,8 @@ mod test {
     fn empty() {
         // no source code? no tokens!
         let result = ThinModule::thin(Source::source("")).lower();
-        let target: Result<Vec<Spanned<Token>>, Syntax> =
-            Ok(vec![Spanned::new(Token::End, Span::empty())]);
+        let target: Result<ThinModule<Vec<Spanned<Token>>>, Syntax> =
+            Ok(ThinModule::thin(vec![Spanned::new(Token::End, Span::empty())]));
 
         assert_eq!(result, target);
     }
@@ -459,7 +459,7 @@ mod test {
             Spanned::new(Token::End,                          Span::empty()),
         ];
 
-        assert_eq!(ThinModule::thin(source).lower(), Ok(result));
+        assert_eq!(ThinModule::thin(source).lower(), Ok(ThinModule::thin(result)));
     }
 
     #[test]
@@ -473,7 +473,7 @@ mod test {
 
         ];
 
-        assert_eq!(ThinModule::thin(source).lower(), Ok(result));
+        assert_eq!(ThinModule::thin(source).lower(), Ok(ThinModule::thin(result)));
     }
 
     #[test]
@@ -493,7 +493,7 @@ mod test {
             Spanned::new(Token::End,                          Span::empty()),
         ];
 
-        assert_eq!(ThinModule::thin(source).lower(), Ok(result));
+        assert_eq!(ThinModule::thin(source).lower(), Ok(ThinModule::thin(result)));
     }
 
     #[test]
@@ -512,10 +512,10 @@ mod test {
             Spanned::new(Token::Symbol,                                   Span::new(&source, 28, 8)),
             Spanned::new(Token::String(Data::String("heck".to_string())), Span::new(&source, 37, 6)),
             Spanned::new(Token::CloseParen,                               Span::new(&source, 43, 1)),
-            Spanned::new(Token::End,                          Span::empty()),
+            Spanned::new(Token::End,                                      Span::empty()),
         ];
 
-        assert_eq!(ThinModule::thin(source).lower(), Ok(result));
+        assert_eq!(ThinModule::thin(source).lower(), Ok(ThinModule::thin(result)));
     }
 
     // helper function for the following tests
@@ -604,7 +604,7 @@ mod test {
     #[test]
     fn comma() {
         let source = Source::source("heck\\ man");
-        let tokens = ThinModule::thin(source).lower();
+        let tokens = ThinModule::thin(source.clone()).lower();
         assert_eq!(tokens, Err(Syntax::error("Unexpected token", &Span::new(&source, 4, 0))));
     }
 }

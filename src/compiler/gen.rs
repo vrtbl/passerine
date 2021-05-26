@@ -369,7 +369,7 @@ mod test {
     #[test]
     fn constants() {
         let source = Source::source("heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"");
-        let lambda = ThinModule::thin(source)
+        let lambda = Module::thin(source)
             .lower().unwrap()
             .lower().unwrap()
             .lower().unwrap()
@@ -390,7 +390,7 @@ mod test {
     #[test]
     fn bytecode() {
         let source = Source::source("heck = true; lol = heck; lmao = false");
-        let lambda = ThinModule::thin(source)
+        let lambda = Module::thin(source)
             .lower().unwrap()
             .lower().unwrap()
             .lower().unwrap()

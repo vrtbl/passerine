@@ -5,7 +5,7 @@
 syntax 'lazy y {
     Thunk { () -> y }
 }
-syntax 'evaluate y {
+evaluate = y -> {
     Thunk x = y
     x ()
 }
