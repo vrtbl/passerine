@@ -113,8 +113,8 @@ impl Hoister {
             // TODO: hoist as well
             CST::Label(name, expression) => SST::label(
                 // TODO: change this to the following lines after types:
-                // self.resolve_symbol(name, cst.span.clone()),
-                self.resolve_assign(name, false),
+                self.resolve_symbol(name, cst.span.clone()),
+                // self.resolve_assign(name, false),
                 self.walk(*expression)?,
             ),
             CST::Tuple(tuple) => self.tuple(tuple)?,
@@ -140,9 +140,9 @@ impl Hoister {
             CSTPattern::Label(n, p) => SSTPattern::Label(
                 // TODO: This is temoprary. Makes first use the definition.
                 // Once we have types, change the following line to:
-                // self.resolve_symbol(n, pattern.span.clone()),
+                self.resolve_symbol(n, pattern.span.clone()),
                 // until then, this will do:
-                self.resolve_assign(n, false),
+                // self.resolve_assign(n, false),
                 Box::new(self.walk_pattern(*p, declare)),
             ),
             CSTPattern::Tuple(t) => SSTPattern::Tuple(

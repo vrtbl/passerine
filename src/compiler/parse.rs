@@ -174,6 +174,7 @@ impl Parser {
             Token::End         => Ok(Spanned::new(AST::Block(vec![]), Span::empty())),
 
             Token::Syntax      => self.syntax(),
+            Token::Type        => self.type_(),
             Token::OpenParen   => self.group(),
             Token::OpenBracket => self.block(),
             Token::Symbol      => self.symbol(),
@@ -245,7 +246,8 @@ impl Parser {
               Token::OpenParen
             | Token::OpenBracket
             | Token::Unit
-            | Token::Syntax
+            | Token::Syntax // TODO: Syntax and Type in the right place?
+            | Token::Type
             | Token::Print
             | Token::Magic
             | Token::Symbol
@@ -272,6 +274,14 @@ impl Parser {
     /// Cool stuff.
     pub fn expression(&mut self, prec: Prec, skip_sep: bool) -> Result<Spanned<AST>, Syntax> {
         let mut left = self.rule_prefix()?;
+
+        // TODO: switch to this?
+        // loop {
+        //     if skip_sep { self.sep(); }
+        //     let p = self.prec()?;
+        //     if p < prec || p == Prec::End { break; }
+        //     left = self.rule_infix(left)?;
+        // }
 
         while {
             if skip_sep { self.sep(); }
@@ -417,6 +427,13 @@ impl Parser {
         ]);
 
         return Ok(Spanned::new(AST::syntax(arg_pat, block), span));
+    }
+
+    pub fn type_(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let start = self.consume(Token::Type)?.span.clone();
+        let label = self.consume(Token::Label)?.span.clone();
+
+        return Ok(Spanned::new(AST::type_(label), Span::combine(start, label)))
     }
 
     /// Parse a print statement.

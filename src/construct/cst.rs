@@ -18,7 +18,7 @@ use crate::construct::{
 pub enum CSTPattern {
     Symbol(SharedSymbol),
     Data(Data),
-    Label(SharedSymbol, Box<Spanned<CSTPattern>>),
+    Label(Spanned<SharedSymbol>, Box<Spanned<CSTPattern>>),
     Tuple(Vec<Spanned<CSTPattern>>),
     // Where {
     //     pattern: Box<ASTPattern>,
@@ -68,7 +68,7 @@ pub enum CST {
         fun: Box<Spanned<CST>>,
         arg: Box<Spanned<CST>>,
     },
-    Label(SharedSymbol, Box<Spanned<CST>>),
+    Label(Spanned<SharedSymbol>, Box<Spanned<CST>>),
     Tuple(Vec<Spanned<CST>>),
     FFI {
         name:       String,

@@ -20,6 +20,7 @@ pub enum Token {
 
     // Keywords
     Syntax,
+    Type,
     Assign,
     Lambda,
     Compose,
@@ -60,12 +61,13 @@ impl Display for Token {
             Token::CloseParen   => "a closing paren",
             Token::Sep          => "a separator",
             Token::Syntax       => "a syntax definition",
+            Token::Type         => "a type definition",
             Token::Assign       => "an assignment",
             Token::Lambda       => "a lambda",
             Token::Compose      => "a composition",
             Token::Unit         => "the Unit, '()'",
             Token::Pair         => "a tuple",
-            Token::Is           => "a ':'",
+            Token::Is           => "a type annotation, ':'",
             Token::Print        => "a print keyword",
             Token::Magic        => "a magic keyword",
             Token::Symbol       => "a symbol",

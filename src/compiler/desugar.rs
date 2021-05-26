@@ -37,6 +37,7 @@ impl Lower for Module<Spanned<AST>, usize> {
 
 /// Applies compile-time transformations to the AST.
 pub struct Transformer {
+    // TODO: make this scoped to the current function
     rules:         Vec<Spanned<Rule>>,
     lowest_shared: usize,
     mangles:       HashMap<SharedSymbol, SharedSymbol>,
