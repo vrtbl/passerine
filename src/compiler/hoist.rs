@@ -112,7 +112,9 @@ impl Hoister {
             CST::Block(block) => self.block(block)?,
             // TODO: hoist as well
             CST::Label(name, expression) => SST::label(
-                self.resolve_symbol(name, cst.span.clone()),
+                // TODO: change this to the following lines after types:
+                // self.resolve_symbol(name, cst.span.clone()),
+                self.resolve_assign(name, false),
                 self.walk(*expression)?,
             ),
             CST::Tuple(tuple) => self.tuple(tuple)?,
@@ -128,13 +130,19 @@ impl Hoister {
     /// Walks a pattern. If `declare` is true, we shadow variables in existing scopes
     /// and creates a new variable in the local scope.
     pub fn walk_pattern(&mut self, pattern: Spanned<CSTPattern>, declare: bool) -> Spanned<SSTPattern> {
+
+
         let item = match pattern.item {
             CSTPattern::Symbol(name) => {
                 SSTPattern::Symbol(self.resolve_assign(name, declare))
             },
             CSTPattern::Data(d) => SSTPattern::Data(d),
             CSTPattern::Label(n, p) => SSTPattern::Label(
-                self.resolve_symbol(n, pattern.span.clone()),
+                // TODO: This is temoprary. Makes first use the definition.
+                // Once we have types, change the following line to:
+                // self.resolve_symbol(n, pattern.span.clone()),
+                // until then, this will do:
+                self.resolve_assign(n, false),
                 Box::new(self.walk_pattern(*p, declare)),
             ),
             CSTPattern::Tuple(t) => SSTPattern::Tuple(
