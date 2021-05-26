@@ -89,10 +89,12 @@ impl Rule {
     /// Takes a mangled shared symbol, and demangles it to one that
     /// is guaranteed to have been user-defined.
     pub fn remove_tag(name: &SharedSymbol, mangles: &Mangles) -> SharedSymbol {
+        print!("lookup! {:?}", name);
         let mut result = *name;
         while let Some(removed) = mangles.get(&result) {
             result = *removed
         }
+        println!(" -> is {:?}", result);
         return result;
     }
 
@@ -103,9 +105,11 @@ impl Rule {
         lowest_shared: &mut usize,
         mangles:       &mut Mangles,
     ) -> SharedSymbol {
+        println!("replace! {:?}", name);
         *lowest_shared += 1;
         let new = SharedSymbol(*lowest_shared);
-        mangles.insert(name, new);
+        mangles.insert(new, name);
+        println!("{:#?}", mangles);
         return new;
     }
 
@@ -135,6 +139,13 @@ impl Rule {
             ArgPattern::Keyword(expected) => match reversed_form.pop()?.item {
                 AST::Symbol(name) if &Rule::remove_tag(&name, &mangles) == expected => {
                     Some(Ok(HashMap::new()))
+                },
+                AST::Symbol(name) => {
+                    println!("no dice {:?} -> {:?} = {:?}",
+                        name,
+                        &Rule::remove_tag(&name, &mangles),
+                        expected);
+                    None
                 },
                 _ => None,
             },

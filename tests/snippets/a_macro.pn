@@ -1,0 +1,7 @@
+-- action: run
+-- outcome: success
+-- expect: 7
+
+syntax 'boop { 7 }
+syntax 'bop { boop }
+bop

@@ -29,8 +29,11 @@ impl Lower for ThinModule<Spanned<CST>> {
     /// Also resolves closure captures and closure hoisting.
     fn lower(self) -> Result<Self::Out, Syntax> {
         let mut hoister = Hoister::new();
+        println!("{:#?}", self.repr);
+
         let sst = hoister.walk(self.repr)?;
         let scope = hoister.scopes.pop().unwrap();
+        println!("{:#?}", sst);
 
         if !hoister.unresolved_hoists.is_empty() {
             // TODO: Actual errors

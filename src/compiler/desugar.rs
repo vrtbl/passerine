@@ -20,6 +20,7 @@ impl Lower for Module<Spanned<AST>, usize> {
 
     /// Desugares an `AST` into a `CST`, applying macro transformations along the way.
     fn lower(self) -> Result<Self::Out, Syntax> {
+        println!("{:#?}", self.repr);
         let mut transformer = Transformer::new(self.assoc);
         let cst = transformer.walk(self.repr)?;
         return Ok(ThinModule::thin(cst));
@@ -113,6 +114,8 @@ impl Transformer {
     ///    then parse it as a function call.
     /// 4. If there was more than one match, we point out the ambiguity.
     pub fn form(&mut self, form: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
+        println!("{:#?}", form);
+
         // apply all the rules in scope
         let mut matches = vec![];
         for rule in self.rules.iter() {
@@ -124,12 +127,19 @@ impl Transformer {
                 &mut self.mangles,
             );
 
+            println!("{:#?}", possibility);
+
             if let Some(bindings) = possibility {
+                println!("Match!");
                 if reversed_remaining.is_empty() {
                     matches.push((rule, bindings?))
+                } else {
+                    println!("OK! {:?}", reversed_remaining);
                 }
             }
         }
+
+        println!("Matches: {:#?}", matches);
 
         // no macros were matched
         if matches.len() == 0 {
