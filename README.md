@@ -23,7 +23,7 @@
 </p>
 
 ## Why Passerine?
-[Passerine](https://www.passerine.io) is a small, concise, extensible functional scripting language, powered by a VM¹ written in [Rust](https://www.rust-lang.org). Here's a small taste:
+[Passerine](https://www.passerine.io) is a small, concise, extensible functional scripting language, powered by a VM† written in [Rust](https://www.rust-lang.org). Here's a small taste:
 
 <p align="center">
     <a href="https://gist.githubusercontent.com/slightknack/1b7c45ae5a3013f1c7bb58b3b9f7683f/raw/e053aaf0817fdd1c371936801f926e12e65f0b42/example.pn" target="_blank" rel="noopener noreferrer">
@@ -33,7 +33,7 @@
 
 Passerine has roots in Scheme and ML-flavored languages — it's the culmination of everything I expect from a programming language, including the desire to keep everything as minimalistic yet concise as possible. At its core, Passerine is lambda-calculus with pattern-matching, structural types, fiber-based concurrency, and syntactic extension.
 
-> 1: It's a bytecode VM with a few optimizations, so I'd say it's fast enough to be useful.
+> † It's a bytecode VM with a few optimizations, so I'd say it's fast enough to be useful.
 
 ### Who started this?
 This is first project of The Veritable Computation Initiative. Our goal is to improve the tools developers use to write software. We're planning release a site with more information about Veritable soon.
@@ -45,12 +45,14 @@ Passerine is currently being developed by [Isaac Clayton](https://github.com/sli
 [Lúcás](https://github.com/cronokirby),
 [Anton](https://github.com/jesyspa/),
 [Yasser](https://github.com/realnegate),
-[Shaw](https://github.com/shawsumma),
+[Shaw](https://github.com/shawsumma)†,
 [Plecra](https://github.com/plecra),
 [IFcoltransG](https://github.com/IFcoltransG),
 [Jack](https://github.com/nivpgir),
 Xal,
 and others!
+
+> † Shaw is writing an [alternative implementation of Passerine](https://github.com/ShawSumma/purr/tree/main/ext/passerine), and it's *super* fast. It's part of a wider effort of his to develop [an efficient language-agnostic VM](https://github.com/ShawSumma/purr).
 
 ## Table of Contents
 
@@ -129,7 +131,7 @@ sort = list -> match list {
     [] -> []
 
     -- pivot is head, tail is remaining
-    [pivot & tail] -> {
+    [pivot, ..tail] -> {
         higher = filter { x -> x >= pivot } tail
         lower  = filter { x -> x <  pivot } tail
 
@@ -154,7 +156,7 @@ match value {
 
 Each `pattern -> expression` pair is a *branch* – each `value` is against each branch in order until a branch successfully matches and evaluates – the match expression takes on the value of the matching branch. We'll take a deep dive into match statements [later](#building-a-match-expression), so keep this in mind.
 
-You might've also noticed the use of curly braces `{ ... }` after `[head & tail]`. This is a *block*, a group of expressions executed one after another. Each expression in a block is separated by a newline or semicolon; the block takes on the value of its last expression.
+You might've also noticed the use of curly braces `{ ... }` after `[head, ..tail]`. This is a *block*, a group of expressions executed one after another. Each expression in a block is separated by a newline or semicolon; the block takes on the value of its last expression.
 
 The next thing to notice is this line:
 
@@ -236,18 +238,18 @@ Passerine supports algebraic data types, and all of these types can be matched a
 
 > In the following table, `p` is a nested sub-pattern.
 
-| pattern  | example          | destructures |
-| -------- | ---------------- | ------------ |
-| variable | `foo`            | Terminal pattern, binds an variable to a value. |
-| data     | `420.69`         | Terminal pattern,  data that *must* match, raises an error otherwise. See the following section on fibers and concurrency to get an idea of how errors work in Passerine. |
-| discard  | `_`              | Terminal pattern, matches any data, does not produce a binding. |
-| label    | `Baz p`          | Matches a label, i.e. a named *type* in Passerine. |
-| tuple    | `(p₀, ...)`      | Matches each element of a tuple, which is a group of elements, of potentially different types. Unit `()` is the empty tuple. |
-| list     | `[]`/`[p₀ & p₁]` | `[]` Matches an empty list - `p₀` matches the head of a list, p₁ matches the tail.
-| record   | `{f₀: p₀, ...}`  | A record, i.e. a struct. This is a series of field-pattern pairs. If a field does not exist in the target record, an error is raised. |
-| enum     | `{p₀; ...}`      | An enumeration, i.e. a union. Matches if any of the patterns hold. |
-| is       | `p₀: p₁`         | A type annotation. Matches against `p₀` only if `p₁` holds, errors otherwise. |
-| where    | `p \| e`         | A bit different from the other patterns so far. Matches `p` only if the expression `e` is true. |
+| pattern  | example           | destructures |
+| -------- | ----------------- | ------------ |
+| variable | `foo`             | Terminal pattern, binds an variable to a value. |
+| data     | `420.69`          | Terminal pattern,  data that *must* match, raises an error otherwise. See the following section on fibers and concurrency to get an idea of how errors work in Passerine. |
+| discard  | `_`               | Terminal pattern, matches any data, does not produce a binding. |
+| label    | `Baz p`           | Matches a label, i.e. a named *type* in Passerine. |
+| tuple    | `(p₀, ...)`       | Matches each element of a tuple, which is a group of elements, of potentially different types. Unit `()` is the empty tuple. |
+| list     | `[]`/`[p₀, ..p₁]` | `[]` Matches an empty list - `p₀` matches the head of a list, `..p₁` matches the tail.
+| record   | `{f₀: p₀, ...}`   | A record, i.e. a struct. This is a series of field-pattern pairs. If a field does not exist in the target record, an error is raised. |
+| enum     | `{p₀; ...}`       | An enumeration, i.e. a union. Matches if any of the patterns hold. |
+| is       | `p₀: p₁`          | A type annotation. Matches against `p₀` only if `p₁` holds, errors otherwise. |
+| where    | `p \| e`          | A bit different from the other patterns so far. Matches `p` only if the expression `e` is true. |
 
 That's quite a lot of information, so let's work through it. The simplest case is a standard assignment:
 
@@ -345,9 +347,9 @@ Of course, the pattern after the field is a full pattern, and can be matched aga
 Banana (color, _): Banana (_, "soft") = fruit
 ```
 
-In this example, `color` will be bound if `fruit` is a `Banana` whose 1nd* tuple item is `"soft"`.
+In this example, `color` will be bound if `fruit` is a `Banana` whose 1nd† tuple item is `"soft"`.
 
-> \* Read as 'firnd', corresponds to the 1-indexed *second* item. Zerost, firnd, secord, thirth, fourth, fifth...
+> † Read as 'firnd', corresponds to the 1-indexed *second* item. Zerost, firnd, secord, thirth, fourth, fifth...
 
 Finally, we'll address my favorite pattern, *where*. Where allows for arbitrary code check the validity of a pattern. This can go a long way. For example, let's define natural numbers in terms of integers:
 
@@ -614,14 +616,14 @@ for a in [1, 2, 3] {
 
 *Syntactic variables* are the other identifiers in the pattern that are bound to actual values. In the above example, `a` → `binding`, `[1, 2, 3]` → `values`, and `{ print a }` → `do`.
 
-Macros can also be used to define operators*:
+Macros can also be used to define operators†:
 
 ```passerine
 syntax sequence 'contains value {
     c = seq -> match seq {
         [] -> False
-        [head & _] | head == value -> True
-        [_ & tail] -> c tail
+        [head, ..] | head == value -> True
+        [_, ..tail] -> c tail
     }
 
     c sequence
@@ -642,7 +644,7 @@ print {
 
 Evidently, `It contains 2` would be printed.
 
-> \* Custom operators defined in this manner will always have the lowest precedence, and must be explicitly grouped when ambiguous. For this reason, Passerine already has a number of built-in operators (with proper precedence) which can be overloaded. It's important to note that macros serve to introduce new constructs that just *happen* to be composable – syntactic macros can be used to make custom operators, but they can be used for *so much more*. I think this is a fair trade-off to make.
+> † Custom operators defined in this manner will always have the lowest precedence, and must be explicitly grouped when ambiguous. For this reason, Passerine already has a number of built-in operators (with proper precedence) which can be overloaded. It's important to note that macros serve to introduce new constructs that just *happen* to be composable – syntactic macros can be used to make custom operators, but they can be used for *so much more*. I think this is a fair trade-off to make.
 
 *Modifiers* are postfix symbols that allow for flexibility within argument patterns. Here are some modifiers:
 
@@ -779,7 +781,7 @@ syntax 'match value { arms... } {
 }
 ```
 
-We've added match expression to Passerine, and they already feel like language features*! Isn't that incredible? Here's the above example we used with `match_function` adapted to `match`:
+We've added match expression to Passerine, and they already feel like language features*! Isn't that incredible? Here's the above example we used with `match_function` adapted to `match`†:
 
 ```passerine
 description = match Banana ("yellow", "soft") {
@@ -800,7 +802,7 @@ description = match Banana ("yellow", "soft") {
 }
 ```
 
-> \* Plot twist: we just defined the `match` expression we've been using throughout this entire overview.
+> † Plot twist: we just defined the `match` expression we've been using throughout this entire overview.
 
 ### Modules
 
