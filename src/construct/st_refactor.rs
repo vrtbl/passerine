@@ -1,7 +1,44 @@
-symbol
-data
-block
+symbol      - ast, cst, sst
+data        - ast, cst, sst
+block       - ast, cst, sst
+label       - ast, cst, sst
+tuple       - ast, cst, sst
+assign      - ast, cst, sst
+ffi         - ast, cst, sst
+lambda      - ast, cst
+form        - ast
+group       - ast
+pattern     - ast
+argpattern  - ast
+record      - ast
+is          - ast
+composition - ast
+syntax      - ast
+type        - ast
+call        -      cst, sst
+scoped_lmd  -           sst
 
+pub enum Base<T> {
+
+}
+
+pub enum AST {
+    Base(Base<AST>),
+    Sugar(Sugar<AST>),
+    Lambda(Lambda<AST>),
+}
+
+pub enum CST {
+    Base(Base<CST>),
+    Call(Call<CST>),
+    Lambda(Lambda<CST>),
+}
+
+pub enum SST {
+    Base(Base<SST>),
+    Call(Call<SST>),
+    ScopedLambda(ScopedLambda<SST>)
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AST {
