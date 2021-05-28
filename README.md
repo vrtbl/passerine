@@ -131,7 +131,7 @@ sort = list -> match list {
     [] -> []
 
     -- pivot is head, tail is remaining
-    [pivot & tail] -> {
+    [pivot, ..tail] -> {
         higher = filter { x -> x >= pivot } tail
         lower  = filter { x -> x <  pivot } tail
 
@@ -156,7 +156,7 @@ match value {
 
 Each `pattern -> expression` pair is a *branch* – each `value` is against each branch in order until a branch successfully matches and evaluates – the match expression takes on the value of the matching branch. We'll take a deep dive into match statements [later](#building-a-match-expression), so keep this in mind.
 
-You might've also noticed the use of curly braces `{ ... }` after `[head & tail]`. This is a *block*, a group of expressions executed one after another. Each expression in a block is separated by a newline or semicolon; the block takes on the value of its last expression.
+You might've also noticed the use of curly braces `{ ... }` after `[head, ..tail]`. This is a *block*, a group of expressions executed one after another. Each expression in a block is separated by a newline or semicolon; the block takes on the value of its last expression.
 
 The next thing to notice is this line:
 
@@ -238,18 +238,18 @@ Passerine supports algebraic data types, and all of these types can be matched a
 
 > In the following table, `p` is a nested sub-pattern.
 
-| pattern  | example          | destructures |
-| -------- | ---------------- | ------------ |
-| variable | `foo`            | Terminal pattern, binds an variable to a value. |
-| data     | `420.69`         | Terminal pattern,  data that *must* match, raises an error otherwise. See the following section on fibers and concurrency to get an idea of how errors work in Passerine. |
-| discard  | `_`              | Terminal pattern, matches any data, does not produce a binding. |
-| label    | `Baz p`          | Matches a label, i.e. a named *type* in Passerine. |
-| tuple    | `(p₀, ...)`      | Matches each element of a tuple, which is a group of elements, of potentially different types. Unit `()` is the empty tuple. |
-| list     | `[]`/`[p₀ & p₁]` | `[]` Matches an empty list - `p₀` matches the head of a list, p₁ matches the tail.
-| record   | `{f₀: p₀, ...}`  | A record, i.e. a struct. This is a series of field-pattern pairs. If a field does not exist in the target record, an error is raised. |
-| enum     | `{p₀; ...}`      | An enumeration, i.e. a union. Matches if any of the patterns hold. |
-| is       | `p₀: p₁`         | A type annotation. Matches against `p₀` only if `p₁` holds, errors otherwise. |
-| where    | `p \| e`         | A bit different from the other patterns so far. Matches `p` only if the expression `e` is true. |
+| pattern  | example           | destructures |
+| -------- | ----------------- | ------------ |
+| variable | `foo`             | Terminal pattern, binds an variable to a value. |
+| data     | `420.69`          | Terminal pattern,  data that *must* match, raises an error otherwise. See the following section on fibers and concurrency to get an idea of how errors work in Passerine. |
+| discard  | `_`               | Terminal pattern, matches any data, does not produce a binding. |
+| label    | `Baz p`           | Matches a label, i.e. a named *type* in Passerine. |
+| tuple    | `(p₀, ...)`       | Matches each element of a tuple, which is a group of elements, of potentially different types. Unit `()` is the empty tuple. |
+| list     | `[]`/`[p₀, ..p₁]` | `[]` Matches an empty list - `p₀` matches the head of a list, `..p₁` matches the tail.
+| record   | `{f₀: p₀, ...}`   | A record, i.e. a struct. This is a series of field-pattern pairs. If a field does not exist in the target record, an error is raised. |
+| enum     | `{p₀; ...}`       | An enumeration, i.e. a union. Matches if any of the patterns hold. |
+| is       | `p₀: p₁`          | A type annotation. Matches against `p₀` only if `p₁` holds, errors otherwise. |
+| where    | `p \| e`          | A bit different from the other patterns so far. Matches `p` only if the expression `e` is true. |
 
 That's quite a lot of information, so let's work through it. The simplest case is a standard assignment:
 
@@ -622,8 +622,8 @@ Macros can also be used to define operators†:
 syntax sequence 'contains value {
     c = seq -> match seq {
         [] -> False
-        [head & _] | head == value -> True
-        [_ & tail] -> c tail
+        [head, ..] | head == value -> True
+        [_, ..tail] -> c tail
     }
 
     c sequence
