@@ -54,30 +54,6 @@ and others!
 
 > † Shaw is writing an [alternative implementation of Passerine](https://github.com/ShawSumma/purr/tree/main/ext/passerine), and it's *super* fast. It's part of a wider effort of his to develop [an efficient language-agnostic VM](https://github.com/ShawSumma/purr).
 
-## Table of Contents
-
-* [Why Passerine?](#why-passerine)
-    * [Who started this?](#who-started-this)
-* [An Overview](#an-overview)
-    * [Syntax](#syntax)
-    * [A Quick(-sort) Example](#a-quick-sort-example)
-    * [Function Application](#function-application)
-    * [Pattern Matching](#pattern-matching)
-    * [What are patterns?](#what-are-patterns)
-    * [Fibers](#fibers)
-    * [Error handling](#error-handling)
-    * [Concurrency](#concurrency)
-    * [Macros](#macros)
-    * [Hygiene](#hygiene)
-    * [Argument Patterns](#argument-patterns)
-    * [Building a match expression](#building-a-match-expression)
-    * [Modules](#modules)
-    * [Concluding Thoughts](#concluding-thoughts)
-* [FAQ](#faq)
-* [Installation](#installation)
-* [Contributing](#contributing)
-* [Roadmap](#roadmap)
-
 ## An Overview
 Where this overview gets really exciting is when we dive into [macros](#macros). If you're here to give Passerine a try, [skip to Installation](#installation).
 
@@ -207,6 +183,7 @@ fizzbuzz = n -> {
 }
 
 1..100 . fizzbuzz . print
+print (fizbuzz 1..100)
 ```
 
 `.` is the function application operator:

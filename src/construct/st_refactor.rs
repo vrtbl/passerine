@@ -18,8 +18,11 @@ type        - ast
 call        -      cst, sst
 scoped_lmd  -           sst
 
-pub enum Base<T> {
-
+pub enum Base<T, S> {
+    Symbol(S),
+    Data(Data),
+    Block(Vec<T>),
+    Label()
 }
 
 pub enum AST {
