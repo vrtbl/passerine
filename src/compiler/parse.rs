@@ -13,7 +13,7 @@ use crate::compiler::{lower::Lower, syntax::Syntax};
 
 use crate::construct::{
     token::Token,
-    ast::{AST, ASTPattern, ArgPattern},
+    tree::{AST, Base, Sugar, Lambda, Pattern, ArgPattern},
     symbol::SharedSymbol,
     module::{ThinModule, Module},
 };
@@ -171,10 +171,10 @@ impl Parser {
     /// Looks at the current token and parses an infix expression
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
-            Token::End         => Ok(Spanned::new(AST::Block(vec![]), Span::empty())),
+            Token::End         => Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::empty())),
 
             Token::Syntax      => self.syntax(),
-            Token::Type        => self.type_(),
+            Token::Type        => todo!(),
             Token::OpenParen   => self.group(),
             Token::OpenBracket => self.block(),
             Token::Symbol      => self.symbol(),
@@ -304,7 +304,7 @@ impl Parser {
         let index = self.intern_symbol(symbol.span.contents());
         // TODO: create new symbol.
         Ok(Spanned::new(
-            AST::Symbol(index),
+            AST::Base(Base::Symbol(index)),
             symbol.span.clone(),
         ))
     }
@@ -319,9 +319,9 @@ impl Parser {
         };
 
         // TODO: create a new symbol
-        let wrapped = AST::ArgPattern(ArgPattern::Keyword(
+        let wrapped = AST::Sugar(Sugar::ArgPattern(ArgPattern::Keyword(
             self.intern_symbol(span.contents()[1..].to_string())
-        ));
+        )));
 
         Ok(Spanned::new(wrapped, span.clone()))
     }
@@ -331,10 +331,10 @@ impl Parser {
         let Spanned { item: token, span } = self.advance();
 
         let leaf = match token {
-            Token::Unit       => AST::Data(Data::Unit),
-            Token::Number(n)  => AST::Data(n.clone()),
-            Token::String(s)  => AST::Data(s.clone()),
-            Token::Boolean(b) => AST::Data(b.clone()),
+            Token::Unit       => AST::Base(Base::Data(Data::Unit)),
+            Token::Number(n)  => AST::Base(Base::Data(n.clone())),
+            Token::String(s)  => AST::Base(Base::Data(s.clone())),
+            Token::Boolean(b) => AST::Base(Base::Data(b.clone())),
             unexpected => return Err(Syntax::error(
                 &format!("Expected a literal, found {}", unexpected),
                 &span
@@ -350,7 +350,10 @@ impl Parser {
         let start = self.consume(Token::OpenParen)?.span.clone();
         let ast   = self.expression(Prec::None.associate_left(), true)?;
         let end   = self.consume(Token::CloseParen)?.span.clone();
-        Ok(Spanned::new(AST::group(ast), Span::combine(&start, &end)))
+        Ok(Spanned::new(
+            AST::Sugar(Sugar::group(ast)),
+            Span::combine(&start, &end),
+        ))
     }
 
     /// Parses the body of a block.
@@ -368,7 +371,7 @@ impl Parser {
             }
         }
 
-        return Ok(AST::Block(expressions));
+        return Ok(AST::Base(Base::Block(expressions)));
     }
 
     /// Parse a block as an expression,
@@ -380,15 +383,15 @@ impl Parser {
         let end     = self.consume(Token::CloseBracket)?.span.clone();
 
         // construct a record if applicable
-        match ast {
-            AST::Block(ref b) if b.len() == 0 => match b[0].item {
-                AST::Tuple(ref t) => {
-                    ast = AST::Record(t.clone())
-                },
-                _ => (),
-            },
-            _ => (),
-        }
+        // match ast {
+        //     AST::Block(ref b) if b.len() == 0 => match b[0].item {
+        //         AST::Tuple(ref t) => {
+        //             ast = AST::Record(t.clone())
+        //         },
+        //         _ => (),
+        //     },
+        //     _ => (),
+        // }
 
         return Ok(Spanned::new(ast, Span::combine(&start, &end)));
     }
@@ -401,7 +404,7 @@ impl Parser {
         let mut after = self.expression(Prec::Call, false)?;
 
         let mut form = match after.item {
-            AST::Form(p) => p,
+            AST::Sugar(Sugar::Form(p)) => p,
             _ => return Err(Syntax::error(
                 "Expected a pattern and a block after 'syntax'",
                 &after.span,
@@ -410,9 +413,9 @@ impl Parser {
 
         let last = form.pop().unwrap();
         after.span = Spanned::build(&form);
-        after.item = AST::Form(form);
+        after.item = AST::Sugar(Sugar::Form(form));
         let block = match (last.item, last.span) {
-            (b @ AST::Block(_), s) => Spanned::new(b, s),
+            (b @ AST::Base(Base::Block(_)), s) => Spanned::new(b, s),
             _ => return Err(Syntax::error(
                 "Expected a block after the syntax pattern",
                 &after.span,
@@ -426,15 +429,15 @@ impl Parser {
             block.span.clone()
         ]);
 
-        return Ok(Spanned::new(AST::syntax(arg_pat, block), span));
+        return Ok(Spanned::new(AST::Sugar(Sugar::syntax(arg_pat, block)), span));
     }
 
-    pub fn type_(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start = self.consume(Token::Type)?.span.clone();
-        let label = self.consume(Token::Label)?.span.clone();
+    // pub fn type_(&mut self) -> Result<Spanned<AST>, Syntax> {
+    //     let start = self.consume(Token::Type)?.span.clone();
+    //     let label = self.consume(Token::Label)?.span.clone();
 
-        return Ok(Spanned::new(AST::type_(label), Span::combine(start, label)))
-    }
+    //     return Ok(Spanned::new(AST::type_(label), Span::combine(start, label)))
+    // }
 
     /// Parse a print statement.
     /// A print statement takes the form `print <expression>`
@@ -447,7 +450,7 @@ impl Parser {
         let end = ast.span.clone();
 
         return Ok(
-            Spanned::new(AST::ffi("println", ast),
+            Spanned::new(AST::Base(Base::ffi("println", ast)),
             Span::combine(&start, &end))
         );
     }
@@ -475,7 +478,7 @@ impl Parser {
         let end = ast.span.clone();
 
         return Ok(Spanned::new(
-            AST::ffi(&name, ast),
+            AST::Base(Base::ffi(&name, ast)),
             Span::combine(&start, &end),
         ));
     }
@@ -487,7 +490,10 @@ impl Parser {
         let ast = self.expression(Prec::End, false)?;
         let end = ast.span.clone();
         return Ok(Spanned::new(
-            AST::label(self.intern_symbol(start.contents()), ast),
+            AST::Base(Base::label(Spanned::new(
+                self.intern_symbol(start.contents()),
+                start,
+            ), ast)),
             Span::combine(&start, &end),
         ));
     }
@@ -519,25 +525,25 @@ impl Parser {
     /// Parses an assignment, associates right.
     pub fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
-        let pattern = left.map(ASTPattern::try_from)
+        let pattern = left.map(Pattern::try_from)
             .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Assign)?;
         let expression = self.expression(Prec::Assign, false)?;
         let combined   = Span::combine(&pattern.span, &expression.span);
-        Ok(Spanned::new(AST::assign(pattern, expression), combined))
+        Ok(Spanned::new(AST::Base(Base::assign(pattern, expression)), combined))
     }
 
     /// Parses a lambda definition, associates right.
     pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
-        let pattern = left.map(ASTPattern::try_from)
+        let pattern = left.map(Pattern::try_from)
             .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Lambda)?;
         let expression = self.expression(Prec::Lambda, false)?;
         let combined   = Span::combine(&pattern.span, &expression.span);
-        Ok(Spanned::new(AST::lambda(pattern, expression), combined))
+        Ok(Spanned::new(AST::Lambda(Lambda::new(pattern, expression)), combined))
     }
 
     // TODO: trailing comma must be grouped
@@ -547,7 +553,7 @@ impl Parser {
         self.consume(Token::Pair)?;
 
         let mut tuple = match left.item {
-            AST::Tuple(t) => t,
+            AST::Base(Base::Tuple(t)) => t,
             _ => vec![left],
         };
 
@@ -562,7 +568,7 @@ impl Parser {
             left_span
         };
 
-        return Ok(Spanned::new(AST::Tuple(tuple), span));
+        return Ok(Spanned::new(AST::Base(Base::Tuple(tuple)), span));
     }
 
     /// Parses a function composition, i.e. `a . b`
@@ -570,7 +576,7 @@ impl Parser {
         self.consume(Token::Compose)?;
         let right = self.expression(Prec::Compose.associate_left(), false)?;
         let combined = Span::combine(&left.span, &right.span);
-        return Ok(Spanned::new(AST::composition(left, right), combined));
+        return Ok(Spanned::new(AST::Sugar(Sugar::composition(left, right)), combined));
     }
 
     // TODO: names must be full qualified paths.
@@ -588,8 +594,8 @@ impl Parser {
         let right = self.expression(prec.associate_left(), false)?;
         let combined = Span::combine(&left.span, &right.span);
 
-        let arguments = Spanned::new(AST::Tuple(vec![left, right]), combined.clone());
-        return Ok(Spanned::new(AST::ffi(name, arguments), combined));
+        let arguments = Spanned::new(AST::Base(Base::Tuple(vec![left, right])), combined.clone());
+        return Ok(Spanned::new(AST::Base(Base::ffi(name, arguments)), combined));
     }
 
     /// Parses a function call.
@@ -603,12 +609,12 @@ impl Parser {
         let combined = Span::combine(&left.span, &argument.span);
 
         let mut form = match left.item {
-            AST::Form(f) => f,
+            AST::Sugar(Sugar::Form(f)) => f,
             _ => vec![left],
         };
 
         form.push(argument);
-        return Ok(Spanned::new(AST::Form(form), combined));
+        return Ok(Spanned::new(AST::Sugar(Sugar::Form(form)), combined));
     }
 }
 
@@ -621,7 +627,7 @@ mod test {
     pub fn empty() {
         let source = Source::source("");
         let ast = ThinModule::thin(source).lower().unwrap().lower();
-        let result = Module::new(Spanned::new(AST::Block(vec![]), Span::empty()), 0);
+        let result = Module::new(Spanned::new(AST::Base(Base::Block(vec![])), Span::empty()), 0);
         assert_eq!(ast, Ok(result));
     }
 
