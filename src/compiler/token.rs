@@ -41,6 +41,7 @@ pub enum Token {
     // Operators
     Add, Sub,
     Mul, Div, Rem,
+    Pow,
 
     Equal,
 
@@ -75,6 +76,7 @@ impl Display for Token {
             Token::Mul          => "a multiplication",
             Token::Div          => "a division",
             Token::Rem          => "a remainder",
+            Token::Pow          => "a power of",
             Token::Equal        => "an equality test",
             Token::End          => "end of source",
             Token::Keyword(k) => { return write!(f, "the pseudokeyword '{}", k); },

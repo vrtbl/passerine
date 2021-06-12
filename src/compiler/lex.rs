@@ -26,6 +26,7 @@ pub const STATIC_TOKENS: &[(&str, Token)] = &[
     ("()", Token::Unit),
     ("->", Token::Lambda),
     ("==", Token::Equal),
+    ("**", Token::Pow),
     ("{", Token::OpenBracket),
     ("}", Token::CloseBracket),
     ("(", Token::OpenParen),
