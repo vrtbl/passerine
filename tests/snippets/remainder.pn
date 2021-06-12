@@ -3,4 +3,4 @@
 -- expect: 1.0
 
 -- TODO: negative behaviour
-print (3.0 % 2.0)
+println (3.0 % 2.0)

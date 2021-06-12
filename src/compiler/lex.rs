@@ -22,7 +22,6 @@ type Bite = (Token, usize);
 pub const STATIC_TOKENS: &[(&str, Token)] = &[
     ("syntax", Token::Syntax),
     ("magic", Token::Magic),
-    ("print", Token::Print), // remove print statements after FFI & prelude
     ("()", Token::Unit),
     ("->", Token::Lambda),
     ("==", Token::Equal),

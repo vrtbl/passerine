@@ -4,7 +4,7 @@
 
 flubber = () -> {
     foo = () -> {
-        print (pi + e)
+        println (pi + e)
     }
     pi = 3.14
     foo ()

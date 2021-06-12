@@ -2,4 +2,4 @@
 -- outcome: success
 -- expect: 3.0
 
-print (1.0 + 2.0)
+println (1.0 + 2.0)

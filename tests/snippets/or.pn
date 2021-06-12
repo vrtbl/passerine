@@ -18,4 +18,4 @@ y = 2.0
 
 result = (x equals 5.0) or (y equals 2.0)
 
-print result
+println result

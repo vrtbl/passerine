@@ -3,5 +3,5 @@
 -- expect: 4
 
 x = -4
-print x
-print -x
+println x
+println (-x)

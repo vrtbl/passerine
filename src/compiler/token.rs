@@ -22,7 +22,6 @@ pub enum Token {
     Assign,
     Lambda,
     Compose,
-    Print,
     Magic,
     // pseudokeywords
     Keyword(String),
@@ -65,7 +64,6 @@ impl Display for Token {
             Token::Compose      => "a composition",
             Token::Unit         => "the Unit, '()'",
             Token::Pair         => "a tuple",
-            Token::Print        => "a print keyword",
             Token::Magic        => "a magic keyword",
             Token::Symbol       => "a symbol",
             Token::Label        => "a Label", // capitilized to mimic actual labels

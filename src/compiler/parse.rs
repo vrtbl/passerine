@@ -154,7 +154,6 @@ impl Parser {
             Token::OpenParen   => self.group(),
             Token::OpenBracket => self.block(),
             Token::Symbol      => self.symbol(),
-            Token::Print       => self.print(),
             Token::Magic       => self.magic(),
             Token::Label       => self.label(),
             Token::Keyword(_)  => self.keyword(),
@@ -227,7 +226,6 @@ impl Parser {
             | Token::OpenBracket
             | Token::Unit
             | Token::Syntax
-            | Token::Print
             | Token::Magic
             | Token::Symbol
             | Token::Keyword(_)
@@ -272,6 +270,23 @@ impl Parser {
     /// Constructs an AST for a symbol.
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
         let symbol = self.consume(Token::Symbol)?;
+
+        // nothing is more permanant, but
+        // temporary workaround until prelude
+        let name = symbol.span.contents();
+        if name == "println" {
+            return Ok(Spanned::new(
+                AST::lambda(
+                    Spanned::new(ASTPattern::Symbol("n".into()), Span::empty()),
+                    Spanned::new(AST::ffi(
+                        "println",
+                        Spanned::new(AST::Symbol("n".into()), Span::empty()),
+                    ), Span::empty()),
+                ),
+                symbol.span.clone(),
+            ));
+        }
+
         Ok(Spanned::new(AST::Symbol(symbol.span.contents()), symbol.span.clone()))
     }
 
@@ -375,22 +390,6 @@ impl Parser {
         ]);
 
         return Ok(Spanned::new(AST::syntax(arg_pat, block), span));
-    }
-
-    /// Parse a print statement.
-    /// A print statement takes the form `print <expression>`
-    /// Where expression is exactly one expression
-    /// Note that this is just a temporaty workaround;
-    /// Once the FFI is solidified, printing will be a function like any other.
-    pub fn print(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start = self.consume(Token::Print)?.span.clone();
-        let ast = self.expression(Prec::Call, false)?;
-        let end = ast.span.clone();
-
-        return Ok(
-            Spanned::new(AST::ffi("println", ast),
-            Span::combine(&start, &end))
-        );
     }
 
     /// Parse an `extern` statement.
