@@ -62,3 +62,14 @@ pub fn rem(data: Data) -> Result<Data, String> {
 
     return Ok(result);
 }
+
+/// Number to a power
+pub fn pow(data: Data) -> Result<Data, String> {
+    let result = match binop(data) {
+        (Data::Real(l),    Data::Real(r))    => Data::Real(l.powf(r)),
+        (Data::Integer(l), Data::Integer(r)) => Data::Integer(l.pow(r as u32)),
+        _ => Err("Exponentiation between unsupported datatypes")?,
+    };
+
+    return Ok(result);
+}
