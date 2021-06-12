@@ -64,7 +64,7 @@ impl Display for Token {
             Token::Type         => "a type definition",
             Token::Assign       => "an assignment",
             Token::Lambda       => "a lambda",
-            Token::Compose      => "a composition",
+            Token::Compose      => "a comp",
             Token::Unit         => "the Unit, '()'",
             Token::Pair         => "a tuple",
             Token::Is           => "a type annotation, ':'",

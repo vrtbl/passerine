@@ -9,8 +9,7 @@ use crate::compiler::{lower::Lower, syntax::Syntax};
 
 use crate::construct::{
     rule::Rule,
-    ast::{AST, ASTPattern, ArgPattern},
-    cst::{CST, CSTPattern},
+    tree::{self, AST, Base, Sugar, Lambda, CST, Pattern, ArgPattern},
     symbol::SharedSymbol,
     module::{ThinModule, Module},
 };
@@ -53,22 +52,23 @@ impl Transformer {
     /// By walking over it in a fairly straight-forward manner.
     pub fn walk(&mut self, ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
         let cst: CST = match ast.item {
-            AST::Symbol(_) => self.symbol(ast.clone())?,
-            AST::Data(d) => CST::Data(d),
-            AST::Block(b) => self.block(b)?,
-            AST::Form(f) => self.form(f)?,
-            AST::Group(a) => self.walk(*a)?.item,
-            AST::Tuple(t) => self.tuple(t)?,
-            AST::Pattern(_) => return Err(Syntax::error("Unexpected pattern", &ast.span)),
-            AST::ArgPattern(_)  => return Err(Syntax::error("Unexpected argument pattern", &ast.span)),
-            AST::Label(n, e) => CST::Label(n, Box::new(self.walk(*e)?)),
-            AST::Syntax { arg_pat, expression } => self.rule(*arg_pat, *expression)?,
-            AST::Assign { pattern, expression } => self.assign(*pattern, *expression)?,
-            AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression)?,
-            AST::Composition { argument, function } => self.composition(*argument, *function)?,
-            AST::FFI { name, expression } => self.ffi(name, *expression)?,
-            AST::Record(_) => todo!(),
-            AST::Is { .. } => todo!(),
+            AST::Base(Base::Symbol(_))                   => self.symbol(ast.clone())?,
+            AST::Base(Base::Data(d))                     => CST::Base(Base::Data(d)),
+            AST::Base(Base::Block(b))                    => self.block(b)?,
+            AST::Base(Base::Assign(pattern, expression)) => self.assign(pattern, *expression)?,
+            AST::Base(Base::Label(n, e))                 => CST::Base(Base::label(n, self.walk(*e)?)),
+            AST::Base(Base::Tuple(t))                    => self.tuple(t)?,
+            AST::Base(Base::FFI(name, expression))       => self.ffi(name, *expression)?,
+
+            AST::Sugar(Sugar::Form(f)) => self.form(f)?,
+            AST::Sugar(Sugar::Group(a)) => self.walk(*a)?.item,
+            AST::Sugar(Sugar::Pattern(_)) => return Err(Syntax::error("Unexpected pattern", &ast.span)),
+            AST::Sugar(Sugar::ArgPattern(_)) => return Err(Syntax::error("Unexpected argument pattern", &ast.span)),
+            AST::Sugar(Sugar::Syntax(tree::Syntax { arg_pat, body })) => self.rule(arg_pat, *body)?,
+            AST::Sugar(Sugar::Comp(argument, function)) => self.comp(*argument, *function)?,
+            // AST::Sugar(Sugar::Record(_)) => todo!(),
+            // AST::Sugar(Sugar::Is { .. }) => todo!(),
+            AST::Lambda(Lambda { arg, body }) => self.lambda(arg, *body)?,
         };
 
         return Ok(Spanned::new(cst, ast.span))
@@ -88,19 +88,19 @@ impl Transformer {
         match f.len() {
             0 => unreachable!("A call must have at least two values - a function and an expression"),
             1 => match f.pop().unwrap().item {
-                AST::Symbol(name) => Ok(CST::Symbol(name)),
+                AST::Base(Base::Symbol(name)) => Ok(CST::Base(Base::Symbol(name))),
                 _ => unreachable!("A non-symbol call of length 1 is can not be constructed")
             },
             2 => {
                 let arg = f.pop().unwrap();
                 let fun = f.pop().unwrap();
-                Ok(CST::call(self.walk(fun)?, self.walk(arg)?))
+                Ok(CST::Base(Base::call(self.walk(fun)?, self.walk(arg)?)))
             },
             _higher => {
                 let arg = self.walk(f.pop().unwrap())?;
                 // can't join, because some spans may be in macro
                 let f_span = f[0].span.clone();
-                Ok(CST::call(Spanned::new(self.call(f)?, f_span), arg))
+                Ok(CST::Base(Base::call(Spanned::new(self.call(f)?, f_span), arg)))
             },
         }
     }
@@ -154,8 +154,8 @@ impl Transformer {
 
             // into a set for quick membership checking
             let potential_keywords = form.iter()
-                .filter(|i| if let AST::Symbol(_) = i.item { true } else { false          })
-                .map(   |i| if let AST::Symbol(s) = i.item { s    } else { unreachable!() })
+                .filter(|i| if let AST::Base(Base::Symbol(_)) = i.item { true } else { false          })
+                .map(   |i| if let AST::Base(Base::Symbol(s)) = i.item { s    } else { unreachable!() })
                 .collect::<HashSet<SharedSymbol>>();
 
             // calculate pseudokeyword collisions in case of ambiguity
@@ -221,21 +221,21 @@ impl Transformer {
             expressions.push(self.walk(expression)?)
         }
 
-        Ok(CST::Tuple(expressions))
+        Ok(CST::Base(Base::Tuple(expressions)))
     }
 
     /// Desugar a function application.
-    /// A composition takes the form `c . b . a`
+    /// A comp takes the form `c . b . a`
     /// and is left-associative `(c . b) . a`.
     /// When desugared, the above is equivalent to the call `a b c`.
-    pub fn composition(&mut self, argument: Spanned<AST>, function: Spanned<AST>) -> Result<CST, Syntax> {
-        Ok(CST::call(self.walk(function)?, self.walk(argument)?))
+    pub fn comp(&mut self, argument: Spanned<AST>, function: Spanned<AST>) -> Result<CST, Syntax> {
+        Ok(CST::Base(Base::call(self.walk(function)?, self.walk(argument)?)))
     }
 
     /// Desugar a FFI call.
     /// We walk the expression that may be passed to the FFI.
     pub fn ffi(&mut self, name: String, expression: Spanned<AST>) -> Result<CST, Syntax> {
-        Ok(CST::FFI { name, expression: Box::new(self.walk(expression)?) })
+        Ok(CST::Base(Base::ffi(&name, self.walk(expression)?))
     }
 
     /// Desugars a block,
@@ -246,32 +246,26 @@ impl Transformer {
             expressions.push(self.walk(expression)?)
         }
 
-        Ok(CST::Block(expressions))
+        Ok(CST::Base(Base::Block(expressions)))
     }
 
     /// Desugars an assigment.
     /// Note that this converts the assignment's `ASTPattern` into a `CSTPattern`
-    pub fn assign(&mut self, p: Spanned<ASTPattern>, e: Spanned<AST>) -> Result<CST, Syntax> {
-        let p_span = p.span.clone();
-
-        Ok(CST::assign(
-            p.map(CSTPattern::try_from)
-                .map_err(|err| Syntax::error(&err, &p_span))?,
-            self.walk(e)?
-        ))
+    pub fn assign(&mut self, p: Spanned<Pattern<SharedSymbol>>, e: Spanned<AST>) -> Result<CST, Syntax> {
+        Ok(CST::Base(Base::assign(p, self.walk(e)?)))
     }
 
     /// Desugars a lambda
     /// This converts both patterns and expressions;
     /// On top of this, it desugars `a b c -> d`
     /// into `a -> b -> c -> d`.
-    pub fn lambda(&mut self, p: Spanned<ASTPattern>, e: Spanned<AST>) -> Result<CST, Syntax> {
+    pub fn lambda(&mut self, p: Spanned<Pattern<SharedSymbol>>, e: Spanned<AST>) -> Result<CST, Syntax> {
         let p_span = p.span.clone();
-        let arguments = if let ASTPattern::Chain(c) = p.item { c } else { vec![p] };
+        let arguments = if let Pattern::Chain(c) = p.item { c } else { vec![p] };
         let mut expression = self.walk(e)?;
 
         for argument in arguments.into_iter().rev() {
-            let pattern = argument.map(CSTPattern::try_from)
+            let pattern = argument.map(Pattern::try_from)
                 .map_err(|err| Syntax::error(&err, &p_span))?;
 
             let combined = Span::combine(&pattern.span, &expression.span);

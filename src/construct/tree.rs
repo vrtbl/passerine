@@ -21,12 +21,13 @@ use crate::construct::{
 // argpattern  - ast
 // record      - ast
 // is          - ast
-// composition - ast
+// comp - ast
 // syntax      - ast
 // type        - ast
 // call        -      cst, sst
 // scoped_lmd  -           sst
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Pattern<S> {
     Symbol(S),
     Data(Data),
@@ -36,6 +37,7 @@ pub enum Pattern<S> {
 
 // TODO: impls for boxed items.
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Base<T, S> {
     Symbol(S),
     Data(Data),
@@ -66,17 +68,20 @@ impl<T, S> Base<T, S> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum ArgPattern<S> {
     Keyword(S),
     Symbol(S),
     Group(Vec<Self>),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Syntax<T, S> {
-    argpat: Spanned<ArgPattern<S>>,
-    body:   Box<T>,
+    arg_pat: Spanned<ArgPattern<S>>,
+    body:    Box<T>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Sugar<T, S> {
     Group(Box<T>),
     Form(Vec<T>),
@@ -84,7 +89,7 @@ pub enum Sugar<T, S> {
     ArgPattern(ArgPattern<S>),
     // Record,
     // Is,
-    Composition(Box<T>, Box<T>), // arg, function
+    Comp(Box<T>, Box<T>), // arg, function
     Syntax(Syntax<T, S>),
 }
 
@@ -93,15 +98,16 @@ impl<T, S> Sugar<T, S> {
         Sugar::Group(Box::new(tree))
     }
 
-    pub fn composition(arg: T, fun: T) -> Self {
-        Sugar::Composition(Box::new(arg), Box::new(fun))
+    pub fn comp(arg: T, fun: T) -> Self {
+        Sugar::Comp(Box::new(arg), Box::new(fun))
     }
 
-    pub fn syntax(argpat: Spanned<ArgPattern<S>>, tree: T) -> Self {
-        Sugar::Syntax(Syntax { argpat, body: Box::new(tree) })
+    pub fn syntax(arg_pat: Spanned<ArgPattern<S>>, tree: T) -> Self {
+        Sugar::Syntax(Syntax { arg_pat, body: Box::new(tree) })
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Lambda<T> {
     arg:  Spanned<Pattern<SharedSymbol>>,
     body: Box<T>,
@@ -113,17 +119,20 @@ impl<T> Lambda<T> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum AST {
     Base(Base<Spanned<AST>, SharedSymbol>),
     Sugar(Sugar<Spanned<AST>, SharedSymbol>),
     Lambda(Lambda<Spanned<AST>>),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum CST {
     Base(Base<Spanned<CST>, SharedSymbol>),
     Lambda(Lambda<Spanned<CST>>),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ScopedLambda<T> {
     arg:   Spanned<Pattern<UniqueSymbol>>,
     body:  Box<T>,
@@ -136,6 +145,7 @@ impl<T> ScopedLambda<T> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum SST {
     Base(Base<Spanned<SST>, UniqueSymbol>),
     ScopedLambda(ScopedLambda<Spanned<SST>>)

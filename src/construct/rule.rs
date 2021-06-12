@@ -306,11 +306,11 @@ impl Rule {
 
             AST::Group(expression) => AST::group(Rule::expand(*expression, bindings, lowest_shared, mangles)?),
 
-            // Appy the transformation to the left and right sides of the composition
-            AST::Composition { argument, function } => {
+            // Appy the transformation to the left and right sides of the comp
+            AST::Comp { argument, function } => {
                 let a = Rule::expand(*argument, bindings, lowest_shared, mangles)?;
                 let f = Rule::expand(*function, bindings, lowest_shared, mangles)?;
-                AST::composition(a, f)
+                AST::comp(a, f)
             },
 
             // replace the variables in (argument) patterns

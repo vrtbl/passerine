@@ -571,12 +571,12 @@ impl Parser {
         return Ok(Spanned::new(AST::Base(Base::Tuple(tuple)), span));
     }
 
-    /// Parses a function composition, i.e. `a . b`
+    /// Parses a function comp, i.e. `a . b`
     pub fn compose(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         self.consume(Token::Compose)?;
         let right = self.expression(Prec::Compose.associate_left(), false)?;
         let combined = Span::combine(&left.span, &right.span);
-        return Ok(Spanned::new(AST::Sugar(Sugar::composition(left, right)), combined));
+        return Ok(Spanned::new(AST::Sugar(Sugar::comp(left, right)), combined));
     }
 
     // TODO: names must be full qualified paths.
