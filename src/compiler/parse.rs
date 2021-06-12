@@ -157,6 +157,7 @@ impl Parser {
             Token::Magic       => self.magic(),
             Token::Label       => self.label(),
             Token::Keyword(_)  => self.keyword(),
+            Token::Sub         => self.neg(),
 
             Token::Unit
             | Token::Number(_)
@@ -426,6 +427,17 @@ impl Parser {
             AST::Label(start.contents(), Box::new(ast)),
             Span::combine(&start, &end),
         ));
+    }
+
+    pub fn neg(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let start = self.consume(Token::Sub)?.span.clone();
+        let ast = self.expression(Prec::End, false)?;
+        let end = ast.span.clone();
+
+        return Ok(
+            Spanned::new(AST::ffi("neg", ast),
+            Span::combine(&start, &end))
+        );
     }
 
     // Infix:

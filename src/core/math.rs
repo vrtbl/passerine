@@ -24,6 +24,17 @@ pub fn sub(data: Data) -> Result<Data, String> {
     return Ok(result);
 }
 
+/// Negation of a numbers.
+pub fn neg(data: Data) -> Result<Data, String> {
+    let result = match data {
+        Data::Real(n)    => Data::Real(-n),
+        Data::Integer(n) => Data::Integer(-n),
+        _ => Err("Subtraction between unsupported datatypes")?,
+    };
+
+    return Ok(result);
+}
+
 /// Multiplication between two numbers.
 pub fn mul(data: Data) -> Result<Data, String> {
     let result = match binop(data) {
