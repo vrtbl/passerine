@@ -4,5 +4,5 @@
 -- TODO: should be syntax
 
 function = () -> value
-print value
+println value
 value = 7.0

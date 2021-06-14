@@ -2,4 +2,4 @@
 -- outcome: success
 -- expect: "Hello, World!"
 
-print "Hello, World!"
+println "Hello, World!"

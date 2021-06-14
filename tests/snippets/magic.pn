@@ -1,13 +1,12 @@
 -- action: run
 -- outcome: success
 
-print (magic "add" (1.0, 5.0))
+println (magic "add" (1.0, 5.0))
 
 magic "println" {
     "Hello, " + "World!"
 }
 
-println = x -> magic "println" x
 double = x -> x + x
 
 5.0 . double . println

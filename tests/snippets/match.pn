@@ -28,5 +28,9 @@ result = match (send "friend") (
 
 number = Cool 417.48 . cool
 
+<<<<<<< HEAD
 print number
 
+=======
+println number
+>>>>>>> master

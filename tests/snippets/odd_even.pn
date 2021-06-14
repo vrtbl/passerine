@@ -33,4 +33,4 @@ odd = n -> if (n equals 0.0) {
     even (n - 1.0)
 }
 
-print even 35.0
+println even 35.0

@@ -4,4 +4,4 @@
 
 a, b, c = true, x -> (x * 2.0), false
 
-print (b 4.0)
+println (b 4.0)

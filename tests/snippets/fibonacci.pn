@@ -48,9 +48,9 @@ syntax 'while condition do {
     l ()
 }
 
-print_no_line = x -> magic "print" x
+println_no_line = x -> magic "println" x
 
-print "starting"
+println "starting"
 
 -- a simple recursive fibonacci implementation
 fib = n -> {

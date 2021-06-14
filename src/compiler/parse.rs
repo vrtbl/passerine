@@ -52,6 +52,7 @@ pub enum Prec {
 
     AddSub,
     MulDiv,
+    Pow,
 
     Compose, // TODO: where should this be, precedence-wise?
     Call,
@@ -63,11 +64,11 @@ impl Prec {
     /// parser to associate infix operators to the left.
     /// For example, addition is left-associated:
     /// ```build
-    /// Prec::Addition.associate_left()
+    /// Prec::Addition.left()
     /// ```
     /// `a + b + c` left-associated becomes `(a + b) + c`.
     /// By default, the parser accociates right.
-    pub fn associate_left(&self) -> Prec {
+    pub fn left(&self) -> Prec {
         if let Prec::End = self { panic!("Can not associate further left") }
         return unsafe { mem::transmute(self.clone() as u8 + 1) };
     }
@@ -178,10 +179,10 @@ impl Parser {
             Token::OpenParen   => self.group(),
             Token::OpenBracket => self.block(),
             Token::Symbol      => self.symbol(),
-            Token::Print       => self.print(),
             Token::Magic       => self.magic(),
             Token::Label       => self.label(),
-            Token::Keyword     => self.keyword(),
+            Token::Keyword(_)  => self.keyword(),
+            Token::Sub         => self.neg(),
 
               Token::Unit
             | Token::Number(_)
@@ -201,12 +202,13 @@ impl Parser {
             Token::Pair    => self.pair(left),
             Token::Compose => self.compose(left),
 
-            Token::Add => self.binop(Prec::AddSub, "add", left),
-            Token::Sub => self.binop(Prec::AddSub, "sub", left),
-            Token::Mul => self.binop(Prec::MulDiv, "mul", left),
-            Token::Div => self.binop(Prec::MulDiv, "div", left),
-            Token::Rem => self.binop(Prec::MulDiv, "rem", left),
-            Token::Equal => self.binop(Prec::Logic, "equal", left),
+            Token::Add => self.binop(Prec::AddSub.left(), "add", left),
+            Token::Sub => self.binop(Prec::AddSub.left(), "sub", left),
+            Token::Mul => self.binop(Prec::MulDiv.left(), "mul", left),
+            Token::Div => self.binop(Prec::MulDiv.left(), "div", left),
+            Token::Rem => self.binop(Prec::MulDiv.left(), "rem", left),
+            Token::Equal => self.binop(Prec::Logic.left(), "equal", left),
+            Token::Pow => self.binop(Prec::Pow, "pow", left),
 
             Token::End => Err(self.unexpected()),
             Token::Sep => unreachable!(),
@@ -237,6 +239,8 @@ impl Parser {
             | Token::Div
             | Token::Rem => Prec::MulDiv,
 
+            Token::Pow => Prec::Pow,
+
             // postfix
               Token::End
             | Token::CloseParen
@@ -248,7 +252,6 @@ impl Parser {
             | Token::Unit
             | Token::Syntax // TODO: Syntax and Type in the right place?
             | Token::Type
-            | Token::Print
             | Token::Magic
             | Token::Symbol
             | Token::Keyword
@@ -302,7 +305,25 @@ impl Parser {
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
         let symbol = self.consume(Token::Symbol)?.clone();
         let index = self.intern_symbol(symbol.span.contents());
-        // TODO: create new symbol.
+
+        // nothing is more permanant, but
+        // temporary workaround until prelude
+        let name = symbol.span.contents();
+        if name == "println" {
+            let var = self.intern_symbol("#println".to_string());
+
+            return Ok(Spanned::new(
+                AST::Lambda(Lambda::new(
+                    Spanned::new(Pattern::Symbol(var), Span::empty()),
+                    Spanned::new(AST::Base(Base::ffi(
+                        "println",
+                        Spanned::new(AST::Base(Base::Symbol(var)), Span::empty()),
+                    )), Span::empty()),
+                )),
+                symbol.span.clone(),
+            ));
+        }
+
         Ok(Spanned::new(
             AST::Base(Base::Symbol(index)),
             symbol.span.clone(),
@@ -348,7 +369,7 @@ impl Parser {
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::OpenParen)?.span.clone();
-        let ast   = self.expression(Prec::None.associate_left(), true)?;
+        let ast   = self.expression(Prec::None.left(), true)?;
         let end   = self.consume(Token::CloseParen)?.span.clone();
         Ok(Spanned::new(
             AST::Sugar(Sugar::group(ast)),
@@ -439,22 +460,6 @@ impl Parser {
     //     return Ok(Spanned::new(AST::type_(label), Span::combine(start, label)))
     // }
 
-    /// Parse a print statement.
-    /// A print statement takes the form `print <expression>`
-    /// Where expression is exactly one expression
-    /// Note that this is just a temporaty workaround;
-    /// Once the FFI is solidified, printing will be a function like any other.
-    pub fn print(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start = self.consume(Token::Print)?.span.clone();
-        let ast = self.expression(Prec::Call, false)?;
-        let end = ast.span.clone();
-
-        return Ok(
-            Spanned::new(AST::Base(Base::ffi("println", ast)),
-            Span::combine(&start, &end))
-        );
-    }
-
     /// Parse an `extern` statement.
     /// used for compiler magic and other glue.
     /// takes the form:
@@ -496,6 +501,17 @@ impl Parser {
             ), ast)),
             Span::combine(&start, &end),
         ));
+    }
+
+    pub fn neg(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let start = self.consume(Token::Sub)?.span.clone();
+        let ast = self.expression(Prec::End, false)?;
+        let end = ast.span.clone();
+
+        return Ok(
+            Spanned::new(AST::Base(Base::ffi("neg", ast)),
+            Span::combine(&start, &end))
+        );
     }
 
     // Infix:
@@ -558,7 +574,7 @@ impl Parser {
         };
 
         let index = self.index;
-        let span = if let Ok(item) = self.expression(Prec::Pair.associate_left(), false) {
+        let span = if let Ok(item) = self.expression(Prec::Pair.left(), false) {
             let combined = Span::combine(&left_span, &item.span);
             tuple.push(item);
             combined
@@ -574,7 +590,7 @@ impl Parser {
     /// Parses a function comp, i.e. `a . b`
     pub fn compose(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         self.consume(Token::Compose)?;
-        let right = self.expression(Prec::Compose.associate_left(), false)?;
+        let right = self.expression(Prec::Compose.left(), false)?;
         let combined = Span::combine(&left.span, &right.span);
         return Ok(Spanned::new(AST::Sugar(Sugar::comp(left, right)), combined));
     }
@@ -591,7 +607,7 @@ impl Parser {
     ) -> Result<Spanned<AST>, Syntax> {
         // self.consume(op)?;
         self.advance();
-        let right = self.expression(prec.associate_left(), false)?;
+        let right = self.expression(prec, false)?;
         let combined = Span::combine(&left.span, &right.span);
 
         let arguments = Spanned::new(AST::Base(Base::Tuple(vec![left, right])), combined.clone());
@@ -605,7 +621,7 @@ impl Parser {
     /// we interpret anything that isn't an operator as a function call operator.
     /// Then pull a fast one and not parse it like an operator at all.
     pub fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let argument = self.expression(Prec::Call.associate_left(), false)?;
+        let argument = self.expression(Prec::Call.left(), false)?;
         let combined = Span::combine(&left.span, &argument.span);
 
         let mut form = match left.item {
