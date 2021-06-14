@@ -6,7 +6,7 @@ use std::{
 use crate::common::span::{Span, Spanned};
 use crate::compiler::syntax::Syntax;
 use crate::construct::{
-    ast::{AST, ASTPattern, ArgPattern},
+    tree::{AST, Pattern, ArgPattern},
     symbol::SharedSymbol,
 };
 

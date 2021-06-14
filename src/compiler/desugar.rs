@@ -235,7 +235,7 @@ impl Transformer {
     /// Desugar a FFI call.
     /// We walk the expression that may be passed to the FFI.
     pub fn ffi(&mut self, name: String, expression: Spanned<AST>) -> Result<CST, Syntax> {
-        Ok(CST::Base(Base::ffi(&name, self.walk(expression)?))
+        Ok(CST::Base(Base::ffi(&name, self.walk(expression)?)))
     }
 
     /// Desugars a block,

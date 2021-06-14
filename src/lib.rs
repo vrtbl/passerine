@@ -123,7 +123,7 @@
 pub mod common;
 pub mod core;
 pub mod compiler;
-pub mod vm;
+// pub mod vm;
 pub mod construct;
 
 // exported functions:
@@ -134,35 +134,35 @@ pub use common::{source::Source, closure::Closure, data::Data, span::Spanned};
 pub use compiler::{lower::Lower, syntax::Syntax};
 pub use construct::module::{ThinModule, Module};
 pub use crate::core::ffi::FFI;
-pub use vm::{vm::VM, trace::Trace};
+// pub use vm::{vm::VM, trace::Trace};
 
-/// Compiles a [`Source`] to some bytecode.
-pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {
-    let tokens   = ThinModule::thin(source).lower()?;
-    let ast      = tokens.lower()?;
-    let cst      = ast.lower()?;
-    let sst      = cst.lower()?;
-    let bytecode = sst.lower()?;
-
-    return Ok(Closure::wrap(bytecode));
-}
-
-/// Compiles a [`Source`] to some bytecode,
-/// With a specific [`FFI`].
-pub fn compile_with_ffi(source: Rc<Source>, ffi: FFI) -> Result<Closure, Syntax> {
-    let tokens   = ThinModule::thin(source).lower()?;
-    let ast      = tokens.lower()?;
-    let cst      = ast.lower()?;
-    let sst      = cst.lower()?;
-    let sst_ffi  = Module::new(sst.repr, (sst.assoc, ffi));
-    let bytecode = sst_ffi.lower()?;
-
-    return Ok(Closure::wrap(bytecode));
-}
-
-/// Run a compiled [`Closure`].
-pub fn run(closure: Closure) -> Result<(), Trace> {
-    let mut vm = VM::init(closure);
-    vm.run()?;
-    Ok(())
-}
+// /// Compiles a [`Source`] to some bytecode.
+// pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {
+//     let tokens   = ThinModule::thin(source).lower()?;
+//     let ast      = tokens.lower()?;
+//     let cst      = ast.lower()?;
+//     let sst      = cst.lower()?;
+//     let bytecode = sst.lower()?;
+//
+//     return Ok(Closure::wrap(bytecode));
+// }
+//
+// /// Compiles a [`Source`] to some bytecode,
+// /// With a specific [`FFI`].
+// pub fn compile_with_ffi(source: Rc<Source>, ffi: FFI) -> Result<Closure, Syntax> {
+//     let tokens   = ThinModule::thin(source).lower()?;
+//     let ast      = tokens.lower()?;
+//     let cst      = ast.lower()?;
+//     let sst      = cst.lower()?;
+//     let sst_ffi  = Module::new(sst.repr, (sst.assoc, ffi));
+//     let bytecode = sst_ffi.lower()?;
+//
+//     return Ok(Closure::wrap(bytecode));
+// }
+//
+// /// Run a compiled [`Closure`].
+// pub fn run(closure: Closure) -> Result<(), Trace> {
+//     let mut vm = VM::init(closure);
+//     vm.run()?;
+//     Ok(())
+// }
