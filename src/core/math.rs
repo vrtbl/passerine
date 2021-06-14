@@ -24,6 +24,17 @@ pub fn sub(data: Data) -> Result<Data, String> {
     return Ok(result);
 }
 
+/// Negation of a numbers.
+pub fn neg(data: Data) -> Result<Data, String> {
+    let result = match data {
+        Data::Real(n)    => Data::Real(-n),
+        Data::Integer(n) => Data::Integer(-n),
+        _ => Err("Subtraction between unsupported datatypes")?,
+    };
+
+    return Ok(result);
+}
+
 /// Multiplication between two numbers.
 pub fn mul(data: Data) -> Result<Data, String> {
     let result = match binop(data) {
@@ -58,6 +69,17 @@ pub fn rem(data: Data) -> Result<Data, String> {
         (Data::Integer(_), Data::Integer(n)) if n == 0 => Err("Division by zero")?,
         (Data::Integer(l), Data::Integer(r)) => Data::Integer(l.rem_euclid(r)),
         _ => Err("Division between unsupported datatypes")?,
+    };
+
+    return Ok(result);
+}
+
+/// Number to a power
+pub fn pow(data: Data) -> Result<Data, String> {
+    let result = match binop(data) {
+        (Data::Real(l),    Data::Real(r))    => Data::Real(l.powf(r)),
+        (Data::Integer(l), Data::Integer(r)) => Data::Integer(l.pow(r as u32)),
+        _ => Err("Exponentiation between unsupported datatypes")?,
     };
 
     return Ok(result);

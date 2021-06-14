@@ -17,4 +17,4 @@ c = 3.0
 
 a rot b rot c
 
-print a
+println a

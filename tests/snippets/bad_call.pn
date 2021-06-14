@@ -6,4 +6,4 @@ hi = w -> uh "Hi " + w
 im = w -> hi "I'm " + w
 joe = w -> im "Joe" + w
 
-print joe "."
+println joe "."

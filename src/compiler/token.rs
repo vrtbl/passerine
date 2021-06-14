@@ -22,7 +22,6 @@ pub enum Token {
     Assign,
     Lambda,
     Compose,
-    Print,
     Magic,
     // pseudokeywords
     Keyword(String),
@@ -41,6 +40,7 @@ pub enum Token {
     // Operators
     Add, Sub,
     Mul, Div, Rem,
+    Pow,
 
     Equal,
 
@@ -64,7 +64,6 @@ impl Display for Token {
             Token::Compose      => "a composition",
             Token::Unit         => "the Unit, '()'",
             Token::Pair         => "a tuple",
-            Token::Print        => "a print keyword",
             Token::Magic        => "a magic keyword",
             Token::Symbol       => "a symbol",
             Token::Label        => "a Label", // capitilized to mimic actual labels
@@ -75,6 +74,7 @@ impl Display for Token {
             Token::Mul          => "a multiplication",
             Token::Div          => "a division",
             Token::Rem          => "a remainder",
+            Token::Pow          => "a power of",
             Token::Equal        => "an equality test",
             Token::End          => "end of source",
             Token::Keyword(k) => { return write!(f, "the pseudokeyword '{}", k); },

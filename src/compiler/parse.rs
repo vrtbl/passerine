@@ -39,6 +39,7 @@ pub enum Prec {
 
     AddSub,
     MulDiv,
+    Pow,
 
     Compose, // TODO: where should this be, precedence-wise?
     Call,
@@ -153,10 +154,10 @@ impl Parser {
             Token::OpenParen   => self.group(),
             Token::OpenBracket => self.block(),
             Token::Symbol      => self.symbol(),
-            Token::Print       => self.print(),
             Token::Magic       => self.magic(),
             Token::Label       => self.label(),
             Token::Keyword(_)  => self.keyword(),
+            Token::Sub         => self.neg(),
 
             Token::Unit
             | Token::Number(_)
@@ -181,6 +182,7 @@ impl Parser {
             Token::Mul => self.mul(left),
             Token::Div => self.div(left),
             Token::Rem => self.rem(left),
+            Token::Pow => self.pow(left),
 
             Token::Equal => self.equal(left),
 
@@ -209,8 +211,10 @@ impl Parser {
             | Token::Sub => Prec::AddSub,
 
               Token::Mul
-	    | Token::Div
+            | Token::Div
             | Token::Rem => Prec::MulDiv,
+
+            Token::Pow => Prec::Pow,
 
             // postfix
               Token::End
@@ -222,7 +226,6 @@ impl Parser {
             | Token::OpenBracket
             | Token::Unit
             | Token::Syntax
-            | Token::Print
             | Token::Magic
             | Token::Symbol
             | Token::Keyword(_)
@@ -267,6 +270,23 @@ impl Parser {
     /// Constructs an AST for a symbol.
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
         let symbol = self.consume(Token::Symbol)?;
+
+        // nothing is more permanant, but
+        // temporary workaround until prelude
+        let name = symbol.span.contents();
+        if name == "println" {
+            return Ok(Spanned::new(
+                AST::lambda(
+                    Spanned::new(ASTPattern::Symbol("n".into()), Span::empty()),
+                    Spanned::new(AST::ffi(
+                        "println",
+                        Spanned::new(AST::Symbol("n".into()), Span::empty()),
+                    ), Span::empty()),
+                ),
+                symbol.span.clone(),
+            ));
+        }
+
         Ok(Spanned::new(AST::Symbol(symbol.span.contents()), symbol.span.clone()))
     }
 
@@ -372,22 +392,6 @@ impl Parser {
         return Ok(Spanned::new(AST::syntax(arg_pat, block), span));
     }
 
-    /// Parse a print statement.
-    /// A print statement takes the form `print <expression>`
-    /// Where expression is exactly one expression
-    /// Note that this is just a temporaty workaround;
-    /// Once the FFI is solidified, printing will be a function like any other.
-    pub fn print(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start = self.consume(Token::Print)?.span.clone();
-        let ast = self.expression(Prec::Call, false)?;
-        let end = ast.span.clone();
-
-        return Ok(
-            Spanned::new(AST::ffi("println", ast),
-            Span::combine(&start, &end))
-        );
-    }
-
     /// Parse an `extern` statement.
     /// used for compiler magic and other glue.
     /// takes the form:
@@ -426,6 +430,17 @@ impl Parser {
             AST::Label(start.contents(), Box::new(ast)),
             Span::combine(&start, &end),
         ));
+    }
+
+    pub fn neg(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let start = self.consume(Token::Sub)?.span.clone();
+        let ast = self.expression(Prec::End, false)?;
+        let end = ast.span.clone();
+
+        return Ok(
+            Spanned::new(AST::ffi("neg", ast),
+            Span::combine(&start, &end))
+        );
     }
 
     // Infix:
@@ -520,7 +535,7 @@ impl Parser {
         left: Spanned<AST>
     ) -> Result<Spanned<AST>, Syntax> {
         self.consume(op)?;
-        let right = self.expression(prec.associate_left(), false)?;
+        let right = self.expression(prec, false)?;
         let combined = Span::combine(&left.span, &right.span);
 
         let arguments = Spanned::new(AST::Tuple(vec![left, right]), combined.clone());
@@ -529,32 +544,37 @@ impl Parser {
 
     /// Parses an addition, calls out to FFI.
     pub fn add(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Add, Prec::AddSub, "add", left);
+        return self.binop(Token::Add, Prec::AddSub.associate_left(), "add", left);
     }
 
     /// Parses a subraction, calls out to FFI.
     pub fn sub(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Sub, Prec::AddSub, "sub", left);
+        return self.binop(Token::Sub, Prec::AddSub.associate_left(), "sub", left);
     }
 
     /// Parses a multiplication, calls out to FFI.
     pub fn mul(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Mul, Prec::MulDiv, "mul", left);
+        return self.binop(Token::Mul, Prec::MulDiv.associate_left(), "mul", left);
     }
 
     /// Parses a division, calls out to FFI.
     pub fn div(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Div, Prec::MulDiv, "div", left);
+        return self.binop(Token::Div, Prec::MulDiv.associate_left(), "div", left);
     }
 
     /// Parses an equality, calls out to FFI.
     pub fn equal(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Equal, Prec::Logic, "equal", left);
+        return self.binop(Token::Equal, Prec::Logic.associate_left(), "equal", left);
     }
 
-    /// Parses an equality, calls out to FFI.
+    /// Parses an remainder, calls out to FFI.
     pub fn rem(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Rem, Prec::MulDiv, "rem", left);
+        return self.binop(Token::Rem, Prec::MulDiv.associate_left(), "rem", left);
+    }
+
+    /// Parses an power, calls out to FFI.
+    pub fn pow(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        return self.binop(Token::Pow, Prec::Pow, "pow", left);
     }
 
     /// Parses a function call.

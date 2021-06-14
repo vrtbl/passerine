@@ -19,9 +19,11 @@ pub fn ffi_core() -> FFI {
     // math
     ffi.add("add", FFIFunction::new(Box::new(math::add))).unwrap();
     ffi.add("sub", FFIFunction::new(Box::new(math::sub))).unwrap();
+    ffi.add("neg", FFIFunction::new(Box::new(math::neg))).unwrap();
     ffi.add("mul", FFIFunction::new(Box::new(math::mul))).unwrap();
     ffi.add("div", FFIFunction::new(Box::new(math::div))).unwrap();
     ffi.add("rem", FFIFunction::new(Box::new(math::rem))).unwrap();
+    ffi.add("pow", FFIFunction::new(Box::new(math::pow))).unwrap();
 
     // io
     ffi.add("println",   FFIFunction::new(Box::new(io::println))).unwrap();

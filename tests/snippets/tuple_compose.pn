@@ -8,4 +8,4 @@ b = false -> true
 -- not (x, y) = ((a, b) . c)
 x, y = "Hello", false . b
 
-print y
+println y

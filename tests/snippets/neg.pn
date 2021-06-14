@@ -1,0 +1,7 @@
+-- action: run
+-- outcome: success
+-- expect: 4
+
+x = -4
+println x
+println (-x)

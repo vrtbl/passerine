@@ -538,7 +538,7 @@ mod test {
     fn mutate_capture_fn() {
         inspect("\
             pi = 3.14\n\
-            printpi = x -> print pi\n\
+            printpi = x -> println pi\n\
             \n\
             redef = ()\n\
             redef = w -> {\n    \

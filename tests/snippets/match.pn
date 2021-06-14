@@ -28,4 +28,4 @@ result = match (send "friend") (
 
 number = Cool 417.48 . cool
 
-print number
+println number
