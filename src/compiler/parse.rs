@@ -181,7 +181,7 @@ impl Parser {
             Token::Symbol      => self.symbol(),
             Token::Magic       => self.magic(),
             Token::Label       => self.label(),
-            Token::Keyword(_)  => self.keyword(),
+            Token::Keyword     => self.keyword(),
             Token::Sub         => self.neg(),
 
               Token::Unit
@@ -518,7 +518,7 @@ impl Parser {
 
     /// Parses an argument pattern,
     /// Which converts an `AST` into an `ArgPattern`.
-    pub fn arg_pat(ast: Spanned<AST>) -> Result<Spanned<ArgPattern>, Syntax> {
+    pub fn arg_pat(ast: Spanned<AST>) -> Result<Spanned<>, Syntax> {
         let item = match ast.item {
             AST::Symbol(s) => ArgPattern::Symbol(s),
             AST::ArgPattern(p) => p,
