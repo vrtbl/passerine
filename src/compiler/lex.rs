@@ -39,14 +39,14 @@ pub struct Lexer {
     source: Rc<Source>,
     /// The current lexing offset.
     offset: usize,
-    /// Closing delims to look for.
-    closing: Vec<Delim>,
+    /// Closing tokens to match.
+    closing: Vec<(Delim, usize)>,
 }
 
 impl Lexer {
     /// Create a new empty lexer.
     pub fn new(source: &Rc<Source>) -> Lexer {
-        Lexer { source: Rc::clone(source), offset: 0 }
+        Lexer { source: Rc::clone(source), offset: 0, closing: vec![] }
     }
 
     /// Run the lexer, generating the entire token stream.
@@ -61,15 +61,41 @@ impl Lexer {
             self.offset += Lexer::comment(&self.remaining());
             self.offset += Lexer::multi_comment(&self.remaining());
 
-            // strip trailing whitespace
+            // strip leading whitespace
             self.strip();
+
+            // current lexer error location, if we error
+            let error_span = &Span::point(&self.source, self.offset);
+
+            // check for delimiters
+            // not a fan of continue, but oh well
+            // who is, anyway?
+            if let Some(delim) = Lexer::open_delim(self.remaining()) {
+                self.closing.push((delim, tokens.len()));
+                self.offset += 1;
+                continue;
+            } else if let Some(delim) = Lexer::close_delim(self.remaining()) {
+                let back = match self.closing.pop() {
+                    Some((d, back)) if d == delim => back,
+                    _ => return Err(Syntax::error(
+                        "Unexpected closing delimiter with no match",
+                        &Span::point(&self.source, self.offset),
+                    )),
+                };
+
+                let token_group = tokens.split_off(back);
+                let group_span  = Spanned::build(&token_group);
+                let group_token = Token::Group { delim, tokens: token_group };
+                tokens.push(Spanned::new(group_token, group_span));
+
+                self.offset += 1;
+                continue;
+            }
 
             // get next token kind, build token
             let (kind, consumed) = match self.step() {
                 Ok(k)  => k,
-                Err(e) => return Err(
-                    Syntax::error(&e, &Span::point(&self.source, self.offset))
-                ),
+                Err(e) => return Err(Syntax::error(&e, &error_span)),
             };
 
             // annotate it
@@ -98,15 +124,11 @@ impl Lexer {
             Box::new(Lexer::symbol),
             Box::new(Lexer::op),
 
-            // delims
-            Box::new(Lexer::group),
-
             // data
             Box::new(Lexer::boolean),
             Box::new(Lexer::real),
             Box::new(Lexer::integer),
             Box::new(Lexer::string),
-
         ];
 
         // maybe some sort of map reduce?
@@ -124,6 +146,32 @@ impl Lexer {
         }
 
         return best;
+    }
+
+    pub fn open_delim(source: &str) -> Option<Delim> {
+        if let Some(c) = source.chars().next() {
+            Some(match c {
+                '(' => Delim::Paren,
+                '{' => Delim::Curly,
+                '[' => Delim::Square,
+                _   => return None,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn close_delim(source: &str) -> Option<Delim> {
+        if let Some(c) = source.chars().next() {
+            Some(match c {
+                ')' => Delim::Paren,
+                '}' => Delim::Curly,
+                ']' => Delim::Square,
+                _   => return None,
+            })
+        } else {
+            None
+        }
     }
 
     // helpers
@@ -220,40 +268,6 @@ impl Lexer {
         }
 
         return len;
-    }
-
-    pub fn open_delim(source: &str) -> Option<Delim> {
-        if let Some(c) = source.chars().next() {
-            Some(match c {
-                '(' => Delim::Paren,
-                '{' => Delim::Curly,
-                '[' => Delim::Square,
-                _   => return None,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn close_delim(source: &str) -> Option<Delim> {
-        if let Some(c) = source.chars().next() {
-            Some(match c {
-                ')' => Delim::Paren,
-                '}' => Delim::Curly,
-                ']' => Delim::Square,
-                _   => return None,
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn group(source: &str) -> Result<Bite, String> {
-        let delim = Lexer::open_delim(source)
-            .ok_or("Expected a group delimiter")?;
-
-        let mut len = 1;
-        let source = &source[1..];
     }
 
     /// Classifies a symbol or a label.
