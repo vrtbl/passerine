@@ -516,28 +516,6 @@ impl Parser {
 
     // Infix:
 
-    /// Parses an argument pattern,
-    /// Which converts an `AST` into an `ArgPattern`.
-    pub fn arg_pat(ast: Spanned<AST>) -> Result<Spanned<>, Syntax> {
-        let item = match ast.item {
-            AST::Symbol(s) => ArgPattern::Symbol(s),
-            AST::ArgPattern(p) => p,
-            AST::Form(f) => {
-                let mut mapped = vec![];
-                for a in f { mapped.push(Parser::arg_pat(a)?); }
-                ArgPattern::Group(mapped)
-            }
-            _ => Err(Syntax::error(
-                "Unexpected construct inside argument pattern",
-                &ast.span
-            ))?,
-        };
-
-        return Ok(Spanned::new(item, ast.span));
-    }
-
-    // TODO: assign and lambda are similar... combine?
-
     /// Parses an assignment, associates right.
     pub fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
