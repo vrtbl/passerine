@@ -12,7 +12,7 @@ use crate::common::{
 use crate::compiler::{lower::Lower, syntax::Syntax};
 
 use crate::construct::{
-    token::Token,
+    token::{Token, Tokens, Delim, ResOp},
     tree::{AST, Base, Sugar, Lambda, Pattern, ArgPattern},
     symbol::SharedSymbol,
     module::{ThinModule, Module},
@@ -172,43 +172,30 @@ impl Parser {
     /// Looks at the current token and parses an infix expression
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
-            Token::End         => Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::empty())),
-
-            Token::Syntax      => self.syntax(),
-            Token::Type        => todo!(),
-            Token::OpenParen   => self.group(),
-            Token::OpenBracket => self.block(),
-            Token::Symbol      => self.symbol(),
-            Token::Magic       => self.magic(),
-            Token::Label       => self.label(),
-            Token::Keyword     => self.keyword(),
-            Token::Sub         => self.neg(),
-
-              Token::Unit
-            | Token::Number(_)
-            | Token::String(_)
-            | Token::Boolean(_) => self.literal(),
-
-            Token::Sep => unreachable!(),
-            _          => Err(Syntax::error("Expected an expression", &self.current().span)),
+            Token::End      => Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::empty())),
+            Token::Label(_) => self.label(),
+            Token::Data(_)  => self.literal(),
+            Token::Sep      => unreachable!(),
+            _               => Err(Syntax::error("Expected an expression", &self.current().span)),
         }
     }
 
     /// Looks at the current token and parses the right side of any infix expressions.
     pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
-            Token::Assign  => self.assign(left),
-            Token::Lambda  => self.lambda(left),
-            Token::Pair    => self.pair(left),
-            Token::Compose => self.compose(left),
-
-            Token::Add => self.binop(Prec::AddSub.left(), "add", left),
-            Token::Sub => self.binop(Prec::AddSub.left(), "sub", left),
-            Token::Mul => self.binop(Prec::MulDiv.left(), "mul", left),
-            Token::Div => self.binop(Prec::MulDiv.left(), "div", left),
-            Token::Rem => self.binop(Prec::MulDiv.left(), "rem", left),
-            Token::Equal => self.binop(Prec::Logic.left(), "equal", left),
-            Token::Pow => self.binop(Prec::Pow, "pow", left),
+            Token::Op(name)  => match ResOp::try_new(&name) {
+                ResOp::Assign  => self.assign(left),
+                ResOp::Lambda  => self.lambda(left),
+                ResOp::Compose => self.compose(left),
+                ResOp::Pair    => self.pair(left),
+                ResOp::Add     => self.binop(Prec::AddSub.left(), "add",   left),
+                ResOp::Sub     => self.binop(Prec::AddSub.left(), "sub",   left),
+                ResOp::Mul     => self.binop(Prec::MulDiv.left(), "mul",   left),
+                ResOp::Div     => self.binop(Prec::MulDiv.left(), "div",   left),
+                ResOp::Rem     => self.binop(Prec::MulDiv.left(), "rem",   left),
+                ResOp::Equal   => self.binop(Prec::Logic.left(),  "equal", left),
+                ResOp::Pow     => self.binop(Prec::Pow,           "pow",   left),
+            },
 
             Token::End => Err(self.unexpected()),
             Token::Sep => unreachable!(),

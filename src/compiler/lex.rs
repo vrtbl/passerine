@@ -20,7 +20,7 @@ use crate::compiler::{lower::Lower, syntax::Syntax};
 type Bite = (Token, usize);
 
 impl Lower for ThinModule<Rc<Source>> {
-    type Out = ThinModule<Vec<Spanned<Token>>>;
+    type Out = ThinModule<Tokens>;
 
     /// Simple function that lexes a source file into a token stream.
     /// Exposes the functionality of the `Lexer`.
@@ -50,7 +50,7 @@ impl Lexer {
     }
 
     /// Run the lexer, generating the entire token stream.
-    pub fn all(&mut self) -> Result<Vec<Spanned<Token>>, Syntax> {
+    pub fn all(&mut self) -> Result<Tokens, Syntax> {
         let mut tokens = vec![];
 
         while self.remaining().len() != 0 {
@@ -450,7 +450,7 @@ impl Lexer {
         return Ok((Token::Sep, len));
     }
 }
-//
+
 // #[cfg(test)]
 // mod test {
 //     use super::*;
@@ -462,7 +462,7 @@ impl Lexer {
 //     fn empty() {
 //         // no source code? no tokens!
 //         let result = ThinModule::thin(Source::source("")).lower();
-//         let target: Result<ThinModule<Vec<Spanned<Token>>>, Syntax> =
+//         let target: Result<ThinModule<Tokens>, Syntax> =
 //             Ok(ThinModule::thin(vec![Spanned::new(Token::End, Span::empty())]));
 //
 //         assert_eq!(result, target);

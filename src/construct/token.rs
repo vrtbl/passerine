@@ -40,6 +40,56 @@ pub enum Delim {
     Square,
 }
 
+pub enum ResIden {
+    Type,
+    Magic,
+}
+
+impl ResIden {
+    pub fn try_new(name: &str) -> Option<ResIden> {
+        use ResIden::*;
+        Some(match name {
+            "type"  => Type,
+            "magic" => Magic,
+            _ => { return None; },
+        })
+    }
+}
+
+pub enum ResOp {
+    Assign,
+    Lambda,
+    Equal,
+    Pow,
+    Compose,
+    Pair,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+}
+
+impl ResOp {
+    pub fn try_new(name: &str) -> Option<ResOp> {
+        use ResOp::*;
+        Some(match name {
+            "=" => Assign,
+            "->" => Lambda,
+            "==" => Equal,
+            "**" => Pow,
+            "." => Compose,
+            "," => Pair,
+            "+" => Add,
+            "-" => Sub,
+            "*" => Mul,
+            "/" => Div,
+            "%" => Rem,
+            _ => { return None; },
+        })
+    }
+}
+
 impl Display for Delim {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let message = match self {
