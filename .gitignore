@@ -10,6 +10,9 @@
 # scratchpad
 /scratchpad
 
+# standard library, WIP
+/standard
+
 # But not:
 !.gitignore
 !.git
