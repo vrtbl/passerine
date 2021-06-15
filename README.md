@@ -871,7 +871,8 @@ sh <(curl -sSf https://www.passerine.io/install.sh)
 > 1. If you're having trouble getting started, reach out on the community [Discord server](https://discord.gg/yMhUyhw).
 > 2. Tested on Arch (btw) and macOS.
 > 3. Now tested on Windows™!
-> 4. In the future, we plan to distribute prebuilt binaries, but for now, both Git and Cargo are required.
+> 4. (Also, *experimentally* supports Wasm.)
+> 5. In the future, we plan to distribute prebuilt binaries, but for now, both Git and Cargo are required.
 
 ## Contributing
 Contributions are welcome!
