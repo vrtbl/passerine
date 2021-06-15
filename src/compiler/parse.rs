@@ -12,7 +12,7 @@ use crate::common::{
 use crate::compiler::{lower::Lower, syntax::Syntax};
 
 use crate::construct::{
-    token::{Token, Tokens, Delim, ResOp},
+    token::{Token, Tokens, Delim, ResOp, ResIden},
     tree::{AST, Base, Sugar, Lambda, Pattern, ArgPattern},
     symbol::SharedSymbol,
     module::{ThinModule, Module},
@@ -173,6 +173,11 @@ impl Parser {
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
             Token::End      => Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::empty())),
+            Token::Iden(name) => match ResIden::try_new(&name) {
+                // keywords
+                Some(_) => todo!(),
+                None   => todo!(),
+            },
             Token::Label(_) => self.label(),
             Token::Data(_)  => self.literal(),
             Token::Sep      => unreachable!(),
@@ -183,18 +188,19 @@ impl Parser {
     /// Looks at the current token and parses the right side of any infix expressions.
     pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
-            Token::Op(name)  => match ResOp::try_new(&name) {
-                ResOp::Assign  => self.assign(left),
-                ResOp::Lambda  => self.lambda(left),
-                ResOp::Compose => self.compose(left),
-                ResOp::Pair    => self.pair(left),
-                ResOp::Add     => self.binop(Prec::AddSub.left(), "add",   left),
-                ResOp::Sub     => self.binop(Prec::AddSub.left(), "sub",   left),
-                ResOp::Mul     => self.binop(Prec::MulDiv.left(), "mul",   left),
-                ResOp::Div     => self.binop(Prec::MulDiv.left(), "div",   left),
-                ResOp::Rem     => self.binop(Prec::MulDiv.left(), "rem",   left),
-                ResOp::Equal   => self.binop(Prec::Logic.left(),  "equal", left),
-                ResOp::Pow     => self.binop(Prec::Pow,           "pow",   left),
+            Token::Op(name) => match ResOp::try_new(&name) {
+                Some(ResOp::Assign)  => self.assign(left),
+                Some(ResOp::Lambda)  => self.lambda(left),
+                Some(ResOp::Compose) => self.compose(left),
+                Some(ResOp::Pair)    => self.pair(left),
+                Some(ResOp::Add)     => self.binop(Prec::AddSub.left(), "add",   left),
+                Some(ResOp::Sub)     => self.binop(Prec::AddSub.left(), "sub",   left),
+                Some(ResOp::Mul)     => self.binop(Prec::MulDiv.left(), "mul",   left),
+                Some(ResOp::Div)     => self.binop(Prec::MulDiv.left(), "div",   left),
+                Some(ResOp::Rem)     => self.binop(Prec::MulDiv.left(), "rem",   left),
+                Some(ResOp::Equal)   => self.binop(Prec::Logic.left(),  "equal", left),
+                Some(ResOp::Pow)     => self.binop(Prec::Pow,           "pow",   left),
+                None => Err(Syntax::error("Invalid operator", &self.current().span)),
             },
 
             Token::End => Err(self.unexpected()),
@@ -211,42 +217,31 @@ impl Parser {
 
         let prec = match next {
             // infix
-            Token::Assign  => Prec::Assign,
-            Token::Lambda  => Prec::Lambda,
-            Token::Pair    => Prec::Pair,
-            Token::Is      => Prec::Is,
-            Token::Compose => Prec::Compose,
-
-            Token::Equal => Prec::Logic,
-
-              Token::Add
-            | Token::Sub => Prec::AddSub,
-
-              Token::Mul
-            | Token::Div
-            | Token::Rem => Prec::MulDiv,
-
-            Token::Pow => Prec::Pow,
+            Token::Op(name) => match ResOp::try_new(&name) {
+                Some(ResOp::Assign)  => Prec::Assign,
+                Some(ResOp::Lambda)  => Prec::Lambda,
+                Some(ResOp::Compose) => Prec::Compose,
+                Some(ResOp::Pair)    => Prec::Pair,
+                Some(ResOp::Add)     => Prec::AddSub,
+                Some(ResOp::Sub)     => Prec::AddSub,
+                Some(ResOp::Mul)     => Prec::MulDiv,
+                Some(ResOp::Div)     => Prec::MulDiv,
+                Some(ResOp::Rem)     => Prec::MulDiv,
+                Some(ResOp::Equal)   => Prec::Logic,
+                Some(ResOp::Pow)     => Prec::Pow,
+                None => { return Err(Syntax::error("Invalid operator", &self.current().span)); },
+            },
 
             // postfix
-              Token::End
-            | Token::CloseParen
-            | Token::CloseBracket => Prec::End,
+            Token::End => Prec::End,
 
             // prefix
-              Token::OpenParen
-            | Token::OpenBracket
-            | Token::Unit
-            | Token::Syntax // TODO: Syntax and Type in the right place?
-            | Token::Type
-            | Token::Magic
-            | Token::Symbol
-            | Token::Keyword
-            | Token::Label
-            | Token::Number(_)
-            | Token::String(_)
-            | Token::Boolean(_) => Prec::Call,
+              Token::Group { .. }
+            | Token::Iden(_) // TODO: Iden in the right place?
+            | Token::Label(_)
+            | Token::Data(_) => Prec::Call,
 
+            // unreachable (doh)
             Token::Sep => unreachable!(),
         };
 
