@@ -12,7 +12,7 @@ use crate::common::{
 
 use crate::construct::{
     module::ThinModule,
-    token::{Delim, Token},
+    token::{Delim, Token, Tokens},
 };
 
 use crate::compiler::{lower::Lower, syntax::Syntax};

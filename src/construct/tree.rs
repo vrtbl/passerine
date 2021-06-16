@@ -1,7 +1,10 @@
+use std::convert::TryFrom;
+
 use crate::common::{
     data::Data,
     span::Spanned,
 };
+
 use crate::construct::{
     symbol::{SharedSymbol, UniqueSymbol},
     scope::Scope,
@@ -124,6 +127,43 @@ pub enum AST {
     Base(Base<Spanned<AST>, SharedSymbol>),
     Sugar(Sugar<Spanned<AST>, SharedSymbol>),
     Lambda(Lambda<Spanned<AST>>),
+}
+
+impl TryFrom<AST> for Pattern<SharedSymbol> {
+    type Error = String;
+
+    /// Tries to convert an `AST` into a `Pattern`.
+    /// Patterns mirror the `AST`s they are designed to destructure.
+    /// During parsing, they are just parsed as `AST`s -
+    /// When the compiler can determine that an AST is actually a pattern,
+    /// It performs this conversion.
+    fn try_from(ast: AST) -> Result<Self, Self::Error> {
+        Ok(
+            match ast {
+                AST::Base(Base::Symbol(s)) => Pattern::Symbol(s),
+                AST::Base(Base::Data(d)) => Pattern::Data(d),
+                AST::Base(Base::Label(k, a)) => Pattern::Label(k, Box::new(a.map(Pattern::try_from)?)),
+                AST::Base(Base::Tuple(t)) => {
+                    let mut patterns = vec![];
+                    for item in t {
+                        patterns.push(item.map(Pattern::try_from)?);
+                    }
+                    Pattern::Tuple(patterns)
+                }
+
+                AST::Sugar(Sugar::Pattern(p)) => p,
+                AST::Sugar(Sugar::Form(f)) => {
+                    let mut patterns = vec![];
+                    for item in f {
+                        patterns.push(item.map(Pattern::try_from)?);
+                    }
+                    Pattern::Chain(patterns)
+                },
+                AST::Sugar(Sugar::Group(e)) => e.map(Pattern::try_from)?.item,
+                _ => Err("Unexpected construct inside pattern")?,
+            }
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

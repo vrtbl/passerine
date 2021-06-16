@@ -40,6 +40,7 @@ pub enum Delim {
     Square,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResIden {
     Type,
     Magic,
@@ -56,6 +57,7 @@ impl ResIden {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResOp {
     Assign,
     Lambda,

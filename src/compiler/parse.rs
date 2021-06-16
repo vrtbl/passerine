@@ -157,6 +157,24 @@ impl Parser {
         }
     }
 
+    pub fn consume_op(&mut self, op: ResOp) -> Result<&Spanned<Token>, Syntax> {
+        self.index += 1;
+        let current = &self.tokens[self.index - 1];
+
+        if let Token::Op(name) = current.item {
+            if ResOp::try_new(&name)
+                .ok_or(Syntax::error("Invalid operator", &self.current().span))?
+            == op {
+                return Ok(current);
+            }
+        }
+
+        Err(Syntax::error(
+            &format!("Encountered unexpected {}", current.item),
+            &current.span
+        ))
+    }
+
     pub fn intern_symbol(&mut self, name: String) -> SharedSymbol {
         if let Some(symbol) = self.symbols.get(&name) {
             *symbol
@@ -173,10 +191,11 @@ impl Parser {
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
             Token::End      => Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::empty())),
+            // TODO: groups!
             Token::Iden(name) => match ResIden::try_new(&name) {
                 // keywords
                 Some(_) => todo!(),
-                None   => todo!(),
+                None    => todo!(),
             },
             Token::Label(_) => self.label(),
             Token::Data(_)  => self.literal(),
@@ -188,19 +207,20 @@ impl Parser {
     /// Looks at the current token and parses the right side of any infix expressions.
     pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
-            Token::Op(name) => match ResOp::try_new(&name) {
-                Some(ResOp::Assign)  => self.assign(left),
-                Some(ResOp::Lambda)  => self.lambda(left),
-                Some(ResOp::Compose) => self.compose(left),
-                Some(ResOp::Pair)    => self.pair(left),
-                Some(ResOp::Add)     => self.binop(Prec::AddSub.left(), "add",   left),
-                Some(ResOp::Sub)     => self.binop(Prec::AddSub.left(), "sub",   left),
-                Some(ResOp::Mul)     => self.binop(Prec::MulDiv.left(), "mul",   left),
-                Some(ResOp::Div)     => self.binop(Prec::MulDiv.left(), "div",   left),
-                Some(ResOp::Rem)     => self.binop(Prec::MulDiv.left(), "rem",   left),
-                Some(ResOp::Equal)   => self.binop(Prec::Logic.left(),  "equal", left),
-                Some(ResOp::Pow)     => self.binop(Prec::Pow,           "pow",   left),
-                None => Err(Syntax::error("Invalid operator", &self.current().span)),
+            Token::Op(name) => match ResOp::try_new(&name)
+                .ok_or(Syntax::error("Invalid operator", &self.current().span))?
+            {
+                ResOp::Assign  => self.assign(left),
+                ResOp::Lambda  => self.lambda(left),
+                ResOp::Compose => self.compose(left),
+                ResOp::Pair    => self.pair(left),
+                ResOp::Add     => self.binop(Prec::AddSub.left(), "add",   left),
+                ResOp::Sub     => self.binop(Prec::AddSub.left(), "sub",   left),
+                ResOp::Mul     => self.binop(Prec::MulDiv.left(), "mul",   left),
+                ResOp::Div     => self.binop(Prec::MulDiv.left(), "div",   left),
+                ResOp::Rem     => self.binop(Prec::MulDiv.left(), "rem",   left),
+                ResOp::Equal   => self.binop(Prec::Logic.left(),  "equal", left),
+                ResOp::Pow     => self.binop(Prec::Pow,           "pow",   left),
             },
 
             Token::End => Err(self.unexpected()),
@@ -217,19 +237,20 @@ impl Parser {
 
         let prec = match next {
             // infix
-            Token::Op(name) => match ResOp::try_new(&name) {
-                Some(ResOp::Assign)  => Prec::Assign,
-                Some(ResOp::Lambda)  => Prec::Lambda,
-                Some(ResOp::Compose) => Prec::Compose,
-                Some(ResOp::Pair)    => Prec::Pair,
-                Some(ResOp::Add)     => Prec::AddSub,
-                Some(ResOp::Sub)     => Prec::AddSub,
-                Some(ResOp::Mul)     => Prec::MulDiv,
-                Some(ResOp::Div)     => Prec::MulDiv,
-                Some(ResOp::Rem)     => Prec::MulDiv,
-                Some(ResOp::Equal)   => Prec::Logic,
-                Some(ResOp::Pow)     => Prec::Pow,
-                None => { return Err(Syntax::error("Invalid operator", &self.current().span)); },
+            Token::Op(name) => match ResOp::try_new(&name)
+                .ok_or(Syntax::error("Invalid operator", &self.current().span))?
+            {
+                ResOp::Assign  => Prec::Assign,
+                ResOp::Lambda  => Prec::Lambda,
+                ResOp::Compose => Prec::Compose,
+                ResOp::Pair    => Prec::Pair,
+                ResOp::Add     => Prec::AddSub,
+                ResOp::Sub     => Prec::AddSub,
+                ResOp::Mul     => Prec::MulDiv,
+                ResOp::Div     => Prec::MulDiv,
+                ResOp::Rem     => Prec::MulDiv,
+                ResOp::Equal   => Prec::Logic,
+                ResOp::Pow     => Prec::Pow,
             },
 
             // postfix
@@ -285,7 +306,7 @@ impl Parser {
 
     /// Constructs an AST for a symbol.
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let symbol = self.consume(Token::Symbol)?.clone();
+        let symbol = self.consume(Token::Iden)?.clone();
         let index = self.intern_symbol(symbol.span.contents());
 
         // nothing is more permanant, but
@@ -312,36 +333,17 @@ impl Parser {
         ))
     }
 
-    /// Parses a keyword.
-    /// Note that this is wrapped in a Arg Pattern node.
-    pub fn keyword(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let span = if let Spanned { item: Token::Keyword, span } = self.advance() {
-            span.clone()
-        } else {
-            unreachable!("Expected a keyword");
-        };
-
-        // TODO: create a new symbol
-        let wrapped = AST::Sugar(Sugar::ArgPattern(ArgPattern::Keyword(
-            self.intern_symbol(span.contents()[1..].to_string())
-        )));
-
-        Ok(Spanned::new(wrapped, span.clone()))
-    }
-
     /// Constructs the AST for a literal, such as a number or string.
     pub fn literal(&mut self) -> Result<Spanned<AST>, Syntax> {
         let Spanned { item: token, span } = self.advance();
 
-        let leaf = match token {
-            Token::Unit       => AST::Base(Base::Data(Data::Unit)),
-            Token::Number(n)  => AST::Base(Base::Data(n.clone())),
-            Token::String(s)  => AST::Base(Base::Data(s.clone())),
-            Token::Boolean(b) => AST::Base(Base::Data(b.clone())),
-            unexpected => return Err(Syntax::error(
-                &format!("Expected a literal, found {}", unexpected),
+        let leaf = if let Token::Data(d) = token {
+            AST::Base(Base::Data(d.clone()))
+        } else {
+            return Err(Syntax::error(
+                &format!("Expected a literal, found {}", token),
                 &span
-            )),
+            ));
         };
 
         Ok(Spanned::new(leaf, span.clone()))
@@ -399,42 +401,6 @@ impl Parser {
         return Ok(Spanned::new(ast, Span::combine(&start, &end)));
     }
 
-    // TODO: unwrap from outside in to prevent nesting
-    /// Parse a macro definition.
-    /// `syntax`, followed by a pattern, followed by a `block`
-    pub fn syntax(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start = self.consume(Token::Syntax)?.span.clone();
-        let mut after = self.expression(Prec::Call, false)?;
-
-        let mut form = match after.item {
-            AST::Sugar(Sugar::Form(p)) => p,
-            _ => return Err(Syntax::error(
-                "Expected a pattern and a block after 'syntax'",
-                &after.span,
-            )),
-        };
-
-        let last = form.pop().unwrap();
-        after.span = Spanned::build(&form);
-        after.item = AST::Sugar(Sugar::Form(form));
-        let block = match (last.item, last.span) {
-            (b @ AST::Base(Base::Block(_)), s) => Spanned::new(b, s),
-            _ => return Err(Syntax::error(
-                "Expected a block after the syntax pattern",
-                &after.span,
-            )),
-        };
-
-        let arg_pat = Parser::arg_pat(after)?;
-        let span = Span::join(vec![
-            start,
-            arg_pat.span.clone(),
-            block.span.clone()
-        ]);
-
-        return Ok(Spanned::new(AST::Sugar(Sugar::syntax(arg_pat, block)), span));
-    }
-
     // pub fn type_(&mut self) -> Result<Spanned<AST>, Syntax> {
     //     let start = self.consume(Token::Type)?.span.clone();
     //     let label = self.consume(Token::Label)?.span.clone();
@@ -454,7 +420,7 @@ impl Parser {
 
         let Spanned { item: token, span } = self.advance();
         let name = match token {
-            Token::String(Data::String(s))  => s.clone(),
+            Token::Data(Data::String(s))  => s.clone(),
             unexpected => return Err(Syntax::error(
                 &format!("Expected a string, found {}", unexpected),
                 &span
@@ -486,7 +452,7 @@ impl Parser {
     }
 
     pub fn neg(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start = self.consume(Token::Sub)?.span.clone();
+        let start = self.consume_op(ResOp::Sub)?.span.clone();
         let ast = self.expression(Prec::End, false)?;
         let end = ast.span.clone();
 
@@ -504,7 +470,7 @@ impl Parser {
         let pattern = left.map(Pattern::try_from)
             .map_err(|e| Syntax::error(&e, &left_span))?;
 
-        self.consume(Token::Assign)?;
+        self.consume_op(ResOp::Assign)?;
         let expression = self.expression(Prec::Assign, false)?;
         let combined   = Span::combine(&pattern.span, &expression.span);
         Ok(Spanned::new(AST::Base(Base::assign(pattern, expression)), combined))
@@ -516,7 +482,7 @@ impl Parser {
         let pattern = left.map(Pattern::try_from)
             .map_err(|e| Syntax::error(&e, &left_span))?;
 
-        self.consume(Token::Lambda)?;
+        self.consume_op(ResOp::Lambda)?;
         let expression = self.expression(Prec::Lambda, false)?;
         let combined   = Span::combine(&pattern.span, &expression.span);
         Ok(Spanned::new(AST::Lambda(Lambda::new(pattern, expression)), combined))
@@ -526,7 +492,7 @@ impl Parser {
     /// Parses a pair operator, i.e. the comma used to build tuples: `a, b, c`.
     pub fn pair(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
-        self.consume(Token::Pair)?;
+        self.consume_op(ResOp::Pair)?;
 
         let mut tuple = match left.item {
             AST::Base(Base::Tuple(t)) => t,
@@ -549,7 +515,7 @@ impl Parser {
 
     /// Parses a function comp, i.e. `a . b`
     pub fn compose(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        self.consume(Token::Compose)?;
+        self.consume_op(ResOp::Compose)?;
         let right = self.expression(Prec::Compose.left(), false)?;
         let combined = Span::combine(&left.span, &right.span);
         return Ok(Spanned::new(AST::Sugar(Sugar::comp(left, right)), combined));
