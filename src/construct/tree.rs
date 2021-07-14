@@ -36,6 +36,7 @@ pub enum Pattern<S> {
     Data(Data),
     Label(Spanned<S>, Box<Spanned<Self>>),
     Tuple(Vec<Spanned<Self>>),
+    Chain(Vec<Spanned<Self>>),
 }
 
 // TODO: impls for boxed items.

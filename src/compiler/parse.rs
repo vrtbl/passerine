@@ -146,15 +146,21 @@ impl Parser {
 
     /// Consumes a specific token then advances the parser.
     /// Can be used to consume Sep tokens, which are normally skipped.
-    pub fn consume(&mut self, token: Token) -> Result<&Spanned<Token>, Syntax> {
-        self.index += 1;
-        let current = &self.tokens[self.index - 1];
-        if current.item != token {
-            self.index -= 1;
-            Err(Syntax::error(&format!("Expected {}, found {}", token, current.item), &current.span))
-        } else {
-            Ok(current)
+    pub fn consume_iden(&mut self, iden: ResIden) -> Result<&Spanned<Token>, Syntax> {
+        let current = self.advance();
+
+        if let Token::Iden(name) = current.item {
+            if ResIden::try_new(&name)
+                .ok_or(Syntax::error("Invalid keyword", &self.current().span))?
+            == iden {
+                return Ok(current);
+            }
         }
+
+        Err(Syntax::error(
+            &format!("Encountered unexpected {}", current.item),
+            &current.span
+        ))
     }
 
     pub fn consume_op(&mut self, op: ResOp) -> Result<&Spanned<Token>, Syntax> {
@@ -306,7 +312,10 @@ impl Parser {
 
     /// Constructs an AST for a symbol.
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let symbol = self.consume(Token::Iden)?.clone();
+        let index = if let Token::Iden(s) = self.advance() {
+
+        }
+
         let index = self.intern_symbol(symbol.span.contents());
 
         // nothing is more permanant, but
@@ -349,16 +358,34 @@ impl Parser {
         Ok(Spanned::new(leaf, span.clone()))
     }
 
+    /// Expects the next token to be a group token, containing a sub token stream.
+    /// Unwraps the group, and returns the spanned token stream.
+    /// The returned Span includes the delimiters.
+    pub fn ungroup(&mut self, expected_delim: Delim) -> Result<Spanned<Vec<Spanned<Token>>>, Syntax> {
+        let group = self.advance();
+        let span = group.span;
+
+        if let Token::Group {
+            delim,
+            mut tokens,
+        } = group.item {
+            if delim == expected_delim {
+                tokens.push(Spanned::new(Token::End, Span::empty()));
+                return Ok(Spanned::new(tokens, span));
+            }
+        }
+
+        // TODO: raise a syntax error message
+        todo!("unexpected group delim error")
+    }
+
     /// Constructs the ast for a group,
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start = self.consume(Token::OpenParen)?.span.clone();
-        let ast   = self.expression(Prec::None.left(), true)?;
-        let end   = self.consume(Token::CloseParen)?.span.clone();
-        Ok(Spanned::new(
-            AST::Sugar(Sugar::group(ast)),
-            Span::combine(&start, &end),
-        ))
+        let ungrouped = self.ungroup(Delim::Paren)?;
+        todo!("swap out smaller token stream w/ larger one");
+        let ast = self.expression(Prec::None.left(), true)?;
+        Ok(Spanned::new(AST::Sugar(Sugar::group(ast)), ungrouped.span))
     }
 
     /// Parses the body of a block.
@@ -383,9 +410,8 @@ impl Parser {
     /// Building the appropriate `AST`.
     /// Just a body between curlies.
     pub fn block(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start   = self.consume(Token::OpenBracket)?.span.clone();
-        let mut ast = self.body(Token::CloseBracket)?;
-        let end     = self.consume(Token::CloseBracket)?.span.clone();
+        let ungrouped = self.ungroup(Delim::Paren)?;
+        let mut ast = self.body(todo!())?;
 
         // construct a record if applicable
         // match ast {
@@ -398,7 +424,7 @@ impl Parser {
         //     _ => (),
         // }
 
-        return Ok(Spanned::new(ast, Span::combine(&start, &end)));
+        return Ok(Spanned::new(ast, ungrouped.span));
     }
 
     // pub fn type_(&mut self) -> Result<Spanned<AST>, Syntax> {
@@ -416,7 +442,8 @@ impl Parser {
     /// ```
     /// and evaluates to the value returned by the ffi function.
     pub fn magic(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start = self.consume(Token::Magic)?.span.clone();
+        // TODO: get rid of consume.
+        let start = self.consume_iden(ResIden::Magic)?.span.clone();
 
         let Spanned { item: token, span } = self.advance();
         let name = match token {
