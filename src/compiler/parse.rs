@@ -18,6 +18,9 @@ use crate::construct::{
     module::{ThinModule, Module},
 };
 
+/// TODO: Instead of calling .body, wrap everything in a Block,
+/// Which should simplify code later on
+
 impl Lower for ThinModule<Vec<Spanned<Token>>> {
     type Out = Module<Spanned<AST>, usize>;
 
@@ -26,7 +29,10 @@ impl Lower for ThinModule<Vec<Spanned<Token>>> {
     fn lower(self) -> Result<Self::Out, Syntax> {
         let mut parser = Parser::new(self.repr);
         let ast = parser.body(Token::End)?;
-        parser.consume(Token::End)?;
+
+        todo!("See above TODO");
+        // parser.consume(Token::End)?;
+
         return Ok(Module::new(
             Spanned::new(ast, Span::empty()),
             parser.symbols.len()
@@ -79,7 +85,9 @@ impl Prec {
 /// use the `parse` function instead.
 #[derive(Debug)]
 pub struct Parser {
-    tokens:  Vec<Spanned<Token>>,
+    /// Stack of token streams because tokens can be grouped.
+    /// The topmost token stream is the one being parsed.
+    tokens:  Vec<Vec<Spanned<Token>>>,
     index:   usize,
     symbols: HashMap<String, SharedSymbol>,
 }
@@ -87,16 +95,20 @@ pub struct Parser {
 impl Parser {
     /// Create a new `parser`.
     pub fn new(tokens: Vec<Spanned<Token>>) -> Parser {
-        Parser { tokens, index: 0, symbols: HashMap::new() }
+        Parser { tokens: vec![tokens], index: 0, symbols: HashMap::new() }
     }
 
     // Cookie Monster's Helper Functions:
 
+    pub fn tokens(&self) -> &Vec<Spanned<Token>> {
+        return &self.tokens[self.tokens.len() - 1];
+    }
+
     // NOTE: Maybe don't return bool?
     /// Consumes all seperator tokens, returning whether there were any.
     pub fn sep(&mut self) -> bool {
-        if self.tokens[self.index].item != Token::Sep { false } else {
-            while self.tokens[self.index].item == Token::Sep {
+        if self.tokens()[self.index].item != Token::Sep { false } else {
+            while self.tokens()[self.index].item == Token::Sep {
                 self.index += 1;
             };
             true
@@ -109,22 +121,22 @@ impl Parser {
     pub fn draw(&self) -> &Spanned<Token> {
         let mut offset = 0;
 
-        while self.tokens[self.index + offset].item == Token::Sep {
+        while self.tokens()[self.index + offset].item == Token::Sep {
             offset += 1;
         }
 
-        return &self.tokens[self.index + offset];
+        return &self.tokens()[self.index + offset];
     }
 
     /// Returns the current token then advances the parser.
     pub fn advance(&mut self) -> &Spanned<Token> {
         self.index += 1;
-        &self.tokens[self.index - 1]
+        &self.tokens()[self.index - 1]
     }
 
     /// Returns the first token.
     pub fn current(&self) -> &Spanned<Token> {
-        &self.tokens[self.index]
+        &self.tokens()[self.index]
     }
 
     /// Returns the first non-Sep token.
@@ -149,9 +161,9 @@ impl Parser {
     pub fn consume_iden(&mut self, iden: ResIden) -> Result<&Spanned<Token>, Syntax> {
         let current = self.advance();
 
-        if let Token::Iden(name) = current.item {
+        if let Token::Iden(ref name) = current.item {
             if ResIden::try_new(&name)
-                .ok_or(Syntax::error("Invalid keyword", &self.current().span))?
+                .ok_or(Syntax::error("Invalid keyword", &current.span))?
             == iden {
                 return Ok(current);
             }
@@ -164,12 +176,11 @@ impl Parser {
     }
 
     pub fn consume_op(&mut self, op: ResOp) -> Result<&Spanned<Token>, Syntax> {
-        self.index += 1;
-        let current = &self.tokens[self.index - 1];
+        let current = self.advance();
 
-        if let Token::Op(name) = current.item {
+        if let Token::Op(ref name) = current.item {
             if ResOp::try_new(&name)
-                .ok_or(Syntax::error("Invalid operator", &self.current().span))?
+                .ok_or(Syntax::error("Invalid operator", &current.span))?
             == op {
                 return Ok(current);
             }
@@ -181,8 +192,8 @@ impl Parser {
         ))
     }
 
-    pub fn intern_symbol(&mut self, name: String) -> SharedSymbol {
-        if let Some(symbol) = self.symbols.get(&name) {
+    pub fn intern_symbol(&mut self, name: &str) -> SharedSymbol {
+        if let Some(symbol) = self.symbols.get(name) {
             *symbol
         } else {
             let symbol = SharedSymbol(self.symbols.len());
@@ -196,9 +207,9 @@ impl Parser {
     /// Looks at the current token and parses an infix expression
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
-            Token::End      => Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::empty())),
+            Token::End => todo!("remove end from prefix rule"), // Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::empty())),
             // TODO: groups!
-            Token::Iden(name) => match ResIden::try_new(&name) {
+            Token::Iden(ref name) => match ResIden::try_new(&name) {
                 // keywords
                 Some(_) => todo!(),
                 None    => todo!(),
@@ -213,7 +224,7 @@ impl Parser {
     /// Looks at the current token and parses the right side of any infix expressions.
     pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
-            Token::Op(name) => match ResOp::try_new(&name)
+            Token::Op(ref name) => match ResOp::try_new(&name)
                 .ok_or(Syntax::error("Invalid operator", &self.current().span))?
             {
                 ResOp::Assign  => self.assign(left),
@@ -310,36 +321,44 @@ impl Parser {
 
     // Prefix:
 
-    /// Constructs an AST for a symbol.
-    pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let index = if let Token::Iden(s) = self.advance() {
-
-        }
-
-        let index = self.intern_symbol(symbol.span.contents());
-
+    fn super_ugly_println_hack_named_something_silly_so_I_will_remove_it(
+        &mut self,
+        span: Span,
+    ) -> Spanned<AST> {
         // nothing is more permanant, but
         // temporary workaround until prelude
-        let name = symbol.span.contents();
-        if name == "println" {
-            let var = self.intern_symbol("#println".to_string());
+        let var = self.intern_symbol("#println");
 
-            return Ok(Spanned::new(
-                AST::Lambda(Lambda::new(
-                    Spanned::new(Pattern::Symbol(var), Span::empty()),
-                    Spanned::new(AST::Base(Base::ffi(
-                        "println",
-                        Spanned::new(AST::Base(Base::Symbol(var)), Span::empty()),
-                    )), Span::empty()),
-                )),
-                symbol.span.clone(),
-            ));
-        }
+        return Spanned::new(
+            AST::Lambda(Lambda::new(
+                Spanned::new(Pattern::Symbol(var), Span::empty()),
+                Spanned::new(AST::Base(Base::ffi(
+                    "println",
+                    Spanned::new(AST::Base(Base::Symbol(var)), Span::empty()),
+                )), Span::empty()),
+            )),
+            span,
+        );
+    }
 
-        Ok(Spanned::new(
-            AST::Base(Base::Symbol(index)),
-            symbol.span.clone(),
-        ))
+    /// Constructs an AST for a symbol.
+    pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let token = self.advance();
+        let span = token.span.clone();
+
+        let index = if let Token::Iden(ref name) = token.item {
+            if name == "println" {
+                return Ok(
+                    self.super_ugly_println_hack_named_something_silly_so_I_will_remove_it(span)
+                );
+            } else {
+                self.intern_symbol(name)
+            }
+        } else {
+            todo!()
+        };
+
+        Ok(Spanned::new(AST::Base(Base::Symbol(index)), span))
     }
 
     /// Constructs the AST for a literal, such as a number or string.
@@ -360,6 +379,7 @@ impl Parser {
 
     /// Expects the next token to be a group token, containing a sub token stream.
     /// Unwraps the group, and returns the spanned token stream.
+    /// Appends Token::End to the expanded token stream.
     /// The returned Span includes the delimiters.
     pub fn ungroup(&mut self, expected_delim: Delim) -> Result<Spanned<Vec<Spanned<Token>>>, Syntax> {
         let group = self.advance();
@@ -383,8 +403,10 @@ impl Parser {
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
         let ungrouped = self.ungroup(Delim::Paren)?;
-        todo!("swap out smaller token stream w/ larger one");
+        self.tokens.push(ungrouped.item);
+        // TODO verify that error doesn't mess up parsing by not popping
         let ast = self.expression(Prec::None.left(), true)?;
+        self.tokens.pop();
         Ok(Spanned::new(AST::Sugar(Sugar::group(ast)), ungrouped.span))
     }
 
@@ -398,8 +420,9 @@ impl Parser {
         while self.skip().item != end {
             let ast = self.expression(Prec::None, false)?;
             expressions.push(ast);
-            if let Err(_) = self.consume(Token::Sep) {
-                break;
+            match self.advance().item {
+                Token::Sep => (),
+                _          => { break; },
             }
         }
 
@@ -464,18 +487,17 @@ impl Parser {
     }
 
     /// Parse a label.
-    /// A label takes the form of `<Label> <expression>`
+    /// A label must be the first element of a form
     pub fn label(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start = self.consume(Token::Label)?.span.clone();
-        let ast = self.expression(Prec::End, false)?;
-        let end = ast.span.clone();
-        return Ok(Spanned::new(
-            AST::Base(Base::label(Spanned::new(
-                self.intern_symbol(start.contents()),
-                start,
-            ), ast)),
-            Span::combine(&start, &end),
-        ));
+        let token = self.advance();
+        let span = token.span.clone();
+
+        if let Token::Label(ref name) = token.item {
+            let ast = AST::Base(Base::Label(self.intern_symbol(name)));
+            Ok(Spanned::new(ast, span))
+        } else {
+            unreachable!("")
+        }
     }
 
     pub fn neg(&mut self) -> Result<Spanned<AST>, Syntax> {
@@ -551,6 +573,9 @@ impl Parser {
     // TODO: names must be full qualified paths.
 
     /// Parses a left-associative binary operator.
+    /// Note that this method does not automatically associate left,
+    /// So when parsing a binop that is left-associative, like addition,
+    /// make sure to associate left.
     fn binop(
         &mut self,
         // op: Token,

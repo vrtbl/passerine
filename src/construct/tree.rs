@@ -44,8 +44,8 @@ pub enum Pattern<S> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Base<T, S> {
     Symbol(S),
+    Label(S),
     Data(Data),
-    Label(Spanned<S>, Box<T>),
     Tuple(Vec<T>),
 
     Block(Vec<T>),
@@ -55,10 +55,6 @@ pub enum Base<T, S> {
 }
 
 impl<T, S> Base<T, S> {
-    pub fn label(symbol: Spanned<S>, tree: T) -> Self {
-        Base::Label(symbol, Box::new(tree))
-    }
-
     pub fn call(fun: T, arg: T) -> Self {
         Base::Call(Box::new(fun), Box::new(arg))
     }
@@ -139,11 +135,16 @@ impl TryFrom<AST> for Pattern<SharedSymbol> {
     /// When the compiler can determine that an AST is actually a pattern,
     /// It performs this conversion.
     fn try_from(ast: AST) -> Result<Self, Self::Error> {
+        if true { todo!("SharedSymbol lookup"); }
         Ok(
             match ast {
                 AST::Base(Base::Symbol(s)) => Pattern::Symbol(s),
                 AST::Base(Base::Data(d)) => Pattern::Data(d),
-                AST::Base(Base::Label(k, a)) => Pattern::Label(k, Box::new(a.map(Pattern::try_from)?)),
+                AST::Base(Base::Label(k)) => Err(format!(
+                    "This Label used in a pattern does not unwrap any data.\n\
+                    To match a Label and ignore its contents, use `{:?} _`",
+                    k,
+                ))?,
                 AST::Base(Base::Tuple(t)) => {
                     let mut patterns = vec![];
                     for item in t {
