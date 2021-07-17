@@ -1,24 +1,51 @@
 use std::fmt;
 use crate::common::span::Span;
 
-// TODO: rename to Static?
+/// Represents a note attached to a Syntax error,
+/// i.e. a location in source code with an optional
+/// specific hint or tip.
+#[derive(Debig, PartialEq, Eq)]
+pub struct Note {
+    span: Span,
+    hint: Option<String>,
+}
+
 /// Represents a static error (syntax, semantics, etc.) found at compile time
 #[derive(Debug, PartialEq, Eq)]
 pub struct Syntax {
     pub reason: String,
-    pub notes:  Vec<(Span, Option<String>)>,
+    pub notes:  Vec<Note>,
 }
 
 impl Syntax {
-    /// Creates a new static error.
+    /// Creates a new static error, with
     pub fn error(reason: &str, span: &Span) -> Syntax {
-        Syntax { reason: reason.to_string(), notes: span.clone() }
+        error_with_note(reason, Note { span, hint: None })
+    }
+
+    /// Creates a new static error, but with an added hint.
+    pub fn error_with_note(reason: &str, note: Note) -> Syntax {
+        Syntax {
+            reason: reason.to_string(),
+            notes:  vec![note],
+        }
+    }
+
+    pub fn add_note(&mut self, note: Note) {
+        self.notes.push(note)
     }
 }
 
 impl fmt::Display for Syntax {
     fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if !self.span.is_empty() { fmt::Display::fmt(&self.span, f)? };
+        for note in self.notes {
+            // TODO: include note when generating span, after ^^^
+            // like:              something wrong!
+            //                              ^^^^^ hint: do it right!
+            // The way span is formatted is a bit jank,
+            // should be composable methods to build up string.
+            if !note.span.is_empty() { fmt::Display::fmt(&self.span, f)? };
+        }
         write!(f, "Syntax Error: {}", self.message)
     }
 }
