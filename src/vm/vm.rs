@@ -159,14 +159,6 @@ impl VM {
         return result;
     }
 
-    // TODO: there are a lot of optimizations that can be made
-    // I'll list a few here:
-    // - searching the stack for variables
-    //   A global Hash-table has significantly less overhead for function calls
-    // - cloning the heck out of everything - useless copies
-    //   instead, lifetime analysis during compilation
-    // - replace some panics with Result<()>s
-
     /// Load a constant and push it onto the stack.
     #[inline]
     pub fn con(&mut self) -> Result<(), Trace> {
