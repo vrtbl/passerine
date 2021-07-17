@@ -136,13 +136,16 @@ impl Span {
 }
 
 impl Debug for Span {
-    // TODO: use the field, etc. constructor.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        if !self.is_empty() {
-            write!(f, "Span {{ {:?}, ({}, {}) }}", self.contents(), self.offset, self.length)
-        } else {
-            write!(f, "Span {{ Empty }}")
+        if self.is_empty() {
+            return write!(f, "Span::Empty");
         }
+
+        f.debug_struct("Span")
+            .field("content", &self.contents())
+            .field("offset", &self.offset)
+            .field("length", &self.length)
+            .finish()
     }
 }
 

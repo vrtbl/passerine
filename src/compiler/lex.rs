@@ -79,7 +79,7 @@ impl Lexer {
                     Some((d, back)) if d == delim => back,
                     _ => return Err(Syntax::error(
                         "Unexpected closing delimiter with no match",
-                        &Span::point(&self.source, self.offset),
+                        error_span,
                     )),
                 };
 
@@ -125,6 +125,7 @@ impl Lexer {
             Box::new(Lexer::op),
 
             // data
+            Box::new(Lexer::unit),
             Box::new(Lexer::boolean),
             Box::new(Lexer::real),
             Box::new(Lexer::integer),
@@ -406,6 +407,12 @@ impl Lexer {
         return Err("Unexpected EOF while parsing string literal".to_string());
     }
 
+    /// Matches an empty tuple
+    pub fn unit(source: &str) -> Result<Bite, String> {
+        Lexer::literal(source, "()", Token::Data(Data::Unit))
+    }
+
+    // TODO: booleans implemented in std
     /// Matches a literal boolean.
     pub fn boolean(source: &str) -> Result<Bite, String> {
         for (lit, val) in [
