@@ -33,7 +33,7 @@ pub enum Token {
 
 pub type Tokens = Vec<Spanned<Token>>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Delim {
     Paren,
     Curly,

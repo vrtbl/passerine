@@ -28,7 +28,7 @@ impl Lower for ThinModule<Vec<Spanned<Token>>> {
     /// Exposes the functionality of the `Parser`.
     fn lower(self) -> Result<Self::Out, Syntax> {
         let mut parser = Parser::new(self.repr);
-        let ast = parser.body(Token::End)?;
+        let ast = parser.body()?;
 
         println!("{:#?}", ast);
         todo!("See above TODO");
@@ -209,7 +209,11 @@ impl Parser {
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
             Token::End => todo!("remove end from prefix rule"), // Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::empty())),
-            // TODO: groups!
+            Token::Group { delim, .. } => match delim {
+                Delim::Curly => self.block(),
+                Delim::Paren => self.group(),
+                Delim::Square => todo!("Lists are not yet implemented"),
+            },
             Token::Iden(ref name) => match ResIden::try_new(&name) {
                 // keywords
                 Some(ResIden::Type)  => todo!(),
@@ -277,7 +281,7 @@ impl Parser {
 
             // prefix
               Token::Group { .. }
-            | Token::Iden(_) // TODO: Iden in the right place?
+            | Token::Iden(_)
             | Token::Label(_)
             | Token::Data(_) => Prec::Call,
 
@@ -406,8 +410,8 @@ impl Parser {
             }
         }
 
-        // TODO: raise a syntax error message
-        todo!("unexpected group delim error")
+        // specified group delimiter was not matched
+        return Err(self.unexpected());
     }
 
     /// Constructs the ast for a group,
@@ -417,6 +421,7 @@ impl Parser {
         self.tokens.push(ungrouped.item);
         // TODO verify that error doesn't mess up parsing by not popping
         let ast = self.expression(Prec::None.left(), true)?;
+        todo!("add finalize method that checks for End");
         self.tokens.pop();
         Ok(Spanned::new(AST::Sugar(Sugar::group(ast)), ungrouped.span))
     }
@@ -425,10 +430,10 @@ impl Parser {
     /// A block is one or more expressions, separated by separators.
     /// This is more of a helper function, as it serves as both the
     /// parser entrypoint while still being recursively nestable.
-    pub fn body(&mut self, end: Token) -> Result<AST, Syntax> {
+    pub fn body(&mut self) -> Result<AST, Syntax> {
         let mut expressions = vec![];
 
-        while self.skip().item != end {
+        while self.skip().item != Token::End {
             let ast = self.expression(Prec::None, false)?;
             expressions.push(ast);
             match self.advance().item {
@@ -445,7 +450,9 @@ impl Parser {
     /// Just a body between curlies.
     pub fn block(&mut self) -> Result<Spanned<AST>, Syntax> {
         let ungrouped = self.ungroup(Delim::Paren)?;
-        let mut ast = self.body(todo!())?;
+        self.tokens.push(ungrouped.item);
+        let mut ast = self.body()?;
+        self.tokens.pop();
 
         // construct a record if applicable
         // match ast {
@@ -476,7 +483,6 @@ impl Parser {
     /// ```
     /// and evaluates to the value returned by the ffi function.
     pub fn magic(&mut self) -> Result<Spanned<AST>, Syntax> {
-        // TODO: get rid of consume.
         let start = self.consume_iden(ResIden::Magic)?.span.clone();
 
         let Spanned { item: token, span } = self.advance();
