@@ -30,6 +30,7 @@ impl Lower for ThinModule<Vec<Spanned<Token>>> {
         let mut parser = Parser::new(self.repr);
         let ast = parser.body(Token::End)?;
 
+        println!("{:#?}", ast);
         todo!("See above TODO");
         // parser.consume(Token::End)?;
 
@@ -211,8 +212,9 @@ impl Parser {
             // TODO: groups!
             Token::Iden(ref name) => match ResIden::try_new(&name) {
                 // keywords
-                Some(_) => todo!(),
-                None    => todo!(),
+                Some(ResIden::Type)  => todo!(),
+                Some(ResIden::Magic) => self.magic(),
+                None                 => self.symbol(),
             },
             Token::Label(_) => self.label(),
             Token::Data(_)  => self.literal(),
@@ -346,13 +348,13 @@ impl Parser {
         let token = self.advance();
         let span = token.span.clone();
 
-        let index = if let Token::Iden(ref name) = token.item {
+        let index = if let Token::Iden(name) = token.item.clone() {
             if name == "println" {
                 return Ok(
                     self.super_ugly_println_hack_named_something_silly_so_I_will_remove_it(span)
                 );
             } else {
-                self.intern_symbol(name)
+                self.intern_symbol(&name)
             }
         } else {
             todo!()
@@ -383,12 +385,21 @@ impl Parser {
     /// The returned Span includes the delimiters.
     pub fn ungroup(&mut self, expected_delim: Delim) -> Result<Spanned<Vec<Spanned<Token>>>, Syntax> {
         let group = self.advance();
-        let span = group.span;
+        // self.index += 1;
+        // let len = self.tokens.len() - 1;
+        // let group = mem::replace(
+        //     &mut self.tokens[len][self.index],
+        //     Spanned::new(Token::End, Span::empty()),
+        // );
+        let span = group.span.clone();
 
+        // TODO: remove clone, nondestructively
+        // (not like example above)
+        // will have to adjust types (slice over vec) and lifetimes
         if let Token::Group {
             delim,
             mut tokens,
-        } = group.item {
+        } = group.item.clone() {
             if delim == expected_delim {
                 tokens.push(Spanned::new(Token::End, Span::empty()));
                 return Ok(Spanned::new(tokens, span));
@@ -492,8 +503,9 @@ impl Parser {
         let token = self.advance();
         let span = token.span.clone();
 
-        if let Token::Label(ref name) = token.item {
-            let ast = AST::Base(Base::Label(self.intern_symbol(name)));
+        // we have to clone here to avoid mut reference conflicts
+        if let Token::Label(name) = token.item.clone() {
+            let ast = AST::Base(Base::Label(self.intern_symbol(&name)));
             Ok(Spanned::new(ast, span))
         } else {
             unreachable!("")

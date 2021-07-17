@@ -7,7 +7,7 @@ pub fn main() {
         .map_err(|_| "Error: File could not be read".to_string());
 
     let us = source.unwrap();
-    println!("{:#?}", ThinModule::thin(us).lower());
+    println!("{:#?}", ThinModule::thin(us).lower().and_then(Lower::lower));
 
     // compile and run the file at the specified path
     // let bytecode = source.and_then(|s| compile(s).map_err(|e| e.to_string()));
