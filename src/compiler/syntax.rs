@@ -5,14 +5,14 @@ use crate::common::span::Span;
 /// Represents a static error (syntax, semantics, etc.) found at compile time
 #[derive(Debug, PartialEq, Eq)]
 pub struct Syntax {
-    pub message: String,
-    pub span:    Span,
+    pub reason: String,
+    pub notes:  Vec<(Span, Option<String>)>,
 }
 
 impl Syntax {
     /// Creates a new static error.
-    pub fn error(message: &str, span: &Span) -> Syntax {
-        Syntax { message: message.to_string(), span: span.clone() }
+    pub fn error(reason: &str, span: &Span) -> Syntax {
+        Syntax { reason: reason.to_string(), notes: span.clone() }
     }
 }
 
