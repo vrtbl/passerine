@@ -35,7 +35,7 @@ impl Lower for ThinModule<Vec<Spanned<Token>>> {
         // parser.consume(Token::End)?;
 
         return Ok(Module::new(
-            Spanned::new(ast, Span::empty()),
+            Spanned::new(ast, Span::Empty),
             parser.symbols.len()
         ));
     }
@@ -208,7 +208,7 @@ impl Parser {
     /// Looks at the current token and parses an infix expression
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
-            Token::End => todo!("remove end from prefix rule"), // Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::empty())),
+            Token::End => todo!("remove end from prefix rule"), // Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::Empty)),
             Token::Group { delim, .. } => match delim {
                 Delim::Curly => self.block(),
                 Delim::Paren => self.group(),
@@ -337,11 +337,11 @@ impl Parser {
 
         return Spanned::new(
             AST::Lambda(Lambda::new(
-                Spanned::new(Pattern::Symbol(var), Span::empty()),
+                Spanned::new(Pattern::Symbol(var), Span::Empty),
                 Spanned::new(AST::Base(Base::ffi(
                     "println",
-                    Spanned::new(AST::Base(Base::Symbol(var)), Span::empty()),
-                )), Span::empty()),
+                    Spanned::new(AST::Base(Base::Symbol(var)), Span::Empty),
+                )), Span::Empty),
             )),
             span,
         );
@@ -393,7 +393,7 @@ impl Parser {
         // let len = self.tokens.len() - 1;
         // let group = mem::replace(
         //     &mut self.tokens[len][self.index],
-        //     Spanned::new(Token::End, Span::empty()),
+        //     Spanned::new(Token::End, Span::Empty),
         // );
         let span = group.span.clone();
 
@@ -405,7 +405,7 @@ impl Parser {
             mut tokens,
         } = group.item.clone() {
             if delim == expected_delim {
-                tokens.push(Spanned::new(Token::End, Span::empty()));
+                tokens.push(Spanned::new(Token::End, Span::Empty));
                 return Ok(Spanned::new(tokens, span));
             }
         }
@@ -639,7 +639,7 @@ mod test {
     pub fn empty() {
         let source = Source::source("");
         let ast = ThinModule::thin(source).lower().unwrap().lower();
-        let result = Module::new(Spanned::new(AST::Base(Base::Block(vec![])), Span::empty()), 0);
+        let result = Module::new(Spanned::new(AST::Base(Base::Block(vec![])), Span::Empty), 0);
         assert_eq!(ast, Ok(result));
     }
 

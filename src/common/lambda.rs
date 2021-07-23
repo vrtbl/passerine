@@ -165,14 +165,14 @@ impl Lambda {
 
     /// Look up the nearest span at or before the index of a specific bytecode op.
     pub fn index_span(&self, index: usize) -> Span {
-        let mut best = &Span::empty();
+        let mut best = None;
 
         for (i, span) in self.spans.iter() {
             if i > &index { break; }
-            best = span;
+            best = Some(span);
         }
 
-        return best.clone();
+        return best.unwrap().clone();
     }
 
     /// Adds a ffi function to the ffi table,

@@ -106,7 +106,7 @@ impl Lexer {
             self.offset += consumed;
         }
 
-        tokens.push(Spanned::new(Token::End, Span::empty()));
+        tokens.push(Spanned::new(Token::End, Span::Empty));
 
         return Ok(tokens);
     }
@@ -206,7 +206,7 @@ impl Lexer {
 
         match &source.as_bytes()[..literal.len()] {
             s if s == literal.as_bytes() => Ok(literal.len()),
-            _                            => Err(format!("Expected '{}'", source)),
+            _ => Err(format!("Expected '{}'", source)),
         }
     }
 
@@ -470,7 +470,7 @@ impl Lexer {
 //         // no source code? no tokens!
 //         let result = ThinModule::thin(Source::source("")).lower();
 //         let target: Result<ThinModule<Tokens>, Syntax> =
-//             Ok(ThinModule::thin(vec![Spanned::new(Token::End, Span::empty())]));
+//             Ok(ThinModule::thin(vec![Spanned::new(Token::End, Span::Empty)]));
 //
 //         assert_eq!(result, target);
 //     }
@@ -483,7 +483,7 @@ impl Lexer {
 //             Spanned::new(Token::Symbol,                       Span::new(&source, 0, 4)),
 //             Spanned::new(Token::Assign,                       Span::new(&source, 5, 1)),
 //             Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 7, 4)),
-//             Spanned::new(Token::End,                          Span::empty()),
+//             Spanned::new(Token::End,                          Span::Empty),
 //         ];
 //
 //         assert_eq!(ThinModule::thin(source).lower(), Ok(ThinModule::thin(result)));
@@ -496,7 +496,7 @@ impl Lexer {
 //         let result = vec![
 //             Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 2, 4)),
 //             Spanned::new(Token::Sep,                          Span::new(&source, 8, 3)),
-//             Spanned::new(Token::End,                          Span::empty()),
+//             Spanned::new(Token::End,                          Span::Empty),
 //
 //         ];
 //
@@ -517,7 +517,7 @@ impl Lexer {
 //             Spanned::new(Token::Symbol,                       Span::new(&source, 17, 5)),
 //             Spanned::new(Token::Sep,                          Span::new(&source, 22, 1)),
 //             Spanned::new(Token::CloseBracket,                 Span::new(&source, 23, 1)),
-//             Spanned::new(Token::End,                          Span::empty()),
+//             Spanned::new(Token::End,                          Span::Empty),
 //         ];
 //
 //         assert_eq!(ThinModule::thin(source).lower(), Ok(ThinModule::thin(result)));
@@ -539,7 +539,7 @@ impl Lexer {
 //             Spanned::new(Token::Symbol,                                   Span::new(&source, 28, 8)),
 //             Spanned::new(Token::String(Data::String("heck".to_string())), Span::new(&source, 37, 6)),
 //             Spanned::new(Token::CloseParen,                               Span::new(&source, 43, 1)),
-//             Spanned::new(Token::End,                                      Span::empty()),
+//             Spanned::new(Token::End,                                      Span::Empty),
 //         ];
 //
 //         assert_eq!(ThinModule::thin(source).lower(), Ok(ThinModule::thin(result)));

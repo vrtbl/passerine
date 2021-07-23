@@ -4,13 +4,15 @@ use crate::common::span::Span;
 /// Represents a note attached to a Syntax error,
 /// i.e. a location in source code with an optional
 /// specific hint or tip.
-#[derive(Debig, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Note {
     span: Span,
     hint: Option<String>,
 }
 
-/// Represents a static error (syntax, semantics, etc.) found at compile time
+/// Represents a static error (syntax, semantics, etc.) found at compile time.
+/// Ideally, each note included should have a distinct `Span` and hint.
+/// Usually, one `Note` for an error is enough.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Syntax {
     pub reason: String,
@@ -20,7 +22,7 @@ pub struct Syntax {
 impl Syntax {
     /// Creates a new static error, with
     pub fn error(reason: &str, span: &Span) -> Syntax {
-        error_with_note(reason, Note { span, hint: None })
+        Syntax::error_with_note(reason, Note { span: span.clone(), hint: None })
     }
 
     /// Creates a new static error, but with an added hint.
