@@ -6,8 +6,8 @@ use crate::common::span::Span;
 /// specific hint or tip.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Note {
-    span: Span,
-    hint: Option<String>,
+    pub span: Span,
+    pub hint: Option<String>,
 }
 
 /// Represents a static error (syntax, semantics, etc.) found at compile time.
@@ -40,15 +40,31 @@ impl Syntax {
 
 impl fmt::Display for Syntax {
     fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for note in self.notes {
-            // TODO: include note when generating span, after ^^^
-            // like:              something wrong!
-            //                              ^^^^^ hint: do it right!
-            // The way span is formatted is a bit jank,
-            // should be composable methods to build up string.
-            if !note.span.is_empty() { fmt::Display::fmt(&self.span, f)? };
+        for note in self.notes.iter() {
+            let formatted = note.span.format();
+
+            if let Some(ref hint) = note.hint {
+                if formatted.is_multiline() {
+                    writeln!(f, "{}", formatted)?;
+                    writeln!(f, "{} ├─ note: {} ", formatted.gutter_padding(), hint)?;
+                    writeln!(f, "{} │", " ".repeat(formatted.gutter_padding()))?;
+                } else {
+                    writeln!(f, "In {}:{}:{}", formatted.path, formatted.start, formatted.start_col)?;
+                    writeln!(f, "{} │", " ".repeat(formatted.gutter_padding()))?;
+                    writeln!(f, "{} │ {}", formatted.start + 1, formatted.lines[0])?;
+                    writeln!(f, "{} │ {}{} note: {}",
+                        " ".repeat(formatted.gutter_padding()),
+                        " ".repeat(formatted.start_col),
+                        "^".repeat(formatted.carrots().unwrap()),
+                        hint,
+                    )?;
+                    writeln!(f, "{} │", " ".repeat(formatted.gutter_padding()))?;
+                }
+            } else {
+                write!(f, "{}", formatted)?;
+            }
         }
-        write!(f, "Syntax Error: {}", self.message)
+        write!(f, "Syntax Error: {}", self.reason)
     }
 }
 

@@ -18,7 +18,6 @@
 
 pub mod lex;
 pub mod parse;
-// pub mod desugar;
 // pub mod hoist;
 // pub mod gen;
 

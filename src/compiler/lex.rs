@@ -15,7 +15,10 @@ use crate::construct::{
     token::{Delim, Token, Tokens},
 };
 
-use crate::compiler::{lower::Lower, syntax::Syntax};
+use crate::compiler::{
+    lower::Lower,
+    syntax::{Syntax, Note},
+};
 
 type Bite = (Token, usize);
 
@@ -40,7 +43,7 @@ pub struct Lexer {
     /// The current lexing offset.
     offset: usize,
     /// Closing tokens to match.
-    closing: Vec<(Delim, usize)>,
+    closing: Vec<(Delim, usize, Span)>,
 }
 
 impl Lexer {
@@ -64,27 +67,27 @@ impl Lexer {
             // strip leading whitespace
             self.strip();
 
-            // current lexer error location, if we error
-            let error_span = &Span::point(&self.source, self.offset);
+            // current lexer location
+            let current_span = Span::point(&self.source, self.offset);
 
             // check for delimiters
             // not a fan of continue, but oh well
             // who is, anyway?
             if let Some(delim) = Lexer::open_delim(self.remaining()) {
-                self.closing.push((delim, tokens.len()));
+                self.closing.push((delim, tokens.len(), current_span));
                 self.offset += 1;
                 continue;
             } else if let Some(delim) = Lexer::close_delim(self.remaining()) {
-                let back = match self.closing.pop() {
-                    Some((d, back)) if d == delim => back,
+                let (back, start) = match self.closing.pop() {
+                    Some((d, back, span)) if d == delim => (back, span),
                     _ => return Err(Syntax::error(
                         "Unexpected closing delimiter with no match",
-                        error_span,
+                        &current_span,
                     )),
                 };
 
                 let token_group = tokens.split_off(back);
-                let group_span  = Spanned::build(&token_group);
+                let group_span  = Span::combine(&start, &current_span);
                 let group_token = Token::Group { delim, tokens: token_group };
                 tokens.push(Spanned::new(group_token, group_span));
 
@@ -95,7 +98,7 @@ impl Lexer {
             // get next token kind, build token
             let (kind, consumed) = match self.step() {
                 Ok(k)  => k,
-                Err(e) => return Err(Syntax::error(&e, &error_span)),
+                Err(e) => return Err(Syntax::error(&e, &current_span)),
             };
 
             // annotate it
@@ -106,8 +109,14 @@ impl Lexer {
             self.offset += consumed;
         }
 
-        tokens.push(Spanned::new(Token::End, Span::Empty));
+        if !self.closing.is_empty() {
+            return Err(Syntax::error(
+                "Opening delimiter is never closed",
+                &self.closing.pop().unwrap().2,
+            ));
+        }
 
+        tokens.push(Spanned::new(Token::End, Spanned::build(&tokens)));
         return Ok(tokens);
     }
 
@@ -325,7 +334,7 @@ impl Lexer {
 
         for char in source.chars() {
             match char {
-                a if "!#$%&*+,-./:<=>?@\\^_`|~".contains(a)
+                a if "!#$%&*+,-./:<=>?@\\^`|~".contains(a)
                   => { len += a.len_utf8() },
                 _ => { break;              },
             }
