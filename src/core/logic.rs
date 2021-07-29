@@ -9,7 +9,7 @@ use crate::core::extract::binop;
 /// Returns `true` if the `Data` are equal, false otherwise.
 pub fn equal(data: Data) -> Result<Data, String> {
     let (left, right) = binop(data);
-    return Ok(Data::Boolean(left == right));
+    Ok(Data::Boolean(left == right))
 }
 
 pub fn greater(data: Data) -> Result<Data, String> {
@@ -17,10 +17,10 @@ pub fn greater(data: Data) -> Result<Data, String> {
     let result = match binop(data) {
         (Data::Real(left),    Data::Real(right))    => left > right,
         (Data::Integer(left), Data::Integer(right)) => left > right,
-        _ => Err("Expected two numbers of the same type")?,
+        _ => return Err("Expected two numbers of the same type".to_string()),
     };
 
-    return Ok(Data::Boolean(result));
+    Ok(Data::Boolean(result))
 }
 
 pub fn less(data: Data) -> Result<Data, String> {
@@ -28,10 +28,10 @@ pub fn less(data: Data) -> Result<Data, String> {
     let result = match binop(data) {
         (Data::Real(left),    Data::Real(right))    => left < right,
         (Data::Integer(left), Data::Integer(right)) => left < right,
-        _ => Err("Expected two numbers of the same type")?,
+        _ => return Err("Expected two numbers of the same type".to_string()),
     };
 
-    return Ok(Data::Boolean(result));
+    Ok(Data::Boolean(result))
 }
 
 pub fn greater_equal(data: Data) -> Result<Data, String> {
@@ -39,10 +39,10 @@ pub fn greater_equal(data: Data) -> Result<Data, String> {
     let result = match binop(data) {
         (Data::Real(left),    Data::Real(right))    => left >= right,
         (Data::Integer(left), Data::Integer(right)) => left >= right,
-        _ => Err("Expected two numbers of the same type")?,
+        _ => return Err("Expected two numbers of the same type".to_string()),
     };
 
-    return Ok(Data::Boolean(result));
+    Ok(Data::Boolean(result))
 }
 
 pub fn less_equal(data: Data) -> Result<Data, String> {
@@ -50,8 +50,8 @@ pub fn less_equal(data: Data) -> Result<Data, String> {
     let result = match binop(data) {
         (Data::Real(left),    Data::Real(right))    => left <= right,
         (Data::Integer(left), Data::Integer(right)) => left <= right,
-        _ => Err("Expected two numbers of the same type")?,
+        _ => return Err("Expected two numbers of the same type".to_string()),
     };
 
-    return Ok(Data::Boolean(result));
+    Ok(Data::Boolean(result))
 }

@@ -1,7 +1,8 @@
 use std::{
     mem,
+    cell::RefCell,
+    cmp::Ordering,
     rc::Rc,
-    cell::RefCell
 };
 
 use crate::common::data::Data;
@@ -89,7 +90,7 @@ impl Stack {
         let old_slot = self.swap(self.frame_index(), Tagged::frame()).slot();
 
         if let Slot::Suspend(s) = old_slot {
-            return s;
+            s
         } else {
             unreachable!("Expected frame on top of stack");
         }
@@ -133,7 +134,7 @@ impl Stack {
     #[inline]
     pub fn unwind_frame(&mut self) -> bool {
         self.stack.truncate(self.frame_index() + 1);
-        return self.frames.len() > 1;
+        self.frames.len() > 1
     }
 
     /// returns a copy of the `Slot` of a local variable on the stack.
@@ -146,7 +147,7 @@ impl Stack {
         let copy = slot.clone();
         mem::drop(self.swap(local_index, Tagged::new(slot)));
 
-        return copy;
+        copy
     }
 
     /// Returns a copy of the `Data` stored in a local variable on the stack.
@@ -159,7 +160,7 @@ impl Stack {
         let copy = data.clone();
         mem::drop(self.swap(local_index, Tagged::new(Slot::Data(data))));
 
-        return copy;
+        copy
     }
 
     /// Sets a local - note that this function doesn't do much.
@@ -169,31 +170,34 @@ impl Stack {
     pub fn set_local(&mut self, index: usize) {
         let local_index = self.frame_index() + index + 1;
 
-        if (self.stack.len() - 1) == local_index {
-            // local is already in the correct spot; we declare it
-            return;
-        } else if (self.stack.len() - 1) < local_index {
-            // println!("{} < {}", self.stack.len() - 1, local_index);
-            unreachable!("Can not set local that is not yet on stack");
-        } else {
-            // get the old local
-            let slot = self.swap(local_index, Tagged::not_init()).slot();
+        match (self.stack.len() - 1).cmp(&local_index) {
+            Ordering::Greater => {
+                // get the old local
+                let slot = self.swap(local_index, Tagged::not_init()).slot();
 
-            // replace the old value with the new one if on the heap
-            let tagged = match slot {
-                Slot::Frame => unreachable!("Expected data, found frame"),
-                // if it is on the heap, we replace in the old value
-                Slot::Data(Data::Heaped(ref cell)) => {
-                    // TODO: check types?
-                    mem::drop(cell.replace(self.pop_data()));
-                    Tagged::new(slot)
-                }
-                // if it's not on the heap, we assume it's data,
-                // and do a quick swap-and-drop
-                _ => self.stack.pop().unwrap(),
-            };
+                // replace the old value with the new one if on the heap
+                let tagged = match slot {
+                    Slot::Frame => unreachable!("Expected data, found frame"),
+                    // if it is on the heap, we replace in the old value
+                    Slot::Data(Data::Heaped(ref cell)) => {
+                        // TODO: check types?
+                        mem::drop(cell.replace(self.pop_data()));
+                        Tagged::new(slot)
+                    }
+                    // if it's not on the heap, we assume it's data,
+                    // and do a quick swap-and-drop
+                    _ => self.stack.pop().unwrap(),
+                };
 
-            mem::drop(self.swap(local_index, tagged))
+                mem::drop(self.swap(local_index, tagged))
+            },
+            Ordering::Less => {
+                // println!("{} < {}", self.stack.len() - 1, local_index);
+                unreachable!("Can not set local that is not yet on stack");
+            },
+            _ => {
+                // local is already in the correct spot; we declare it
+            }
         }
     }
 }

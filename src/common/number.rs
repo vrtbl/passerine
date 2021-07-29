@@ -28,7 +28,7 @@ pub fn split_number(n: usize) -> Vec<u8> {
 
     // reverse chain so high bit byte is last
     bytes.reverse();
-    return bytes;
+    bytes
 }
 
 /// This takes a stream of bytes, and builds the next number in it.
@@ -54,7 +54,7 @@ pub fn build_number(bytes: &[u8]) -> (usize, usize) /* (index, eaten) */ {
          }
     }
 
-    return (i, e);
+    (i, e)
 }
 
 #[cfg(test)]

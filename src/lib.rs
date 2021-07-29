@@ -132,7 +132,7 @@ use std::rc::Rc;
 use common::{closure::Closure, source::Source};
 use compiler::{lex, parse, desugar, hoist, gen::{gen, gen_with_ffi}, syntax::Syntax};
 use crate::core::ffi::FFI;
-use vm::{vm::VM, trace::Trace};
+use vm::{VM, trace::Trace};
 
 /// Compiles a [`Source`] to some bytecode.
 pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {
@@ -142,7 +142,7 @@ pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {
     let sst      =    hoist(cst)?;
     let bytecode =      gen(sst)?;
 
-    return Ok(Closure::wrap(bytecode));
+    Ok(Closure::wrap(bytecode))
 }
 
 /// Compiles a [`Source`] to some bytecode,
@@ -154,7 +154,7 @@ pub fn compile_with_ffi(source: Rc<Source>, ffi: FFI) -> Result<Closure, Syntax>
     let sst      =             hoist(cst)?;
     let bytecode = gen_with_ffi(sst, ffi)?;
 
-    return Ok(Closure::wrap(bytecode));
+    Ok(Closure::wrap(bytecode))
 }
 
 /// Run a compiled [`Closure`].

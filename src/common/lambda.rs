@@ -99,7 +99,7 @@ impl Lambda {
             best = span;
         }
 
-        return best.clone();
+        best.clone()
     }
 
     /// Adds a ffi function to the ffi table,

@@ -32,7 +32,7 @@ impl std::fmt::Debug for FFIFunction {
 
 impl PartialEq for FFIFunction {
     fn eq(&self, _other: &FFIFunction) -> bool {
-        return false;
+        false
     }
 }
 
@@ -49,7 +49,15 @@ impl FFI {
     pub fn new() -> FFI {
         FFI(HashMap::new())
     }
+}
 
+impl Default for FFI {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl FFI {
     /// Returns true if the function has already been added to the `FFI`.
     pub fn add(&mut self, name: &str, function: FFIFunction) -> Result<(), String> {
         match self.0.insert(name.to_string(), function) {
@@ -81,7 +89,7 @@ impl FFI {
             }
         }
 
-        return if mismatches.0.is_empty() {
+        if mismatches.0.is_empty() {
             Ok(())
         } else {
             Err(mismatches)

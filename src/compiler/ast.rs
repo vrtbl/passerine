@@ -29,7 +29,7 @@ impl TryFrom<AST> for ArgPattern {
                     for a in f { mapped.push(a.map(ArgPattern::try_from)?); }
                     ArgPattern::Group(mapped)
                 }
-                _ => Err("Unexpected construct inside argument pattern")?,
+                _ => return Err("Unexpected construct inside argument pattern".into()),
             }
         )
     }
@@ -88,7 +88,7 @@ impl TryFrom<AST> for ASTPattern {
                     ASTPattern::Tuple(patterns)
                 }
                 AST::Group(e) => e.map(ASTPattern::try_from)?.item,
-                _ => Err("Unexpected construct inside pattern")?,
+                _ => return Err("Unexpected construct inside pattern".into()),
             }
         )
     }

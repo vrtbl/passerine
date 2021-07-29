@@ -1,6 +1,9 @@
 use std::{
     convert::TryFrom,
-    collections::HashMap,
+    collections::{
+        HashMap,
+        hash_map::Entry
+    }
 };
 
 use crate::common::{
@@ -41,7 +44,7 @@ impl Rule {
         arg_pat: Spanned<ArgPattern>,
         tree: Spanned<AST>,
     ) -> Result<Rule, Syntax> {
-        if Rule::keywords(&arg_pat).len() == 0 {
+        if Rule::keywords(&arg_pat).is_empty() {
             return Err(Syntax::error(
                 "Syntactic macro must have at least one pseudokeyword",
                 &arg_pat.span,
@@ -56,7 +59,7 @@ impl Rule {
         match &arg_pat.item {
             ArgPattern::Group(pats) => {
                 let mut keywords = vec![];
-                for pat in pats { keywords.append(&mut Rule::keywords(&pat)) }
+                for pat in pats { keywords.append(&mut Rule::keywords(pat)) }
                 keywords
             },
             ArgPattern::Keyword(name) => vec![name.clone()],
@@ -73,8 +76,10 @@ impl Rule {
         );
 
         for (n, t) in new {
-            if base.contains_key(&n) { return Err(collision); }
-            else                     { base.insert(n, t);     }
+            match base.entry(n) {
+                Entry::Vacant(e)   => e.insert(t),
+                Entry::Occupied(_) => return Err(collision),
+            };
         }
 
         Ok(())
@@ -113,7 +118,7 @@ impl Rule {
                 let mut bindings = HashMap::new();
                 for pat in pats {
                     let span = pat.span.clone();
-                    let new = match Rule::bind(&pat, &mut reversed_form)? {
+                    let new = match Rule::bind(pat, &mut reversed_form)? {
                         Ok(matched) => matched,
                         mismatch @ Err(_) => return Some(mismatch),
                     };
@@ -131,15 +136,14 @@ impl Rule {
     /// If the identifier is not tagged, this function just
     /// returns `<base>`.
     pub fn remove_tag(base: &str) -> String {
-        base.split("#").collect::<Vec<&str>>()[0].to_string()
+        base.split('#').collect::<Vec<&str>>()[0].to_string()
     }
 
     /// Turns a base identifier into a random identifier
     /// of the format `<base>#XXXXXXXX`,
     /// Gauranteed not to exist in bindings.
     pub fn unique_tag(base: String, bindings: &Bindings) -> String {
-        let mut tries = 0;
-        for _ in 0..1024 {
+        for tries in 0..1024 {
             let stamp = stamp(tries);
             // for example, `foo` may become `foo#d56aea12`
             // this should not be constructible as a symbol.
@@ -148,7 +152,6 @@ impl Rule {
                 // println!("{}", modified);
                 return modified;
             }
-            tries += 1;
         }
         panic!("Generated 1024 new unique identifiers for macro expansion, but all were already in use!");
     }
@@ -320,7 +323,7 @@ impl Rule {
                 return Err(Syntax::error(
                     "Nested macros are not allowed yet",
                     &tree.span,
-                ))?;
+                ));
             },
 
             AST::FFI { name, expression } => AST::ffi(
@@ -329,6 +332,6 @@ impl Rule {
             ),
         };
 
-        return Ok(Spanned::new(item, tree.span));
+        Ok(Spanned::new(item, tree.span))
     }
 }

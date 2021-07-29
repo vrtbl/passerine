@@ -20,7 +20,7 @@ pub fn parse(tokens: Vec<Spanned<Token>>) -> Result<Spanned<AST>, Syntax> {
     let mut parser = Parser::new(tokens);
     let ast = parser.body(Token::End)?;
     parser.consume(Token::End)?;
-    return Ok(Spanned::new(ast, Span::empty()));
+    Ok(Spanned::new(ast, Span::empty()))
 }
 
 /// We're using a Pratt parser, so this little enum
@@ -57,7 +57,7 @@ impl Prec {
     /// By default, the parser accociates right.
     pub fn associate_left(&self) -> Prec {
         if let Prec::End = self { panic!("Can not associate further left") }
-        return unsafe { mem::transmute(self.clone() as u8 + 1) };
+        unsafe { mem::transmute(*self as u8 + 1) }
     }
 }
 
@@ -99,7 +99,7 @@ impl Parser {
             offset += 1;
         }
 
-        return &self.tokens[self.index + offset];
+        &self.tokens[self.index + offset]
     }
 
     /// Returns the current token then advances the parser.
@@ -260,7 +260,7 @@ impl Parser {
             left = self.rule_infix(left)?;
         }
 
-        return Ok(left);
+        Ok(left)
     }
 
     // Rule Definitions:
@@ -312,7 +312,7 @@ impl Parser {
             Token::Boolean(b) => AST::Data(b.clone()),
             unexpected => return Err(Syntax::error(
                 &format!("Expected a literal, found {}", unexpected),
-                &span
+                span
             )),
         };
 
@@ -338,12 +338,12 @@ impl Parser {
         while self.skip().item != end {
             let ast = self.expression(Prec::None, false)?;
             expressions.push(ast);
-            if let Err(_) = self.consume(Token::Sep) {
+            if self.consume(Token::Sep).is_err() {
                 break;
             }
         }
 
-        return Ok(AST::Block(expressions));
+        Ok(AST::Block(expressions))
     }
 
     /// Parse a block as an expression,
@@ -353,7 +353,7 @@ impl Parser {
         let start = self.consume(Token::OpenBracket)?.span.clone();
         let ast = self.body(Token::CloseBracket)?;
         let end = self.consume(Token::CloseBracket)?.span.clone();
-        return Ok(Spanned::new(ast, Span::combine(&start, &end)));
+        Ok(Spanned::new(ast, Span::combine(&start, &end)))
     }
 
     // TODO: unwrap from outside in to prevent nesting
@@ -389,7 +389,7 @@ impl Parser {
             block.span.clone()
         ]);
 
-        return Ok(Spanned::new(AST::syntax(arg_pat, block), span));
+        Ok(Spanned::new(AST::syntax(arg_pat, block), span))
     }
 
     /// Parse an `extern` statement.
@@ -407,17 +407,17 @@ impl Parser {
             Token::String(Data::String(s))  => s.clone(),
             unexpected => return Err(Syntax::error(
                 &format!("Expected a string, found {}", unexpected),
-                &span
+                span
             )),
         };
 
         let ast = self.expression(Prec::End, false)?;
         let end = ast.span.clone();
 
-        return Ok(Spanned::new(
+        Ok(Spanned::new(
             AST::ffi(&name, ast),
             Span::combine(&start, &end),
-        ));
+        ))
     }
 
     /// Parse a label.
@@ -426,10 +426,10 @@ impl Parser {
         let start = self.consume(Token::Label)?.span.clone();
         let ast = self.expression(Prec::End, false)?;
         let end = ast.span.clone();
-        return Ok(Spanned::new(
+        Ok(Spanned::new(
             AST::Label(start.contents(), Box::new(ast)),
             Span::combine(&start, &end),
-        ));
+        ))
     }
 
     pub fn neg(&mut self) -> Result<Spanned<AST>, Syntax> {
@@ -437,10 +437,10 @@ impl Parser {
         let ast = self.expression(Prec::End, false)?;
         let end = ast.span.clone();
 
-        return Ok(
+        Ok(
             Spanned::new(AST::ffi("neg", ast),
             Span::combine(&start, &end))
-        );
+        )
     }
 
     // Infix:
@@ -456,13 +456,13 @@ impl Parser {
                 for a in f { mapped.push(Parser::arg_pat(a)?); }
                 ArgPattern::Group(mapped)
             }
-            _ => Err(Syntax::error(
+            _ => return Err(Syntax::error(
                 "Unexpected construct inside argument pattern",
                 &ast.span
-            ))?,
+            )),
         };
 
-        return Ok(Spanned::new(item, ast.span));
+        Ok(Spanned::new(item, ast.span))
     }
 
     // TODO: assign and lambda are similar... combine?
@@ -513,7 +513,7 @@ impl Parser {
             left_span
         };
 
-        return Ok(Spanned::new(AST::Tuple(tuple), span));
+        Ok(Spanned::new(AST::Tuple(tuple), span))
     }
 
     /// Parses a function composition, i.e. `a . b`
@@ -521,7 +521,7 @@ impl Parser {
         self.consume(Token::Compose)?;
         let right = self.expression(Prec::Compose.associate_left(), false)?;
         let combined = Span::combine(&left.span, &right.span);
-        return Ok(Spanned::new(AST::composition(left, right), combined));
+        Ok(Spanned::new(AST::composition(left, right), combined))
     }
 
     // TODO: names must be full qualified paths.
@@ -539,42 +539,42 @@ impl Parser {
         let combined = Span::combine(&left.span, &right.span);
 
         let arguments = Spanned::new(AST::Tuple(vec![left, right]), combined.clone());
-        return Ok(Spanned::new(AST::ffi(name, arguments), combined));
+        Ok(Spanned::new(AST::ffi(name, arguments), combined))
     }
 
     /// Parses an addition, calls out to FFI.
     pub fn add(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Add, Prec::AddSub.associate_left(), "add", left);
+        self.binop(Token::Add, Prec::AddSub.associate_left(), "add", left)
     }
 
     /// Parses a subraction, calls out to FFI.
     pub fn sub(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Sub, Prec::AddSub.associate_left(), "sub", left);
+        self.binop(Token::Sub, Prec::AddSub.associate_left(), "sub", left)
     }
 
     /// Parses a multiplication, calls out to FFI.
     pub fn mul(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Mul, Prec::MulDiv.associate_left(), "mul", left);
+        self.binop(Token::Mul, Prec::MulDiv.associate_left(), "mul", left)
     }
 
     /// Parses a division, calls out to FFI.
     pub fn div(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Div, Prec::MulDiv.associate_left(), "div", left);
+        self.binop(Token::Div, Prec::MulDiv.associate_left(), "div", left)
     }
 
     /// Parses an equality, calls out to FFI.
     pub fn equal(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Equal, Prec::Logic.associate_left(), "equal", left);
+        self.binop(Token::Equal, Prec::Logic.associate_left(), "equal", left)
     }
 
     /// Parses an remainder, calls out to FFI.
     pub fn rem(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Rem, Prec::MulDiv.associate_left(), "rem", left);
+        self.binop(Token::Rem, Prec::MulDiv.associate_left(), "rem", left)
     }
 
     /// Parses an power, calls out to FFI.
     pub fn pow(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        return self.binop(Token::Pow, Prec::Pow, "pow", left);
+        self.binop(Token::Pow, Prec::Pow, "pow", left)
     }
 
     /// Parses a function call.
@@ -593,7 +593,7 @@ impl Parser {
         };
 
         form.push(argument);
-        return Ok(Spanned::new(AST::Form(form), combined));
+        Ok(Spanned::new(AST::Form(form), combined))
     }
 }
 

@@ -84,7 +84,7 @@ impl Span {
         let length = end - offset;
 
         // `a` should not be empty at this point
-        return Span::new(&a.source.as_ref().unwrap(), offset, length);
+        Span::new(a.source.as_ref().unwrap(), offset, length)
     }
 
     /// Combines a set of `Span`s (think fold-left over `Span::combine`).
@@ -98,7 +98,7 @@ impl Span {
             combined = Span::combine(&combined, &span)
         }
 
-        return combined;
+        combined
     }
 
     /// Returns the contents of a `Span`.
@@ -117,12 +117,12 @@ impl Span {
     /// Splits a string by the newline character ('\n') into a Vector of string slices.
     /// Includes the trailing newline in each slice.
     fn lines_newline(string: &str) -> Vec<String> {
-        return string.split("\n").map(|l| l.to_string() + "\n").collect();
+        string.split('\n').map(|l| l.to_string() + "\n").collect()
     }
 
     /// Split a string by newline (`'\n'`), but do include the newline in each splice.
     fn lines(string: &str) -> Vec<String> {
-        return string.split("\n").map(|l| l.to_string()).collect();
+        string.split('\n').map(|l| l.to_string()).collect()
     }
 
     /// Returns the start and end lines and columns of the `Span` if the `Span` is not empty.
@@ -131,7 +131,7 @@ impl Span {
         let line = lines.len() - 1;
         let col = lines.last()?.chars().count() - 1;
 
-        return Some((line, col));
+        Some((line, col))
     }
 }
 
@@ -168,7 +168,7 @@ impl Display for Span {
         }
 
         let full_source = &self.source.as_ref().unwrap().contents;
-        let lines = Span::lines(&full_source);
+        let lines = Span::lines(full_source);
 
         let (start_line, start_col) = match Span::line_index(full_source, self.offset) {
             Some(li) => li,
@@ -209,7 +209,6 @@ impl Display for Span {
             writeln!(f, "{}", separator)?;
             writeln!(f, "{}", line)?;
             writeln!(f, "{}", span)?;
-            writeln!(f, "{}", separator)
         } else {
             let formatted = lines[start_line..=end_line]
                 .iter()
@@ -225,8 +224,9 @@ impl Display for Span {
             writeln!(f, "{}", location)?;
             writeln!(f, "{}", separator)?;
             writeln!(f, "{}", formatted)?;
-            writeln!(f, "{}", separator)
         }
+
+        writeln!(f, "{}", separator)
     }
 }
 
@@ -253,7 +253,7 @@ impl<T> Spanned<T> {
     }
 
     /// Joins a Vector of spanned items into a single span.
-    pub fn build(spanneds: &Vec<Spanned<T>>) -> Span {
+    pub fn build(spanneds: &[Spanned<T>]) -> Span {
         let spans = spanneds.iter()
             .map(|s| s.span.clone())
             .collect::<Vec<Span>>();

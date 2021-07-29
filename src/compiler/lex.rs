@@ -44,7 +44,7 @@ pub const STATIC_TOKENS: &[(&str, Token)] = &[
 /// Exposes the functionality of the `Lexer`.
 pub fn lex(source: Rc<Source>) -> Result<Vec<Spanned<Token>>, Syntax> {
     let mut lexer = Lexer::new(&source);
-    return lexer.all();
+    lexer.all()
 }
 
 /// This represents a lexer object.
@@ -68,13 +68,13 @@ impl Lexer {
     pub fn all(&mut self) -> Result<Vec<Spanned<Token>>, Syntax> {
         let mut tokens = vec![];
 
-        while self.remaining().len() != 0 {
+        while !self.remaining().is_empty() {
             // strip preceeding whitespace
             self.strip();
 
             // clear out comments
-            self.offset += Lexer::comment(&self.remaining());
-            self.offset += Lexer::multi_comment(&self.remaining());
+            self.offset += Lexer::comment(self.remaining());
+            self.offset += Lexer::multi_comment(self.remaining());
 
             // strip trailing whitespace
             self.strip();
@@ -97,14 +97,15 @@ impl Lexer {
 
         tokens.push(Spanned::new(Token::End, Span::empty()));
 
-        return Ok(tokens);
+        Ok(tokens)
     }
 
     /// Step the lexer, returning the next token.
     pub fn step(&self) -> Result<Bite, String> {
         let source = self.remaining();
 
-        let rules: Vec<Box<dyn Fn(&str) -> Result<Bite, String>>> = vec![
+        type Rule = Box<dyn Fn(&str) -> Result<Bite, String>>;
+        let rules: Vec<Rule> = vec![
             // higher up in order = higher precedence
             // think 'or' as literal or 'or' as operator
 
@@ -140,14 +141,14 @@ impl Lexer {
             }
         }
 
-        return best;
+        best
     }
 
     // helpers
 
     /// Helper function that returns the remaining source to be lexed as a `&str`.
     pub fn remaining(&self) -> &str {
-        return &self.source.contents[self.offset..]
+        &self.source.contents[self.offset..]
     }
 
     /// Helper function that Strips leading whitespace.
@@ -190,7 +191,7 @@ impl Lexer {
             }
         }
 
-        return if len == 0 { Err("Expected digits".to_string()) } else { Ok(len) };
+        if len == 0 { Err("Expected digits".to_string()) } else { Ok(len) }
     }
 
     /// Helper function that expects a literal, returning an error otherwise.
@@ -207,7 +208,7 @@ impl Lexer {
                 return t;
             }
         }
-        return Err("Expected a token literal".to_string());
+        Err("Expected a token literal".to_string())
     }
 
     // TODO: refactor comment and multi-line for doc-comments
@@ -225,7 +226,7 @@ impl Lexer {
             len += char.len_utf8();
         }
 
-        return len;
+        len
     }
 
     /// Parses a nestable multi-line comment,
@@ -237,7 +238,7 @@ impl Lexer {
         };
 
         for char in source[len..].chars() {
-            if let Ok(_) = Lexer::expect(&source[len..], "-{") {
+            if Lexer::expect(&source[len..], "-{").is_ok() {
                 len += Lexer::multi_comment(&source[len..]);
             } else if let Ok(end) = Lexer::expect(&source[len..], "}-") {
                 len += end; break;
@@ -246,7 +247,7 @@ impl Lexer {
             }
         }
 
-        return len;
+        len
     }
 
     /// Classifies a symbol or a label.
@@ -301,7 +302,7 @@ impl Lexer {
     /// Must start with a single quote `'`.
     pub fn keyword(source: &str) -> Result<Bite, String> {
         let mut len = 0;
-        len += Lexer::expect(&source, "'")?;
+        len += Lexer::expect(source, "'")?;
 
         if let (Token::Symbol, l) = Lexer::identifier(&source[len..])? {
             let keyword = source[len..len+l].to_string();
@@ -327,7 +328,7 @@ impl Lexer {
             Err(_) => panic!("Could not convert source to supposed real")
         };
 
-        return Ok((Token::Number(Data::Real(number)), len));
+        Ok((Token::Number(Data::Real(number)), len))
     }
 
     pub fn integer(source: &str) -> Result<Bite, String> {
@@ -340,7 +341,7 @@ impl Lexer {
         };
 
         // TODO: introduce new token?
-        return Ok((Token::Number(Data::Integer(number)), len));
+        Ok((Token::Number(Data::Integer(number)), len))
     }
 
     /// Matches a string, converting escapes.
@@ -376,7 +377,7 @@ impl Lexer {
             }
         }
 
-        return Err("Unexpected EOF while parsing string literal".to_string());
+        Err("Unexpected EOF while parsing string literal".to_string())
     }
 
     /// Matches a literal boolean.
@@ -390,7 +391,7 @@ impl Lexer {
             ) { return x; }
         }
 
-        return Err("Expected a boolean".to_string());
+        Err("Expected a boolean".to_string())
     }
 
     /// Matches a separator.
@@ -420,7 +421,7 @@ impl Lexer {
             len += c.len_utf8();
         }
 
-        return Ok((Token::Sep, len));
+        Ok((Token::Sep, len))
     }
 }
 

@@ -30,7 +30,7 @@ use crate::core::{
 /// Simple function that generates unoptimized bytecode from an `SST`.
 /// Exposes the functionality of the `Compiler`.
 pub fn gen(sst: (Spanned<SST>, Scope)) -> Result<Rc<Lambda>, Syntax> {
-    return gen_with_ffi(sst, ffi_core());
+    gen_with_ffi(sst, ffi_core())
 }
 
 /// Generates unoptimized bytecode from a `SST`,
@@ -40,7 +40,7 @@ pub fn gen(sst: (Spanned<SST>, Scope)) -> Result<Rc<Lambda>, Syntax> {
 pub fn gen_with_ffi(sst: (Spanned<SST>, Scope), ffi: FFI) -> Result<Rc<Lambda>, Syntax> {
     let mut compiler = Compiler::base(ffi, sst.1);
     compiler.walk(&sst.0)?;
-    return Ok(Rc::new(compiler.lambda));
+    Ok(Rc::new(compiler.lambda))
 }
 
 /// Compiler is a bytecode generator that walks an SST and produces (unoptimized) Bytecode.
@@ -95,7 +95,7 @@ impl Compiler {
             None => unreachable!("Can not go back past root copiler"),
         };
         self.ffi = ffi;
-        return nested;
+        nested
     }
 
     /// Walks an SST to generate bytecode.
@@ -110,9 +110,15 @@ impl Compiler {
         self.lambda.emit_span(&sst.span);
 
         // push left, push right, push center
-        return match sst.item.clone() {
-            SST::Data(data) => Ok(self.data(data)),
-            SST::Symbol(unique) => Ok(self.symbol(unique)),
+        match sst.item.clone() {
+            SST::Data(data) => {
+                self.data(data);
+                Ok(())
+            },
+            SST::Symbol(unique) => {
+                self.symbol(unique);
+                Ok(())
+            },
             SST::Block(block) => self.block(block),
             SST::Label(name, expression) => self.label(name, *expression),
             SST::Tuple(tuple) => self.tuple(tuple),
@@ -120,7 +126,7 @@ impl Compiler {
             SST::Assign { pattern, expression } => self.assign(*pattern, *expression),
             SST::Lambda { pattern, expression, scope } => self.lambda(*pattern, *expression, scope),
             SST::Call   { fun,     arg        } => self.call(*fun, *arg),
-        };
+        }
     }
 
     // TODO: closures are just lambdas + records

@@ -50,6 +50,12 @@ impl Scope {
     }
 }
 
+impl Default for Scope {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Represents an item in a hoisted `SST`.
 /// Each langauge-level construct has it's own `SST` variant.
 /// Note that symbols have been substituted.
