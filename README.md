@@ -16,7 +16,10 @@
         <img src="https://docs.rs/passerine/badge.svg">
     </a>
     <a href="https://discord.gg/yMhUyhw">
-        <img src="https://img.shields.io/discord/651996477333438474?logo=discord">
+        <img src="https://img.shields.io/discord/651996477333438474?logo=discord&color=5865F2">
+    </a>
+    <a href="https://matrix.to/#/!nJZPxQAHzwPQwoylcF:envs.net?via=envs.net">
+        <img src="https://img.shields.io/badge/chat-on matrix-000000?logo=matrix">
     </a>
     <br>
     <br>
