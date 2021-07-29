@@ -39,7 +39,7 @@ pub fn hoist(cst: Spanned<CST>) -> Result<(Spanned<SST>, Scope), Syntax> {
         ))
     }
 
-    return Ok((sst, scope));
+    Ok((sst, scope))
 }
 
 /// Keeps track of:
@@ -66,7 +66,16 @@ impl Hoister {
             unresolved_hoists: HashMap::new(),
         }
     }
+}
 
+impl Default for Hoister {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+
+impl Hoister {
     /// Enters a new scope, called when entering a new function.
     fn   enter_scope(&mut self) { self.scopes.push(Scope::new()); }
     /// Enters an existing scope, called when resolving variables.
@@ -75,8 +84,10 @@ impl Hoister {
     /// Exits the current scope, returning it.
     /// If there are no enclosing scopes, returns `None`.
     fn exit_scope(&mut self) -> Option<Scope> {
-         if self.scopes.len() == 1 { return None; }
-        return self.scopes.pop()
+        match self.scopes.len() {
+            1 => None,
+            _ => self.scopes.pop()
+        }
     }
 
     /// Returns the topmost, i.e. local, scope, mutably.
@@ -107,7 +118,7 @@ impl Hoister {
             CST::Call   { fun,     arg        } => self.call(*fun, *arg)?,
         };
 
-        return Ok(Spanned::new(sst, cst.span))
+        Ok(Spanned::new(sst, cst.span))
     }
 
     /// Walks a pattern. If `declare` is true, we shadow variables in existing scopes
@@ -124,14 +135,14 @@ impl Hoister {
             )
         };
 
-        return Spanned::new(item, pattern.span);
+        Spanned::new(item, pattern.span)
     }
 
     /// Creates a new symbol that is guaranteed to be unique.
     fn new_symbol(&mut self, name: &str) -> UniqueSymbol {
         let index = self.symbol_table.len();
         self.symbol_table.push(name.to_string());
-        return UniqueSymbol(index);
+        UniqueSymbol(index)
     }
 
     /// Looks to see whether a name is defined as a local in the current scope.
@@ -141,7 +152,7 @@ impl Hoister {
             if local_name == name { return Some(*local); }
         }
 
-        return None;
+        None
     }
 
     /// Looks to see whether a name is used as a nonlocal in the current scope.
@@ -151,7 +162,7 @@ impl Hoister {
             if nonlocal_name == name { return Some(*nonlocal); }
         }
 
-        return None;
+        None
     }
 
     /// Adds a symbol as a captured variable in all scopes.
@@ -190,7 +201,7 @@ impl Hoister {
         }
 
         // variable is not defined in this or enclosing scopes
-        return None;
+        None
     }
 
     /// Returns the unique usize of a local symbol.
@@ -218,7 +229,7 @@ impl Hoister {
         // if we didn't find it by searching backwards, we declare it in the current scope
         let unique_symbol = self.new_symbol(name);
         self.local_scope().locals.push(unique_symbol);
-        return unique_symbol;
+        unique_symbol
     }
 
     /// This function wraps try_resolve,
@@ -237,14 +248,14 @@ impl Hoister {
         let unique_symbol = self.new_symbol(name);
         self.capture_all(unique_symbol);
         self.unresolved_hoists.insert(name.to_string(), unique_symbol);
-        return unique_symbol;
+        unique_symbol
     }
 
     /// Replaces a symbol name with a unique identifier for that symbol
     pub fn symbol(&mut self, name: &str) -> SST {
         // if we are hoisting the variable,
         // mark the variable as being used before its lexical definition
-        return SST::Symbol(self.resolve_symbol(name));
+        SST::Symbol(self.resolve_symbol(name))
     }
 
     /// Walks a block, nothing fancy here.
@@ -274,10 +285,10 @@ impl Hoister {
         let sst_pattern = self.walk_pattern(pattern, false);
         let sst_expression = self.walk(expression)?;
 
-        return Ok(SST::assign(
+        Ok(SST::assign(
             sst_pattern,
             sst_expression,
-        ));
+        ))
     }
 
     /// Walks a function definition.
@@ -289,18 +300,18 @@ impl Hoister {
         let sst_expression = self.walk(expression)?;
         let scope = self.exit_scope().unwrap();
 
-        return Ok(SST::lambda(
+        Ok(SST::lambda(
             sst_pattern,
             sst_expression,
             scope,
-        ));
+        ))
     }
 
     /// Walks a function call.
     pub fn call(&mut self, fun: Spanned<CST>, arg: Spanned<CST>) -> Result<SST, Syntax> {
-        return Ok(SST::call(
+        Ok(SST::call(
             self.walk(fun)?,
             self.walk(arg)?,
-        ));
+        ))
     }
 }

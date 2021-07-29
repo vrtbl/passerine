@@ -18,7 +18,7 @@ use crate::compiler::{
 pub fn desugar(ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
     let mut transformer = Transformer::new();
     let cst = transformer.walk(ast)?;
-    return Ok(cst);
+    Ok(cst)
 }
 
 /// Applies compile-time transformations to the AST.
@@ -31,7 +31,15 @@ impl Transformer {
     pub fn new() -> Transformer {
         Transformer { rules: vec![] }
     }
+}
 
+impl Default for Transformer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Transformer {
     /// Desugars an `AST` into a `CST`,
     /// By walking over it in a fairly straight-forward manner.
     pub fn walk(&mut self, ast: Spanned<AST>) -> Result<Spanned<CST>, Syntax> {
@@ -52,7 +60,7 @@ impl Transformer {
             AST::FFI { name, expression } => self.ffi(name, *expression)?,
         };
 
-        return Ok(Spanned::new(cst, ast.span))
+        Ok(Spanned::new(cst, ast.span))
     }
 
     /// Converts a symbol.
@@ -111,7 +119,7 @@ impl Transformer {
         }
 
         // no macros were matched
-        if matches.len() == 0 {
+        if matches.is_empty() {
             // collect all in-scope pseudokeywords
             let mut pseudokeywords: HashSet<String> = HashSet::new();
             for rule in self.rules.iter() {
@@ -122,7 +130,7 @@ impl Transformer {
 
             // into a set for quick membership checking
             let potential_keywords = form.iter()
-                .filter(|i| if let AST::Symbol(_) = &i.item { true } else { false })
+                .filter(|i| matches!(&i.item, AST::Symbol(_)))
                 .map(   |i| if let AST::Symbol(s) = &i.item { s.to_string() } else { unreachable!() })
                 .collect::<HashSet<String>>();
 
@@ -172,7 +180,7 @@ impl Transformer {
         // apply the rule to apply the macro!
         let (rule, mut bindings) = matches.pop().unwrap();
         let expanded = Rule::expand(rule.item.tree.clone(), &mut bindings)?;
-        return Ok(self.walk(expanded)?.item);
+        Ok(self.walk(expanded)?.item)
     }
 
     /// Desugar a tuple.
@@ -240,7 +248,7 @@ impl Transformer {
             expression   = Spanned::new(CST::lambda(pattern, expression), combined);
         }
 
-        return Ok(expression.item);
+        Ok(expression.item)
     }
 
     /// Desugars a macro definition.

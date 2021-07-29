@@ -40,5 +40,5 @@ pub fn ffi_core() -> FFI {
     ffi.add("greater_equal", FFIFunction::new(Box::new(logic::greater_equal))).unwrap();
     ffi.add("less_equal",    FFIFunction::new(Box::new(logic::less_equal))).unwrap();
 
-    return ffi;
+    ffi
 }

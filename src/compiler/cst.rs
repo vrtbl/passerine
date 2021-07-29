@@ -35,7 +35,7 @@ impl TryFrom<ASTPattern> for CSTPattern {
                 ASTPattern::Data(d)     => CSTPattern::Data(d),
                 ASTPattern::Label(k, a) => CSTPattern::Label(k, Box::new(a.map(CSTPattern::try_from)?)),
                 ASTPattern::Tuple(t)    => CSTPattern::Tuple(t.into_iter().map(|i| i.map(CSTPattern::try_from)).collect::<Result<Vec<_>, _>>()?),
-                ASTPattern::Chain(_)    => Err("Unexpected chained construct inside pattern")?,
+                ASTPattern::Chain(_)    => return Err("Unexpected chained construct inside pattern".into()),
             }
         )
     }

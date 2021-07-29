@@ -17,7 +17,7 @@ use passerine::{
         lex, parse, desugar, hoist, gen,
         ast::AST,
     },
-    vm::vm::VM,
+    vm::VM,
 };
 
 /// Represents specific success/failure modes of a snippet test.
