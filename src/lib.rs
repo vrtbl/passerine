@@ -100,7 +100,7 @@
 //! ```
 //! # use passerine::common::{closure::Closure, source::Source};
 //! # use passerine::compiler::{lex, parse, desugar, hoist, gen};
-//! # use passerine::vm::vm::VM;
+//! # use passerine::vm::VM;
 //! #
 //! # fn main() {
 //! # let source = Source::source("pi = 3.14");
