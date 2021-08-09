@@ -106,6 +106,7 @@ impl Hoister {
     /// This is fairly standard - hoisting happens in
     /// `self.assign`, `self.lambda`, and `self.symbol`.
     pub fn walk(&mut self, cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
+        #[rustfmt::skip]
         let sst: SST = match cst.item {
             CST::Data(data) => SST::Data(data),
             CST::Symbol(name) => self.symbol(&name),
@@ -124,6 +125,7 @@ impl Hoister {
     /// Walks a pattern. If `declare` is true, we shadow variables in existing scopes
     /// and creates a new variable in the local scope.
     pub fn walk_pattern(&mut self, pattern: Spanned<CSTPattern>, declare: bool) -> Spanned<SSTPattern> {
+        #[rustfmt::skip]
         let item = match pattern.item {
             CSTPattern::Symbol(name) => {
                 SSTPattern::Symbol(self.resolve_assign(&name, declare))

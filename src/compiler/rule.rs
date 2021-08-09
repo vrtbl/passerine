@@ -76,6 +76,7 @@ impl Rule {
         );
 
         for (n, t) in new {
+            #[rustfmt::skip]
             match base.entry(n) {
                 Entry::Vacant(e)   => e.insert(t),
                 Entry::Occupied(_) => return Err(collision),
@@ -179,6 +180,7 @@ impl Rule {
         bindings: &mut Bindings,
     ) -> Result<Spanned<ASTPattern>, Syntax> {
         Ok(
+            #[rustfmt::skip]
             match pattern.item {
                 ASTPattern::Symbol(name) => {
                     let span = pattern.span.clone();

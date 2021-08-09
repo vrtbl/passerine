@@ -97,6 +97,7 @@ impl VM {
     pub fn step(&mut self) -> Result<(), Trace> {
         let opcode = Opcode::from_byte(self.peek_byte());
 
+        #[rustfmt::skip]
         match opcode {
             Opcode::Con     => self.con(),
             Opcode::NotInit => self.not_init(),

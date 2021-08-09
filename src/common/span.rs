@@ -89,6 +89,7 @@ impl Span {
 
     /// Combines a set of `Span`s (think fold-left over `Span::combine`).
     pub fn join(mut spans: Vec<Span>) -> Span {
+        #[rustfmt::skip]
         let mut combined = match spans.pop() {
             Some(span) => span,
             None       => return Span::empty(),
@@ -170,10 +171,12 @@ impl Display for Span {
         let full_source = &self.source.as_ref().unwrap().contents;
         let lines = Span::lines(full_source);
 
+        #[rustfmt::skip]
         let (start_line, start_col) = match Span::line_index(full_source, self.offset) {
             Some(li) => li,
             None     => unreachable!(),
         };
+        #[rustfmt::skip]
         let (end_line, _end_col) = match Span::line_index(full_source, self.end()) {
             Some(li) => li,
             None     => unreachable!(),

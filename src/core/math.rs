@@ -3,6 +3,7 @@ use crate::core::extract::binop;
 
 /// Adds two numbers, concatenates two strings.
 pub fn add(data: Data) -> Result<Data, String> {
+    #[rustfmt::skip]
     let result = match binop(data) {
         (Data::Real(l),    Data::Real(r))    => Data::Real(l + r),
         (Data::Integer(l), Data::Integer(r)) => Data::Integer(l + r),
@@ -15,6 +16,7 @@ pub fn add(data: Data) -> Result<Data, String> {
 
 /// Subtraction between two numbers.
 pub fn sub(data: Data) -> Result<Data, String> {
+    #[rustfmt::skip]
     let result = match binop(data) {
         (Data::Real(l),    Data::Real(r))    => Data::Real(l - r),
         (Data::Integer(l), Data::Integer(r)) => Data::Integer(l - r),
@@ -26,6 +28,7 @@ pub fn sub(data: Data) -> Result<Data, String> {
 
 /// Negation of a numbers.
 pub fn neg(data: Data) -> Result<Data, String> {
+    #[rustfmt::skip]
     let result = match data {
         Data::Real(n)    => Data::Real(-n),
         Data::Integer(n) => Data::Integer(-n),
@@ -37,6 +40,7 @@ pub fn neg(data: Data) -> Result<Data, String> {
 
 /// Multiplication between two numbers.
 pub fn mul(data: Data) -> Result<Data, String> {
+    #[rustfmt::skip]
     let result = match binop(data) {
         (Data::Real(l),    Data::Real(r))    => Data::Real(l * r),
         (Data::Integer(l), Data::Integer(r)) => Data::Integer(l * r),
@@ -76,6 +80,7 @@ pub fn rem(data: Data) -> Result<Data, String> {
 
 /// Number to a power
 pub fn pow(data: Data) -> Result<Data, String> {
+    #[rustfmt::skip]
     let result = match binop(data) {
         (Data::Real(l),    Data::Real(r))    => Data::Real(l.powf(r)),
         (Data::Integer(l), Data::Integer(r)) => Data::Integer(l.pow(r as u32)),

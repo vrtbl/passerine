@@ -95,6 +95,7 @@ impl Tagged {
     /// If the caller moves out of this pointer, the original [`Tagged`] must
     /// not be dropped
     fn extract(&self, dereference: impl FnOnce(*mut Slot) -> Slot) -> Slot {
+        #[rustfmt::skip]
         match self.0 {
             n if (n & QNAN) != QNAN     => Slot::Data(Data::Real(f64::from_bits(n))),
             u if u == (QNAN | U_FLAG)   => Slot::Data(Data::Unit),
@@ -160,6 +161,7 @@ mod test {
         for n in &[positive, negative, nan, neg_inf] {
             let data    = Data::Real(*n);
             let wrapped = Tagged::new(Slot::Data(data));
+            #[rustfmt::skip]
             match wrapped.copy().data() {
                 Data::Real(f) if f.is_nan() => assert!(n.is_nan()),
                 Data::Real(f) => assert_eq!(*n, f),

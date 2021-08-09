@@ -39,6 +39,7 @@ impl Slot {
 
 impl Debug for Slot {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        #[rustfmt::skip]
         match self {
             Slot::Frame      => write!(f, "Frame"),
             Slot::Suspend(s) => write!(f, "Suspend({}, {})", s.closure.id, s.ip),

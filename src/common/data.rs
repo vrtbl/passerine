@@ -67,6 +67,7 @@ impl Eq for Data {}
 impl Display for Data {
     /// Displays some Passerine Data in a pretty manner, as if it were printed to console.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        #[rustfmt::skip]
         match self {
             Data::Heaped(_)   => unreachable!("Can not display heaped data"),
             Data::NotInit     => unreachable!("found uninitialized data on top of stack"),
@@ -94,6 +95,7 @@ impl Debug for Data {
     /// Displays some Passerine Data following Rust conventions,
     /// with certain fields omitted.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        #[rustfmt::skip]
         match self {
             Data::Heaped(h)   => write!(f, "Heaped({:?})", h.borrow()),
             Data::NotInit     => write!(f, "NotInit"),

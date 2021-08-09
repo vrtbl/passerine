@@ -14,6 +14,7 @@ pub fn equal(data: Data) -> Result<Data, String> {
 
 pub fn greater(data: Data) -> Result<Data, String> {
     // TODO: type coercion
+    #[rustfmt::skip]
     let result = match binop(data) {
         (Data::Real(left),    Data::Real(right))    => left > right,
         (Data::Integer(left), Data::Integer(right)) => left > right,
@@ -25,6 +26,7 @@ pub fn greater(data: Data) -> Result<Data, String> {
 
 pub fn less(data: Data) -> Result<Data, String> {
     // TODO: type coercion
+    #[rustfmt::skip]
     let result = match binop(data) {
         (Data::Real(left),    Data::Real(right))    => left < right,
         (Data::Integer(left), Data::Integer(right)) => left < right,
@@ -36,6 +38,7 @@ pub fn less(data: Data) -> Result<Data, String> {
 
 pub fn greater_equal(data: Data) -> Result<Data, String> {
     // TODO: type coercion
+    #[rustfmt::skip]
     let result = match binop(data) {
         (Data::Real(left),    Data::Real(right))    => left >= right,
         (Data::Integer(left), Data::Integer(right)) => left >= right,
@@ -47,6 +50,7 @@ pub fn greater_equal(data: Data) -> Result<Data, String> {
 
 pub fn less_equal(data: Data) -> Result<Data, String> {
     // TODO: type coercion
+    #[rustfmt::skip]
     let result = match binop(data) {
         (Data::Real(left),    Data::Real(right))    => left <= right,
         (Data::Integer(left), Data::Integer(right)) => left <= right,

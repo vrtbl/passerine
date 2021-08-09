@@ -147,6 +147,7 @@ impl Parser {
 
     /// Looks at the current token and parses an infix expression
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
+        #[rustfmt::skip]
         match self.skip().item {
             Token::End         => Ok(Spanned::new(AST::Block(vec![]), Span::empty())),
 
@@ -171,6 +172,7 @@ impl Parser {
 
     /// Looks at the current token and parses the right side of any infix expressions.
     pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        #[rustfmt::skip]
         match self.skip().item {
             Token::Assign  => self.assign(left),
             Token::Lambda  => self.lambda(left),
@@ -198,6 +200,7 @@ impl Parser {
         let current = self.current().item.clone();
         let sep = next != current;
 
+        #[rustfmt::skip]
         let prec = match next {
             // infix
             Token::Assign  => Prec::Assign,
@@ -305,6 +308,7 @@ impl Parser {
     pub fn literal(&mut self) -> Result<Spanned<AST>, Syntax> {
         let Spanned { item: token, span } = self.advance();
 
+        #[rustfmt::skip]
         let leaf = match token {
             Token::Unit       => AST::Data(Data::Unit),
             Token::Number(n)  => AST::Data(n.clone()),

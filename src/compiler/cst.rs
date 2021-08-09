@@ -30,6 +30,7 @@ impl TryFrom<ASTPattern> for CSTPattern {
     /// This function may become a bit more complex once 'where' is added.
     fn try_from(ast_pattern: ASTPattern) -> Result<Self, Self::Error> {
         Ok(
+            #[rustfmt::skip]
             match ast_pattern {
                 ASTPattern::Symbol(s)   => CSTPattern::Symbol(s),
                 ASTPattern::Data(d)     => CSTPattern::Data(d),

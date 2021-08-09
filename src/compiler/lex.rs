@@ -133,6 +133,7 @@ impl Lexer {
         // check longest
         for rule in &rules {
             if let Ok((k, c)) = rule(source) {
+                #[rustfmt::skip]
                 match best {
                     Err(_)              => best = Ok((k, c)),
                     Ok((_, o)) if c > o => best = Ok((k, c)),
@@ -173,6 +174,7 @@ impl Lexer {
             return Err("Unexpected EOF while lexing".to_string());
         }
 
+        #[rustfmt::skip]
         match &source.as_bytes()[..literal.len()] {
             s if s == literal.as_bytes() => Ok(literal.len()),
             _                            => Err(format!("Expected '{}'", source)),
