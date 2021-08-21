@@ -88,15 +88,15 @@ impl Prec {
 pub struct Parser {
     /// Stack of token streams because tokens can be grouped.
     /// The topmost token stream is the one being parsed.
-    tokens:  Vec<Vec<Spanned<Token>>>,
-    index:   usize,
-    symbols: HashMap<String, SharedSymbol>,
+    tokens:   Vec<Vec<Spanned<Token>>>,
+    indicies: Vec<usize>,
+    symbols:  HashMap<String, SharedSymbol>,
 }
 
 impl Parser {
     /// Create a new `parser`.
     pub fn new(tokens: Vec<Spanned<Token>>) -> Parser {
-        Parser { tokens: vec![tokens], index: 0, symbols: HashMap::new() }
+        Parser { tokens: vec![tokens], indicies: vec![0], symbols: HashMap::new() }
     }
 
     // Cookie Monster's Helper Functions:
@@ -105,12 +105,33 @@ impl Parser {
         return &self.tokens[self.tokens.len() - 1];
     }
 
+    pub fn index(&self) -> usize {
+        return self.indicies[self.indicies.len() - 1];
+    }
+
+    pub fn mut_index(&mut self) -> &mut usize {
+        let last = self.indicies.len() - 1;
+        return &mut self.indicies[last];
+    }
+
+    pub fn enter_group(&mut self, tokens: Vec<Spanned<Token>>) {
+        self.indicies.push(0);
+        self.tokens.push(tokens);
+    }
+
+    pub fn exit_group(&mut self) {
+        todo!();
+        // expect end
+        // remove index and tokens
+    }
+
     // NOTE: Maybe don't return bool?
     /// Consumes all seperator tokens, returning whether there were any.
     pub fn sep(&mut self) -> bool {
-        if self.tokens()[self.index].item != Token::Sep { false } else {
-            while self.tokens()[self.index].item == Token::Sep {
-                self.index += 1;
+        println!("{:?} at {}", self.tokens().len(), self.index());
+        if self.tokens()[self.index()].item != Token::Sep { false } else {
+            while self.tokens()[self.index()].item == Token::Sep {
+                *self.mut_index() += 1;
             };
             true
         }
@@ -122,22 +143,22 @@ impl Parser {
     pub fn draw(&self) -> &Spanned<Token> {
         let mut offset = 0;
 
-        while self.tokens()[self.index + offset].item == Token::Sep {
+        while self.tokens()[self.index() + offset].item == Token::Sep {
             offset += 1;
         }
 
-        return &self.tokens()[self.index + offset];
+        return &self.tokens()[self.index() + offset];
     }
 
     /// Returns the current token then advances the parser.
     pub fn advance(&mut self) -> &Spanned<Token> {
-        self.index += 1;
-        &self.tokens()[self.index - 1]
+        *self.mut_index() += 1;
+        &self.tokens()[self.index() - 1]
     }
 
     /// Returns the first token.
     pub fn current(&self) -> &Spanned<Token> {
-        &self.tokens()[self.index]
+        &self.tokens()[self.index()]
     }
 
     /// Returns the first non-Sep token.
@@ -419,11 +440,11 @@ impl Parser {
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
         let ungrouped = self.ungroup(Delim::Paren)?;
-        self.tokens.push(ungrouped.item);
+        self.enter_group(ungrouped.item);
         // TODO verify that error doesn't mess up parsing by not popping
         let ast = self.expression(Prec::None.left(), true)?;
         todo!("add finalize method that checks for End");
-        self.tokens.pop();
+        self.exit_group();
         Ok(Spanned::new(AST::Sugar(Sugar::group(ast)), ungrouped.span))
     }
 
@@ -567,14 +588,14 @@ impl Parser {
             _ => vec![left],
         };
 
-        let index = self.index;
+        let index = self.index();
         let span = if let Ok(item) = self.expression(Prec::Pair.left(), false) {
             let combined = Span::combine(&left_span, &item.span);
             tuple.push(item);
             combined
         } else {
             // restore parser to location right after trailing comma
-            self.index = index;
+            *self.mut_index() = index;
             left_span
         };
 

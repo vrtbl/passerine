@@ -31,7 +31,7 @@ impl Source {
     /// This will read a file to create a new source.
     pub fn path(path: &Path) -> std::io::Result<Rc<Source>> {
         let mut source = String::new();
-        let mut file   = File::open(path.clone())?;
+        let mut file   = File::open(path)?;
         file.read_to_string(&mut source)?;
 
         Ok(Source::new(&source, path))
