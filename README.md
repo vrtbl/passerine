@@ -809,7 +809,53 @@ description = match Banana ("yellow", "soft") {
 
 ### Modules
 
-> TODO: Write about module system.
+Modules are defined by a `mod`keyword followed by curly brackets which surround the contents of the module.
+After a module is defined, you can access its members with the `::` operator.
+Here is an example of a module encapsulating math utilities:
+```passerine
+-- math.pn
+
+math_2D = mod {
+    PI = 3.14
+    circle_area = r -> r * PI * PI
+    circle_circum = r -> r * 2 * PI
+}
+
+cillinder_surface = width height -> 2 * math_2D::circle_area (width / 2) + height * math_2D::circle_circum (width / 2)
+cillinder_volume  = width height -> height * math_2D::circle_area (width / 2)
+```
+This example showed how explicit modules of a file are used.
+Sometimes you want to import a file *as* a module. It's possible, just write "`use` (filename)" first.
+
+```passerine
+-- foo.pn
+
+use math
+
+cil_w = 4                                   -- define width of the cilinder
+cil_h = 15                                  -- define height of the cillinder
+cil_v = math::cillinder_volume cil_w cil_h  -- define volume of the cillinder
+
+```
+
+Various "features" regarding the module system arise naturally from the already existing Passerine semantics. Let's go through a couple pf examples:
+
+- Importing a subset of a module:
+```passerine
+-- import only "cilliner_surface" from the math file
+
+cil_surface = { use math; math::cillinder_surface }
+```
+
+- Renaming a module:
+```passerine
+-- Rename the "math" module to "geometry"
+
+geometry = { use math; math }
+```
+
+And that's pretty much the main idea behind modules. 
+It's possible that these tasks will eventually be abstracted away by macro's in the standard library.
 
 ### Concluding Thoughts
 Thanks for reading this far. Passerine has been a joy for me to work on, and I hope you find it a joy to use.
