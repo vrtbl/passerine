@@ -810,7 +810,7 @@ description = match Banana ("yellow", "soft") {
 ### Modules
 Passerine's module system allows large codebases to be broken out into indiviual reusable components. A module is a scopes turned into a struct, and isn't necessarily tied to the file system.
 
-Modules are defined by a `mod` keyword, followed by a block wrapped in curly braces `{}`. Here's a simple example that defines some math utilities:
+Modules are defined using the `mod` keyword, which must be followed by a block `{ ... }`. Here's a simple module that defines some math utilities:
 
 ```passerine
 circle = mod {
