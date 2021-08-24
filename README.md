@@ -808,54 +808,107 @@ description = match Banana ("yellow", "soft") {
 > † Plot twist: we just defined the `match` expression we've been using throughout this entire overview.
 
 ### Modules
+Passerine's module system allows large codebases to be broken out into indiviual reusable components. A module is a scopes turned into a struct, and isn't necessarily tied to the file system.
 
-Modules are defined by a `mod`keyword followed by curly brackets which surround the contents of the module.
-After a module is defined, you can access its members with the `::` operator.
-Here is an example of a module encapsulating math utilities:
+Modules are defined by a `mod` keyword, followed by a block wrapped in curly braces `{}`. Here's a simple example that defines some math utilities:
+
 ```passerine
--- math.pn
-
-math_2D = mod {
-    PI = 3.14
-    circle_area = r -> r * PI * PI
-    circle_circum = r -> r * 2 * PI
+circle = mod {
+    PI     = 3.14159265358979
+    area   = r -> r * PI * PI
+    circum = r -> r * PI * 2
 }
 
-cillinder_surface = width height -> 2 * math_2D::circle_area (width / 2) + height * math_2D::circle_circum (width / 2)
-cillinder_volume  = width height -> height * math_2D::circle_area (width / 2)
+pizza_radius = 12
+slices = 8
+slice_area = (circle::area pizza_radius) / slices
 ```
-This example showed how explicit modules of a file are used.
-Sometimes you want to import a file *as* a module. It's possible, just write "`use` (filename)" first.
+
+`mod` takes all top-level declarations in a block - in this case, `PI`, `area`, and `circum` - and turns them into a struct with those fields. In essence, the above is equivalent to this struct:
 
 ```passerine
--- foo.pn
-
-use math
-
-cil_w = 4                                   -- define width of the cilinder
-cil_h = 15                                  -- define height of the cillinder
-cil_v = math::cillinder_volume cil_w cil_h  -- define volume of the cillinder
-
+circle = {
+    PI:     3.14159265358979
+    area:   r -> r * PI * PI
+    circum: r -> r * PI * 2
+}
 ```
 
-Various "features" regarding the module system arise naturally from the already existing Passerine semantics. Let's go through a couple pf examples:
+`mod` is nice because it's an easy way to have multiple returns. In essesence, the `mod` keyword allows for first-class scoping, by turning scopes into structs:
 
-- Importing a subset of a module:
 ```passerine
--- import only "cilliner_surface" from the math file
+index = numbers pos 
+    -> floor (len numbers * pos)
 
-cil_surface = { use math; math::cillinder_surface }
+quartiles = numbers -> mod {
+    sorted = (sort numbers)
+    med = sorted::(index (1/2) sorted)
+    q1  = sorted::(index (1/4) sorted)
+    q3  = sorted::(index (3/4) sorted)
+}
 ```
 
-- Renaming a module:
+Because we used the `mod` keyword in the above example, instead of returning a single value from the function, we return a struct containing all values in the fuction:
+
 ```passerine
--- Rename the "math" module to "geometry"
+-- calculate statistics
+numbers = [1, 2, 3, 4, 5]
+stats   = quartiles numbers
 
-geometry = { use math; math }
+-- use `q1` and `q3` to calculate the interquartile range of `numbers`
+iqr     = stats::q3 - stats::q1
+print "the IQR of { numbers } is { iqr } "
 ```
 
-And that's pretty much the main idea behind modules. 
-It's possible that these tasks will eventually be abstracted away by macro's in the standard library.
+This is really useful for writing functions that return multiple values.
+
+Aside from allowing us to group sets of related values into a single namespace, modules can be defined in different files, then be imported. Here's a module defined in a different file:
+
+```
+-- list_util.pn
+reverse = list -> match list {
+    [] -> [],
+    [head, ..tail] -> [..(reverse tail), head],
+}
+
+reduce = f start list -> match list {
+    [] -> start,
+    [head, ..tail] -> f (reduce f tail, head)
+}
+
+sum = reduce { (a, b) -> a + b } 0
+```
+
+This file defines a number of useful list utilities, defined in a traditional recursive style. If we want to use this module in `main.pn`, we import it using the `use` keyword:
+
+```
+-- main.pn
+use list_util
+
+numbers = [1, 1, 2, 3, 5]
+print (list_util::sum numbers)
+```
+
+Note that the `use` keyword is essentially the same thing as wrapping the contents of the imported file with the `mod` keyword: 
+
+```
+-- use list_util
+list_util = mod { <list_util.pn> }
+```
+
+Once imported, `list_util` is just a struct. Because of this, features of the module system naturally arise from Passerine's existing semantics for manipulating structs. To import a subset of a module, we can do something like this:
+
+```
+reverse = { use list_util; list_util::reduce }
+```
+
+Likewise, we can import a module within a block scope to rename it:
+
+```
+list_stuff = { use list_util; list_util }
+```
+
+There are a number of nice properties that arise from this module system, we've just scratched the surface. As modules are just structs, the full power of passerine and its macro system are at your disposal for building extensible systems that compose well.
 
 ### Concluding Thoughts
 Thanks for reading this far. Passerine has been a joy for me to work on, and I hope you find it a joy to use.
