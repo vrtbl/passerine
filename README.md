@@ -866,17 +866,13 @@ Aside from allowing us to group sets of related values into a single namespace, 
 
 ```
 -- list_util.pn
-reverse = list -> match list {
-    [] -> [],
-    [head, ..tail] -> [..(reverse tail), head],
-}
-
 reduce = f start list -> match list {
     [] -> start,
     [head, ..tail] -> f (reduce f tail, head)
 }
 
-sum = reduce { (a, b) -> a + b } 0
+sum     = reduce { (a, b) -> a + b   } 0
+reverse = reduce { (a, b) -> [b.., a]} []
 ```
 
 This file defines a number of useful list utilities, defined in a traditional recursive style. If we want to use this module in `main.pn`, we import it using the `use` keyword:
