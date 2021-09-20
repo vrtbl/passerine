@@ -80,7 +80,7 @@ Like other programming languages, Passerine uses `=` for assignment. On the left
 
 > Because Passerine is *expression-oriented*, the distinction between statements and expressions isn't made. In the case that an expression produces no useful value, it should return the Unit type, `()`. Assignment, for instance, returns Unit.
 
-This function call `square 4` may look a bit alien to you; this is because Passerine uses whitespace for function calls. A function call takes the form `l e₀ ... eₙ`, where `l` is a function and `e` is an expression. `square 4` is a simple case because `square` only takes one argument, `x`... let's try writing a function that takes two arguments!
+The function call `square 4` may look a bit alien to you; this is because Passerine uses whitespace for function calls. A function call takes the form `l e₀ ... eₙ`, where `l` is a function and `e` is an expression. `square 4` is a simple case because `square` only takes one argument, `x`... let's try writing a function that takes two arguments!
 
 Using our definition of `square`, here's a function that returns the Euclidean distance between two points:
 
