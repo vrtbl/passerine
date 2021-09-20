@@ -65,12 +65,9 @@ Where this overview gets really exciting is when we dive into [macros](#macros).
 ### Syntax
 The goal of Passerine's syntax is to make all expressions as *concise* as possible while still conserving the 'feel' of *different types* of expressions.
 
-We'll start simple; here's a function definition:
-
-Here's the distance function:
+We'll start simple; here's a simple snippet that defines a distance function:
 
 ```elm
--- hello
 square = x -> x * x
 
 distance = (x1, y1) (x2, y2) -> {
@@ -78,9 +75,8 @@ distance = (x1, y1) (x2, y2) -> {
 }
 
 length = distance (0, 0)
+length (1 + 2 * 3, 4)
 ```
-
-The reason we're defining square instead of using ** is because it's a simple definition that's really hard to get confused over. We build on that base by then showing how arguments are passed and functions are called, and then we show the power of function call syntax by defining length in terms of distance.
 
 There are already some important things we can learn about Passerine from this short example:
 
@@ -90,21 +86,11 @@ Passerine is an *expression-oriented* language, because of this, it makes sense 
 
 > Because Passerine is *expression-oriented*, the distinction between statements and expressions isn't made. In the case that an expression produces no useful value, it should return the Unit type, `()`.
 
-Passerine respects operator precedence. `3 + 2 * 5` is `13`, not `25`. Notation is a powerful tool – although Passerine is inspired by lisps (like Scheme), it provides a more familiar syntax.
+Passerine respects operator precedence.
 
 Passerine uses whitespace for function calls. A function call takes the form `l e₀ ... eₙ`, where `l` is a function and `e` is an expression. If we substitute `linear`, the first example is equivalent to:
 
-```passerine
-(m b x -> b + m * x) 2 3 5
-```
-
-`m`, `b`, and `x` are *patterns*, `2`, `3`, and `5` are *arguments*. Upon evaluation:
-
-- `2` is matched against `m`, so `m = 2`,
-- `3` against `b`, so `b = 3`,
-- `5` against `x`, so `x = 5`,
-
-`b + m * x` is then evaluated in a new scope where `m`, `b`, and `x` are bound. In the case of the above example, this is equivalent to `3 + 2 * 5`, which is `13`.
+> TODO
 
 > Function calls are left-associative, so the call `a b c d` is equivalent to `((a b) c) d`, not `a (b (c d))`. This syntax comes from functional languages like Haskell, and makes currying (partial application) quite intuitive.
 
