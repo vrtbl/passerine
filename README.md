@@ -57,30 +57,6 @@ and others!
 
 > † Shaw is writing an [alternative implementation of Passerine](https://github.com/ShawSumma/purr/tree/main/ext/passerine), and it's *super* fast. It's part of a wider effort of his to develop [an efficient language-agnostic VM](https://github.com/ShawSumma/purr).
 
-## Table of Contents
-
-* [Why Passerine?](#why-passerine)
-    * [Who started this?](#who-started-this)
-* [An Overview](#an-overview)
-    * [Syntax](#syntax)
-    * [A Quick(-sort) Example](#a-quick-sort-example)
-    * [Function Application](#function-application)
-    * [Pattern Matching](#pattern-matching)
-    * [What are patterns?](#what-are-patterns)
-    * [Fibers](#fibers)
-    * [Error handling](#error-handling)
-    * [Concurrency](#concurrency)
-    * [Macros](#macros)
-    * [Hygiene](#hygiene)
-    * [Argument Patterns](#argument-patterns)
-    * [Building a match expression](#building-a-match-expression)
-    * [Modules](#modules)
-    * [Concluding Thoughts](#concluding-thoughts)
-* [FAQ](#faq)
-* [Installation](#installation)
-* [Contributing](#contributing)
-* [Roadmap](#roadmap)
-
 ## An Overview
 Where this overview gets really exciting is when we dive into [macros](#macros). If you're here to give Passerine a try, [skip to Installation](#installation).
 
@@ -91,11 +67,20 @@ The goal of Passerine's syntax is to make all expressions as *concise* as possib
 
 We'll start simple; here's a function definition:
 
-```passerine
-linear = m b x -> b + m * x
-linear 2 3 5
--- evaluates to 13
+Here's the distance function:
+
+```elm
+-- hello
+square = x -> x * x
+
+distance = (x1, y1) (x2, y2) -> {
+    sqrt (square (x1 - x2) + square (y1 - y2))
+}
+
+length = distance (0, 0)
 ```
+
+The reason we're defining square instead of using ** is because it's a simple definition that's really hard to get confused over. We build on that base by then showing how arguments are passed and functions are called, and then we show the power of function call syntax by defining length in terms of distance.
 
 There are already some important things we can learn about Passerine from this short example:
 
@@ -128,7 +113,7 @@ Passerine uses `-- comment` for single-line comments and `-{ comment }-` for nes
 #### A Quick(-sort) Example
 Here's another slightly more complex example – a recursive quick-sort with questionable pivot selection:
 
-```passerine
+```elm
 sort = list -> match list {
     -- base case
     [] -> []
@@ -149,7 +134,7 @@ sort = list -> match list {
 
 The first thing that you should notice is the use of a `match` expression. Like ML-style languages, Passerine makes extensive use of *pattern matching* and *destructuring* as a driver of computation. A match expression takes the form:
 
-```passerine
+```elm
 match value {
     pattern₀ -> expression₀
     ...
@@ -163,13 +148,13 @@ You might've also noticed the use of curly braces `{ ... }` after `[head, ..tail
 
 The next thing to notice is this line:
 
-```passerine
+```elm
 (sorted_lower, sorted_higher) = (sort lower, sort higher)
 ```
 
 This is a more complex assignment than the first one we saw. In this example, the pattern `(sorted_lower, sorted_higher)` is being matched against the expression `(sort lower, sort higher)`. This pattern is a *tuple* destructuring, if you've ever used Python or Rust, I'm sure you're familiar with it. This assignment is equivalent to:
 
-```passerine
+```elm
 sorted_lower  = sort lower
 sorted_higher = sort higher
 ```
@@ -178,7 +163,7 @@ There's no real reason to use tuple destructuring here – idiomatically, just u
 
 Passerine also supports higher order functions (this should come as no surprise):
 
-```passerine
+```elm
 filter { x -> x >= pivot } tail
 ```
 
@@ -186,7 +171,7 @@ filter { x -> x >= pivot } tail
 
 Passerine also allows lines to be split around operators to break up long expressions:
 
-```passerine
+```elm
 sorted_lower
     + [pivot]
     + sorted_higher
@@ -197,7 +182,7 @@ Although this is not a particularly long expression, splitting up lines by opera
 #### Function Application
 Before we move on, here's a clever implementation of FizzBuzz in Passerine:
 
-```passerine
+```elm
 fizzbuzz = n -> {
     test = d s x
         -> if n % d == 0 {
@@ -214,7 +199,7 @@ fizzbuzz = n -> {
 
 `.` is the function application operator:
 
-```passerine
+```elm
 -- the composition
 a . b c . d
 
@@ -256,20 +241,20 @@ Passerine supports algebraic data types, and all of these types can be matched a
 
 That's quite a lot of information, so let's work through it. The simplest case is a standard assignment:
 
-```
+```elm
 a = b
 -- produces the binding a = b
 ```
 
 This is very straightforward and we've already covered this, so let's begin by discussing matching against *data*. The following function will return the second argument if the first argument passed to the function is `true`.
 
-```passerine
+```elm
 true second -> second
 ```
 
 If the first argument is not true, say `false`, Passerine will yell at us:
 
-```passerine
+```
 Fatal Traceback, most recent call last:
 In src/main.pn:1:1
    |
@@ -286,7 +271,7 @@ Runtime Pattern Matching Error: The data 'false' does not match the expected dat
 
 *Discard* is another simple pattern – it does nothing. It's most useful when used in conjunction with other patterns:
 
-```passerine
+```elm
 -- to ensure an fruit has the type Banana:
 banana: Banana _ = mystery_fruit
 
@@ -299,7 +284,7 @@ banana: Banana _ = mystery_fruit
 
 A *label* is a name given to a type. Of course, names do not imply type safety, but they do do a darn good job most of the time:
 
-```passerine
+```elm
 -- make a soft yellow banana:
 banana = Banana ("yellow", "soft")
 
@@ -313,7 +298,7 @@ Pattern matching on labels is used to *extract* the raw data that is used to con
 
 *Tuples* are fairly simple – we already covered them – so we'll cover records next. A record is a set of fields:
 
-```passerine
+```elm
 -- define the Person type
 type Person {
     name:  String,
@@ -331,7 +316,7 @@ isaac = Person {
 
 Here's how you can pattern match on `isaac`:
 
-```passerine
+```elm
 Person {
     -- aliasing field `name` as `full_name`
     name: full_name,
@@ -356,7 +341,7 @@ In this example, `color` will be bound if `fruit` is a `Banana` whose 1nd† tup
 
 Finally, we'll address my favorite pattern, *where*. Where allows for arbitrary code check the validity of a pattern. This can go a long way. For example, let's define natural numbers in terms of integers:
 
-```passerine
+```elm
 type Natural n: Integer | n >= 0
 ```
 
@@ -366,7 +351,7 @@ This should be interpreted as:
 
 With this definition in place:
 
-```passerine
+```elm
 -- this is valid
 seven = Natural 7
 
@@ -392,7 +377,7 @@ It's important to point out that concurrency is *not* the same thing as parallel
 #### Error handling
 Passerine uses a combination of *exceptions* and algebraic data types to handle errors. Errors that are expected to happen should be wrapped in a `Result` type:
 
-```passerine
+```elm
 validate_length = n -> {
     if length n < 5 {
         Result.Error "It's too short!"
@@ -406,7 +391,7 @@ Some errors, however, are unexpected. There are an uncountable number of ways so
 
 For this reason, in the case that something that isn't expected to fail fails, an exception is raised. For example, trying to open a file that *should* exist may throw an error if it has been lost, moved, corrupted, or otherwise has incorrect permissions.
 
-```passerine
+```elm
 config = Config.parse (open "config.toml")
 ```
 
@@ -418,7 +403,7 @@ The reason we don't always need to handle these errors is because Passerine foll
 
 The good news is that crashes are local to the fiber they occur in – a single fiber crashing does *not* bring down the whole system. The idiomatic way to handle an operation that we know may fail is to try it. `try` performs the operation in a new fiber and converts any exceptions that may occur into a `Result`:
 
-```passerine
+```elm
 config = match try (open "config.toml") {
     Result.Ok    file  -> Config.parse file
     Result.Error error -> Config.default ()
@@ -427,7 +412,7 @@ config = match try (open "config.toml") {
 
 We know that some functions may raise errors, but how can *we* signal that something exceptionally bad has happened? We use the `error` keyword!
 
-```passerine
+```elm
 doof = platypus -> {
     if platypus == "Perry" {
         -- crashes the current fiber
@@ -444,7 +429,7 @@ inator = doof "Perry"
 
 Note that the value of raised errors can be any data. This allows for programmatic recovery from errors:
 
-```passerine
+```elm
 -- socket must not be disconnected
 send_data = (
     socket
@@ -462,7 +447,7 @@ send_data = (
 
 Let's say the above code tries to send some data through a socket. To handle a disconnection, we can try the error:
 
-```passerine
+```elm
 ping = socket -> try (send_data socket "ping")
 
 socket = Socket.new "isaac@passerine.io:42069" -- whatever
@@ -487,7 +472,7 @@ Fibers are for more than just isolating the context of errors. As mentioned earl
 
 Passerine leverages fibers to handle errors, but fibers are full *coroutines*. To create a fiber, use the fiber keyword:
 
-```passerine
+```elm
 counter = fiber {
     i = 0
     loop { yield i; i = i + 1 }
@@ -500,7 +485,7 @@ print counter () -> ...
 
 The `yield` keyword suspends the current fiber and returns a value to the calling fiber. `yield` can also be used to pass data *into* a fiber.
 
-```passerine
+```elm
 passing_yield = fiber {
     print "hello"
     result = yield "banana"
@@ -515,7 +500,7 @@ passing_yield "uh oh"  -- raises an error, fiber is done
 
 To build more complex systems, you can build fibers with functions:
 
-```passerine
+```elm
 -- a function that returns a fiber
 flopper = this that -> fiber {
     loop {
@@ -535,7 +520,7 @@ apple_banana () -- ... you get the point
 
 Of course, the possibilities are endless. There's one last thing I'd like to discuss before we start talking about macros. Fibers, while usually being ran in the context of another, all act as peers to each-other. If you have a reference to a fiber, it's possible to transfer to it forgetting the context in which it was called. To switch to a fiber, use `switch`.
 
-```
+```elm
 banana_and_end = fiber {
     print "banana ending!"
 }
@@ -559,7 +544,7 @@ Passerine has a rich hygienic* syntactic macro system that extends the language 
 #### Hygiene
 Extensions are defined with the `syntax` keyword, followed by some *argument patterns*, followed by the code that the captured arguments will be spliced into. Here's a simple example: we're using a macro to define `swap` operator:
 
-```passerine
+```elm
 syntax a 'swap b {
     tmp = a
     a = b
@@ -573,7 +558,7 @@ x swap y
 
 Note that the above code is completely hygienic. the expanded macro looks something like this:
 
-```passerine
+```elm
 _tmp = x
 x = y
 x = _tmp
@@ -581,7 +566,7 @@ x = _tmp
 
 Because `tmp` was not passed as a macro pattern parameter, all uses of `tmp` in the macro body are unique unrepresentable variables that do not collide with any other variables currently bound in scope. Essentially:
 
-```passerine
+```elm
 tmp = 1
 x = 2
 y = 3
@@ -593,7 +578,7 @@ Will not affect the value of `tmp`; `tmp` will still be `1`.
 #### Argument Patterns
 So, what is an argument pattern (an *arg-pat*)? Arg-pats are what go between:
 
-```passerine
+```elm
 syntax ... { }
 ```
 
@@ -605,13 +590,13 @@ Each item between `syntax` and the macro body is an arg-pat. Arg-pats can be:
 
 Let's start with *syntactic identifiers*. Identifiers are literal names that must be present for the pattern to match. Each syntactic extension is required to have at least one. For example, here's a macro that matches a *for loop*:
 
-```passerine
+```elm
 syntax 'for binding 'in values do { ... }
 ```
 
 In this case, `'for` and `'in` are syntactic identifiers. This definition could be used as follows:
 
-```passerine
+```elm
 for a in [1, 2, 3] {
     print a
 }
@@ -621,7 +606,7 @@ for a in [1, 2, 3] {
 
 Macros can also be used to define operators†:
 
-```passerine
+```elm
 syntax sequence 'contains value {
     c = seq -> match seq {
         [] -> False
@@ -635,7 +620,7 @@ syntax sequence 'contains value {
 
 This defines a `contains` operator that could be used as follows:
 
-```passerine
+```elm
 print {
     if [1, 2, 3] contains 2 {
         "It contains 2"
@@ -656,7 +641,7 @@ Evidently, `It contains 2` would be printed.
 
 Additionally, parenthesis are used for grouping, and `{ ... }` are used to match expressions within blocks. Let's construct some syntactic arguments that match an `if else` statement, like this one:
 
-```passerine
+```elm
 if x == 0 {
     print "Zero"
 } else if x % 2 == 0 {
@@ -668,31 +653,31 @@ if x == 0 {
 
 The arg-pat must match a beginning `if`:
 
-```passerine
+```elm
 syntax 'if { ... }
 ```
 
 Then, a condition:
 
-```passerine
+```elm
 syntax 'if condition { ... }
 ```
 
 Then, the first block:
 
-```passerine
+```elm
 syntax 'if condition then { ... }
 ```
 
 Next, we'll need a number of `else if <condition>` statements:
 
-```passerine
+```elm
 syntax 'if condition then ('else 'if others do)... { ... }
 ```
 
 Followed by a required closing else (Passerine is expression oriented and type-checked, so a closing `else` ensures that an `if` expression always returns a value.):
 
-```passerine
+```elm
 syntax 'if condition then ('else 'if others do)... 'else finally { ... }
 ```
 
@@ -701,7 +686,7 @@ Of course, if statements are already baked into the language – let's build som
 #### Building a `match` expression
 A match expression takes a value and a number of functions, and tries to apply the value to each function until one successfully matches and runs. A match expression looks as like this:
 
-```passerine
+```elm
 l = Some (1, 2, 3)
 
 match l {
@@ -712,7 +697,7 @@ match l {
 
 Here's how we can match a match expression:
 
-```passerine
+```elm
 syntax 'match value { arms... } {
     -- TODO: implement the body
 }
@@ -731,7 +716,7 @@ What about the body? Well:
 
 Let's start by implementing this as a function:
 
-```passerine
+```elm
 -- takes a value to match against
 -- and a list of functions, branches
 match_function = value branches -> {
@@ -756,7 +741,7 @@ I know the use of `if` to handle tasks that pattern matching excels at hurts a l
 
 Here's how you could use `match_function`, by the way:
 
-```passerine
+```elm
 -- Note that we're passing a list of functions
 description = match_function Banana ("yellow", "soft") [
     Banana ("brown", "mushy") -> "That's not my banana!",
@@ -778,7 +763,7 @@ description = match_function Banana ("yellow", "soft") [
 
 This is already orders of magnitude better, but passing a list of functions still feels a bit... hacky. Let's use our `match` macro definition from earlier to make this more ergonomic:
 
-```passerine
+```elm
 syntax 'match value { arms... } {
     match_function value arms
 }
@@ -786,7 +771,7 @@ syntax 'match value { arms... } {
 
 We've added match expression to Passerine, and they already feel like language features*! Isn't that incredible? Here's the above example we used with `match_function` adapted to `match`†:
 
-```passerine
+```elm
 description = match Banana ("yellow", "soft") {
     Banana ("brown", "mushy") -> "That's not my banana!"
 
@@ -812,7 +797,7 @@ Passerine's module system allows large codebases to be broken out into indiviual
 
 Modules are defined using the `mod` keyword, which must be followed by a block `{ ... }`. Here's a simple module that defines some math utilities:
 
-```passerine
+```elm
 circle = mod {
     PI     = 3.14159265358979
     area   = r -> r * PI * PI
@@ -826,7 +811,7 @@ slice_area = (circle::area pizza_radius) / slices
 
 `mod` takes all top-level declarations in a block - in this case, `PI`, `area`, and `circum` - and turns them into a struct with those fields. In essence, the above is equivalent to this struct:
 
-```passerine
+```elm
 circle = {
     PI:     3.14159265358979
     area:   r -> r * PI * PI
@@ -836,7 +821,7 @@ circle = {
 
 `mod` is nice because it's an easy way to have multiple returns. In essesence, the `mod` keyword allows for first-class scoping, by turning scopes into structs:
 
-```passerine
+```elm
 index = numbers pos 
     -> floor (len numbers * pos)
 
@@ -850,7 +835,7 @@ quartiles = numbers -> mod {
 
 Because we used the `mod` keyword in the above example, instead of returning a single value from the function, we return a struct containing all values in the fuction:
 
-```passerine
+```elm
 -- calculate statistics
 numbers = [1, 2, 3, 4, 5]
 stats   = quartiles numbers
@@ -864,7 +849,7 @@ This is really useful for writing functions that return multiple values.
 
 Aside from allowing us to group sets of related values into a single namespace, modules can be defined in different files, then be imported. Here's a module defined in a different file:
 
-```
+```elm
 -- list_util.pn
 reduce = f start list -> match list {
     [] -> start,
@@ -877,7 +862,7 @@ reverse = reduce { (a, b) -> [b.., a]} []
 
 This file defines a number of useful list utilities, defined in a traditional recursive style. If we want to use this module in `main.pn`, we import it using the `use` keyword:
 
-```
+```elm
 -- main.pn
 use list_util
 
@@ -887,20 +872,20 @@ print (list_util::sum numbers)
 
 Note that the `use` keyword is essentially the same thing as wrapping the contents of the imported file with the `mod` keyword: 
 
-```
+```elm
 -- use list_util
 list_util = mod { <list_util.pn> }
 ```
 
 Once imported, `list_util` is just a struct. Because of this, features of the module system naturally arise from Passerine's existing semantics for manipulating structs. To import a subset of a module, we can do something like this:
 
-```
+```elm
 reverse = { use list_util; list_util::reduce }
 ```
 
 Likewise, we can import a module within a block scope to rename it:
 
-```
+```elm
 list_stuff = { use list_util; list_util }
 ```
 
