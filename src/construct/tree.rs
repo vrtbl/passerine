@@ -135,7 +135,7 @@ impl TryFrom<AST> for Pattern<SharedSymbol> {
     /// When the compiler can determine that an AST is actually a pattern,
     /// It performs this conversion.
     fn try_from(ast: AST) -> Result<Self, Self::Error> {
-        if true { todo!("SharedSymbol lookup"); }
+        // if true { todo!("SharedSymbol lookup"); }
         Ok(
             match ast {
                 AST::Base(Base::Symbol(s)) => Pattern::Symbol(s),

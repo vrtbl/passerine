@@ -27,15 +27,17 @@ impl Lower for ThinModule<Vec<Spanned<Token>>> {
     /// Simple function that parses a token stream into an AST.
     /// Exposes the functionality of the `Parser`.
     fn lower(self) -> Result<Self::Out, Syntax> {
+        let full_span = Spanned::build(&self.repr);
+        println!("{:#?}", self.repr);
         let mut parser = Parser::new(self.repr);
         let ast = parser.body()?;
 
         println!("{:#?}", ast);
-        todo!("See above TODO");
+        // todo!("See above TODO");
         // parser.consume(Token::End)?;
 
         return Ok(Module::new(
-            Spanned::new(ast, todo!()),
+            Spanned::new(ast, full_span),
             parser.symbols.len()
         ));
     }
@@ -229,7 +231,7 @@ impl Parser {
     /// Looks at the current token and parses an infix expression
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
-            Token::End => todo!("remove end from prefix rule"), // Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::Empty)),
+            // Token::End => todo!("remove end from prefix rule"), // Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::Empty)),
             Token::Group { delim, .. } => match delim {
                 Delim::Curly => self.block(),
                 Delim::Paren => self.group(),

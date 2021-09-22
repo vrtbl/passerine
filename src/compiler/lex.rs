@@ -70,6 +70,9 @@ impl Lexer {
             // current lexer location
             let current_span = Span::point(&self.source, self.offset);
 
+            // TODO: figure out how to make this lexer more robust.
+            // TODO: unit is being read as an empty group `()`
+
             // check for delimiters
             // not a fan of continue, but oh well
             // who is, anyway?
