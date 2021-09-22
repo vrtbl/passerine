@@ -18,9 +18,6 @@
     <a href="https://discord.gg/yMhUyhw">
         <img src="https://img.shields.io/discord/651996477333438474?logo=discord&color=5865F2">
     </a>
-    <a href="https://matrix.to/#/!nJZPxQAHzwPQwoylcF:envs.net?via=envs.net">
-        <img src="https://img.shields.io/badge/chat-on matrix-000000?logo=matrix">
-    </a>
     <br>
     <br>
 </p>
@@ -52,15 +49,18 @@ Passerine is currently being developed by [Isaac Clayton](https://github.com/sli
 [Plecra](https://github.com/plecra),
 [IFcoltransG](https://github.com/IFcoltransG),
 [Jack](https://github.com/nivpgir),
+[Keith](https://github.com/Kethku)‡,
 Xal,
 and others!
 
 > † Shaw is writing an [alternative implementation of Passerine](https://github.com/ShawSumma/purr/tree/main/ext/passerine), and it's *super* fast. It's part of a wider effort of his to develop [an efficient language-agnostic VM](https://github.com/ShawSumma/purr).
 
+> ‡ Keith is currently [sponsoring](https://www.patreon.com/slightknack) the development of Passerine — I'm deeply grateful for his support!
+
 ## An Overview
 Where this overview gets really exciting is when we dive into [macros](#macros). If you're here to give Passerine a try, [skip to Installation](#installation).
 
-**⚠️ Note that Passerine is a *work in progress*: features mentioned in this overview may not be implemented yet.**
+> **⚠️ Note that Passerine is a *work in progress*: features mentioned in this overview may not be implemented yet.**
 
 ### Syntax
 The goal of Passerine's syntax is to make all expressions as *concise* as possible while still conserving the 'feel' of *different types* of expressions.
@@ -991,6 +991,8 @@ Contributions are welcome!
 Read our [Contribution Guide](https://github.com/vrtbl/passerine/blob/master/CONTRIBUTING.md)
 and join the [Discord server](https://discord.gg/yMhUyhw)
 to get started!
+
+If you'd like to contribute to the project but don't have much time to spare, consider [donating](https://www.patreon.com/slightknack). Thank you!
 
 ## Roadmap
 See the [Project Roadmap](https://github.com/vrtbl/passerine/projects/1) to get a feel for what's currently under development.
