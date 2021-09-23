@@ -28,10 +28,16 @@ pub enum Token {
 
     // Context
     Sep,
-    End,
 }
 
 pub type Tokens = Vec<Spanned<Token>>;
+
+impl Token {
+    // Creates a new empty group with a specific delimiter.
+    pub fn empty_group(delim: Delim) -> Token {
+        Token::Group { delim, tokens: vec![] }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Delim {

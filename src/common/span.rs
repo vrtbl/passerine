@@ -31,6 +31,7 @@ impl Span {
     }
 
     /// A `Span` that points at a specific point in the source.
+    /// Has a length of `1`.
     pub fn point(source: &Rc<Source>, offset: usize) -> Span {
         Span { source: Rc::clone(source), offset, length: 1 }
     }
@@ -38,6 +39,10 @@ impl Span {
     /// Return the index of the end of the `Span`.
     pub fn end(&self) -> usize {
         self.offset + self.length
+    }
+
+    pub fn len(&self) -> usize {
+        self.length
     }
 
     /// Creates a new `Span` which spans the space of the previous two.

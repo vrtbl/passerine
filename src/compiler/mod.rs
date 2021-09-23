@@ -17,6 +17,7 @@
 // TODO: wrap ast in module
 
 pub mod lex;
+pub mod new_lex;
 pub mod parse;
 // pub mod hoist;
 // pub mod gen;
