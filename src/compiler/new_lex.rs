@@ -89,12 +89,30 @@ impl Lexer {
             '(' if Some(')') == remaining.next() => {
                 (Token::Data(Data::Unit), 2)
             },
+
+            // Grouping
             '(' => self.enter_group(Delim::Paren),
             '{' => self.enter_group(Delim::Curly),
             '[' => self.enter_group(Delim::Square),
             ')' => return self.exit_group(Delim::Paren),
             '}' => return self.exit_group(Delim::Curly),
             ']' => return self.exit_group(Delim::Square),
+
+            // Label
+            c if c.is_alphabetic() && c.is_uppercase() => todo!(),
+            // Iden
+            c if c.is_alphabetic() => todo!(),
+            // Op
+            c if c.is_ascii_punctuation() => todo!(),
+
+            // Number
+            '0' .. '9' => todo!(),
+
+            // String
+            '"' => todo!(),
+
+            // Unrecognized char
+            _ => todo!(),
         };
 
         let spanned = Spanned::new(
