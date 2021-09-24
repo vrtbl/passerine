@@ -32,6 +32,81 @@ use crate::compiler::{
 //     }
 // }
 
+pub struct Lexer {
+    source:  Rc<Source>,
+    index:   usize,
+    nesting: Vec<usize>,
+    tokens:  Vec<Spanned<Token>>,
+}
+
+impl Lexer {
+    pub fn lex(source: Rc<Source>) -> Result<Tokens, Syntax> {
+        let mut lexer = Lexer {
+            source,
+            index: 0,
+            nesting: vec![],
+            tokens:  vec![],
+        };
+
+        todo!();
+    }
+
+    fn enter_group(&mut self, delim: Delim) -> (Token, usize) {
+        self.nesting.push(self.index);
+        (Token::empty_group(delim), 1)
+    }
+
+    fn exit_group(&mut self, delim: Delim) -> Result<Spanned<Token>, Syntax> {
+        // get the location of the matching opening pair
+        let loc = self.nesting.pop().ok_or(Syntax::error(
+            "Closing parenthesis `)` without corresponding opening parenthesis `(`",
+            &Span::point(&self.source, self.index),
+        ))?;
+
+        // split off new tokens, insert into group
+        let after = self.tokens.split_off(loc + 1);
+        let group = self.tokens.pop().unwrap();
+        if let Token::Group { delim, ref mut tokens } = group.item {
+            *tokens = after;
+        }
+
+        // span over the whole group
+        group.span = Span::combine(
+            &group.span,
+            &Span::point(&self.source, self.index)
+        );
+
+        Ok(group)
+    }
+
+    /// Parses the next token.
+    /// Expects all whitespace and comments to be stripped.
+    fn next_token(&mut self) -> Result<Spanned<Token>, Syntax> {
+        let remaining = self.source.contents[self.index..].chars();
+
+        let (token, used) = match remaining.next().unwrap() {
+            // the unit type, `()`
+            '(' if Some(')') == remaining.next() => {
+                (Token::Data(Data::Unit), 2)
+            },
+            '(' => self.enter_group(Delim::Paren),
+            '{' => self.enter_group(Delim::Curly),
+            '[' => self.enter_group(Delim::Square),
+            ')' => return self.exit_group(Delim::Paren),
+            '}' => return self.exit_group(Delim::Curly),
+            ']' => return self.exit_group(Delim::Square),
+        };
+
+        let spanned = Spanned::new(
+            token,
+            Span::new(&self.source, self.index, used)
+        );
+
+        self.index += used;
+        Ok(spanned)
+    }
+}
+
 pub fn lex(source: &Rc<Source>) -> Result<Tokens, Syntax> {
     let contents = &source.contents;
     let mut tokens: Tokens = vec![];
