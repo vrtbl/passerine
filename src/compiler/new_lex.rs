@@ -36,19 +36,65 @@ pub struct Lexer {
     source:  Rc<Source>,
     index:   usize,
     nesting: Vec<usize>,
-    tokens:  Vec<Spanned<Token>>,
+    tokens:  Tokens,
 }
 
 impl Lexer {
     pub fn lex(source: Rc<Source>) -> Result<Tokens, Syntax> {
+        // build a base lexer for this file
         let mut lexer = Lexer {
             source,
             index: 0,
             nesting: vec![],
-            tokens:  vec![],
+            tokens: vec![],
         };
 
-        todo!();
+        // prime the lexer
+        lexer.strip();
+
+        // consume!
+        while lexer.index < lexer.source.contents.len() {
+            // Insert the next token
+            let token = lexer.next_token()?;
+            lexer.tokens.push(token);
+
+            // Strip whitespace, but not newlines, and comments
+            lexer.strip();
+        }
+
+        // phew, nothing broke. Your tokens, sir!
+        Ok(lexer.tokens)
+    }
+
+    fn strip(&mut self) {
+        let remaining = self.source.contents[self.index..].chars();
+
+        loop {
+            let old_index = self.index;
+
+            // Strip whitespace
+            while let Some(c) = remaining.next() {
+                if !c.is_whitespace() || c == '\n' {
+                    self.index += c.len_utf8();
+                }
+            }
+
+            // TODO: doc comments and expression comments
+            // Strip single line comment
+            if let Some('-') = remaining.next() {
+                if let Some('-') = remaining.next() {
+                    // eat comment until the end of the line
+                    while let Some(c) = remaining.next() {
+                        if c != '\n' {
+                            self.index += c.len_utf8();
+                        }
+                    }
+                }
+            }
+
+            // If nothing was stripped, we're done
+            if self.index == old_index { break }
+        }
     }
 
     fn enter_group(&mut self, delim: Delim) -> (Token, usize) {
