@@ -367,7 +367,7 @@ impl Lexer {
             Err(_) => panic!("Could not convert source to supposed real")
         };
 
-        return Ok((Token::Data(Data::Real(number)), len));
+        return Ok((Token::Data(Data::Float(number)), len));
     }
 
     pub fn integer(source: &str) -> Result<Bite, String> {
@@ -605,13 +605,13 @@ impl Lexer {
 //     fn real() {
 //         if !test_literal(
 //             "2.0",
-//             Token::Number(Data::Real(2.0)),
+//             Token::Number(Data::Float(2.0)),
 //             3,
 //         ) { panic!() }
 //
 //         if !test_literal(
 //             "210938.2221",
-//             Token::Number(Data::Real(210938.2221)),
+//             Token::Number(Data::Float(210938.2221)),
 //             11,
 //         ) { panic!() }
 //     }

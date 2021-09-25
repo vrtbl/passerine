@@ -513,7 +513,7 @@ mod test {
         // y = (x -> { y = x; y ) 7.0; y
         let mut vm = inspect("one = 1.0\npi = 3.14\ne = 2.72\n\nx = w -> pi\nx 37.6");
         let pi = vm.stack.pop_data();
-        assert_eq!(pi, Data::Real(3.14));
+        assert_eq!(pi, Data::Float(3.14));
     }
 
     #[test]

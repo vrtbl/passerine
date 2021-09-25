@@ -51,8 +51,8 @@ impl Tagged {
     /// Wraps `Data` to create a new tagged pointer.
     pub fn new(slot: Slot) -> Tagged {
         match slot {
-            // Real
-            Slot::Data(Data::Real(f)) => Tagged(f.to_bits()),
+            // Float
+            Slot::Data(Data::Float(f)) => Tagged(f.to_bits()),
             // Unit
             Slot::Data(Data::Unit) => Tagged(QNAN | U_FLAG),
             // True and false
@@ -96,7 +96,7 @@ impl Tagged {
     /// not be dropped
     fn extract(&self, dereference: impl FnOnce(*mut Slot) -> Slot) -> Slot {
         match self.0 {
-            n if (n & QNAN) != QNAN     => Slot::Data(Data::Real(f64::from_bits(n))),
+            n if (n & QNAN) != QNAN     => Slot::Data(Data::Float(f64::from_bits(n))),
             u if u == (QNAN | U_FLAG)   => Slot::Data(Data::Unit),
             f if f == (QNAN | F_FLAG)   => Slot::Data(Data::Boolean(false)),
             t if t == (QNAN | T_FLAG)   => Slot::Data(Data::Boolean(true)),
@@ -151,18 +151,18 @@ mod test {
     use super::*;
 
     #[test]
-    fn reals_eq() {
+    fn floats_eq() {
         let positive = 478_329.0;
         let negative = -231.0;
         let nan      = f64::NAN;
         let neg_inf  = f64::NEG_INFINITY;
 
         for n in &[positive, negative, nan, neg_inf] {
-            let data    = Data::Real(*n);
+            let data    = Data::Float(*n);
             let wrapped = Tagged::new(Slot::Data(data));
             match wrapped.copy().data() {
-                Data::Real(f) if f.is_nan() => assert!(n.is_nan()),
-                Data::Real(f) => assert_eq!(*n, f),
+                Data::Float(f) if f.is_nan() => assert!(n.is_nan()),
+                Data::Float(f) => assert_eq!(*n, f),
                 _             => panic!("Didn't unwrap to a real"),
             }
         }
@@ -216,17 +216,17 @@ mod test {
     #[test]
     fn other_tests_eq() {
         let tests = vec![
-            Data::Real(f64::consts::PI),
-            Data::Real(-2.12),
-            Data::Real(2.5E10),
-            Data::Real(2.5e10),
-            Data::Real(2.5E-10),
-            Data::Real(0.5),
-            Data::Real(f64::MAX),
-            Data::Real(f64::MIN),
-            Data::Real(f64::INFINITY),
-            Data::Real(f64::NEG_INFINITY),
-            Data::Real(f64::NAN),
+            Data::Float(f64::consts::PI),
+            Data::Float(-2.12),
+            Data::Float(2.5E10),
+            Data::Float(2.5e10),
+            Data::Float(2.5E-10),
+            Data::Float(0.5),
+            Data::Float(f64::MAX),
+            Data::Float(f64::MIN),
+            Data::Float(f64::INFINITY),
+            Data::Float(f64::NEG_INFINITY),
+            Data::Float(f64::NAN),
             Data::Boolean(true),
             Data::Boolean(false),
             Data::Unit,
@@ -243,12 +243,12 @@ mod test {
             // println!("untagged: {:?}", untagged);
             // println!("---");
 
-            if let Data::Real(f) = untagged {
-                if let Data::Real(n) = test {
+            if let Data::Float(f) = untagged {
+                if let Data::Float(n) = test {
                     if n.is_nan() {
                         assert!(f.is_nan())
                     } else {
-                        assert_eq!(test, Data::Real(n));
+                        assert_eq!(test, Data::Float(n));
                     }
                 }
             } else {

@@ -28,8 +28,8 @@ pub enum Data {
     NotInit,
 
     // Passerine Data (Atomic)
-    /// Real Numbers, represented as double-precision floating points.
-    Real(f64),
+    /// Float Numbers, represented as double-precision floating points.
+    Float(f64),
     // TODO: arbitrary precision integers.
     /// Integers, currently 64-bit.
     Integer(i64),
@@ -74,7 +74,7 @@ impl Display for Data {
         match self {
             Data::Heaped(_)   => unreachable!("Can not display heaped data"),
             Data::NotInit     => unreachable!("Can not display uninitialized data"),
-            Data::Real(n)     => write!(f, "{}", n),
+            Data::Float(n)     => write!(f, "{}", n),
             Data::Integer(n)  => write!(f, "{}", n),
             Data::Boolean(b)  => write!(f, "{}", if *b { "true" } else { "false" }),
             Data::String(s)   => write!(f, "{}", s),
@@ -101,7 +101,7 @@ impl Debug for Data {
         match self {
             Data::Heaped(h)   => write!(f, "Heaped({:?})", h.borrow()),
             Data::NotInit     => write!(f, "NotInit"),
-            Data::Real(n)     => write!(f, "Real({:?})", n),
+            Data::Float(n)     => write!(f, "Float({:?})", n),
             Data::Integer(n)  => write!(f, "Integer({:?})", n),
             Data::Boolean(b)  => write!(f, "Boolean({:?})", b),
             Data::String(s)   => write!(f, "String({:?})", s),

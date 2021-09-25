@@ -379,7 +379,7 @@ mod test {
         let result = vec![
             Data::Boolean(true),
             Data::Unit, // from assignment
-            Data::Real(0.0),
+            Data::Float(0.0),
             Data::Boolean(false),
             Data::String("GOod MoRNiNg, SiR".to_string()),
         ];

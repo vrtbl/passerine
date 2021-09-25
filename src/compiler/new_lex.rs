@@ -137,32 +137,86 @@ impl Lexer {
         ))
     }
 
-    fn number_literal(&self, base: u8, remaining: impl Iterator<Item = char>) -> Result<(Token, usize), Syntax> {
-        // TODO: NaNs, Infinity, the whole shebang
-        // look at how f64::from_str is implemented, maybe?
-        let mut len: usize = 0;
+    fn integer_literal(
+        &self,
+        radix: u32,
+        remaining: impl Iterator<Item = char>,
+    ) -> Result<(Token, usize), Syntax> {
+        let (integer, used) = self.take_while(
+            remaining,
+            |s| i64::from_str_radix(s, radix)
+                .map_err(|_| Syntax::error(
+                    "Integer literal too large to fit in a signed 64-bit integer",
+                    // hate the + 2 hack
+                    // + 2 chars to take the `0?` into account
+                    &Span::new(&self.source, self.index, s.len() + 2),
+                )),
+            |n| n.is_digit(radix),
+        );
+        Ok((Token::Data(Data::Integer(integer?)), used + 2))
+    }
 
-        // one or more digits followed by a '.' followed by 1 or more digits
-        len += self.take_while(
+    fn radix_literal(
+        &self,
+        n: char,
+        remaining: impl Iterator<Item = char>,
+    ) -> Result<(Token, usize), Syntax> {
+        match n {
+            'b' => self.integer_literal(2, remaining),
+            'o' => self.integer_literal(8, remaining), // Octal
+            // Decimal, for kicks
+            'd' => self.integer_literal(10, remaining),
+            'x' => self.integer_literal(16, remaining),
+            // Decimal literal with a leading zero
+            _   => self.decimal_literal(
+                // rebuild the iterator, ugh
+                once('0').chain(once(n)).chain(remaining)
+            ),
+        }
+    }
+
+    fn decimal_literal(
+        &self,
+        remaining: impl Iterator<Item = char>,
+    ) -> Result<(Token, usize), Syntax> {
+        let mut len = self.take_while(
             remaining,
             |_| (),
-            |n| n.is_digit(base as u32),
+            |n| n.is_digit(10),
         ).1;
 
-        // TODO: decimal point.
-
-        len += self.take_while(
-            remaining,
-            |_| (),
-            |n| n.is_digit(base as u32),
-        ).1;
-
-        let number = match f64::from_str(&source[..len]) {
-            Ok(n)  => n,
-            Err(_) => panic!("Could not convert source to supposed real")
-        };
-
-        return Ok((Token::Data(Data::Real(number)), len));
+        match remaining.next() {
+            // There's a decimal point, so we parse as a float
+            Some('.') => {
+                len += self.take_while(
+                    remaining,
+                    |_| (),
+                    |n| n.is_digit(10),
+                ).1;
+                let float = f64::from_str(&self.source.contents[self.index..self.index + len])
+                    .map_err(|_| Syntax::error(
+                        "Float literal does not fit in a 64-bit floating-point number",
+                        &Span::new(&self.source, self.index, len),
+                    ))?;
+                Ok((Token::Data(Data::Float(float)), len))
+            },
+            // There's an 'E', so we parse using scientific notation
+            Some('E') => {
+                Err(Syntax::error(
+                    "Scientific notation for floating-point is WIP!",
+                    &Span::point(&self.source, self.index),
+                ))
+            },
+            // Nothing of use, wrap up what we have so far
+            _ => {
+                let integer = i64::from_str(&self.source.contents[self.index..self.index + len])
+                    .map_err(|_| Syntax::error(
+                        "Decimal literal too large to fit in a signed 64-bit integer",
+                        &Span::new(&self.source, self.index, len),
+                    ))?;
+                Ok((Token::Data(Data::Integer(integer)), len))
+            }
+        }
     }
 
     /// Parses the next token.
@@ -171,6 +225,13 @@ impl Lexer {
         let remaining = self.source.contents[self.index..].chars();
 
         let (token, used) = match remaining.next().unwrap() {
+            // separator
+            c @ ('\n' | ';') => self.take_while(
+                once(c).chain(remaining),
+                |_| Token::Sep,
+                |n| n.is_whitespace() || n == ';'
+            ),
+
             // the unit type, `()`
             '(' if Some(')') == remaining.next() => {
                 (Token::Data(Data::Unit), 2)
@@ -188,10 +249,16 @@ impl Lexer {
             c if c.is_alphabetic() && c.is_uppercase() => {
                 self.take_while(
                     once(c).chain(remaining),
-                    |s| Token::Label(s.to_string()),
+                    |s| match s {
+                        // TODO: In the future, booleans in prelude
+                        "True" => Token::Data(Data::Boolean(true)),
+                        "False" => Token::Data(Data::Boolean(false)),
+                        _ => Token::Label(s.to_string()),
+                    },
                     |n| n.is_alphanumeric() || n == '_'
                 )
             },
+
             // Iden
             c if c.is_alphabetic() || c == '_' => {
                 self.take_while(
@@ -200,6 +267,7 @@ impl Lexer {
                     |n| n.is_alphanumeric() || n == '_'
                 )
             },
+
             // Op
             c if c.is_ascii_punctuation() => {
                 self.take_while(
@@ -209,34 +277,38 @@ impl Lexer {
                 )
             },
 
-            '0' => if let Some(n) = remaining.next() {
-                let (token, consumed) = match n {
-                    'b' => self.number_literal(2, remaining),
-                    'o' => self.number_literal(8, remaining), // Octal
-                    'x' => self.number_literal(16, remaining),
-                };
-                (token, consumed + 2)
-            }
-
-            // Number
+            // Number literal:
+            // Integer: 28173908, etc.
+            // Radix:   0b1011001011, 0xFF, etc.
+            // Float:   420.69, 0., etc.
             c @ '0'..='9' => {
-                if let Some(n) = remaining.next() {
-                    // handle other bases
-                    match n {
-                        'b' => number,
-                        'c' => todo!(), // Octal
-                        'x' => todo!(),
+                if c != '0' {
+                    if let Some(n) = remaining.next() {
+                        // Potentially integers in other radixes
+                        self.radix_literal(n, remaining)?
+                    } else {
+                        // End of source, must be just `0`
+                        (Token::Data(Data::Integer(0)), 1)
                     }
                 } else {
-                    self.number_literal(once(c).chain(remaining))
+                    // parse decimal literal
+                    // this could be an integer
+                    // but also a floating point number
+                    self.decimal_literal(remaining)?
                 }
-            },
+            }
 
             // String
             '"' => self.string(remaining)?,
 
             // Unrecognized char
-            _ => todo!(),
+            unknown => return Err(Syntax::error(
+                &format!(
+                    "Hmm... The character `{}` is not recognized - check for encoding issues or typos",
+                    unknown,
+                ),
+                &Span::point(&self.source, self.index),
+            )),
         };
 
         let spanned = Spanned::new(
@@ -258,6 +330,6 @@ mod test {
 
     #[test]
     fn new_empty() {
-        lex(&Source::source("")).unwrap();
+        Lexer::lex(Source::source("")).unwrap();
     }
 }

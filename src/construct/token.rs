@@ -121,7 +121,6 @@ impl Display for Token {
             Token::Op(o)               => format!("the operator `{}`", o),
             Token::Data(d)             => format!("the data `{}`", d),
             Token::Sep                 => "a separator".to_string(),
-            Token::End                 => "the end of source".to_string(),
         };
 
         write!(f, "{}", message)

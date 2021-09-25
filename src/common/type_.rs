@@ -2,7 +2,7 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     // Passerine Data (Atomic)
-    Real,
+    Float,
     Integer,
     Boolean,
     String,
