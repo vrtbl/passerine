@@ -1,5 +1,5 @@
 use std::{
-    iter::Peekable,
+    iter::{once, Iterator},
     str::{FromStr, Chars},
     f64,
     rc::Rc,
@@ -79,23 +79,22 @@ impl Lexer {
         Ok(group)
     }
 
-    fn literal_while(
+    fn take_while<T>(
         &self,
-        c: char,
-        remaining: Chars,
-        wrap: impl Fn(String) -> Token,
+        remaining: impl Iterator<Item = char>,
+        wrap: impl Fn(&str) -> T,
         pred: impl Fn(char) -> bool,
-    ) -> (Token, usize) {
-        let mut used = c.len_utf8();
+    ) -> (T, usize) {
+        let mut used = 0;
         while let Some(n) = remaining.next() {
             if !pred(n) { break; }
             used += n.len_utf8();
         }
         let inside = &self.source.contents[self.index..self.index + used];
-        (wrap(inside.to_string()), used)
+        (wrap(inside), used)
     }
 
-    fn string(&self, remaining: Chars) -> Result<(Token, usize), Syntax> {
+    fn string(&self, remaining: impl Iterator<Item = char>) -> Result<(Token, usize), Syntax> {
         // expects opening quote to have been parsed
         let mut len    = 1;
         let mut escape = false;
@@ -105,14 +104,16 @@ impl Lexer {
             len += c.len_utf8();
             if escape {
                 escape = false;
-                // TODO: add more escape codes
+                // TODO: nesting expression inside strings for splicing
+                // TODO: \x and \u{..} for ascii and unicode
                 // TODO: maybe add parsing escape codes to later step?
                 string.push(match c {
                     '"'  => '"',
                     '\\' => '\\',
                     'n'  => '\n',
-                    't'  => '\t',
                     'r'  => '\r',
+                    't'  => '\t',
+                    '0'  => '\0',
                     o    => return Err(
                         Syntax::error(
                             &format!("Unknown escape code `\\{}` in string literal", o),
@@ -136,6 +137,34 @@ impl Lexer {
         ))
     }
 
+    fn number_literal(&self, base: u8, remaining: impl Iterator<Item = char>) -> Result<(Token, usize), Syntax> {
+        // TODO: NaNs, Infinity, the whole shebang
+        // look at how f64::from_str is implemented, maybe?
+        let mut len: usize = 0;
+
+        // one or more digits followed by a '.' followed by 1 or more digits
+        len += self.take_while(
+            remaining,
+            |_| (),
+            |n| n.is_digit(base as u32),
+        ).1;
+
+        // TODO: decimal point.
+
+        len += self.take_while(
+            remaining,
+            |_| (),
+            |n| n.is_digit(base as u32),
+        ).1;
+
+        let number = match f64::from_str(&source[..len]) {
+            Ok(n)  => n,
+            Err(_) => panic!("Could not convert source to supposed real")
+        };
+
+        return Ok((Token::Data(Data::Real(number)), len));
+    }
+
     /// Parses the next token.
     /// Expects all whitespace and comments to be stripped.
     fn next_token(&mut self) -> Result<Spanned<Token>, Syntax> {
@@ -157,41 +186,54 @@ impl Lexer {
 
             // Label
             c if c.is_alphabetic() && c.is_uppercase() => {
-                self.literal_while(c, remaining, Token::Label, |n| {
-                    n.is_alphanumeric() || n == '_'
-                })
+                self.take_while(
+                    once(c).chain(remaining),
+                    |s| Token::Label(s.to_string()),
+                    |n| n.is_alphanumeric() || n == '_'
+                )
             },
             // Iden
             c if c.is_alphabetic() || c == '_' => {
-                self.literal_while(c, remaining, Token::Iden, |n| {
-                    n.is_alphanumeric() || n == '_'
-                })
+                self.take_while(
+                    once(c).chain(remaining),
+                    |s| Token::Iden(s.to_string()),
+                    |n| n.is_alphanumeric() || n == '_'
+                )
             },
             // Op
             c if c.is_ascii_punctuation() => {
-                self.literal_while(c, remaining, Token::Op, |n| {
-                    n.is_ascii_punctuation()
-                })
+                self.take_while(
+                    once(c).chain(remaining),
+                    |s| Token::Label(s.to_string()),
+                    |n| n.is_ascii_punctuation(),
+                )
             },
+
+            '0' => if let Some(n) = remaining.next() {
+                let (token, consumed) = match n {
+                    'b' => self.number_literal(2, remaining),
+                    'o' => self.number_literal(8, remaining), // Octal
+                    'x' => self.number_literal(16, remaining),
+                };
+                (token, consumed + 2)
+            }
 
             // Number
             c @ '0'..='9' => {
-                if let Some(n) = remaining.peek() {
+                if let Some(n) = remaining.next() {
                     // handle other bases
                     match n {
-                        'b' => todo!(),
+                        'b' => number,
                         'c' => todo!(), // Octal
                         'x' => todo!(),
                     }
                 } else {
-                    // decimal base
-                    todo!()
-                    // self.decimal(c, remaining)
+                    self.number_literal(once(c).chain(remaining))
                 }
             },
 
             // String
-            '"' => self.string(remaining),
+            '"' => self.string(remaining)?,
 
             // Unrecognized char
             _ => todo!(),
