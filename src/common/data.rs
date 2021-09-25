@@ -15,6 +15,8 @@ use crate::common::{
     closure::Closure,
 };
 
+// TODO: separate VM data from parser data
+
 /// Built-in Passerine datatypes.
 #[derive(Clone, PartialEq)]
 pub enum Data {

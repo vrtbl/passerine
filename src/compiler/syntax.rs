@@ -33,8 +33,9 @@ impl Syntax {
         }
     }
 
-    pub fn add_note(&mut self, note: Note) {
-        self.notes.push(note)
+    pub fn add_note(self, note: Note) -> Self {
+        self.notes.push(note);
+        self
     }
 }
 

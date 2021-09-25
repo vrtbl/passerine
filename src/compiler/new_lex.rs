@@ -79,6 +79,63 @@ impl Lexer {
         Ok(group)
     }
 
+    fn literal_while(
+        &self,
+        c: char,
+        remaining: Chars,
+        wrap: impl Fn(String) -> Token,
+        pred: impl Fn(char) -> bool,
+    ) -> (Token, usize) {
+        let mut used = c.len_utf8();
+        while let Some(n) = remaining.next() {
+            if !pred(n) { break; }
+            used += n.len_utf8();
+        }
+        let inside = &self.source.contents[self.index..self.index + used];
+        (wrap(inside.to_string()), used)
+    }
+
+    fn string(&self, remaining: Chars) -> Result<(Token, usize), Syntax> {
+        // expects opening quote to have been parsed
+        let mut len    = 1;
+        let mut escape = false;
+        let mut string = String::new();
+
+        for c in remaining {
+            len += c.len_utf8();
+            if escape {
+                escape = false;
+                // TODO: add more escape codes
+                // TODO: maybe add parsing escape codes to later step?
+                string.push(match c {
+                    '"'  => '"',
+                    '\\' => '\\',
+                    'n'  => '\n',
+                    't'  => '\t',
+                    'r'  => '\r',
+                    o    => return Err(
+                        Syntax::error(
+                            &format!("Unknown escape code `\\{}` in string literal", o),
+                            &Span::new(&self.source, self.index + len - 1, o.len_utf8()),
+                        )
+                        // TODO: add help note about backslash escape
+                    ),
+                })
+            } else {
+                match c {
+                    '\\' => escape = true,
+                    '\"' => return Ok((Token::Data(Data::String(string)), len)),
+                    c    => string.push(c),
+                }
+            }
+        }
+
+        Err(Syntax::error(
+            "Unexpected end of source while parsing string literal",
+            &Span::point(&self.source, self.index + len),
+        ))
+    }
+
     /// Parses the next token.
     /// Expects all whitespace and comments to be stripped.
     fn next_token(&mut self) -> Result<Spanned<Token>, Syntax> {
@@ -99,17 +156,42 @@ impl Lexer {
             ']' => return self.exit_group(Delim::Square),
 
             // Label
-            c if c.is_alphabetic() && c.is_uppercase() => todo!(),
+            c if c.is_alphabetic() && c.is_uppercase() => {
+                self.literal_while(c, remaining, Token::Label, |n| {
+                    n.is_alphanumeric() || n == '_'
+                })
+            },
             // Iden
-            c if c.is_alphabetic() => todo!(),
+            c if c.is_alphabetic() || c == '_' => {
+                self.literal_while(c, remaining, Token::Iden, |n| {
+                    n.is_alphanumeric() || n == '_'
+                })
+            },
             // Op
-            c if c.is_ascii_punctuation() => todo!(),
+            c if c.is_ascii_punctuation() => {
+                self.literal_while(c, remaining, Token::Op, |n| {
+                    n.is_ascii_punctuation()
+                })
+            },
 
             // Number
-            '0' .. '9' => todo!(),
+            c @ '0'..='9' => {
+                if let Some(n) = remaining.peek() {
+                    // handle other bases
+                    match n {
+                        'b' => todo!(),
+                        'c' => todo!(), // Octal
+                        'x' => todo!(),
+                    }
+                } else {
+                    // decimal base
+                    todo!()
+                    // self.decimal(c, remaining)
+                }
+            },
 
             // String
-            '"' => todo!(),
+            '"' => self.string(remaining),
 
             // Unrecognized char
             _ => todo!(),
@@ -123,64 +205,6 @@ impl Lexer {
         self.index += used;
         Ok(spanned)
     }
-}
-
-pub fn lex(source: &Rc<Source>) -> Result<Tokens, Syntax> {
-    let contents = &source.contents;
-    let mut tokens: Tokens = vec![];
-    let mut nesting = vec![];
-    let mut index = 0;
-
-    while index < contents.len() {
-        let mut remaining = &mut contents[index..].chars();
-
-        let (token, used) = if let Some(c) = remaining.next() {
-            match c {
-                '(' => if let Some(')') = remaining.next() {
-                    (Token::Data(Data::Unit), 2)
-                } else {
-                    nesting.push(index);
-                    (Token::empty_group(Delim::Paren), 1)
-                }
-                '{' => {
-                    nesting.push(index);
-                    (Token::empty_group(Delim::Curly), 1)
-                }
-                '[' => {
-                    nesting.push(index);
-                    (Token::empty_group(Delim::Square), 1)
-                }
-                ')' => {
-                    let loc = nesting.pop().ok_or(Syntax::error(
-                        "Closing parenthesis `)` without corresponding opening parenthesis `(`",
-                        &Span::point(source, index),
-                    ))?;
-                    let after = tokens.split_off(loc + 1);
-                    let group = tokens.pop().unwrap();
-                    if let Token::Group { delim, ref mut tokens } = group.item {
-                        *tokens = after;
-                    }
-                    group.span = Span::combine(&group.span, &Span::point(source, index));
-                    // TODO: span over whole group
-                    (group.item, 1)
-                }
-                _ => todo!(),
-            }
-        } else {
-            return Err(
-                Syntax::error(
-                    "File ended in unexpected way, try removing characters after this point.",
-                    &Span::new(source, index, contents.len() - index),
-                )
-            );
-        };
-
-        let spanned = Spanned::new(token, Span::new(source, index, used));
-        index += used;
-        tokens.push(spanned);
-    }
-
-    return Ok(tokens);
 }
 
 #[cfg(test)]
