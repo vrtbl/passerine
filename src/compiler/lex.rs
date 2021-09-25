@@ -66,8 +66,16 @@ impl Lexer {
         Ok(lexer.tokens)
     }
 
+    fn grab_from_index(&self, len: usize) -> &str {
+        &self.source.contents[self.index..self.index + len]
+    }
+
+    fn remaining(&self) -> Chars {
+        self.source.contents[self.index..].chars()
+    }
+
     fn strip(&mut self) {
-        let remaining = self.source.contents[self.index..].chars();
+        let remaining = self.remaining();
 
         loop {
             let old_index = self.index;
@@ -131,13 +139,13 @@ impl Lexer {
         wrap: impl Fn(&str) -> T,
         pred: impl Fn(char) -> bool,
     ) -> (T, usize) {
-        let mut used = 0;
+        let mut len = 0;
         while let Some(n) = remaining.next() {
             if !pred(n) { break; }
-            used += n.len_utf8();
+            len += n.len_utf8();
         }
-        let inside = &self.source.contents[self.index..self.index + used];
-        (wrap(inside), used)
+        let inside = &self.grab_from_index(len);
+        (wrap(inside), len)
     }
 
     fn string(&self, remaining: impl Iterator<Item = char>) -> Result<(Token, usize), Syntax> {
@@ -188,7 +196,7 @@ impl Lexer {
         radix: u32,
         remaining: impl Iterator<Item = char>,
     ) -> Result<(Token, usize), Syntax> {
-        let (integer, used) = self.take_while(
+        let (integer, len) = self.take_while(
             remaining,
             |s| i64::from_str_radix(s, radix)
                 .map_err(|_| Syntax::error(
@@ -199,7 +207,7 @@ impl Lexer {
                 )),
             |n| n.is_digit(radix),
         );
-        Ok((Token::Data(Data::Integer(integer?)), used + 2))
+        Ok((Token::Data(Data::Integer(integer?)), len + 2))
     }
 
     fn radix_literal(
@@ -239,7 +247,7 @@ impl Lexer {
                     |_| (),
                     |n| n.is_digit(10),
                 ).1;
-                let float = f64::from_str(&self.source.contents[self.index..self.index + len])
+                let float = f64::from_str(&self.grab_from_index(len))
                     .map_err(|_| Syntax::error(
                         "Float literal does not fit in a 64-bit floating-point number",
                         &Span::new(&self.source, self.index, len),
@@ -255,7 +263,7 @@ impl Lexer {
             },
             // Nothing of use, wrap up what we have so far
             _ => {
-                let integer = i64::from_str(&self.source.contents[self.index..self.index + len])
+                let integer = i64::from_str(&self.grab_from_index(len))
                     .map_err(|_| Syntax::error(
                         "Decimal literal too large to fit in a signed 64-bit integer",
                         &Span::new(&self.source, self.index, len),
@@ -268,9 +276,9 @@ impl Lexer {
     /// Parses the next token.
     /// Expects all whitespace and comments to be stripped.
     fn next_token(&mut self) -> Result<Spanned<Token>, Syntax> {
-        let remaining = self.source.contents[self.index..].chars();
+        let remaining = self.remaining();
 
-        let (token, used) = match remaining.next().unwrap() {
+        let (token, len) = match remaining.next().unwrap() {
             // separator
             c @ ('\n' | ';') => self.take_while(
                 once(c).chain(remaining),
@@ -359,10 +367,10 @@ impl Lexer {
 
         let spanned = Spanned::new(
             token,
-            Span::new(&self.source, self.index, used)
+            Span::new(&self.source, self.index, len)
         );
 
-        self.index += used;
+        self.index += len;
         Ok(spanned)
     }
 }
