@@ -33,7 +33,7 @@ impl Lower for ThinModule<Vec<Spanned<Token>>> {
         let ast = parser.body()?;
 
         println!("{:#?}", ast);
-        // todo!("See above TODO");
+        todo!("See above TODO");
         // parser.consume(Token::End)?;
 
         return Ok(Module::new(
@@ -123,23 +123,19 @@ impl Parser {
 
     pub fn exit_group(&mut self) {
         todo!();
-        // expect end
         // remove index and tokens
     }
 
     // NOTE: Maybe don't return bool?
     /// Consumes all seperator tokens, returning whether there were any.
-    pub fn sep(&mut self) -> bool {
-        println!("{:?} at {}", self.tokens().len(), self.index());
-        if self.tokens()[self.index()].item != Token::Sep { false } else {
+    pub fn sep(&mut self) {
+        if self.tokens()[self.index()].item == Token::Sep {
             while self.tokens()[self.index()].item == Token::Sep {
                 *self.mut_index() += 1;
             };
-            true
         }
     }
 
-    // TODO: merge with sep?
     /// Returns the next non-sep tokens,
     /// without advancing the parser.
     pub fn draw(&self) -> &Spanned<Token> {
@@ -269,7 +265,6 @@ impl Parser {
                 ResOp::Pow     => self.binop(Prec::Pow,           "pow",   left),
             },
 
-            Token::End => Err(self.unexpected()),
             Token::Sep => unreachable!(),
             _          => self.call(left),
         }
@@ -300,7 +295,7 @@ impl Parser {
             },
 
             // postfix
-            Token::End => Prec::End,
+            // Token::End => Prec::End,
 
             // prefix
               Token::Group { .. }
@@ -429,7 +424,6 @@ impl Parser {
         } = group.item.clone() {
             if delim == expected_delim {
                 // TODO: don't use group span, remove end req.
-                tokens.push(Spanned::new(Token::End, group.span.clone()));
                 return Ok(Spanned::new(tokens, span));
             }
         }

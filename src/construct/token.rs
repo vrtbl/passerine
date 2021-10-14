@@ -102,8 +102,8 @@ impl Display for Delim {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let message = match self {
             Delim::Paren => "parenthesis",
-            Delim::Curly => "curly brackets",
-            Delim::Square => "square brackets",
+            Delim::Curly => "curly bracket",
+            Delim::Square => "square bracket",
         };
 
         write!(f, "{}", message)

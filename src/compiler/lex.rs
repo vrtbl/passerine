@@ -113,7 +113,7 @@ impl Lexer {
     fn exit_group(&mut self, delim: Delim) -> Result<Spanned<Token>, Syntax> {
         // get the location of the matching opening pair
         let loc = self.nesting.pop().ok_or(Syntax::error(
-            "Closing parenthesis `)` without corresponding opening parenthesis `(`",
+            &format!("Closing {} does not have an opening {}", delim, delim),
             &Span::point(&self.source, self.index),
         ))?;
 
