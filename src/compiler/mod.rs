@@ -18,6 +18,7 @@
 
 pub mod lex;
 pub mod parse;
+pub mod new_parse;
 // pub mod hoist;
 // pub mod gen;
 

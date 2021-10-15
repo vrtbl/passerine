@@ -48,16 +48,22 @@ pub enum Delim {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResIden {
+    Macro,
     Type,
-    Magic,
+    If,
+    Match,
+    Mod,
 }
 
 impl ResIden {
     pub fn try_new(name: &str) -> Option<ResIden> {
         use ResIden::*;
         Some(match name {
+            "macro" => Macro,
             "type"  => Type,
-            "magic" => Magic,
+            "if"    => If,
+            "match" => Match,
+            "mod"   => Mod,
             _ => { return None; },
         })
     }

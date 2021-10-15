@@ -70,12 +70,72 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn parse(tokens: Tokens) -> Spanned<AST> {
+    pub fn parse(tokens: Tokens) -> Result<Spanned<AST>, Syntax> {
         // build base parser
         // parse
         // wrap it in a module
         // return it
     }
 
-    pub fn expr(&mut self, )
+    /// Looks at the current token and parses a prefix expression, like keywords.
+    /// This function will strip preceeding separator tokens.
+    fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let Spanned { item, span } = self.next_token();
+        match item {
+            Token::Group { delim, .. } => match delim {
+                Delim::Curly => self.block(),
+                Delim::Paren => self.group(),
+                Delim::Square => Syntax::error("Lists are not yet implemented", &span)
+            },
+            Token::Iden(ref name) => match ResIden::try_new(&name) {
+                Some(_) => Err(Syntax::error("This feature is a work in progress", &span)),
+                None    => self.symbol(),
+            },
+            Token::Label(_) => self.label(),
+            Token::Data(_)  => self.literal(),
+            _               => Err(Syntax::error("Expected an expression", &span)),
+        }
+    }
+
+    /// Looks at the current token and parses an infix expression like an operator.
+    /// Because an operator can be used to split an expression across multiple lines,
+    /// this function ignores separator tokens around the operator.
+    pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        let Spanned { item, span } = self.next_token();
+        match item {
+            Token::Op(ref name) => match ResOp::try_new(&name)
+                .ok_or_else(|_| Syntax::error(
+                    &format!("Invalid operator `{}`", name)
+                    &span
+                ))?
+            {
+                // TODO: copy over
+                // TODO: new vm architecture with effects, get rid of `magic` garbage ffi
+                _ => todo!(),
+            }
+            _ => todo!(),
+        }
+
+        todo!()
+    }
+
+    /// Parses an expression within a given precedence,
+    /// which produces an AST node.
+    /// If the expression is empty, returns an empty AST block.
+    fn expr(&mut self, prec: Prec, skip_sep: bool) -> Result<Spanned<AST>, Syntax> {
+        let mut left = None;
+
+        while !self.is_done() {
+            left = if left.is_none() {
+                Some(self.rule_prefix()?)
+            } else {
+                if skip_sep { self.skip_sep() }
+                let p = self.prec();
+                if self.prec() < prec { break; }
+                Some(self.rule_infix()?)
+            }
+        }
+
+        todo!()
+    }
 }
