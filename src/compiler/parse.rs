@@ -128,11 +128,12 @@ impl Parser {
 
     // NOTE: Maybe don't return bool?
     /// Consumes all seperator tokens, returning whether there were any.
-    pub fn sep(&mut self) {
-        if self.tokens()[self.index()].item == Token::Sep {
+    pub fn sep(&mut self) -> bool {
+        if self.tokens()[self.index()].item != Token::Sep { false } else {
             while self.tokens()[self.index()].item == Token::Sep {
                 *self.mut_index() += 1;
-            };
+            }
+            true
         }
     }
 

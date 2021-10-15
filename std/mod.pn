@@ -1,0 +1,91 @@
+type Nat = enum {
+    Zero,
+    Succ Nat,
+}
+
+type Bool = enum {
+    True,
+    False,
+}
+
+type Option A = enum {
+    Some A,
+    None,
+}
+
+unwrap_or = option default -> match option {
+    Option.Some val -> val
+    None -> default
+}
+
+type Result (T, E) = enum {
+    Ok  T,
+    Err E,
+}
+
+type Pair T = struct {
+    first:  T,
+    second: T,
+}
+
+type List T = struct {
+    head: T,
+    tail: Option (List T),
+}
+
+compile = mod {
+    type Lit = enum {
+        alias Nat,
+        alias Int,
+        alias Float,
+        alias Bool,
+        alias String,
+    }
+
+    type Token = enum {
+        Lit Lit,
+        Op String,
+        Iden String,
+        Delim Delim,
+    }
+
+    type Delim = enum {
+        Paren  { tokens: [Token] },
+        Square { tokens: [Token] },
+        Curly  { forms:  [[Token]] },
+    }
+
+    type Iterator {Item, State} = struct {
+        state:   State
+        current: State -> Item,
+        next:    State -> Option State
+    }
+}
+
+iter = mod {
+    update = iterator -> Iterator {
+        state: {
+            s = iterator.state
+            s |> unwrap_or (iterator.next s)
+        }
+        current: iterator.current,
+        next:    iterator.next,
+    }
+
+    make_counter = start -> Iterator { Item: Int, State: Int } {
+        state,
+        current: num -> num,
+        next:    num -> Option.Some (num + 1)
+    }
+}
+
+macro match = tokens -> {
+    [expr, arms] = tokens
+
+    inside = match arms {
+        Token.Delim Delim.Curly { forms } -> {
+
+        }
+    }
+
+}
