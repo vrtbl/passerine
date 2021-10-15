@@ -155,7 +155,8 @@ impl Lexer {
         let mut string = String::new();
 
         for c in remaining {
-            len += c.len_utf8();
+            let bytes = c.len_utf8();
+            len += bytes;
             if escape {
                 escape = false;
                 // TODO: nesting expression inside strings for splicing
@@ -169,9 +170,12 @@ impl Lexer {
                     't'  => '\t',
                     '0'  => '\0',
                     o    => return Err(
-                        Syntax::error(
+                        Syntax::error_with_note(
                             &format!("Unknown escape code `\\{}` in string literal", o),
-                            &Span::new(&self.source, self.index + len - 1, o.len_utf8()),
+                            Note::new_with_hint(
+                                &format!("To include a single backslash `\\`, escape it first: `\\\\`"),
+                                &Span::new(&self.source, self.index + len - bytes, 1 + bytes),
+                            ),
                         )
                         // TODO: add help note about backslash escape
                     ),

@@ -10,6 +10,16 @@ pub struct Note {
     pub hint: Option<String>,
 }
 
+impl Note {
+    pub fn new(span: Span) -> Note {
+        Note { span, hint: None }
+    }
+
+    pub fn new_with_hint(hint: &str, span: &Span) -> Note {
+        Note { span: span.clone(), hint: Some(hint.to_string()) }
+    }
+}
+
 /// Represents a static error (syntax, semantics, etc.) found at compile time.
 /// Ideally, each note included should have a distinct `Span` and hint.
 /// Usually, one `Note` for an error is enough.

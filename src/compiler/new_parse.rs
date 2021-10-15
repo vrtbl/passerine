@@ -1,3 +1,19 @@
+use std::collections::HashMap;
+
+use crate::common::{
+    span::{Span, Spanned},
+    data::Data,
+};
+
+use crate::compiler::{lower::Lower, syntax::Syntax};
+
+use crate::construct::{
+    token::{Token, Tokens, Delim, ResOp, ResIden},
+    tree::{AST, Base, Sugar, Lambda, Pattern, ArgPattern},
+    symbol::SharedSymbol,
+    module::{ThinModule, Module},
+};
+
 /// We're using a Pratt parser, so this little enum
 /// defines different precedence levels.
 /// Each successive level is higher, so, for example,
@@ -5,20 +21,29 @@
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Prec {
+    /// No precedence.
     None = 0,
+    /// `=`
     Assign,
+    /// `,`
     Pair,
+    /// `:`
     Is,
+    /// `->`
     Lambda,
-
+    /// Boolean logic.
     Logic,
-
+    /// `+`, `-`
     AddSub,
+    /// `*`, `/`, etc.
     MulDiv,
+    /// `**`
     Pow,
-
-    Compose, // TODO: where should this be, precedence-wise?
+    /// `|>`
+    Compose,
+    /// Implicit function call operator.
     Call,
+    /// Highest precedence.
     End,
 }
 
@@ -41,5 +66,16 @@ impl Prec {
 }
 
 pub struct Parser {
-    
+
+}
+
+impl Parser {
+    pub fn parse(tokens: Tokens) -> Spanned<AST> {
+        // build base parser
+        // parse
+        // wrap it in a module
+        // return it
+    }
+
+    pub fn expr(&mut self, )
 }
