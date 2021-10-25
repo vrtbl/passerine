@@ -15,52 +15,33 @@ use crate::common::{
     closure::Closure,
 };
 
+pub struct ArbInt {
+    Small(u128),
+    Large(Vec<u128>),
+}
+
 // TODO: separate VM data from parser data
 
 /// Built-in Passerine datatypes.
 #[derive(Clone, PartialEq)]
-pub enum Data {
-    // TODO: make heap data immutable
-    // TODO: CoW
-    /// Data on the heap.
-    Heaped(Rc<RefCell<Data>>),
-    /// Uninitialized data.
-    NotInit,
+pub enum Lit {
+    // Number Literals
+    Float {
+        point:    usize,
+        mantissa: ArbInt,
+    },
+    Integer(ArbInt),
 
-    // Passerine Data (Atomic)
-    /// Float Numbers, represented as double-precision floating points.
-    Float(f64),
-    // TODO: arbitrary precision integers.
-    /// Integers, currently 64-bit.
-    Integer(i64),
-    /// A boolean, like true or false.
-    Boolean(bool),
     /// A UTF-8 encoded string.
     String(String),
-    /// Represents a function, ie.e some bytecode without a context.
-    Lambda(Rc<Lambda>),
-    /// Some bytecode with a context that can be run.
-    Closure(Box<Closure>),
 
-    // TODO: just remove Kind
-    /// `Kind` is the base component of an unconstructed label
-    Kind(usize),
     /// A Label is similar to a type, and wraps some data.
     /// in the future labels will have associated namespaces.
-    Label(usize, Box<Data>),
-
-    // TODO: equivalence between Unit and Tuple(vec![])?
+    Label(usize, Box<Lit>),
 
     // Compound Datatypes
     /// The empty Tuple
     Unit, // an empty typle
-    /// A non-empty Tuple.
-    Tuple(Vec<Data>),
-    // // TODO: Hashmap?
-    // // I mean, it's overkill for small things
-    // // yet if people have very big records, yk.
-    // Record(Vec<(Local, Data)>),
-    // ArbInt(ArbInt),
 }
 
 // TODO: manually implement the equality trait

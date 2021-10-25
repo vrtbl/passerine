@@ -32,10 +32,16 @@ pub enum Opcode {
     Closure,
     /// Prints a value.
     Print,
+    ///
+    Handler,
+    ///
+    Effect,
     /// Constructs a label.
     Label,
     /// Constructs a tuple.
     Tuple,
+    ///
+    Record,
     /// Destructures atomic data by asserting it matches exactly.
     UnData,
     // TODO: make unlabel take the label index as an arg.
@@ -43,6 +49,8 @@ pub enum Opcode {
     UnLabel,
     /// Destructures a tuple.
     UnTuple,
+    ///
+
     /// Does nothing. Must always be last.
     Noop,
 }
