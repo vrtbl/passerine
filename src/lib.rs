@@ -1,3 +1,5 @@
+// TODO: Re-write introductory documentation
+
 //! # Passerine
 //! This repository contains the core of the Passerine Programming Language,
 //! including the compiler, VM, and various utilities.
@@ -95,28 +97,6 @@
 //! After this, raw `Lambda`s are passed to the `VM` to be run.
 //! before being run by the `VM`, `Lambdas` are wrapped in `Closure`s,
 //! which hold some extra context.
-//! To run some bytecode:
-//!
-//! ```
-//! # use passerine::common::{closure::Closure, source::Source};
-//! # use passerine::compiler::{lex, parse, desugar, hoist, gen};
-//! # use passerine::vm::vm::VM;
-//! #
-//! # fn main() {
-//! # let source = Source::source("pi = 3.14");
-//! # let bytecode = Closure::wrap(
-//! # lex(source)
-//! #     .and_then(parse)
-//! #     .and_then(desugar)
-//! #     .and_then(hoist)
-//! #     .and_then(gen)
-//! #     .unwrap());
-//! // Initialize a VM with some bytecode:
-//! let mut vm = VM::init(bytecode);
-//! // Run the initialized VM:
-//! vm.run();
-//! # }
-//! ```
 //!
 //! The `VM` is just a simple light stack-based VM.
 

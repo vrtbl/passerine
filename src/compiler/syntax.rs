@@ -62,8 +62,8 @@ impl fmt::Display for Syntax {
                 } else {
                     writeln!(f, "In {}:{}:{}", formatted.path, formatted.start, formatted.start_col)?;
                     writeln!(f, "{} │", " ".repeat(formatted.gutter_padding()))?;
-                    writeln!(f, "{} │ {}", formatted.start + 1, formatted.lines[0])?;
-                    writeln!(f, "{} │ {}{} note: {}",
+                    writeln!(f, "{} │ {}", formatted.start + 1, formatted.lines[0])?;
+                    writeln!(f, "{} │ {}{} note: {}",
                         " ".repeat(formatted.gutter_padding()),
                         " ".repeat(formatted.start_col),
                         "^".repeat(formatted.carrots().unwrap()),
@@ -95,13 +95,12 @@ mod test {
             &Span::new(&source, 4, 14),
         );
 
-        let target = "In ./source:1:5
-   |
- 1 | x = \"Hello, world\" -> y + 1
-   |     ^^^^^^^^^^^^^^
-   |
-Syntax Error: Unexpected token '\"Hello, world!\"'\
-";
+        let target =
+r#"In ./source:1:5
+  │
+1 │ x = "Hello, world" -> y + 1
+  │     ^^^^^^^^^^^^^^
+Syntax Error: Unexpected token '"Hello, world!"'"#;
 
         let result = format!("{}", error);
         assert_eq!(result, target);

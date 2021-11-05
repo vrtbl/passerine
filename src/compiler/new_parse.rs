@@ -213,7 +213,7 @@ impl Parser {
 
     /// Returns the precedence of the current non-sep token being parsed.
     /// Note that when parsing a form, a separator token has a precedence of `Prec::End`.
-    /// ```
+    /// ```ignore
     /// these are two
     /// different forms
     /// ```
@@ -318,7 +318,7 @@ impl Parser {
     /// Constructs an AST for a symbol,
     /// interning symbols with same names in the parser.
     /// So, for instance, in the following snippet:
-    /// ```
+    /// ```ignore
     /// x = 0
     /// x -> x + 1
     /// ```

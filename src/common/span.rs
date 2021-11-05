@@ -92,7 +92,6 @@ impl Span {
         let end_line = self.line(self.end());
         let slice = lines[start_line..=end_line]
             .iter().map(|s| s.to_string()).collect();
-        println!("{:#?}", slice);
         return slice;
     }
 
@@ -103,7 +102,6 @@ impl Span {
     pub fn line(&self, index: usize) -> usize {
         let lines = &self.source.contents[..index]
             .split_inclusive("\n").count();
-        println!("{:?}", index);
         return lines - 1;
     }
 
@@ -197,8 +195,8 @@ impl Display for FormattedSpan {
         writeln!(f, "{} │", " ".repeat(self.gutter_padding()))?;
 
         if !self.is_multiline() {
-            writeln!(f, "{} │ {}", self.start + 1, self.lines[0])?;
-            writeln!(f, "{} │ {}{}",
+            writeln!(f, "{} │ {}", self.start + 1, self.lines[0])?;
+            writeln!(f, "{} │ {}{}",
                 " ".repeat(self.gutter_padding()),
                 " ".repeat(self.start_col),
                 "^".repeat(self.carrots().unwrap()),
@@ -275,19 +273,5 @@ mod test {
         let result = Span::new(&source, 0, 16);
 
         assert_eq!(Span::join(spans).contents(), result.contents());
-    }
-
-    #[test]
-    fn display() {
-        let source = Source::source("hello\nbanana boat\nmagination\n");
-        let span = Span::new(&source, 16, 12);
-        assert_eq!(format!("{}", span), "\
-            In ./source:2:11\n   \
-               |\n \
-             2 > banana boat\n \
-             3 > magination\n   \
-               |\n\
-            "
-        )
     }
 }
