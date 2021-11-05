@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use crate::common::{
-    data::Data,
+    lit::Lit,
     span::Spanned,
 };
 
@@ -33,7 +33,7 @@ use crate::construct::{
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern<S> {
     Symbol(S),
-    Data(Data),
+    Lit(Lit),
     Label(Spanned<S>, Box<Spanned<Self>>),
     Tuple(Vec<Spanned<Self>>),
     Chain(Vec<Spanned<Self>>),
@@ -45,7 +45,7 @@ pub enum Pattern<S> {
 pub enum Base<T, S> {
     Symbol(S),
     Label(S),
-    Data(Data),
+    Lit(Lit),
     Tuple(Vec<T>),
 
     Block(Vec<T>),
@@ -139,7 +139,7 @@ impl TryFrom<AST> for Pattern<SharedSymbol> {
         Ok(
             match ast {
                 AST::Base(Base::Symbol(s)) => Pattern::Symbol(s),
-                AST::Base(Base::Data(d)) => Pattern::Data(d),
+                AST::Base(Base::Lit(d)) => Pattern::Lit(d),
                 AST::Base(Base::Label(k)) => Err(format!(
                     "This Label used in a pattern does not unwrap any data.\n\
                     To match a Label and ignore its contents, use `{:?} _`",

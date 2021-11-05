@@ -3,9 +3,9 @@ use std::{
     cell::RefCell,
 };
 
-use crate::common::{
-    lambda::Lambda,
-    data::Data,
+use crate::{
+    common::lambda::Lambda,
+    vm::data::Data,
 };
 
 /// Wraps a `Lambda` with some scope context.

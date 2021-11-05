@@ -4,11 +4,10 @@ use std::{
     cell::RefCell
 };
 
-use crate::common::data::Data;
-
 use crate::vm::{
     tag::Tagged,
     slot::{Slot, Suspend},
+    data::Data,
 };
 
 /// A stack of `Tagged` `Data`.

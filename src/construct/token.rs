@@ -1,22 +1,19 @@
 use std::fmt::Display;
 use crate::common::{
     span::Spanned,
-    data::Data,
+    lit::Lit,
 };
 
 // TODO: remove associated data from tokens.
 
 /// These are the different tokens the lexer will output.
 /// `Token`s with data contain that data,
-/// e.g. a boolean will be a `Data::Boolean(...)`, not just a string.
+/// e.g. a boolean will be a `Lit::Boolean(...)`, not just a string.
 /// `Token`s can be spanned using `Spanned<Token>`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     // Delimiters
-    Group {
-        delim: Delim,
-        tokens: Tokens,
-    },
+    Delim(Delim, Tokens),
 
     // Names
     Label(String),
@@ -24,7 +21,7 @@ pub enum Token {
     Op(String),
 
     // Values
-    Data(Data),
+    Lit(Lit),
 
     // Context
     Sep,
@@ -32,17 +29,11 @@ pub enum Token {
 
 pub type Tokens = Vec<Spanned<Token>>;
 
-impl Token {
-    // Creates a new empty group with a specific delimiter.
-    pub fn empty_group(delim: Delim) -> Token {
-        Token::Group { delim, tokens: vec![] }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Delim {
-    Paren,
+    // List of forms
     Curly,
+    Paren,
     Square,
 }
 
@@ -107,8 +98,8 @@ impl ResOp {
 impl Display for Delim {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let message = match self {
-            Delim::Paren => "parenthesis",
-            Delim::Curly => "curly bracket",
+            Delim::Paren  => "parenthesis",
+            Delim::Curly  => "curly bracket",
             Delim::Square => "square bracket",
         };
 
@@ -121,12 +112,12 @@ impl Display for Token {
         // pretty formatting for tokens
         // just use debug if you're not printing a message or something.
         let message = match self {
-            Token::Group { delim, .. } => format!("tokens grouped by {}", delim),
-            Token::Label(l)            => format!("the label `{}`", l),
-            Token::Iden(i)             => format!("the identifier `{}`", i),
-            Token::Op(o)               => format!("the operator `{}`", o),
-            Token::Data(d)             => format!("the data `{}`", d),
-            Token::Sep                 => "a separator".to_string(),
+            Token::Delim(delim, _) => format!("tokens grouped by {}", delim),
+            Token::Label(l)        => format!("the label `{}`", l),
+            Token::Iden(i)         => format!("the identifier `{}`", i),
+            Token::Op(o)           => format!("the operator `{}`", o),
+            Token::Lit(l)          => format!("the literal `{}`", l),
+            Token::Sep             => "a separator".to_string(),
         };
 
         write!(f, "{}", message)

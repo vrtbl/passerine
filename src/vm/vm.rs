@@ -2,14 +2,14 @@ use std::mem;
 
 use crate::common::{
     number::build_number,
-    data::Data,
     opcode::Opcode,
     lambda::Captured,
-    closure::Closure,
     span::Span,
 };
 
 use crate::vm::{
+    data::Data,
+    closure::Closure,
     trace::Trace,
     slot::Suspend,
     stack::Stack,
@@ -46,22 +46,22 @@ impl VM {
             stack: Stack::init(),
             ip:    0,
         };
-        vm.stack.declare(vm.closure.lambda.decls);
+        vm.stack.declare(vm.closure.lambda.decls.len());
         return vm;
     }
 
     /// Advances to the next instruction.
     #[inline]
-    pub fn next(&mut self)                           { self.ip += 1; }
+    pub fn next(&mut self) { self.ip += 1; }
     /// Advances IP, returns `Ok`. Used in Bytecode implementations.
     #[inline]
-    pub fn done(&mut self)      -> Result<(), Trace> { self.next(); Ok(()) }
+    pub fn done(&mut self) -> Result<(), Trace> { self.next(); Ok(()) }
     /// Returns the current instruction as a byte.
     #[inline]
-    pub fn peek_byte(&mut self) -> u8                { self.closure.lambda.code[self.ip] }
+    pub fn peek_byte(&mut self) -> u8 { self.closure.lambda.code[self.ip] }
     /// Advances IP and returns the current instruction as a byte.
     #[inline]
-    pub fn next_byte(&mut self) -> u8                { self.next(); self.peek_byte() }
+    pub fn next_byte(&mut self) -> u8 { self.next(); self.peek_byte() }
 
     /// Returns whether the program has terminated
     #[inline]
@@ -114,6 +114,7 @@ impl VM {
             Opcode::UnLabel => self.un_label(),
             Opcode::UnTuple => self.un_tuple(),
             Opcode::Noop    => self.done(),
+            _ => panic!("Opcode Not Implemented")
         }
     }
 
@@ -394,7 +395,7 @@ impl VM {
 
         // set up the stack for the function call
         // self.stack.push_frame(suspend);
-        self.stack.declare(self.closure.lambda.decls);
+        self.stack.declare(self.closure.lambda.decls.len());
         self.stack.push_data(arg);
 
         // println!("{}", self.closure.lambda);
@@ -453,109 +454,110 @@ impl VM {
     }
 
     pub fn ffi_call(&mut self) -> Result<(), Trace> {
-        let index = self.next_number();
-        let ffi_function = &self.closure.lambda.ffi[index];
-
-        let argument = self.stack.pop_data();
-        let returned = match ffi_function.call(argument) {
-            Ok(d) => d,
-            Err(e) => return Err(Trace::error(
-                "FFI Call", &e, vec![self.current_span()],
-            )),
-        };
-
-        self.stack.push_data(returned);
-        self.done()
+        panic!("FFI is depracated");
+        // let index = self.next_number();
+        // let ffi_function = &self.closure.lambda.ffi[index];
+        //
+        // let argument = self.stack.pop_data();
+        // let returned = match ffi_function.call(argument) {
+        //     Ok(d) => d,
+        //     Err(e) => return Err(Trace::error(
+        //         "FFI Call", &e, vec![self.current_span()],
+        //     )),
+        // };
+        //
+        // self.stack.push_data(returned);
+        // self.done()
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::compile;
-    use crate::common::source::Source;
-
-    fn inspect(source: &str) -> VM {
-        let closure = compile(Source::source(source))
-            .map_err(|e| println!("{}", e))
-            .unwrap();
-
-        let mut vm = VM::init(closure);
-
-        match vm.run() {
-            Ok(()) => vm,
-            Err(e) => {
-                println!("{}", e);
-                panic!();
-            },
-        }
-    }
-
-    #[test]
-    fn init_run() {
-        inspect("x = 0.0");
-    }
-
-    #[test]
-    fn block_expression() {
-        inspect("x = false; boop = true; heck = { x = boop; x }; heck");
-    }
-
-    #[test]
-    fn functions() {
-        let mut vm = inspect("iden = x -> x; y = true; iden ({ y = false; iden iden } (iden y))");
-        let identity = vm.stack.pop_data();
-        assert_eq!(identity, Data::Boolean(true));
-    }
-
-    #[test]
-    fn fun_scope() {
-        // y = (x -> { y = x; y ) 7.0; y
-        let mut vm = inspect("one = 1.0\npi = 3.14\ne = 2.72\n\nx = w -> pi\nx 37.6");
-        let pi = vm.stack.pop_data();
-        assert_eq!(pi, Data::Float(3.14));
-    }
-
-    #[test]
-    fn mutate_capture() {
-        inspect("odd = (); even = x -> odd; odd = 1.0; even (); odd");
-    }
-
-    #[test]
-    fn mutate_capture_fn() {
-        inspect("\
-            pi = 3.14\n\
-            printpi = x -> println pi\n\
-            \n\
-            redef = ()\n\
-            redef = w -> {\n    \
-                w (printpi ())\n\
-            }\n\
-            \n\
-            redef printpi\n\
-        ");
-    }
-
-    #[test]
-    fn hoist_later() {
-        inspect("\
-            w = 0.5
-            later = n -> thing 10.0 - w\n\
-            thing = x -> x + 20.0\n\
-            -- later 5.0\n\
-        ");
-    }
-
-    // TODO: figure out how to make the following passerine code into a test
-    // without entering into an infinite loop (which is the intended behaviour)
-    // maybe try running it a large number of times,
-    // and check the size of the stack?
-    // loop = ()
-    // loop = y -> x -> {
-    //     print y
-    //     print x
-    //     loop x y
-    // }
-    //
-    // loop true false
-}
+// #[cfg(test)]
+// mod test {
+//     use super::*;
+//     use crate::compiler;
+//     use crate::common::source::Source;
+//
+//     fn inspect(source: &str) -> VM {
+//         let closure = compile(Source::source(source))
+//             .map_err(|e| println!("{}", e))
+//             .unwrap();
+//
+//         let mut vm = VM::init(closure);
+//
+//         match vm.run() {
+//             Ok(()) => vm,
+//             Err(e) => {
+//                 println!("{}", e);
+//                 panic!();
+//             },
+//         }
+//     }
+//
+//     #[test]
+//     fn init_run() {
+//         inspect("x = 0.0");
+//     }
+//
+//     #[test]
+//     fn block_expression() {
+//         inspect("x = false; boop = true; heck = { x = boop; x }; heck");
+//     }
+//
+//     #[test]
+//     fn functions() {
+//         let mut vm = inspect("iden = x -> x; y = true; iden ({ y = false; iden iden } (iden y))");
+//         let identity = vm.stack.pop_data();
+//         assert_eq!(identity, Data::Boolean(true));
+//     }
+//
+//     #[test]
+//     fn fun_scope() {
+//         // y = (x -> { y = x; y ) 7.0; y
+//         let mut vm = inspect("one = 1.0\npi = 3.14\ne = 2.72\n\nx = w -> pi\nx 37.6");
+//         let pi = vm.stack.pop_data();
+//         assert_eq!(pi, Data::Float(3.14));
+//     }
+//
+//     #[test]
+//     fn mutate_capture() {
+//         inspect("odd = (); even = x -> odd; odd = 1.0; even (); odd");
+//     }
+//
+//     #[test]
+//     fn mutate_capture_fn() {
+//         inspect("\
+//             pi = 3.14\n\
+//             printpi = x -> println pi\n\
+//             \n\
+//             redef = ()\n\
+//             redef = w -> {\n    \
+//                 w (printpi ())\n\
+//             }\n\
+//             \n\
+//             redef printpi\n\
+//         ");
+//     }
+//
+//     #[test]
+//     fn hoist_later() {
+//         inspect("\
+//             w = 0.5
+//             later = n -> thing 10.0 - w\n\
+//             thing = x -> x + 20.0\n\
+//             -- later 5.0\n\
+//         ");
+//     }
+//
+//     // TODO: figure out how to make the following passerine code into a test
+//     // without entering into an infinite loop (which is the intended behaviour)
+//     // maybe try running it a large number of times,
+//     // and check the size of the stack?
+//     // loop = ()
+//     // loop = y -> x -> {
+//     //     print y
+//     //     print x
+//     //     loop x y
+//     // }
+//     //
+//     // loop true false
+// }

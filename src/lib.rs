@@ -121,19 +121,19 @@
 //! The `VM` is just a simple light stack-based VM.
 
 pub mod common;
-pub mod core;
+// pub mod core;
 pub mod compiler;
-// pub mod vm;
+pub mod vm;
 pub mod construct;
 
 // exported functions:
 // TODO: clean up exports
 
 use std::rc::Rc;
-pub use common::{source::Source, closure::Closure, data::Data, span::Spanned};
-pub use compiler::{lower::Lower, syntax::Syntax};
+pub use common::{source::Source, span::Spanned};
+pub use compiler::syntax::Syntax;
 pub use construct::module::{ThinModule, Module};
-pub use crate::core::ffi::FFI;
+// pub use crate::core::ffi::FFI;
 // pub use vm::{vm::VM, trace::Trace};
 
 // /// Compiles a [`Source`] to some bytecode.

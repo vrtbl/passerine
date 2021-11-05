@@ -2,12 +2,13 @@ use std::fmt;
 
 use crate::common::{
     opcode::Opcode,
-    data::Data,
     number::build_number,
     span::Span,
 };
 
-use crate::core::ffi::FFIFunction;
+use crate::{
+    vm::data::Data,
+};
 
 /// Represents a variable visible in the current scope.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,7 +26,7 @@ pub struct Lambda {
     // TODO: make this a list of variable names
     // So structs can be made, and state preserved in the repl.
     /// Number of variables declared in this scope.
-    pub decls: usize,
+    pub decls: Vec<usize>,
     /// Each byte is an opcode or a number-stream.
     pub code: Vec<u8>,
     /// Each usize indexes the bytecode op that begins each line.
@@ -35,21 +36,24 @@ pub struct Lambda {
     /// List of positions of locals in the scope where this lambda is defined,
     /// indexes must be gauranteed to be data on the heap.
     pub captures: Vec<Captured>,
-    /// List of FFI functions (i.e. Rust functions)
-    /// that can be called from this function.
-    pub ffi: Vec<FFIFunction>,
+    // TODO: delete FFI
+    // / List of FFI functions (i.e. Rust functions)
+    // / that can be called from this function.
+    // pub ffi: Vec<FFIFunction>,
+    // TODO: add effects
+    // pub effects: Vec<usize>,
 }
 
 impl Lambda {
     /// Creates a new empty `Lambda` to be filled.
     pub fn empty() -> Lambda {
         Lambda {
-            decls:     0,
+            decls:     vec![],
             code:      vec![],
             spans:     vec![],
             constants: vec![],
             captures:  vec![],
-            ffi:       vec![],
+            // ffi:       vec![],
         }
     }
 
@@ -75,15 +79,15 @@ impl Lambda {
             Opcode::Con     => vec![self.constants.len()],
             Opcode::NotInit => vec![],
             Opcode::Del     => vec![],
-            Opcode::FFICall => vec![self.ffi.len()],
+            Opcode::FFICall => panic!(),
             Opcode::Copy    => vec![],
-            Opcode::Capture => vec![self.decls], // TODO: correct bounds check?
-            Opcode::Save    => vec![self.decls],
+            // Opcode::Capture => vec![self.decls], // TODO: correct bounds check?
+            // Opcode::Save    => vec![self.decls],
             Opcode::SaveCap => vec![self.captures.len()],
-            Opcode::Load    => vec![self.decls],
+            // Opcode::Load    => vec![self.decls],
             Opcode::LoadCap => vec![self.captures.len()],
             Opcode::Call    => vec![],
-            Opcode::Return  => vec![self.decls], // TODO: correct bounds check?
+            // Opcode::Return  => vec![self.decls], // TODO: correct bounds check?
             Opcode::Closure => vec![],
             Opcode::Print   => vec![],
             Opcode::Label   => vec![],
@@ -92,6 +96,7 @@ impl Lambda {
             Opcode::UnLabel => vec![],
             Opcode::UnTuple => vec![usize::MAX], // TODO: stricter bounds
             Opcode::Noop    => vec![],
+            _ => panic!(),
         }
     }
 
@@ -175,14 +180,14 @@ impl Lambda {
         return best.unwrap().clone();
     }
 
-    /// Adds a ffi function to the ffi table,
-    /// without checking for duplicates.
-    /// The `Compiler` ensures that functions are valid
-    /// and not duplicated during codegen.
-    pub fn add_ffi(&mut self, function: FFIFunction) -> usize {
-        self.ffi.push(function);
-        self.ffi.len() - 1
-    }
+    // /// Adds a ffi function to the ffi table,
+    // /// without checking for duplicates.
+    // /// The `Compiler` ensures that functions are valid
+    // /// and not duplicated during codegen.
+    // pub fn add_ffi(&mut self, function: FFIFunction) -> usize {
+    //     self.ffi.push(function);
+    //     self.ffi.len() - 1
+    // }
 }
 
 impl fmt::Display for Lambda {
@@ -199,7 +204,7 @@ impl fmt::Display for Lambda {
             writeln!(f, "{:?}", capture)?;
         }
 
-        writeln!(f, "Dumping Variables: {}", self.decls)?;
+        writeln!(f, "Dumping Variables: {:?}", self.decls)?;
 
         writeln!(f, "Dumping Bytecode:")?;
         writeln!(f, "Inst    \tArgs")?;

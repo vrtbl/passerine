@@ -1,4 +1,6 @@
 use std::{
+    rc::Rc,
+    cell::RefCell,
     fmt::{
         Debug,
         Display,
@@ -6,13 +8,11 @@ use std::{
         Result,
     },
     f64,
-    borrow::Cow,
+    collections::BTreeMap,
 };
 
-use crate::common::{
-    lambda::Lambda,
-    closure::Closure,
-};
+use crate::common::lambda::Lambda;
+use crate::vm::closure::Closure;
 
 // TODO: separate VM data from parser data
 
@@ -22,7 +22,7 @@ pub enum Data {
     // TODO: make heap data immutable
     // TODO: CoW
     /// Data on the heap.
-    Heaped(Cow<Data>),
+    Heaped(Rc<RefCell<Data>>),
     /// Uninitialized data.
     NotInit,
 
@@ -62,7 +62,7 @@ pub enum Data {
     // // I mean, it's overkill for small things
     // // yet if people have very big records, yk.
     Record(BTreeMap<usize, Data>),
-    Map(BtreeMap<Data, Data>),
+    Map(BTreeMap<Data, Data>),
     // ArbInt(ArbInt),
 }
 
@@ -91,6 +91,8 @@ impl Display for Data {
                 .collect::<Vec<String>>()
                 .join(", ")
             ),
+            // TODO: create representation
+            _ => panic!("Representation is not yet implemented for this")
         }
     }
 }
@@ -102,7 +104,7 @@ impl Debug for Data {
     /// with certain fields omitted.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Data::Heaped(h)   => write!(f, "Heaped({:?})", h.borrow()),
+            Data::Heaped(h)   => write!(f, "Heaped({:?})", h),
             Data::NotInit     => write!(f, "NotInit"),
             Data::Float(n)     => write!(f, "Float({:?})", n),
             Data::Integer(n)  => write!(f, "Integer({:?})", n),
@@ -114,6 +116,8 @@ impl Debug for Data {
             Data::Label(n, v) => write!(f, "Label({}, {:?})", n, v),
             Data::Unit        => write!(f, "Unit"),
             Data::Tuple(t)    => write!(f, "Tuple({:?})", t),
+            // TODO: create representation
+            _ => panic!("Representation is not yet implemented for this")
         }
     }
 }

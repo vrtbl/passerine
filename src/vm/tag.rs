@@ -4,8 +4,10 @@ use std::{
     fmt::{Formatter, Debug, Error},
 };
 
-use crate::common::data::Data;
-use crate::vm::slot::Slot;
+use crate::vm::{
+    slot::Slot,
+    data::Data,
+};
 
 // TODO: add fallback for 32-bit systems and so on.
 /// `Tagged` implements Nan-tagging around the `Data` enum.

@@ -49,8 +49,6 @@ pub enum Opcode {
     UnLabel,
     /// Destructures a tuple.
     UnTuple,
-    ///
-
     /// Does nothing. Must always be last.
     Noop,
 }

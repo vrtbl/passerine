@@ -8,16 +8,14 @@ use std::{
 use crate::common::{
     source::Source,
     span::{Span, Spanned},
-    data::Data,
+    lit::Lit,
 };
 
 use crate::construct::{
-    module::ThinModule,
     token::{Delim, Token, Tokens},
 };
 
 use crate::compiler::{
-    lower::Lower,
     syntax::{Syntax, Note},
 };
 
@@ -107,7 +105,7 @@ impl Lexer {
 
     fn enter_group(&mut self, delim: Delim) -> (Token, usize) {
         self.nesting.push(self.index);
-        (Token::empty_group(delim), 1)
+        (Token::Delim(delim, vec![]), 1)
     }
 
     fn exit_group(&mut self, delim: Delim) -> Result<Spanned<Token>, Syntax> {
@@ -120,8 +118,8 @@ impl Lexer {
         // split off new tokens, insert into group
         let after = self.tokens.split_off(loc + 1);
         let group = self.tokens.pop().unwrap();
-        if let Token::Group { delim, ref mut tokens } = group.item {
-            *tokens = after;
+        if let Token::Delim(delim, tokens) = group.item {
+            tokens = after;
         }
 
         // span over the whole group
@@ -183,7 +181,7 @@ impl Lexer {
             } else {
                 match c {
                     '\\' => escape = true,
-                    '\"' => return Ok((Token::Data(Data::String(string)), len)),
+                    '\"' => return Ok((Token::Lit(Lit::String(string)), len)),
                     c    => string.push(c),
                 }
             }
@@ -211,7 +209,7 @@ impl Lexer {
                 )),
             |n| n.is_digit(radix),
         );
-        Ok((Token::Data(Data::Integer(integer?)), len + 2))
+        Ok((Token::Lit(Lit::Integer(integer?)), len + 2))
     }
 
     fn radix_literal(
@@ -256,7 +254,7 @@ impl Lexer {
                         "Float literal does not fit in a 64-bit floating-point number",
                         &Span::new(&self.source, self.index, len),
                     ))?;
-                Ok((Token::Data(Data::Float(float)), len))
+                Ok((Token::Lit(Lit::Float(float)), len))
             },
             // There's an 'E', so we parse using scientific notation
             Some('E') => {
@@ -272,7 +270,7 @@ impl Lexer {
                         "Decimal literal too large to fit in a signed 64-bit integer",
                         &Span::new(&self.source, self.index, len),
                     ))?;
-                Ok((Token::Data(Data::Integer(integer)), len))
+                Ok((Token::Lit(Lit::Integer(integer)), len))
             }
         }
     }
@@ -292,7 +290,7 @@ impl Lexer {
 
             // the unit type, `()`
             '(' if Some(')') == remaining.next() => {
-                (Token::Data(Data::Unit), 2)
+                (Token::Lit(Lit::Unit), 2)
             },
 
             // Grouping
@@ -309,8 +307,8 @@ impl Lexer {
                     once(c).chain(remaining),
                     |s| match s {
                         // TODO: In the future, booleans in prelude
-                        "True" => Token::Data(Data::Boolean(true)),
-                        "False" => Token::Data(Data::Boolean(false)),
+                        "True" => Token::Lit(Lit::Boolean(true)),
+                        "False" => Token::Lit(Lit::Boolean(false)),
                         _ => Token::Label(s.to_string()),
                     },
                     |n| n.is_alphanumeric() || n == '_'
@@ -346,7 +344,7 @@ impl Lexer {
                         self.radix_literal(n, remaining)?
                     } else {
                         // End of source, must be just `0`
-                        (Token::Data(Data::Integer(0)), 1)
+                        (Token::Lit(Lit::Integer(0)), 1)
                     }
                 } else {
                     // parse decimal literal
@@ -382,7 +380,7 @@ impl Lexer {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::common::data::Data;
+    use crate::common::lit::Lit;
 
     // NOTE: lexing individual tokens is tested in pipeline::token
 

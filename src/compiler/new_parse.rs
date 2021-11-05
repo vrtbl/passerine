@@ -1,11 +1,14 @@
-use std::collections::HashMap;
+use std::{
+    mem,
+    collections::HashMap,
+};
 
 use crate::common::{
     span::{Span, Spanned},
-    data::Data,
+    lit::Lit,
 };
 
-use crate::compiler::{lower::Lower, syntax::Syntax};
+use crate::compiler::syntax::Syntax;
 
 use crate::construct::{
     token::{Token, Tokens, Delim, ResOp, ResIden},
@@ -123,19 +126,15 @@ impl Parser {
     /// which produces an AST node.
     /// If the expression is empty, returns an empty AST block.
     fn expr(&mut self, prec: Prec, skip_sep: bool) -> Result<Spanned<AST>, Syntax> {
-        let mut left = None;
+        let mut left = self.rule_prefix()?;
 
         while !self.is_done() {
-            left = if left.is_none() {
-                Some(self.rule_prefix()?)
-            } else {
-                if skip_sep { self.skip_sep() }
-                let p = self.prec();
-                if self.prec() < prec { break; }
-                Some(self.rule_infix()?)
-            }
+            if skip_sep { self.skip_sep() }
+            let p = self.prec();
+            if self.prec() < prec { break; }
+            left = self.rule_infix(left)?;
         }
 
-        todo!()
+        Ok(left)
     }
 }
