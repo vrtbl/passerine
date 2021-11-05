@@ -1,4 +1,8 @@
-use std::fmt::Display;
+use std::{
+    fmt::Display,
+    rc::Rc,
+};
+
 use crate::common::{
     span::Spanned,
     lit::Lit,
@@ -15,7 +19,8 @@ pub type Tokens = Vec<Spanned<Token>>;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     // Delimiters
-    Delim(Delim, Tokens),
+    // TODO: do not reference count!
+    Delim(Delim, Rc<Tokens>),
 
     // Names
     Label(String),

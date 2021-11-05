@@ -105,7 +105,7 @@ impl Lexer {
 
     fn enter_group(&mut self, delim: Delim) -> (Token, usize) {
         self.nesting.push(self.index);
-        (Token::Delim(delim, vec![]), 1)
+        (Token::Delim(delim, Rc::new(vec![])), 1)
     }
 
     fn exit_group(&mut self, delim: Delim) -> Result<Spanned<Token>, Syntax> {
@@ -119,7 +119,7 @@ impl Lexer {
         let after = self.tokens.split_off(loc + 1);
         let group = self.tokens.pop().unwrap();
         if let Token::Delim(delim, tokens) = group.item {
-            tokens = after;
+            *tokens = after;
         }
 
         // span over the whole group

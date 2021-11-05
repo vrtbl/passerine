@@ -1,5 +1,6 @@
 use std::{
     mem,
+    rc::Rc,
     collections::HashMap,
 };
 
@@ -67,10 +68,10 @@ impl Prec {
     }
 }
 
-pub struct Parser<'a> {
+pub struct Parser {
     /// Stack of token streams because tokens can be grouped.
     /// The topmost token stream is the one being parsed.
-    tokens_stack: Vec<&'a Tokens>,
+    tokens_stack: Vec<Rc<Tokens>>,
     /// Stack of locations in the parsing stream.
     /// The topmost token is the current token being looked at.
     indicies: Vec<usize>,
@@ -80,14 +81,14 @@ pub struct Parser<'a> {
     symbols: HashMap<String, SharedSymbol>,
 }
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Parses some tokens into a syntax tree.
     /// This will produce a module as opposed to a block.
     /// Also returns the symbol interning table.
     pub fn parse(tokens: Tokens) -> Result<(Spanned<AST>, HashMap<String, SharedSymbol>), Syntax> {
         // build base parser
         let mut parser = Parser {
-            tokens_stack: vec![&tokens],
+            tokens_stack: vec![Rc::new(tokens)],
             indicies: vec![0],
             symbols: HashMap::new(),
         };
@@ -321,7 +322,7 @@ impl<'a> Parser<'a> {
 
     /// Constructs the ast for a group,
     /// i.e. an expression between parenthesis.
-    fn group(&'a mut self) -> Result<Spanned<AST>, Syntax> {
+    fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
         let ungrouped = self.delim_inner(Delim::Paren)?;
         self.enter_delim(ungrouped.item);
         let ast = self.expr(Prec::None.left(), true)?;
@@ -331,7 +332,7 @@ impl<'a> Parser<'a> {
 
     /// Enters a new group for parsing.
     /// Note that this call must be balanced with a call to [`exit_group`]
-    fn enter_delim(&mut self, tokens: &'a Tokens) {
+    fn enter_delim(&mut self, tokens: Rc<Tokens>) {
         self.indicies.push(0);
         self.tokens_stack.push(tokens);
     }
@@ -362,9 +363,9 @@ impl<'a> Parser<'a> {
     /// Unwraps the group, and returns the spanned token stream.
     /// Appends Token::End to the expanded token stream.
     /// The returned Span includes the delimiters.
-    fn delim_inner(&mut self, expected_delim: Delim) -> Result<Spanned<&Tokens>, Syntax> {
+    fn delim_inner(&mut self, expected_delim: Delim) -> Result<Spanned<Rc<Tokens>>, Syntax> {
         let group = self.to_token(self.advance_token())?;
-        if let Token::Delim(delim, ref tokens) = group.item {
+        if let Token::Delim(delim, tokens) = group.item {
             return Ok(Spanned::new(tokens, group.span));
         };
 
@@ -392,7 +393,7 @@ impl<'a> Parser<'a> {
 
     // TODO: maybe just stop finangling and reference count `Tokens` already
     /// Parses a block, i.e. a list of expressions executed one after another between curlies.
-    fn block(&'a mut self) -> Result<Spanned<AST>, Syntax> {
+    fn block(&mut self) -> Result<Spanned<AST>, Syntax> {
         let tokens = self.delim_inner(Delim::Paren)?;
         self.enter_delim(tokens.item);
         let mut ast = self.body()?;
