@@ -14,7 +14,6 @@ use crate::construct::{
     token::{Token, Tokens, Delim, ResOp, ResIden},
     tree::{AST, Base, Sugar, Lambda, Pattern, ArgPattern},
     symbol::SharedSymbol,
-    module::{ThinModule, Module},
 };
 
 /// We're using a Pratt parser, so this little enum
@@ -82,8 +81,10 @@ pub struct Parser {
 }
 
 impl Parser {
-    /// parses some tokens into a syntax tree
-    pub fn parse(tokens: Tokens) -> Result<Spanned<AST>, Syntax> {
+    /// Parses some tokens into a syntax tree.
+    /// This will produce a module as opposed to a block.
+    /// Also returns the symbol interning table.
+    pub fn parse(tokens: Tokens) -> Result<(Spanned<AST>, HashMap<String, SharedSymbol>), Syntax> {
         // build base parser
         let mut parser = Parser {
             tokens_stack: vec![tokens],
@@ -96,7 +97,7 @@ impl Parser {
         // wrap it in a module
 
         // return it
-        return Ok(ast);
+        Ok((ast, parser.symbols))
     }
 
     /// Gets the stream of tokens currently being parsed.
@@ -109,6 +110,8 @@ impl Parser {
         *self.indicies.last().unwrap()
     }
 
+    /// Returns a mutable reference to the current index.
+    /// used to advance the parser.
     fn index_mut(&mut self) -> &mut usize {
         &mut self.indicies.last().unwrap()
     }
@@ -146,6 +149,7 @@ impl Parser {
         }
     }
 
+    /// Returns whether the Parser is done parsing the current token stream.
     fn is_done(&self) -> bool {
         self.index() >= self.tokens().len()
     }
@@ -175,15 +179,25 @@ impl Parser {
         })
     }
 
+    /// Returns the precedence of the current non-sep token being parsed.
+    /// Note that when parsing a form, a separator token has a precedence of `Prec::End`.
+    /// ```
+    /// these are two
+    /// different forms
+    /// ```
+    /// Is parsed as: `{(these are two); (different forms)}`
     fn prec(&mut self) -> Result<Prec, Syntax> {
-        let token = self.to_token(self.peek_token())?;
+        let is_sep = self.to_token(self.peek_token())?.item == Token::Sep;
+        let token = self.to_token(self.peek_non_sep())?;
+
         let result = match token.item {
-            // Delimiters
+            // Prefix
             | Token::Delim(_, _)
             | Token::Label(_)
             | Token::Iden(_)
-            | Token::Lit(_) => Prec::Call,
+            | Token::Lit(_) => if is_sep { Prec::End } else { Prec::Call },
 
+            // Infix Ops
             Token::Op(name) => match Parser::to_op(&name, token.span)? {
                 ResOp::Assign  => Prec::Assign,
                 ResOp::Lambda  => Prec::Lambda,
@@ -228,10 +242,12 @@ impl Parser {
         }
     }
 
+
+
     /// Looks at the current token and parses an infix expression like an operator.
     /// Because an operator can be used to split an expression across multiple lines,
     /// this function ignores separator tokens around the operator.
-    pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+    fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let token = self.to_token(self.peek_token())?;
         let result = match token.item {
             Token::Op(name) => match Parser::to_op(&name, token.span)? {

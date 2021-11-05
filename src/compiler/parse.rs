@@ -275,7 +275,6 @@ impl Parser {
     pub fn prec(&mut self) -> Result<Prec, Syntax> {
         let next = self.draw().item.clone();
         let current = self.current().item.clone();
-        let sep = next != current;
 
         let prec = match next {
             // infix
@@ -308,7 +307,9 @@ impl Parser {
             Token::Sep => unreachable!(),
         };
 
-        if sep && prec == Prec::Call {
+        // if there was a separator and we called
+
+        if next != current && prec == Prec::Call {
             Ok(Prec::End)
         } else {
             Ok(prec)

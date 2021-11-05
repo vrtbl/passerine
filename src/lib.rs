@@ -132,7 +132,6 @@ pub mod construct;
 use std::rc::Rc;
 pub use common::{source::Source, span::Spanned};
 pub use compiler::syntax::Syntax;
-pub use construct::module::{ThinModule, Module};
 // pub use crate::core::ffi::FFI;
 // pub use vm::{vm::VM, trace::Trace};
 
