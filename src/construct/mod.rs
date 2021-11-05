@@ -1,5 +1,4 @@
 pub mod symbol;
-pub mod module;
 pub mod scope;
 pub mod tree;
 
