@@ -11,13 +11,8 @@ use crate::common::{
     lit::Lit,
 };
 
-use crate::construct::{
-    token::{Delim, Token, Tokens},
-};
-
-use crate::compiler::{
-    syntax::{Syntax, Note},
-};
+use crate::construct::token::{Delim, Token, Tokens};
+use crate::compiler::syntax::{Syntax, Note};
 
 // impl Lower for ThinModule<Rc<Source>> {
 //     type Out = ThinModule<Tokens>;
@@ -38,6 +33,8 @@ pub struct Lexer {
 }
 
 impl Lexer {
+    // TODO: lexer needs to return all macro declarations
+    /// Lexes a source file into a stream of tokens.
     pub fn lex(source: Rc<Source>) -> Result<Tokens, Syntax> {
         // build a base lexer for this file
         let mut lexer = Lexer {
@@ -64,24 +61,28 @@ impl Lexer {
         Ok(lexer.tokens)
     }
 
+    /// Selects a range of a string of length `len` from the current index position.
     fn grab_from_index(&self, len: usize) -> &str {
         &self.source.contents[self.index..self.index + len]
     }
 
+    /// Returns all characters after the current index position.
     fn remaining(&self) -> Chars {
         self.source.contents[self.index..].chars()
     }
 
+    // TODO: use own index instead of self.index
     fn strip(&mut self) {
-        let remaining = self.remaining();
+        let mut remaining = self.remaining();
 
         loop {
-            let old_index = self.index;
+            let mut new_index = self.index;
+            let old_index = new_index;
 
             // Strip whitespace
             while let Some(c) = remaining.next() {
                 if !c.is_whitespace() || c == '\n' {
-                    self.index += c.len_utf8();
+                    new_index += c.len_utf8();
                 }
             }
 
@@ -92,14 +93,17 @@ impl Lexer {
                     // eat comment until the end of the line
                     while let Some(c) = remaining.next() {
                         if c != '\n' {
-                            self.index += c.len_utf8();
+                            new_index += c.len_utf8();
                         }
                     }
                 }
             }
 
             // If nothing was stripped, we're done
-            if self.index == old_index { break }
+            if old_index == new_index {
+                self.index = new_index;
+                break
+            }
         }
     }
 
@@ -117,9 +121,9 @@ impl Lexer {
 
         // split off new tokens, insert into group
         let after = self.tokens.split_off(loc + 1);
-        let group = self.tokens.pop().unwrap();
-        if let Token::Delim(delim, tokens) = group.item {
-            *tokens = after;
+        let mut group = self.tokens.pop().unwrap();
+        if let Token::Delim(_, ref mut tokens) = group.item {
+            *tokens = Rc::new(after);
         }
 
         // span over the whole group
@@ -133,7 +137,7 @@ impl Lexer {
 
     fn take_while<T>(
         &self,
-        remaining: impl Iterator<Item = char>,
+        remaining: &mut impl Iterator<Item = char>,
         wrap: impl Fn(&str) -> T,
         pred: impl Fn(char) -> bool,
     ) -> (T, usize) {
@@ -196,7 +200,7 @@ impl Lexer {
     fn integer_literal(
         &self,
         radix: u32,
-        remaining: impl Iterator<Item = char>,
+        remaining: &mut impl Iterator<Item = char>,
     ) -> Result<(Token, usize), Syntax> {
         let (integer, len) = self.take_while(
             remaining,
@@ -215,7 +219,7 @@ impl Lexer {
     fn radix_literal(
         &self,
         n: char,
-        remaining: impl Iterator<Item = char>,
+        remaining: &mut impl Iterator<Item = char>,
     ) -> Result<(Token, usize), Syntax> {
         match n {
             'b' => self.integer_literal(2, remaining),
@@ -226,14 +230,14 @@ impl Lexer {
             // Decimal literal with a leading zero
             _   => self.decimal_literal(
                 // rebuild the iterator, ugh
-                once('0').chain(once(n)).chain(remaining)
+                &mut once('0').chain(once(n)).chain(remaining)
             ),
         }
     }
 
     fn decimal_literal(
         &self,
-        remaining: impl Iterator<Item = char>,
+        remaining: &mut impl Iterator<Item = char>,
     ) -> Result<(Token, usize), Syntax> {
         let mut len = self.take_while(
             remaining,
@@ -278,12 +282,12 @@ impl Lexer {
     /// Parses the next token.
     /// Expects all whitespace and comments to be stripped.
     fn next_token(&mut self) -> Result<Spanned<Token>, Syntax> {
-        let remaining = self.remaining();
+        let mut remaining = self.remaining();
 
         let (token, len) = match remaining.next().unwrap() {
             // separator
             c @ ('\n' | ';') => self.take_while(
-                once(c).chain(remaining),
+                &mut once(c).chain(remaining),
                 |_| Token::Sep,
                 |n| n.is_whitespace() || n == ';'
             ),
@@ -304,7 +308,7 @@ impl Lexer {
             // Label
             c if c.is_alphabetic() && c.is_uppercase() => {
                 self.take_while(
-                    once(c).chain(remaining),
+                    &mut once(c).chain(remaining),
                     |s| match s {
                         // TODO: In the future, booleans in prelude
                         "True" => Token::Lit(Lit::Boolean(true)),
@@ -318,7 +322,7 @@ impl Lexer {
             // Iden
             c if c.is_alphabetic() || c == '_' => {
                 self.take_while(
-                    once(c).chain(remaining),
+                    &mut once(c).chain(remaining),
                     |s| Token::Iden(s.to_string()),
                     |n| n.is_alphanumeric() || n == '_'
                 )
@@ -327,7 +331,7 @@ impl Lexer {
             // Op
             c if c.is_ascii_punctuation() => {
                 self.take_while(
-                    once(c).chain(remaining),
+                    &mut once(c).chain(remaining),
                     |s| Token::Label(s.to_string()),
                     |n| n.is_ascii_punctuation(),
                 )
@@ -341,7 +345,7 @@ impl Lexer {
                 if c != '0' {
                     if let Some(n) = remaining.next() {
                         // Potentially integers in other radixes
-                        self.radix_literal(n, remaining)?
+                        self.radix_literal(n, &mut remaining)?
                     } else {
                         // End of source, must be just `0`
                         (Token::Lit(Lit::Integer(0)), 1)
@@ -350,7 +354,7 @@ impl Lexer {
                     // parse decimal literal
                     // this could be an integer
                     // but also a floating point number
-                    self.decimal_literal(remaining)?
+                    self.decimal_literal(&mut remaining)?
                 }
             }
 

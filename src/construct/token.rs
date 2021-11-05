@@ -71,7 +71,7 @@ impl Display for Delim {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResIden {
     Macro,
     Type,
@@ -94,7 +94,7 @@ impl ResIden {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResOp {
     Assign,
     Lambda,

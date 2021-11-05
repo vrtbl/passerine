@@ -5,12 +5,12 @@ use std::{
 use crate::construct::symbol::UniqueSymbol;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct VecSet<T: Eq + Hash> {
+pub struct VecSet<T: Eq + Hash + Clone> {
     order: Vec<T>,
     members: HashMap<T, usize>,
 }
 
-impl<T: Eq + Hash> VecSet<T> {
+impl<T: Eq + Hash + Clone> VecSet<T> {
     pub fn new() -> Self {
         VecSet {
             order: vec![],
@@ -19,7 +19,7 @@ impl<T: Eq + Hash> VecSet<T> {
     }
 
     pub fn push(&mut self, item: T) {
-        self.members.insert(item, self.order.len());
+        self.members.insert(item.clone(), self.order.len());
         self.order.push(item)
     }
 

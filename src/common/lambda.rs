@@ -6,9 +6,7 @@ use crate::common::{
     span::Span,
 };
 
-use crate::{
-    vm::data::Data,
-};
+use crate::vm::data::Data;
 
 /// Represents a variable visible in the current scope.
 #[derive(Debug, Clone, PartialEq, Eq)]

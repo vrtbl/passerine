@@ -1,4 +1,4 @@
-use passerine::{Source, ThinModule, Lower}; // , compile, run};
+use passerine::Source; // , compile, run};
 
 pub fn main() {
     // get the path and load the file
@@ -7,7 +7,8 @@ pub fn main() {
         .map_err(|_| "Error: File could not be read".to_string());
 
     let us = source.unwrap();
-    println!("{}", ThinModule::thin(us).lower().unwrap().lower().unwrap_err()); //.and_then(Lower::lower));
+    println!("us");
+    // println!("{}", ThinModule::thin(us).lower().unwrap().lower().unwrap_err()); //.and_then(Lower::lower));
 
     // compile and run the file at the specified path
     // let bytecode = source.and_then(|s| compile(s).map_err(|e| e.to_string()));
