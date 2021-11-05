@@ -6,6 +6,8 @@ use crate::common::{
 
 // TODO: remove associated data from tokens.
 
+pub type Tokens = Vec<Spanned<Token>>;
+
 /// These are the different tokens the lexer will output.
 /// `Token`s with data contain that data,
 /// e.g. a boolean will be a `Lit::Boolean(...)`, not just a string.
@@ -27,7 +29,22 @@ pub enum Token {
     Sep,
 }
 
-pub type Tokens = Vec<Spanned<Token>>;
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // pretty formatting for tokens
+        // just use debug if you're not printing a message or something.
+        let message = match self {
+            Token::Delim(delim, _) => format!("tokens grouped by {}", delim),
+            Token::Label(l)        => format!("the label `{}`", l),
+            Token::Iden(i)         => format!("the identifier `{}`", i),
+            Token::Op(o)           => format!("the operator `{}`", o),
+            Token::Lit(l)          => format!("the literal `{}`", l),
+            Token::Sep             => "a separator".to_string(),
+        };
+
+        write!(f, "{}", message)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Delim {
@@ -35,6 +52,18 @@ pub enum Delim {
     Curly,
     Paren,
     Square,
+}
+
+impl Display for Delim {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let message = match self {
+            Delim::Paren  => "parenthesis",
+            Delim::Curly  => "curly bracket",
+            Delim::Square => "square bracket",
+        };
+
+        write!(f, "{}", message)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,34 +121,5 @@ impl ResOp {
             "%" => Rem,
             _ => { return None; },
         })
-    }
-}
-
-impl Display for Delim {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let message = match self {
-            Delim::Paren  => "parenthesis",
-            Delim::Curly  => "curly bracket",
-            Delim::Square => "square bracket",
-        };
-
-        write!(f, "{}", message)
-    }
-}
-
-impl Display for Token {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // pretty formatting for tokens
-        // just use debug if you're not printing a message or something.
-        let message = match self {
-            Token::Delim(delim, _) => format!("tokens grouped by {}", delim),
-            Token::Label(l)        => format!("the label `{}`", l),
-            Token::Iden(i)         => format!("the identifier `{}`", i),
-            Token::Op(o)           => format!("the operator `{}`", o),
-            Token::Lit(l)          => format!("the literal `{}`", l),
-            Token::Sep             => "a separator".to_string(),
-        };
-
-        write!(f, "{}", message)
     }
 }
