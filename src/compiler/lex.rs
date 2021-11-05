@@ -74,9 +74,9 @@ impl Lexer {
     // TODO: use own index instead of self.index
     fn strip(&mut self) {
         let mut remaining = self.remaining();
+        let mut new_index = self.index;
 
         loop {
-            let mut new_index = self.index;
             let old_index = new_index;
 
             // Strip whitespace
@@ -391,5 +391,29 @@ mod test {
     #[test]
     fn new_empty() {
         Lexer::lex(Source::source("")).unwrap();
+    }
+
+    #[test]
+    fn valid() {
+        let cases = &[
+            ";\n;;",
+            "420",
+            "-27.5",
+            "Hello 2",
+            "4 + 5",
+            "4 @#$#@ 5",
+            "Label Label",
+            "{ Hello }",
+            "()",
+            "{}",
+            "[{}(;)]",
+        ];
+
+        for case in cases.iter() {
+            match Lexer::lex(Source::source(case)) {
+                Ok(_) => (),
+                Err(e) => eprintln!("{}", e),
+            }
+        }
     }
 }

@@ -6,6 +6,7 @@ use std::{
 };
 
 // TODO: make path optional
+// TODO: represent a hierarchy of sources
 
 /// `Source` represents some literal source code.
 /// Whether a repl session, a file on disk, or some library code.

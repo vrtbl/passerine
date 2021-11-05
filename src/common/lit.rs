@@ -47,7 +47,8 @@ impl Display for Lit {
             Lit::Float(n)    => write!(f, "{}", n),
             Lit::Integer(n)  => write!(f, "{}", n),
             Lit::String(s)   => write!(f, "{}", s),
-            Lit::Label(n, v) => write!(f, "{} {}", n, v),
+            // TODO: better representation for Labels
+            Lit::Label(n, v) => write!(f, "#{}({})", n, v),
             Lit::Unit        => write!(f, "()"),
             Lit::Boolean(b)  => write!(f, "{}", if *b { "True" } else { "False" })
         }
