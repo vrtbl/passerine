@@ -40,11 +40,11 @@ impl Display for Token {
         // just use debug if you're not printing a message or something.
         let message = match self {
             Token::Delim(delim, _) => format!("tokens grouped by {}", delim),
-            Token::Label(l)        => format!("the label `{}`", l),
-            Token::Iden(i)         => format!("the identifier `{}`", i),
-            Token::Op(o)           => format!("the operator `{}`", o),
-            Token::Lit(l)          => format!("the literal `{}`", l),
-            Token::Sep             => "a separator".to_string(),
+            Token::Label(l)        => format!("label `{}`", l),
+            Token::Iden(i)         => format!("identifier `{}`", i),
+            Token::Op(o)           => format!("operator `{}`", o),
+            Token::Lit(l)          => format!("literal `{}`", l),
+            Token::Sep             => "separator".to_string(),
         };
 
         write!(f, "{}", message)
@@ -101,6 +101,8 @@ pub enum ResOp {
     Equal,
     Pow,
     Compose,
+    Field,
+    Is,
     Pair,
     Add,
     Sub,
@@ -117,7 +119,9 @@ impl ResOp {
             "->" => Lambda,
             "==" => Equal,
             "**" => Pow,
-            "." => Compose,
+            "|>" => Compose,
+            "." => Field,
+            ":" => Is,
             "," => Pair,
             "+" => Add,
             "-" => Sub,

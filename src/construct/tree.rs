@@ -70,28 +70,15 @@ impl<T, S> Base<T, S> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ArgPattern<S> {
-    Keyword(S),
-    Symbol(S),
-    Group(Vec<Self>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Syntax<T, S> {
-    arg_pat: Spanned<ArgPattern<S>>,
-    body:    Box<T>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub enum Sugar<T, S> {
     Group(Box<T>),
     Form(Vec<T>),
     Pattern(Pattern<S>),
-    ArgPattern(ArgPattern<S>),
     // Record,
-    // Is,
+    Is(Box<T>, Box<T>), // expr, type
     Comp(Box<T>, Box<T>), // arg, function
-    Syntax(Syntax<T, S>),
+    Field(Box<T>, Box<T>), // struct, field
+    // TODO: math operators
 }
 
 impl<T, S> Sugar<T, S> {
@@ -99,12 +86,16 @@ impl<T, S> Sugar<T, S> {
         Sugar::Group(Box::new(tree))
     }
 
+    pub fn is(expr: T, ty: T) -> Self {
+        Sugar::Is(Box::new(expr), Box::new(ty))
+    }
+
     pub fn comp(arg: T, fun: T) -> Self {
         Sugar::Comp(Box::new(arg), Box::new(fun))
     }
 
-    pub fn syntax(arg_pat: Spanned<ArgPattern<S>>, tree: T) -> Self {
-        Sugar::Syntax(Syntax { arg_pat, body: Box::new(tree) })
+    pub fn field(record: T, name: T) -> Self {
+        Sugar::Field(Box::new(record), Box::new(name))
     }
 }
 

@@ -2,6 +2,7 @@ use std::{
     mem,
     rc::Rc,
     collections::HashMap,
+    convert::TryFrom,
 };
 
 use crate::common::{
@@ -13,7 +14,7 @@ use crate::compiler::syntax::Syntax;
 
 use crate::construct::{
     token::{Token, Tokens, Delim, ResOp, ResIden},
-    tree::{AST, Base, Sugar, Lambda, Pattern, ArgPattern},
+    tree::{AST, Base, Sugar, Lambda, Pattern},
     symbol::SharedSymbol,
 };
 
@@ -30,8 +31,8 @@ pub enum Prec {
     Assign,
     /// `,`
     Pair,
-    /// `:`
-    Is,
+    /// `|>`
+    Compose,
     /// `->`
     Lambda,
     /// Boolean logic.
@@ -42,10 +43,12 @@ pub enum Prec {
     MulDiv,
     /// `**`
     Pow,
-    /// `|>`
-    Compose,
+    /// `:`
+    Is,
     /// Implicit function call operator.
     Call,
+    /// `.`
+    Field,
     /// Highest precedence.
     End,
 }
@@ -182,6 +185,27 @@ impl Parser {
         })
     }
 
+    fn op_prec(op: ResOp) -> Prec {
+        match op {
+            ResOp::Assign  => Prec::Assign,
+            ResOp::Lambda  => Prec::Lambda,
+            ResOp::Pair    => Prec::Pair,
+            ResOp::Field   => Prec::Field,
+            ResOp::Compose => Prec::Compose,
+            ResOp::Is      => Prec::Is,
+
+            | ResOp::Add
+            | ResOp::Sub => Prec::AddSub,
+
+            | ResOp::Mul
+            | ResOp::Div
+            | ResOp::Rem => Prec::MulDiv,
+
+            ResOp::Equal => Prec::Logic,
+            ResOp::Pow   => Prec::Pow,
+        }
+    }
+
     /// Returns the precedence of the current non-sep token being parsed.
     /// Note that when parsing a form, a separator token has a precedence of `Prec::End`.
     /// ```
@@ -200,23 +224,8 @@ impl Parser {
             | Token::Iden(_)
             | Token::Lit(_) => if is_sep { Prec::End } else { Prec::Call },
 
-            // Infix Ops
-            Token::Op(name) => match Parser::to_op(&name, token.span)? {
-                ResOp::Assign  => Prec::Assign,
-                ResOp::Lambda  => Prec::Lambda,
-                ResOp::Compose => Prec::Compose,
-                ResOp::Pair    => Prec::Pair,
-
-                | ResOp::Add
-                | ResOp::Sub => Prec::AddSub,
-
-                | ResOp::Mul
-                | ResOp::Div
-                | ResOp::Rem => Prec::MulDiv,
-
-                ResOp::Equal => Prec::Logic,
-                ResOp::Pow   => Prec::Pow,
-            },
+            // Infix ops
+            Token::Op(name) => Parser::op_prec(Parser::to_op(&name, token.span)?),
 
             // Unreachable because we skip all all non-sep tokens
             Token::Sep => unreachable!(),
@@ -228,7 +237,9 @@ impl Parser {
     /// Looks at the current token and parses a prefix expression, like keywords.
     /// This function will strip preceeding separator tokens.
     fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
+        self.advance_non_sep();
         let token = self.to_token(self.peek_token())?;
+
         match token.item {
             Token::Delim(delim, _) => match delim {
                 Delim::Curly  => self.block(),
@@ -384,7 +395,7 @@ impl Parser {
             expressions.push(ast);
             match self.to_token(self.advance_token())?.item {
                 Token::Sep => (),
-                _          => { break; },
+                _          => break,
             }
         }
 
@@ -407,25 +418,109 @@ impl Parser {
     /// Because an operator can be used to split an expression across multiple lines,
     /// this function ignores separator tokens around the operator.
     fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        self.advance_non_sep();
         let token = self.to_token(self.peek_token())?;
-        let result = match token.item {
-            Token::Op(name) => match Parser::to_op(&name, token.span)? {
-                ResOp::Assign  => self.assign(left),
-                ResOp::Lambda  => self.lambda(left),
-                ResOp::Compose => self.compose(left),
-                ResOp::Pair    => self.pair(left),
-                ResOp::Add     => self.binop(Prec::AddSub.left(), left),
-                ResOp::Sub     => self.binop(Prec::AddSub.left(), left),
-                ResOp::Mul     => self.binop(Prec::MulDiv.left(), left),
-                ResOp::Div     => self.binop(Prec::MulDiv.left(), left),
-                ResOp::Rem     => self.binop(Prec::MulDiv.left(), left),
-                ResOp::Equal   => self.binop(Prec::Logic.left(),  left),
-                ResOp::Pow     => self.binop(Prec::Pow,           left),
-            },
-            _ => todo!(),
-        };
 
-        Ok(result)
+        use ResOp::*;
+        match token.item {
+            Token::Op(name) => match Parser::to_op(&name, token.span)? {
+                // Pattern-based
+                Assign  => self.assign(left),
+                Lambda  => self.lambda(left),
+
+                // Simple binops
+                Compose => self.binop(left, true, Compose, |l, r| AST::Sugar(Sugar::comp(l, r))),
+                Is      => self.binop(left, true, Is,      |l, r| AST::Sugar(Sugar::is(l, r))),
+                Field   => self.binop(left, true, Field,   |l, r| AST::Sugar(Sugar::field(l, r))),
+
+                // Tuples
+                Pair => self.binop(left, true, Pair, |l, r| {
+                    let mut tuple = match l.item {
+                        AST::Base(Base::Tuple(t)) => t,
+                        _ => vec![l],
+                    };
+                    tuple.push(r);
+                    AST::Base(Base::Tuple(tuple))
+                }),
+
+                // Builtins
+                Add   => todo!(),
+                Sub   => todo!(),
+                Mul   => todo!(),
+                Div   => todo!(),
+                Rem   => todo!(),
+                Equal => todo!(),
+                Pow   => todo!(),
+            },
+
+            Token::Sep => unreachable!(),
+            _ => self.call(left),
+        }
+    }
+
+    /// Parses a function call.
+    /// Function calls are a bit magical,
+    /// because they're just a series of expressions.
+    /// There's a bit of magic involved -
+    /// we interpret anything that isn't an operator as a function call operator.
+    /// Then pull a fast one and not parse it like an operator at all.
+    pub fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        let argument = self.expr(Prec::Call.left(), false)?;
+        let combined = Span::combine(&left.span, &argument.span);
+
+        let mut form = match left.item {
+            AST::Sugar(Sugar::Form(f)) => f,
+            _ => vec![left],
+        };
+        form.push(argument);
+        return Ok(Spanned::new(AST::Sugar(Sugar::Form(form)), combined));
+    }
+
+    /// Consumes an expected operator, produces an error otherwise.
+    fn consume_op(&mut self, op: ResOp) -> Result<&Spanned<Token>, Syntax> {
+        let token = self.to_token(self.advance_token())?;
+
+        if let Token::Op(ref name) = token.item {
+            if Parser::to_op(name, token.span)? == op {
+                return Ok(token);
+            }
+        }
+
+        Err(self.unexpected())
+    }
+
+    /// Parses a binary operation.
+    fn binop<T>(
+        &mut self,
+        left: Spanned<T>,
+        is_left: bool,
+        op: ResOp,
+        make_ast: impl Fn(Spanned<T>, Spanned<AST>) -> AST,
+    ) -> Result<Spanned<AST>, Syntax> {
+        self.consume_op(op)?;
+
+        let prec  = Parser::op_prec(op);
+        let prec  = if is_left { prec.left() } else { prec };
+        let right = self.expr(prec, false)?;
+
+        let combined = Span::combine(&left.span, &right.span);
+        Ok(Spanned::new(make_ast(left, right), combined))
+    }
+
+    /// Parses a lambda definition, associates right.
+    fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        let left_span = left.span.clone();
+        let pattern = left.map(Pattern::try_from)
+            .map_err(|e| Syntax::error(&e, &left_span))?;
+        self.binop(pattern, false, ResOp::Lambda, |l, r| AST::Lambda(Lambda::new(l, r)))
+    }
+
+    /// Parses an assignment, associates right.
+    fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        let left_span = left.span;
+        let pattern = left.map(Pattern::<SharedSymbol>::try_from)
+            .map_err(|e| Syntax::error(&e, &left_span))?;
+        self.binop(pattern, false, ResOp::Assign, |l, r| AST::Base(Base::assign(l, r)))
     }
 
     /// Parses an expression within a given precedence,
