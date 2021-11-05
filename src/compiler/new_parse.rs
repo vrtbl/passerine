@@ -97,7 +97,7 @@ impl Parser {
         };
 
         // parse and wrap it in a module
-        let ast = parser.bare_module(Prec::End, false)?;
+        let ast = parser.bare_module()?;
 
         // return it
         Ok((ast, parser.symbols))
@@ -387,7 +387,7 @@ impl Parser {
     /// A block is one or more expressions, separated by separators.
     /// This is more of a helper function, as it serves as both the
     /// parser entrypoint while still being recursively nestable.
-    fn body(&mut self) -> Result<AST, Syntax> {
+    fn body(&mut self) -> Result<Spanned<AST>, Syntax> {
         let mut expressions = vec![];
 
         while !self.is_done() {
@@ -399,7 +399,13 @@ impl Parser {
             }
         }
 
-        return Ok(AST::Base(Base::Block(expressions)));
+        let span = Spanned::build(&expressions);
+        return Ok(Spanned::new(AST::Base(Base::Block(expressions)), span));
+    }
+
+    fn bare_module(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let ast = self.body()?;
+        Ok(Spanned::new(AST::Base(Base::Module(Box::new(ast))), ast.span))
     }
 
     // TODO: maybe just stop finangling and reference count `Tokens` already
@@ -411,7 +417,7 @@ impl Parser {
         self.exit_delim();
 
         // TODO: construct a record if applicable
-        return Ok(Spanned::new(ast, tokens.span));
+        return Ok(Spanned::new(ast.item, tokens.span));
     }
 
     /// Looks at the current token and parses an infix expression like an operator.

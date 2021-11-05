@@ -47,7 +47,7 @@ pub enum Base<T, S> {
     Label(S),
     Lit(Lit),
     Tuple(Vec<T>),
-    Module(Vec<T>),
+    Module(Box<T>),
 
     Block(Vec<T>),
     Call(Box<T>, Box<T>), // fun, arg
