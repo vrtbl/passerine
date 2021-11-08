@@ -1,19 +1,12 @@
-use std::{
-    str::FromStr,
-    f64,
-    rc::Rc,
-};
+use std::{f64, rc::Rc, str::FromStr};
 
 use crate::common::{
-    source::Source,
-    span::{ Span, Spanned },
     data::Data,
+    source::Source,
+    span::{Span, Spanned},
 };
 
-use crate::compiler::{
-    token::Token,
-    syntax::Syntax,
-};
+use crate::compiler::{syntax::Syntax, token::Token};
 
 type Bite = (Token, usize);
 
@@ -61,7 +54,10 @@ pub struct Lexer {
 impl Lexer {
     /// Create a new empty lexer.
     pub fn new(source: &Rc<Source>) -> Lexer {
-        Lexer { source: Rc::clone(source), offset: 0 }
+        Lexer {
+            source: Rc::clone(source),
+            offset: 0,
+        }
     }
 
     /// Run the lexer, generating the entire token stream.
@@ -81,10 +77,8 @@ impl Lexer {
 
             // get next token kind, build token
             let (kind, consumed) = match self.step() {
-                Ok(k)  => k,
-                Err(e) => return Err(
-                    Syntax::error(&e, &Span::point(&self.source, self.offset))
-                ),
+                Ok(k) => k,
+                Err(e) => return Err(Syntax::error(&e, &Span::point(&self.source, self.offset))),
             };
 
             // annotate it
@@ -111,16 +105,13 @@ impl Lexer {
 
             // static
             Box::new(Lexer::static_token),
-
             // variants
             Box::new(Lexer::sep),
             Box::new(Lexer::boolean),
-
             // dynamic
             Box::new(Lexer::real),
             Box::new(Lexer::integer),
             Box::new(Lexer::string),
-
             // keep this @ the bottom, lmao
             Box::new(Lexer::keyword),
             Box::new(Lexer::label),
@@ -134,9 +125,9 @@ impl Lexer {
         for rule in &rules {
             if let Ok((k, c)) = rule(source) {
                 match best {
-                    Err(_)              => best = Ok((k, c)),
+                    Err(_) => best = Ok((k, c)),
                     Ok((_, o)) if c > o => best = Ok((k, c)),
-                    Ok(_)               => (),
+                    Ok(_) => (),
                 }
             }
         }
@@ -175,7 +166,7 @@ impl Lexer {
 
         match &source.as_bytes()[..literal.len()] {
             s if s == literal.as_bytes() => Ok(literal.len()),
-            _                            => Err(format!("Expected '{}'", source)),
+            _ => Err(format!("Expected '{}'", source)),
         }
     }
 
@@ -187,11 +178,15 @@ impl Lexer {
         for char in source.chars() {
             match char {
                 n if n.is_digit(10) => len += n.len_utf8(),
-                _                   => break,
+                _ => break,
             }
         }
 
-        if len == 0 { Err("Expected digits".to_string()) } else { Ok(len) }
+        if len == 0 {
+            Err("Expected digits".to_string())
+        } else {
+            Ok(len)
+        }
     }
 
     /// Helper function that expects a literal, returning an error otherwise.
@@ -218,11 +213,15 @@ impl Lexer {
     pub fn comment(source: &str) -> usize {
         let mut len = match Lexer::expect(source, "--") {
             Ok(n) => n,
-            Err(_) => { return 0; },
+            Err(_) => {
+                return 0;
+            }
         };
 
         for char in source[len..].chars() {
-            if char == '\n' { break; }
+            if char == '\n' {
+                break;
+            }
             len += char.len_utf8();
         }
 
@@ -234,14 +233,17 @@ impl Lexer {
     pub fn multi_comment(source: &str) -> usize {
         let mut len: usize = match Lexer::expect(source, "-{") {
             Ok(n) => n,
-            Err(_) => { return 0; },
+            Err(_) => {
+                return 0;
+            }
         };
 
         for char in source[len..].chars() {
             if Lexer::expect(&source[len..], "-{").is_ok() {
                 len += Lexer::multi_comment(&source[len..]);
             } else if let Ok(end) = Lexer::expect(&source[len..], "}-") {
-                len += end; break;
+                len += end;
+                break;
             } else {
                 len += char.len_utf8();
             }
@@ -258,10 +260,10 @@ impl Lexer {
 
         for char in source.chars() {
             match char {
-                a if a.is_alphanumeric()
-                  || "_".contains(a)
-                  => { len += a.len_utf8() },
-                _ => { break;   },
+                a if a.is_alphanumeric() || "_".contains(a) => len += a.len_utf8(),
+                _ => {
+                    break;
+                }
             }
         }
 
@@ -271,11 +273,9 @@ impl Lexer {
 
         let first = source.chars().next().unwrap();
         match first {
-            n if n.is_numeric() => Err(
-                "Can not start with a numeric character".to_string()
-            ),
+            n if n.is_numeric() => Err("Can not start with a numeric character".to_string()),
             s if s.is_uppercase() => Ok((Token::Label, len)), // label
-            _ => Ok((Token::Symbol, len)), // symbol
+            _ => Ok((Token::Symbol, len)),                    // symbol
         }
     }
 
@@ -305,7 +305,7 @@ impl Lexer {
         len += Lexer::expect(source, "'")?;
 
         if let (Token::Symbol, l) = Lexer::identifier(&source[len..])? {
-            let keyword = source[len..len+l].to_string();
+            let keyword = source[len..len + l].to_string();
             Ok((Token::Keyword(keyword), len + l))
         } else {
             Err("Expected a pseudokeyword".to_string())
@@ -324,8 +324,8 @@ impl Lexer {
         len += Lexer::eat_digits(&source[len..])?;
 
         let number = match f64::from_str(&source[..len]) {
-            Ok(n)  => n,
-            Err(_) => panic!("Could not convert source to supposed real")
+            Ok(n) => n,
+            Err(_) => panic!("Could not convert source to supposed real"),
         };
 
         Ok((Token::Number(Data::Real(number)), len))
@@ -349,7 +349,7 @@ impl Lexer {
         // TODO: read through the rust compiler and figure our how they do this
         // look into parse_str_lit
 
-        let mut len    = 0;
+        let mut len = 0;
         let mut escape = false;
         let mut string = "".to_string();
 
@@ -361,18 +361,18 @@ impl Lexer {
                 escape = false;
                 // TODO: add more escape codes
                 string.push(match c {
-                    '"'  => '"',
+                    '"' => '"',
                     '\\' => '\\',
-                    'n'  => '\n',
-                    't'  => '\t',
-                    'r'  => '\r',
-                    o    => return Err(format!("Unknown escape code '\\{}'", o)),
+                    'n' => '\n',
+                    't' => '\t',
+                    'r' => '\r',
+                    o => return Err(format!("Unknown escape code '\\{}'", o)),
                 })
             } else {
                 match c {
                     '\\' => escape = true,
                     '\"' => return Ok((Token::String(Data::String(string)), len)),
-                    c    => string.push(c),
+                    c => string.push(c),
                 }
             }
         }
@@ -382,13 +382,10 @@ impl Lexer {
 
     /// Matches a literal boolean.
     pub fn boolean(source: &str) -> Result<Bite, String> {
-        for (lit, val) in [
-            ("true",  true),
-            ("false", false),
-        ].iter() {
-            if let x @ Ok(_) = Lexer::literal(
-                source, lit, Token::Boolean(Data::Boolean(*val))
-            ) { return x; }
+        for (lit, val) in [("true", true), ("false", false)].iter() {
+            if let x @ Ok(_) = Lexer::literal(source, lit, Token::Boolean(Data::Boolean(*val))) {
+                return x;
+            }
         }
 
         Err("Expected a boolean".to_string())
@@ -404,12 +401,11 @@ impl Lexer {
     /// between any two non-separator tokens.
     pub fn sep(source: &str) -> Result<Bite, String> {
         let mut chars = source.chars();
-        let c = chars.next()
-            .ok_or("Unexpected EOF while parsing")?;
+        let c = chars.next().ok_or("Unexpected EOF while parsing")?;
 
         // a newline or a semicolon
         if c != '\n' && c != ';' {
-            return Err("Expected a separator such as a newline or semicolon".to_string())
+            return Err("Expected a separator such as a newline or semicolon".to_string());
         }
 
         // followed by n semicolons/whitespace (including newline)
@@ -447,10 +443,13 @@ mod test {
         let source = Source::source("heck = true");
 
         let result = vec![
-            Spanned::new(Token::Symbol,                       Span::new(&source, 0, 4)),
-            Spanned::new(Token::Assign,                       Span::new(&source, 5, 1)),
-            Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 7, 4)),
-            Spanned::new(Token::End,                          Span::empty()),
+            Spanned::new(Token::Symbol, Span::new(&source, 0, 4)),
+            Spanned::new(Token::Assign, Span::new(&source, 5, 1)),
+            Spanned::new(
+                Token::Boolean(Data::Boolean(true)),
+                Span::new(&source, 7, 4),
+            ),
+            Spanned::new(Token::End, Span::empty()),
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -461,10 +460,12 @@ mod test {
         let source = Source::source("  true  ;  ");
 
         let result = vec![
-            Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 2, 4)),
-            Spanned::new(Token::Sep,                          Span::new(&source, 8, 3)),
-            Spanned::new(Token::End,                          Span::empty()),
-
+            Spanned::new(
+                Token::Boolean(Data::Boolean(true)),
+                Span::new(&source, 2, 4),
+            ),
+            Spanned::new(Token::Sep, Span::new(&source, 8, 3)),
+            Spanned::new(Token::End, Span::empty()),
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -477,16 +478,19 @@ mod test {
         // TODO: finish test
 
         let result = vec![
-            Spanned::new(Token::OpenBracket,                  Span::new(&source, 0, 1)),
-            Spanned::new(Token::Sep,                          Span::new(&source, 1, 2)),
-            Spanned::new(Token::Symbol,                       Span::new(&source, 3, 5)),
-            Spanned::new(Token::Assign,                       Span::new(&source,  9, 1)),
-            Spanned::new(Token::Boolean(Data::Boolean(true)), Span::new(&source, 11, 4)),
-            Spanned::new(Token::Sep,                          Span::new(&source, 15, 2)),
-            Spanned::new(Token::Symbol,                       Span::new(&source, 17, 5)),
-            Spanned::new(Token::Sep,                          Span::new(&source, 22, 1)),
-            Spanned::new(Token::CloseBracket,                 Span::new(&source, 23, 1)),
-            Spanned::new(Token::End,                          Span::empty()),
+            Spanned::new(Token::OpenBracket, Span::new(&source, 0, 1)),
+            Spanned::new(Token::Sep, Span::new(&source, 1, 2)),
+            Spanned::new(Token::Symbol, Span::new(&source, 3, 5)),
+            Spanned::new(Token::Assign, Span::new(&source, 9, 1)),
+            Spanned::new(
+                Token::Boolean(Data::Boolean(true)),
+                Span::new(&source, 11, 4),
+            ),
+            Spanned::new(Token::Sep, Span::new(&source, 15, 2)),
+            Spanned::new(Token::Symbol, Span::new(&source, 17, 5)),
+            Spanned::new(Token::Sep, Span::new(&source, 22, 1)),
+            Spanned::new(Token::CloseBracket, Span::new(&source, 23, 1)),
+            Spanned::new(Token::End, Span::empty()),
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -496,18 +500,21 @@ mod test {
     fn function() {
         let source = Source::source("identity = x -> x\nidentity (identity \"heck\")");
         let result = vec![
-            Spanned::new(Token::Symbol,                                   Span::new(&source, 0, 8)),
-            Spanned::new(Token::Assign,                                   Span::new(&source, 9, 1)),
-            Spanned::new(Token::Symbol,                                   Span::new(&source, 11, 1)),
-            Spanned::new(Token::Lambda,                                   Span::new(&source, 13, 2)),
-            Spanned::new(Token::Symbol,                                   Span::new(&source, 16, 1)),
-            Spanned::new(Token::Sep,                                      Span::new(&source, 17, 1)),
-            Spanned::new(Token::Symbol,                                   Span::new(&source, 18, 8)),
-            Spanned::new(Token::OpenParen,                                Span::new(&source, 27, 1)),
-            Spanned::new(Token::Symbol,                                   Span::new(&source, 28, 8)),
-            Spanned::new(Token::String(Data::String("heck".to_string())), Span::new(&source, 37, 6)),
-            Spanned::new(Token::CloseParen,                               Span::new(&source, 43, 1)),
-            Spanned::new(Token::End,                          Span::empty()),
+            Spanned::new(Token::Symbol, Span::new(&source, 0, 8)),
+            Spanned::new(Token::Assign, Span::new(&source, 9, 1)),
+            Spanned::new(Token::Symbol, Span::new(&source, 11, 1)),
+            Spanned::new(Token::Lambda, Span::new(&source, 13, 2)),
+            Spanned::new(Token::Symbol, Span::new(&source, 16, 1)),
+            Spanned::new(Token::Sep, Span::new(&source, 17, 1)),
+            Spanned::new(Token::Symbol, Span::new(&source, 18, 8)),
+            Spanned::new(Token::OpenParen, Span::new(&source, 27, 1)),
+            Spanned::new(Token::Symbol, Span::new(&source, 28, 8)),
+            Spanned::new(
+                Token::String(Data::String("heck".to_string())),
+                Span::new(&source, 37, 6),
+            ),
+            Spanned::new(Token::CloseParen, Span::new(&source, 43, 1)),
+            Spanned::new(Token::End, Span::empty()),
         ];
 
         assert_eq!(lex(source), Ok(result));
@@ -520,7 +527,7 @@ mod test {
 
         match result {
             Ok(v) => v == (token, length),
-            Err(_) => false
+            Err(_) => false,
         }
     }
 
@@ -528,48 +535,48 @@ mod test {
 
     #[test]
     fn boolean() {
-        if !test_literal("true",  Token::Boolean(Data::Boolean(true)), 4)  { panic!() }
-        if !test_literal("false", Token::Boolean(Data::Boolean(false)), 5) { panic!() }
+        if !test_literal("true", Token::Boolean(Data::Boolean(true)), 4) {
+            panic!()
+        }
+        if !test_literal("false", Token::Boolean(Data::Boolean(false)), 5) {
+            panic!()
+        }
     }
 
     #[test]
     fn assign() {
-        if !test_literal("=", Token::Assign, 1) { panic!() }
+        if !test_literal("=", Token::Assign, 1) {
+            panic!()
+        }
     }
 
     #[test]
     fn symbol() {
-        if !test_literal("orchard", Token::Symbol, 7) { panic!() }
+        if !test_literal("orchard", Token::Symbol, 7) {
+            panic!()
+        }
     }
 
     #[test]
     fn sep() {
-        if !test_literal(
-            "\n  heck",
-            Token::Sep,
-            3,
-        ) { panic!() }
+        if !test_literal("\n  heck", Token::Sep, 3) {
+            panic!()
+        }
 
-        if !test_literal(
-            ";\n ; heck",
-            Token::Sep,
-            5,
-        ) { panic!() }
+        if !test_literal(";\n ; heck", Token::Sep, 5) {
+            panic!()
+        }
     }
 
     #[test]
     fn real() {
-        if !test_literal(
-            "2.0",
-            Token::Number(Data::Real(2.0)),
-            3,
-        ) { panic!() }
+        if !test_literal("2.0", Token::Number(Data::Real(2.0)), 3) {
+            panic!()
+        }
 
-        if !test_literal(
-            "210938.2221",
-            Token::Number(Data::Real(210938.2221)),
-            11,
-        ) { panic!() }
+        if !test_literal("210938.2221", Token::Number(Data::Real(210938.2221)), 11) {
+            panic!()
+        }
     }
 
     #[test]
@@ -579,27 +586,40 @@ mod test {
             source,
             Token::String(Data::String("heck".to_string())),
             source.len(),
-        ) { panic!() }
+        ) {
+            panic!()
+        }
 
         let escape = "\"I said, \\\"Hello, world!\\\" didn't I?\"";
         if !test_literal(
             escape,
-            Token::String(Data::String("I said, \"Hello, world!\" didn't I?".to_string())),
+            Token::String(Data::String(
+                "I said, \"Hello, world!\" didn't I?".to_string(),
+            )),
             escape.len(),
-        ) { panic!() }
+        ) {
+            panic!()
+        }
 
         let unicode = "\"Yo 👋! Ünícode µ works just fine 🚩! うん、気持ちいい！\"";
         if !test_literal(
             unicode,
-            Token::String(Data::String("Yo 👋! Ünícode µ works just fine 🚩! うん、気持ちいい！".to_string())),
+            Token::String(Data::String(
+                "Yo 👋! Ünícode µ works just fine 🚩! うん、気持ちいい！".to_string(),
+            )),
             unicode.len(),
-        ) { panic!() }
+        ) {
+            panic!()
+        }
     }
 
     #[test]
     fn comma() {
         let source = Source::source("heck\\ man");
         let tokens = lex(source.clone());
-        assert_eq!(tokens, Err(Syntax::error("Unexpected token", &Span::new(&source, 4, 0))));
+        assert_eq!(
+            tokens,
+            Err(Syntax::error("Unexpected token", &Span::new(&source, 4, 0)))
+        );
     }
 }

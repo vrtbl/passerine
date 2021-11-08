@@ -1,17 +1,14 @@
-use std::{
-    mem,
-    convert::TryFrom,
-};
+use std::{convert::TryFrom, mem};
 
 use crate::common::{
-    span::{Span, Spanned},
     data::Data,
+    span::{Span, Spanned},
 };
 
 use crate::compiler::{
+    ast::{ASTPattern, ArgPattern, AST},
     syntax::Syntax,
     token::Token,
-    ast::{AST, ASTPattern, ArgPattern},
 };
 
 /// Simple function that parses a token stream into an AST.
@@ -56,7 +53,9 @@ impl Prec {
     /// `a + b + c` left-associated becomes `(a + b) + c`.
     /// By default, the parser accociates right.
     pub fn associate_left(&self) -> Prec {
-        if let Prec::End = self { panic!("Can not associate further left") }
+        if let Prec::End = self {
+            panic!("Can not associate further left")
+        }
         unsafe { mem::transmute(*self as u8 + 1) }
     }
 }
@@ -67,7 +66,7 @@ impl Prec {
 #[derive(Debug)]
 pub struct Parser {
     tokens: Vec<Spanned<Token>>,
-    index:  usize,
+    index: usize,
 }
 
 impl Parser {
@@ -81,10 +80,12 @@ impl Parser {
     // NOTE: Maybe don't return bool?
     /// Consumes all seperator tokens, returning whether there were any.
     pub fn sep(&mut self) -> bool {
-        if self.tokens[self.index].item != Token::Sep { false } else {
+        if self.tokens[self.index].item != Token::Sep {
+            false
+        } else {
             while self.tokens[self.index].item == Token::Sep {
                 self.index += 1;
-            };
+            }
             true
         }
     }
@@ -126,7 +127,7 @@ impl Parser {
         let token = self.current();
         Syntax::error(
             &format!("Oopsie woopsie, what's {} doing here?", token.item),
-            &token.span
+            &token.span,
         )
     }
 
@@ -137,7 +138,10 @@ impl Parser {
         let current = &self.tokens[self.index - 1];
         if current.item != token {
             self.index -= 1;
-            Err(Syntax::error(&format!("Expected {}, found {}", token, current.item), &current.span))
+            Err(Syntax::error(
+                &format!("Expected {}, found {}", token, current.item),
+                &current.span,
+            ))
         } else {
             Ok(current)
         }
@@ -148,33 +152,33 @@ impl Parser {
     /// Looks at the current token and parses an infix expression
     pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
-            Token::End         => Ok(Spanned::new(AST::Block(vec![]), Span::empty())),
+            Token::End => Ok(Spanned::new(AST::Block(vec![]), Span::empty())),
 
-            Token::Syntax      => self.syntax(),
-            Token::OpenParen   => self.group(),
+            Token::Syntax => self.syntax(),
+            Token::OpenParen => self.group(),
             Token::OpenBracket => self.block(),
-            Token::Symbol      => self.symbol(),
-            Token::Magic       => self.magic(),
-            Token::Label       => self.label(),
-            Token::Keyword(_)  => self.keyword(),
-            Token::Sub         => self.neg(),
+            Token::Symbol => self.symbol(),
+            Token::Magic => self.magic(),
+            Token::Label => self.label(),
+            Token::Keyword(_) => self.keyword(),
+            Token::Sub => self.neg(),
 
-            Token::Unit
-            | Token::Number(_)
-            | Token::String(_)
-            | Token::Boolean(_) => self.literal(),
+            Token::Unit | Token::Number(_) | Token::String(_) | Token::Boolean(_) => self.literal(),
 
             Token::Sep => unreachable!(),
-            _          => Err(Syntax::error("Expected an expression", &self.current().span)),
+            _ => Err(Syntax::error(
+                "Expected an expression",
+                &self.current().span,
+            )),
         }
     }
 
     /// Looks at the current token and parses the right side of any infix expressions.
     pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         match self.skip().item {
-            Token::Assign  => self.assign(left),
-            Token::Lambda  => self.lambda(left),
-            Token::Pair    => self.pair(left),
+            Token::Assign => self.assign(left),
+            Token::Lambda => self.lambda(left),
+            Token::Pair => self.pair(left),
             Token::Compose => self.compose(left),
 
             Token::Add => self.add(left),
@@ -188,7 +192,7 @@ impl Parser {
 
             Token::End => Err(self.unexpected()),
             Token::Sep => unreachable!(),
-            _          => self.call(left),
+            _ => self.call(left),
         }
     }
 
@@ -200,29 +204,24 @@ impl Parser {
 
         let prec = match next {
             // infix
-            Token::Assign  => Prec::Assign,
-            Token::Lambda  => Prec::Lambda,
-            Token::Pair    => Prec::Pair,
+            Token::Assign => Prec::Assign,
+            Token::Lambda => Prec::Lambda,
+            Token::Pair => Prec::Pair,
             Token::Compose => Prec::Compose,
 
             Token::Equal => Prec::Logic,
 
-              Token::Add
-            | Token::Sub => Prec::AddSub,
+            Token::Add | Token::Sub => Prec::AddSub,
 
-              Token::Mul
-            | Token::Div
-            | Token::Rem => Prec::MulDiv,
+            Token::Mul | Token::Div | Token::Rem => Prec::MulDiv,
 
             Token::Pow => Prec::Pow,
 
             // postfix
-              Token::End
-            | Token::CloseParen
-            | Token::CloseBracket => Prec::End,
+            Token::End | Token::CloseParen | Token::CloseBracket => Prec::End,
 
             // prefix
-              Token::OpenParen
+            Token::OpenParen
             | Token::OpenBracket
             | Token::Unit
             | Token::Syntax
@@ -253,7 +252,9 @@ impl Parser {
         let mut left = self.rule_prefix()?;
 
         while {
-            if skip_sep { self.sep(); }
+            if skip_sep {
+                self.sep();
+            }
             let p = self.prec()?;
             p >= prec && p != Prec::End
         } {
@@ -278,22 +279,32 @@ impl Parser {
             return Ok(Spanned::new(
                 AST::lambda(
                     Spanned::new(ASTPattern::Symbol("n".into()), Span::empty()),
-                    Spanned::new(AST::ffi(
-                        "println",
-                        Spanned::new(AST::Symbol("n".into()), Span::empty()),
-                    ), Span::empty()),
+                    Spanned::new(
+                        AST::ffi(
+                            "println",
+                            Spanned::new(AST::Symbol("n".into()), Span::empty()),
+                        ),
+                        Span::empty(),
+                    ),
                 ),
                 symbol.span.clone(),
             ));
         }
 
-        Ok(Spanned::new(AST::Symbol(symbol.span.contents()), symbol.span.clone()))
+        Ok(Spanned::new(
+            AST::Symbol(symbol.span.contents()),
+            symbol.span.clone(),
+        ))
     }
 
     /// Parses a keyword.
     /// Note that this is wrapped in a CSTPattern node.
     pub fn keyword(&mut self) -> Result<Spanned<AST>, Syntax> {
-        if let Spanned { item: Token::Keyword(name), span } = self.advance() {
+        if let Spanned {
+            item: Token::Keyword(name),
+            span,
+        } = self.advance()
+        {
             let wrapped = AST::ArgPattern(ArgPattern::Keyword(name.clone()));
             Ok(Spanned::new(wrapped, span.clone()))
         } else {
@@ -306,14 +317,16 @@ impl Parser {
         let Spanned { item: token, span } = self.advance();
 
         let leaf = match token {
-            Token::Unit       => AST::Data(Data::Unit),
-            Token::Number(n)  => AST::Data(n.clone()),
-            Token::String(s)  => AST::Data(s.clone()),
+            Token::Unit => AST::Data(Data::Unit),
+            Token::Number(n) => AST::Data(n.clone()),
+            Token::String(s) => AST::Data(s.clone()),
             Token::Boolean(b) => AST::Data(b.clone()),
-            unexpected => return Err(Syntax::error(
-                &format!("Expected a literal, found {}", unexpected),
-                span
-            )),
+            unexpected => {
+                return Err(Syntax::error(
+                    &format!("Expected a literal, found {}", unexpected),
+                    span,
+                ))
+            }
         };
 
         Ok(Spanned::new(leaf, span.clone()))
@@ -323,8 +336,8 @@ impl Parser {
     /// i.e. an expression between parenthesis.
     pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
         let start = self.consume(Token::OpenParen)?.span.clone();
-        let ast   = self.expression(Prec::None.associate_left(), true)?;
-        let end   = self.consume(Token::CloseParen)?.span.clone();
+        let ast = self.expression(Prec::None.associate_left(), true)?;
+        let end = self.consume(Token::CloseParen)?.span.clone();
         Ok(Spanned::new(AST::group(ast), Span::combine(&start, &end)))
     }
 
@@ -365,10 +378,12 @@ impl Parser {
 
         let mut form = match after.item {
             AST::Form(p) => p,
-            _ => return Err(Syntax::error(
-                "Expected a pattern and a block after 'syntax'",
-                &after.span,
-            )),
+            _ => {
+                return Err(Syntax::error(
+                    "Expected a pattern and a block after 'syntax'",
+                    &after.span,
+                ))
+            }
         };
 
         let last = form.pop().unwrap();
@@ -376,18 +391,16 @@ impl Parser {
         after.item = AST::Form(form);
         let block = match (last.item, last.span) {
             (b @ AST::Block(_), s) => Spanned::new(b, s),
-            _ => return Err(Syntax::error(
-                "Expected a block after the syntax pattern",
-                &after.span,
-            )),
+            _ => {
+                return Err(Syntax::error(
+                    "Expected a block after the syntax pattern",
+                    &after.span,
+                ))
+            }
         };
 
         let arg_pat = Parser::arg_pat(after)?;
-        let span = Span::join(vec![
-            start,
-            arg_pat.span.clone(),
-            block.span.clone()
-        ]);
+        let span = Span::join(vec![start, arg_pat.span.clone(), block.span.clone()]);
 
         Ok(Spanned::new(AST::syntax(arg_pat, block), span))
     }
@@ -404,11 +417,13 @@ impl Parser {
 
         let Spanned { item: token, span } = self.advance();
         let name = match token {
-            Token::String(Data::String(s))  => s.clone(),
-            unexpected => return Err(Syntax::error(
-                &format!("Expected a string, found {}", unexpected),
-                span
-            )),
+            Token::String(Data::String(s)) => s.clone(),
+            unexpected => {
+                return Err(Syntax::error(
+                    &format!("Expected a string, found {}", unexpected),
+                    span,
+                ))
+            }
         };
 
         let ast = self.expression(Prec::End, false)?;
@@ -437,10 +452,10 @@ impl Parser {
         let ast = self.expression(Prec::End, false)?;
         let end = ast.span.clone();
 
-        Ok(
-            Spanned::new(AST::ffi("neg", ast),
-            Span::combine(&start, &end))
-        )
+        Ok(Spanned::new(
+            AST::ffi("neg", ast),
+            Span::combine(&start, &end),
+        ))
     }
 
     // Infix:
@@ -453,13 +468,17 @@ impl Parser {
             AST::ArgPattern(p) => p,
             AST::Form(f) => {
                 let mut mapped = vec![];
-                for a in f { mapped.push(Parser::arg_pat(a)?); }
+                for a in f {
+                    mapped.push(Parser::arg_pat(a)?);
+                }
                 ArgPattern::Group(mapped)
             }
-            _ => return Err(Syntax::error(
-                "Unexpected construct inside argument pattern",
-                &ast.span
-            )),
+            _ => {
+                return Err(Syntax::error(
+                    "Unexpected construct inside argument pattern",
+                    &ast.span,
+                ))
+            }
         };
 
         Ok(Spanned::new(item, ast.span))
@@ -470,24 +489,26 @@ impl Parser {
     /// Parses an assignment, associates right.
     pub fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
-        let pattern = left.map(ASTPattern::try_from)
+        let pattern = left
+            .map(ASTPattern::try_from)
             .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Assign)?;
         let expression = self.expression(Prec::Assign, false)?;
-        let combined   = Span::combine(&pattern.span, &expression.span);
+        let combined = Span::combine(&pattern.span, &expression.span);
         Ok(Spanned::new(AST::assign(pattern, expression), combined))
     }
 
     /// Parses a lambda definition, associates right.
     pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
-        let pattern = left.map(ASTPattern::try_from)
+        let pattern = left
+            .map(ASTPattern::try_from)
             .map_err(|e| Syntax::error(&e, &left_span))?;
 
         self.consume(Token::Lambda)?;
         let expression = self.expression(Prec::Lambda, false)?;
-        let combined   = Span::combine(&pattern.span, &expression.span);
+        let combined = Span::combine(&pattern.span, &expression.span);
         Ok(Spanned::new(AST::lambda(pattern, expression), combined))
     }
 
@@ -532,7 +553,7 @@ impl Parser {
         op: Token,
         prec: Prec,
         name: &str,
-        left: Spanned<AST>
+        left: Spanned<AST>,
     ) -> Result<Spanned<AST>, Syntax> {
         self.consume(op)?;
         let right = self.expression(prec, false)?;
@@ -599,13 +620,10 @@ impl Parser {
 
 #[cfg(test)]
 mod test {
-    use crate::common::{
-        data::Data,
-        source::Source
-    };
+    use crate::common::{data::Data, source::Source};
 
-    use crate::compiler::lex::lex;
     use super::*;
+    use crate::compiler::lex::lex;
 
     #[test]
     pub fn empty() {
@@ -621,20 +639,16 @@ mod test {
         assert_eq!(
             ast,
             Spanned::new(
-                AST::Block(
-                    vec![
+                AST::Block(vec![Spanned::new(
+                    AST::assign(
                         Spanned::new(
-                            AST::assign(
-                                Spanned::new(ASTPattern::Symbol("x".to_string()), Span::new(&source, 0, 1)),
-                                Spanned::new(
-                                    AST::Data(Data::Real(55.0)),
-                                    Span::new(&source, 4, 4),
-                                ),
-                            ),
-                            Span::new(&source, 0, 8),
-                        )
-                    ]
-                ),
+                            ASTPattern::Symbol("x".to_string()),
+                            Span::new(&source, 0, 1)
+                        ),
+                        Spanned::new(AST::Data(Data::Real(55.0)), Span::new(&source, 4, 4),),
+                    ),
+                    Span::new(&source, 0, 8),
+                )]),
                 Span::empty(),
             )
         );
@@ -648,26 +662,28 @@ mod test {
         assert_eq!(
             ast,
             Spanned::new(
-                AST::Block(
-                    vec![
+                AST::Block(vec![Spanned::new(
+                    AST::assign(
                         Spanned::new(
-                            AST::assign(
-                                Spanned::new(ASTPattern::Symbol("x".to_string()), Span::new(&source, 0, 1)),
+                            ASTPattern::Symbol("x".to_string()),
+                            Span::new(&source, 0, 1)
+                        ),
+                        Spanned::new(
+                            AST::lambda(
                                 Spanned::new(
-                                    AST::lambda(
-                                        Spanned::new(ASTPattern::Symbol("y".to_string()), Span::new(&source, 4, 1)),
-                                        Spanned::new(
-                                            AST::Data(Data::Real(3.141592)),
-                                            Span::new(&source, 9, 8),
-                                        ),
-                                    ),
-                                    Span::new(&source, 4, 13),
+                                    ASTPattern::Symbol("y".to_string()),
+                                    Span::new(&source, 4, 1)
+                                ),
+                                Spanned::new(
+                                    AST::Data(Data::Real(3.141592)),
+                                    Span::new(&source, 9, 8),
                                 ),
                             ),
-                            Span::new(&source, 0, 17),
+                            Span::new(&source, 4, 13),
                         ),
-                    ],
-                ),
+                    ),
+                    Span::new(&source, 0, 17),
+                ),],),
                 Span::empty(),
             )
         );

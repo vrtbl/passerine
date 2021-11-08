@@ -1,15 +1,12 @@
-use std::{
-    convert::TryFrom,
-    collections::HashSet,
-};
+use std::{collections::HashSet, convert::TryFrom};
 
 use crate::common::span::{Span, Spanned};
 
 use crate::compiler::{
+    ast::{ASTPattern, ArgPattern, AST},
+    cst::{CSTPattern, CST},
     rule::Rule,
-    ast::{AST, ASTPattern, ArgPattern},
-    cst::{CST, CSTPattern},
-    syntax::Syntax
+    syntax::Syntax,
 };
 
 // TODO: separate macro step and desugaring into two different steps?
@@ -51,11 +48,22 @@ impl Transformer {
             AST::Group(a) => self.walk(*a)?.item,
             AST::Tuple(t) => self.tuple(t)?,
             AST::CSTPattern(_) => return Err(Syntax::error("Unexpected pattern", &ast.span)),
-            AST::ArgPattern(_)  => return Err(Syntax::error("Unexpected argument pattern", &ast.span)),
+            AST::ArgPattern(_) => {
+                return Err(Syntax::error("Unexpected argument pattern", &ast.span))
+            }
             AST::Label(n, e) => CST::Label(n, Box::new(self.walk(*e)?)),
-            AST::Syntax { arg_pat, expression } => self.rule(*arg_pat, *expression)?,
-            AST::Assign { pattern, expression } => self.assign(*pattern, *expression)?,
-            AST::Lambda { pattern, expression } => self.lambda(*pattern, *expression)?,
+            AST::Syntax {
+                arg_pat,
+                expression,
+            } => self.rule(*arg_pat, *expression)?,
+            AST::Assign {
+                pattern,
+                expression,
+            } => self.assign(*pattern, *expression)?,
+            AST::Lambda {
+                pattern,
+                expression,
+            } => self.lambda(*pattern, *expression)?,
             AST::Composition { argument, function } => self.composition(*argument, *function)?,
             AST::FFI { name, expression } => self.ffi(name, *expression)?,
         };
@@ -76,22 +84,24 @@ impl Transformer {
     pub fn call(&mut self, mut f: Vec<Spanned<AST>>) -> Result<CST, Syntax> {
         // TODO: clean up nested logic.
         match f.len() {
-            0 => unreachable!("A call must have at least two values - a function and an expression"),
+            0 => {
+                unreachable!("A call must have at least two values - a function and an expression")
+            }
             1 => match f.pop().unwrap().item {
                 AST::Symbol(name) => Ok(CST::Symbol(name)),
-                _ => unreachable!("A non-symbol call of length 1 is can not be constructed")
+                _ => unreachable!("A non-symbol call of length 1 is can not be constructed"),
             },
             2 => {
                 let arg = f.pop().unwrap();
                 let fun = f.pop().unwrap();
                 Ok(CST::call(self.walk(fun)?, self.walk(arg)?))
-            },
+            }
             _higher => {
                 let arg = self.walk(f.pop().unwrap())?;
                 // can't join, because some spans may be in macro
                 let f_span = f[0].span.clone();
                 Ok(CST::call(Spanned::new(self.call(f)?, f_span), arg))
-            },
+            }
         }
     }
 
@@ -129,31 +139,42 @@ impl Transformer {
             }
 
             // into a set for quick membership checking
-            let potential_keywords = form.iter()
+            let potential_keywords = form
+                .iter()
                 .filter(|i| matches!(&i.item, AST::Symbol(_)))
-                .map(   |i| if let AST::Symbol(s) = &i.item { s.to_string() } else { unreachable!() })
+                .map(|i| {
+                    if let AST::Symbol(s) = &i.item {
+                        s.to_string()
+                    } else {
+                        unreachable!()
+                    }
+                })
                 .collect::<HashSet<String>>();
 
             // calculate pseudokeyword collisions in case of ambiguity
-            let intersection = potential_keywords.intersection(&pseudokeywords)
+            let intersection = potential_keywords
+                .intersection(&pseudokeywords)
                 .map(|s| s.to_string())
                 .collect::<Vec<String>>();
 
             // no collisions? process the form as a function call instead
-            if intersection.is_empty() { return self.call(form); }
+            if intersection.is_empty() {
+                return self.call(form);
+            }
 
             // a collision? point it out!
             return Err(Syntax::error(
                 &format!(
                     "In-scope pseudokeyword{} {} used, but no macros match the form.",
                     if intersection.len() == 1 { "" } else { "s" },
-                    intersection.iter()
+                    intersection
+                        .iter()
                         .map(|kw| format!("'{}'", kw))
                         .collect::<Vec<String>>()
                         .join(", ")
                 ),
                 &Spanned::build(&form),
-            ))
+            ));
         }
 
         // multiple macros were matched,
@@ -174,7 +195,7 @@ impl Transformer {
                         .join(""),
                 ),
                 &Spanned::build(&form),
-            ))
+            ));
         }
 
         // apply the rule to apply the macro!
@@ -198,14 +219,21 @@ impl Transformer {
     /// A composition takes the form `c . b . a`
     /// and is left-associative `(c . b) . a`.
     /// When desugared, the above is equivalent to the call `a b c`.
-    pub fn composition(&mut self, argument: Spanned<AST>, function: Spanned<AST>) -> Result<CST, Syntax> {
+    pub fn composition(
+        &mut self,
+        argument: Spanned<AST>,
+        function: Spanned<AST>,
+    ) -> Result<CST, Syntax> {
         Ok(CST::call(self.walk(function)?, self.walk(argument)?))
     }
 
     /// Desugar a FFI call.
     /// We walk the expression that may be passed to the FFI.
     pub fn ffi(&mut self, name: String, expression: Spanned<AST>) -> Result<CST, Syntax> {
-        Ok(CST::FFI { name, expression: Box::new(self.walk(expression)?) })
+        Ok(CST::FFI {
+            name,
+            expression: Box::new(self.walk(expression)?),
+        })
     }
 
     /// Desugars a block,
@@ -227,7 +255,7 @@ impl Transformer {
         Ok(CST::assign(
             p.map(CSTPattern::try_from)
                 .map_err(|err| Syntax::error(&err, &p_span))?,
-            self.walk(e)?
+            self.walk(e)?,
         ))
     }
 
@@ -237,15 +265,20 @@ impl Transformer {
     /// into `a -> b -> c -> d`.
     pub fn lambda(&mut self, p: Spanned<ASTPattern>, e: Spanned<AST>) -> Result<CST, Syntax> {
         let p_span = p.span.clone();
-        let arguments = if let ASTPattern::Chain(c) = p.item { c } else { vec![p] };
+        let arguments = if let ASTPattern::Chain(c) = p.item {
+            c
+        } else {
+            vec![p]
+        };
         let mut expression = self.walk(e)?;
 
         for argument in arguments.into_iter().rev() {
-            let pattern = argument.map(CSTPattern::try_from)
+            let pattern = argument
+                .map(CSTPattern::try_from)
                 .map_err(|err| Syntax::error(&err, &p_span))?;
 
             let combined = Span::combine(&pattern.span, &expression.span);
-            expression   = Spanned::new(CST::lambda(pattern, expression), combined);
+            expression = Spanned::new(CST::lambda(pattern, expression), combined);
         }
 
         Ok(expression.item)
@@ -257,7 +290,11 @@ impl Transformer {
     /// That determines which variables are declared where,
     /// Which macros are declared when,
     /// And removes all such valueless declarations from the AST.
-    pub fn rule(&mut self, arg_pat: Spanned<ArgPattern>, tree: Spanned<AST>) -> Result<CST, Syntax> {
+    pub fn rule(
+        &mut self,
+        arg_pat: Spanned<ArgPattern>,
+        tree: Spanned<AST>,
+    ) -> Result<CST, Syntax> {
         let patterns_span = arg_pat.span.clone();
         let rule = Rule::new(arg_pat, tree)?;
         self.rules.push(Spanned::new(rule, patterns_span));

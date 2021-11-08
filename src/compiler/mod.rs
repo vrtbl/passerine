@@ -14,22 +14,22 @@
 //! Note that more steps (e.g. ones applying typechecking operations, optimization passes, etc.)
 //! may be implemented in the future.
 
+pub mod desugar;
+pub mod gen;
+pub mod hoist;
 pub mod lex;
 pub mod parse;
-pub mod desugar;
-pub mod hoist;
-pub mod gen;
 
-pub mod token;
 pub mod ast; // high level pre-macro IR
-pub mod rule; // macro transformation
 pub mod cst; // post-macro IR
-pub mod sst; // hoisted IR
+pub mod rule; // macro transformation
+pub mod sst;
+pub mod token; // hoisted IR
 
 pub mod syntax;
 
+pub use desugar::desugar;
+pub use gen::gen;
+pub use hoist::hoist;
 pub use lex::lex;
 pub use parse::parse;
-pub use desugar::desugar;
-pub use hoist::hoist;
-pub use gen::gen;

@@ -4,11 +4,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// as a two-character hexadecimal string.
 pub fn shuffle(seed: u128) -> String {
     let now = SystemTime::now();
-    let time = now.duration_since(UNIX_EPOCH)
+    let time = now
+        .duration_since(UNIX_EPOCH)
         .expect("Could not determine time since epoch");
     let mash_up = time.as_millis() ^ time.as_nanos() ^ time.as_micros() ^ seed;
-    let folded = mash_up.to_be_bytes().iter()
-        .fold(0, |a, b| a ^ b);
+    let folded = mash_up.to_be_bytes().iter().fold(0, |a, b| a ^ b);
     format!("{:02x?}", folded)
 }
 
