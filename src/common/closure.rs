@@ -1,13 +1,6 @@
-use std::{
-    rc::Rc,
-    cell::RefCell,
-};
+use std::{cell::RefCell, rc::Rc};
 
-use crate::common::{
-    stamp::stamp,
-    lambda::Lambda,
-    data::Data,
-};
+use crate::common::{data::Data, lambda::Lambda, stamp::stamp};
 
 // TODO: take a reference to lambda?
 

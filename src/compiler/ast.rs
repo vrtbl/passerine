@@ -1,9 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::common::{
-    span::Spanned,
-    data::Data,
-};
+use crate::common::{data::Data, span::Spanned};
 
 /// Represents an argument pattern,
 /// i.e. the mini language used to match macros.
@@ -20,18 +17,18 @@ impl TryFrom<AST> for ArgPattern {
     /// Like `ASTPattern`s, `ArgPattern`s are represented as ASTs,
     /// Then converted into `ArgPattern`s when the compiler determines it so.
     fn try_from(ast: AST) -> Result<Self, Self::Error> {
-        Ok(
-            match ast {
-                AST::Symbol(s) => ArgPattern::Symbol(s),
-                AST::ArgPattern(p) => p,
-                AST::Form(f) => {
-                    let mut mapped = vec![];
-                    for a in f { mapped.push(a.map(ArgPattern::try_from)?); }
-                    ArgPattern::Group(mapped)
+        Ok(match ast {
+            AST::Symbol(s) => ArgPattern::Symbol(s),
+            AST::ArgPattern(p) => p,
+            AST::Form(f) => {
+                let mut mapped = vec![];
+                for a in f {
+                    mapped.push(a.map(ArgPattern::try_from)?);
                 }
-                _ => return Err("Unexpected construct inside argument pattern".into()),
+                ArgPattern::Group(mapped)
             }
-        )
+            _ => return Err("Unexpected construct inside argument pattern".into()),
+        })
     }
 }
 
@@ -67,30 +64,28 @@ impl TryFrom<AST> for ASTPattern {
     /// When the compiler can determine that an AST is actually a pattern,
     /// It performs this conversion.
     fn try_from(ast: AST) -> Result<Self, Self::Error> {
-        Ok(
-            match ast {
-                AST::Symbol(s) => ASTPattern::Symbol(s),
-                AST::Data(d) => ASTPattern::Data(d),
-                AST::Label(k, a) => ASTPattern::Label(k, Box::new(a.map(ASTPattern::try_from)?)),
-                AST::CSTPattern(p) => p,
-                AST::Form(f) => {
-                    let mut patterns = vec![];
-                    for item in f {
-                        patterns.push(item.map(ASTPattern::try_from)?);
-                    }
-                    ASTPattern::Chain(patterns)
-                },
-                AST::Tuple(t) => {
-                    let mut patterns = vec![];
-                    for item in t {
-                        patterns.push(item.map(ASTPattern::try_from)?);
-                    }
-                    ASTPattern::Tuple(patterns)
+        Ok(match ast {
+            AST::Symbol(s) => ASTPattern::Symbol(s),
+            AST::Data(d) => ASTPattern::Data(d),
+            AST::Label(k, a) => ASTPattern::Label(k, Box::new(a.map(ASTPattern::try_from)?)),
+            AST::CSTPattern(p) => p,
+            AST::Form(f) => {
+                let mut patterns = vec![];
+                for item in f {
+                    patterns.push(item.map(ASTPattern::try_from)?);
                 }
-                AST::Group(e) => e.map(ASTPattern::try_from)?.item,
-                _ => return Err("Unexpected construct inside pattern".into()),
+                ASTPattern::Chain(patterns)
             }
-        )
+            AST::Tuple(t) => {
+                let mut patterns = vec![];
+                for item in t {
+                    patterns.push(item.map(ASTPattern::try_from)?);
+                }
+                ASTPattern::Tuple(patterns)
+            }
+            AST::Group(e) => e.map(ASTPattern::try_from)?.item,
+            _ => return Err("Unexpected construct inside pattern".into()),
+        })
     }
 }
 
@@ -111,11 +106,11 @@ pub enum AST {
     ArgPattern(ArgPattern),
     Tuple(Vec<Spanned<AST>>),
     Assign {
-        pattern:    Box<Spanned<ASTPattern>>,
+        pattern: Box<Spanned<ASTPattern>>,
         expression: Box<Spanned<AST>>,
     },
     Lambda {
-        pattern:    Box<Spanned<ASTPattern>>,
+        pattern: Box<Spanned<ASTPattern>>,
         expression: Box<Spanned<AST>>,
     },
     Composition {
@@ -124,45 +119,36 @@ pub enum AST {
     },
     Label(String, Box<Spanned<AST>>),
     Syntax {
-        arg_pat:    Box<Spanned<ArgPattern>>,
+        arg_pat: Box<Spanned<ArgPattern>>,
         expression: Box<Spanned<AST>>,
     },
     // TODO: Currently quite basic
     // Use a symbol or the like?
     FFI {
-        name:       String,
+        name: String,
         expression: Box<Spanned<AST>>,
     },
 }
 
 impl AST {
     /// Shortcut for creating an `AST::Assign` variant.
-    pub fn assign(
-        pattern:    Spanned<ASTPattern>,
-        expression: Spanned<AST>
-    ) -> AST {
+    pub fn assign(pattern: Spanned<ASTPattern>, expression: Spanned<AST>) -> AST {
         AST::Assign {
-            pattern:    Box::new(pattern),
-            expression: Box::new(expression)
+            pattern: Box::new(pattern),
+            expression: Box::new(expression),
         }
     }
 
     /// Shortcut for creating an `AST::Lambda` variant.
-    pub fn lambda(
-        pattern:    Spanned<ASTPattern>,
-        expression: Spanned<AST>
-    ) -> AST {
+    pub fn lambda(pattern: Spanned<ASTPattern>, expression: Spanned<AST>) -> AST {
         AST::Lambda {
-            pattern:    Box::new(pattern),
-            expression: Box::new(expression)
+            pattern: Box::new(pattern),
+            expression: Box::new(expression),
         }
     }
 
     /// Shortcut for creating an `AST::Composition` variant.
-    pub fn composition(
-        argument: Spanned<AST>,
-        function: Spanned<AST>,
-    ) -> AST {
+    pub fn composition(argument: Spanned<AST>, function: Spanned<AST>) -> AST {
         AST::Composition {
             argument: Box::new(argument),
             function: Box::new(function),
@@ -171,12 +157,9 @@ impl AST {
 
     /// Shortcut for creating an `AST::Syntax` variant.
     /// i.e. a macro definition
-    pub fn syntax(
-        arg_pat: Spanned<ArgPattern>,
-        expression: Spanned<AST>,
-    ) -> AST {
+    pub fn syntax(arg_pat: Spanned<ArgPattern>, expression: Spanned<AST>) -> AST {
         AST::Syntax {
-            arg_pat:    Box::new(arg_pat),
+            arg_pat: Box::new(arg_pat),
             expression: Box::new(expression),
         }
     }

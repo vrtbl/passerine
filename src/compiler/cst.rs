@@ -1,9 +1,6 @@
 use std::convert::TryFrom;
 
-use crate::common::{
-    span::Spanned,
-    data::Data,
-};
+use crate::common::{data::Data, span::Spanned};
 
 use crate::compiler::ast::ASTPattern;
 
@@ -29,15 +26,19 @@ impl TryFrom<ASTPattern> for CSTPattern {
     /// Directly maps `ASTPattern`s to `CSTPattern`s.
     /// This function may become a bit more complex once 'where' is added.
     fn try_from(ast_pattern: ASTPattern) -> Result<Self, Self::Error> {
-        Ok(
-            match ast_pattern {
-                ASTPattern::Symbol(s)   => CSTPattern::Symbol(s),
-                ASTPattern::Data(d)     => CSTPattern::Data(d),
-                ASTPattern::Label(k, a) => CSTPattern::Label(k, Box::new(a.map(CSTPattern::try_from)?)),
-                ASTPattern::Tuple(t)    => CSTPattern::Tuple(t.into_iter().map(|i| i.map(CSTPattern::try_from)).collect::<Result<Vec<_>, _>>()?),
-                ASTPattern::Chain(_)    => return Err("Unexpected chained construct inside pattern".into()),
+        Ok(match ast_pattern {
+            ASTPattern::Symbol(s) => CSTPattern::Symbol(s),
+            ASTPattern::Data(d) => CSTPattern::Data(d),
+            ASTPattern::Label(k, a) => CSTPattern::Label(k, Box::new(a.map(CSTPattern::try_from)?)),
+            ASTPattern::Tuple(t) => CSTPattern::Tuple(
+                t.into_iter()
+                    .map(|i| i.map(CSTPattern::try_from))
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            ASTPattern::Chain(_) => {
+                return Err("Unexpected chained construct inside pattern".into())
             }
-        )
+        })
     }
 }
 
@@ -54,11 +55,11 @@ pub enum CST {
     Data(Data),
     Block(Vec<Spanned<CST>>),
     Assign {
-        pattern:    Box<Spanned<CSTPattern>>,
+        pattern: Box<Spanned<CSTPattern>>,
         expression: Box<Spanned<CST>>,
     },
     Lambda {
-        pattern:    Box<Spanned<CSTPattern>>,
+        pattern: Box<Spanned<CSTPattern>>,
         expression: Box<Spanned<CST>>,
     },
     Call {
@@ -68,31 +69,25 @@ pub enum CST {
     Label(String, Box<Spanned<CST>>),
     Tuple(Vec<Spanned<CST>>),
     FFI {
-        name:       String,
+        name: String,
         expression: Box<Spanned<CST>>,
     },
 }
 
 impl CST {
     /// Shortcut for creating an `CST::Assign` variant.
-    pub fn assign(
-        pattern:    Spanned<CSTPattern>,
-        expression: Spanned<CST>
-    ) -> CST {
+    pub fn assign(pattern: Spanned<CSTPattern>, expression: Spanned<CST>) -> CST {
         CST::Assign {
-            pattern:    Box::new(pattern),
-            expression: Box::new(expression)
+            pattern: Box::new(pattern),
+            expression: Box::new(expression),
         }
     }
 
     /// Shortcut for creating an `CST::Lambda` variant.
-    pub fn lambda(
-        pattern:    Spanned<CSTPattern>,
-        expression: Spanned<CST>
-    ) -> CST {
+    pub fn lambda(pattern: Spanned<CSTPattern>, expression: Spanned<CST>) -> CST {
         CST::Lambda {
-            pattern:    Box::new(pattern),
-            expression: Box::new(expression)
+            pattern: Box::new(pattern),
+            expression: Box::new(expression),
         }
     }
 

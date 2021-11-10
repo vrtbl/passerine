@@ -1,5 +1,5 @@
-use std::fmt::Display;
 use crate::common::data::Data;
+use std::fmt::Display;
 
 // TODO: remove associated data from tokens.
 
@@ -38,8 +38,11 @@ pub enum Token {
     Label,
 
     // Operators
-    Add, Sub,
-    Mul, Div, Rem,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
     Pow,
 
     Equal,
@@ -53,32 +56,36 @@ impl Display for Token {
         // pretty formatting for tokens
         // just use debug if you're not printing a message or something.
         let message = match self {
-            Token::OpenBracket  => "an opening bracket",
+            Token::OpenBracket => "an opening bracket",
             Token::CloseBracket => "a closing bracket",
-            Token::OpenParen    => "an openening paren",
-            Token::CloseParen   => "a closing paren",
-            Token::Sep          => "a separator",
-            Token::Syntax       => "a syntax definition",
-            Token::Assign       => "an assignment",
-            Token::Lambda       => "a lambda",
-            Token::Compose      => "a composition",
-            Token::Unit         => "the Unit, '()'",
-            Token::Pair         => "a tuple",
-            Token::Magic        => "a magic keyword",
-            Token::Symbol       => "a symbol",
-            Token::Label        => "a Label", // capitilized to mimic actual labels
-            Token::Number(_)    => "a number",
-            Token::String(_)    => "a string",
-            Token::Add          => "an addition",
-            Token::Sub          => "a subtraction",
-            Token::Mul          => "a multiplication",
-            Token::Div          => "a division",
-            Token::Rem          => "a remainder",
-            Token::Pow          => "a power of",
-            Token::Equal        => "an equality test",
-            Token::End          => "end of source",
-            Token::Keyword(k) => { return write!(f, "the pseudokeyword '{}", k); },
-            Token::Boolean(b) => { return write!(f, "the boolean {}",        b); },
+            Token::OpenParen => "an openening paren",
+            Token::CloseParen => "a closing paren",
+            Token::Sep => "a separator",
+            Token::Syntax => "a syntax definition",
+            Token::Assign => "an assignment",
+            Token::Lambda => "a lambda",
+            Token::Compose => "a composition",
+            Token::Unit => "the Unit, '()'",
+            Token::Pair => "a tuple",
+            Token::Magic => "a magic keyword",
+            Token::Symbol => "a symbol",
+            Token::Label => "a Label", // capitilized to mimic actual labels
+            Token::Number(_) => "a number",
+            Token::String(_) => "a string",
+            Token::Add => "an addition",
+            Token::Sub => "a subtraction",
+            Token::Mul => "a multiplication",
+            Token::Div => "a division",
+            Token::Rem => "a remainder",
+            Token::Pow => "a power of",
+            Token::Equal => "an equality test",
+            Token::End => "end of source",
+            Token::Keyword(k) => {
+                return write!(f, "the pseudokeyword '{}", k);
+            }
+            Token::Boolean(b) => {
+                return write!(f, "the boolean {}", b);
+            }
         };
         write!(f, "{}", message)
     }

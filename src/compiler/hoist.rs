@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::common::span::Spanned;
 use crate::compiler::{
-    cst::{CST, CSTPattern},
-    sst::{SST, SSTPattern, UniqueSymbol, Scope},
+    cst::{CSTPattern, CST},
+    sst::{SSTPattern, Scope, UniqueSymbol, SST},
     syntax::Syntax,
 };
 
@@ -30,13 +30,15 @@ pub fn hoist(cst: Spanned<CST>) -> Result<(Spanned<SST>, Scope), Syntax> {
         return Err(Syntax::error(
             &format!(
                 "{} were referenced before assignment",
-                hoister.unresolved_hoists.keys()
+                hoister
+                    .unresolved_hoists
+                    .keys()
                     .map(|s| format!("'{}'", s))
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
             &sst.span,
-        ))
+        ));
     }
 
     Ok((sst, scope))
@@ -61,8 +63,8 @@ impl Hoister {
     /// Note that the hoister will always have a root scope.
     pub fn new() -> Hoister {
         Hoister {
-            scopes:            vec![Scope::new()],
-            symbol_table:      vec![],
+            scopes: vec![Scope::new()],
+            symbol_table: vec![],
             unresolved_hoists: HashMap::new(),
         }
     }
@@ -74,19 +76,22 @@ impl Default for Hoister {
     }
 }
 
-
 impl Hoister {
     /// Enters a new scope, called when entering a new function.
-    fn   enter_scope(&mut self) { self.scopes.push(Scope::new()); }
+    fn enter_scope(&mut self) {
+        self.scopes.push(Scope::new());
+    }
     /// Enters an existing scope, called when resolving variables.
-    fn reenter_scope(&mut self, scope: Scope) { self.scopes.push(scope) }
+    fn reenter_scope(&mut self, scope: Scope) {
+        self.scopes.push(scope)
+    }
 
     /// Exits the current scope, returning it.
     /// If there are no enclosing scopes, returns `None`.
     fn exit_scope(&mut self) -> Option<Scope> {
         match self.scopes.len() {
             1 => None,
-            _ => self.scopes.pop()
+            _ => self.scopes.pop(),
         }
     }
 
@@ -112,10 +117,16 @@ impl Hoister {
             CST::Block(block) => self.block(block)?,
             CST::Label(name, expression) => SST::Label(name, Box::new(self.walk(*expression)?)),
             CST::Tuple(tuple) => self.tuple(tuple)?,
-            CST::FFI    { name,    expression } => SST::ffi(&name, self.walk(*expression)?),
-            CST::Assign { pattern, expression } => self.assign(*pattern, *expression)?,
-            CST::Lambda { pattern, expression } => self.lambda(*pattern, *expression)?,
-            CST::Call   { fun,     arg        } => self.call(*fun, *arg)?,
+            CST::FFI { name, expression } => SST::ffi(&name, self.walk(*expression)?),
+            CST::Assign {
+                pattern,
+                expression,
+            } => self.assign(*pattern, *expression)?,
+            CST::Lambda {
+                pattern,
+                expression,
+            } => self.lambda(*pattern, *expression)?,
+            CST::Call { fun, arg } => self.call(*fun, *arg)?,
         };
 
         Ok(Spanned::new(sst, cst.span))
@@ -123,16 +134,22 @@ impl Hoister {
 
     /// Walks a pattern. If `declare` is true, we shadow variables in existing scopes
     /// and creates a new variable in the local scope.
-    pub fn walk_pattern(&mut self, pattern: Spanned<CSTPattern>, declare: bool) -> Spanned<SSTPattern> {
+    pub fn walk_pattern(
+        &mut self,
+        pattern: Spanned<CSTPattern>,
+        declare: bool,
+    ) -> Spanned<SSTPattern> {
         let item = match pattern.item {
-            CSTPattern::Symbol(name) => {
-                SSTPattern::Symbol(self.resolve_assign(&name, declare))
-            },
-            CSTPattern::Data(d)     => SSTPattern::Data(d),
-            CSTPattern::Label(n, p) => SSTPattern::Label(n, Box::new(self.walk_pattern(*p, declare))),
-            CSTPattern::Tuple(t)    => SSTPattern::Tuple(
-                t.into_iter().map(|c| self.walk_pattern(c, declare)).collect::<Vec<_>>()
-            )
+            CSTPattern::Symbol(name) => SSTPattern::Symbol(self.resolve_assign(&name, declare)),
+            CSTPattern::Data(d) => SSTPattern::Data(d),
+            CSTPattern::Label(n, p) => {
+                SSTPattern::Label(n, Box::new(self.walk_pattern(*p, declare)))
+            }
+            CSTPattern::Tuple(t) => SSTPattern::Tuple(
+                t.into_iter()
+                    .map(|c| self.walk_pattern(c, declare))
+                    .collect::<Vec<_>>(),
+            ),
         };
 
         Spanned::new(item, pattern.span)
@@ -149,7 +166,9 @@ impl Hoister {
     fn local_symbol(&self, name: &str) -> Option<UniqueSymbol> {
         for local in self.borrow_local_scope().locals.iter() {
             let local_name = &self.symbol_table[local.0];
-            if local_name == name { return Some(*local); }
+            if local_name == name {
+                return Some(*local);
+            }
         }
 
         None
@@ -159,7 +178,9 @@ impl Hoister {
     fn nonlocal_symbol(&self, name: &str) -> Option<UniqueSymbol> {
         for nonlocal in self.borrow_local_scope().nonlocals.iter() {
             let nonlocal_name = &self.symbol_table[nonlocal.0];
-            if nonlocal_name == name { return Some(*nonlocal); }
+            if nonlocal_name == name {
+                return Some(*nonlocal);
+            }
         }
 
         None
@@ -188,8 +209,12 @@ impl Hoister {
     /// 2. If this variable is defined in an enclosing scope, capture it and use it.
     /// 3. If this variable is not defined, return `None`.
     fn try_resolve(&mut self, name: &str) -> Option<UniqueSymbol> {
-        if let Some(unique_symbol) = self.local_symbol(name)    { return Some(unique_symbol); }
-        if let Some(unique_symbol) = self.nonlocal_symbol(name) { return Some(unique_symbol); }
+        if let Some(unique_symbol) = self.local_symbol(name) {
+            return Some(unique_symbol);
+        }
+        if let Some(unique_symbol) = self.nonlocal_symbol(name) {
+            return Some(unique_symbol);
+        }
 
         if let Some(scope) = self.exit_scope() {
             let resolved = self.try_resolve(name);
@@ -223,7 +248,9 @@ impl Hoister {
         // if we haven't seen the symbol before,
         // we search backwards through scopes and build a hoisting chain
         if !redeclare {
-            if let Some(unique_symbol) = self.try_resolve(name) { return unique_symbol; }
+            if let Some(unique_symbol) = self.try_resolve(name) {
+                return unique_symbol;
+            }
         }
 
         // if we didn't find it by searching backwards, we declare it in the current scope
@@ -242,12 +269,15 @@ impl Hoister {
 
         // if we haven't seen the symbol before,
         // we search backwards through scopes and build a hoisting chain
-        if let Some(unique_symbol) = self.try_resolve(name) { return unique_symbol; }
+        if let Some(unique_symbol) = self.try_resolve(name) {
+            return unique_symbol;
+        }
 
         // if we didn't find it by searching backwards, we mark it as unresolved
         let unique_symbol = self.new_symbol(name);
         self.capture_all(unique_symbol);
-        self.unresolved_hoists.insert(name.to_string(), unique_symbol);
+        self.unresolved_hoists
+            .insert(name.to_string(), unique_symbol);
         unique_symbol
     }
 
@@ -281,37 +311,35 @@ impl Hoister {
     /// Walks an assignment.
     /// Delegates to `walk_pattern` for capturing.
     /// Assignments can capture existing variables
-    pub fn assign(&mut self, pattern: Spanned<CSTPattern>, expression: Spanned<CST>) -> Result<SST, Syntax> {
+    pub fn assign(
+        &mut self,
+        pattern: Spanned<CSTPattern>,
+        expression: Spanned<CST>,
+    ) -> Result<SST, Syntax> {
         let sst_pattern = self.walk_pattern(pattern, false);
         let sst_expression = self.walk(expression)?;
 
-        Ok(SST::assign(
-            sst_pattern,
-            sst_expression,
-        ))
+        Ok(SST::assign(sst_pattern, sst_expression))
     }
 
     /// Walks a function definition.
     /// Like `assign`, delegates to `walk_pattern` for capturing.
     /// But any paramaters will shadow those in outer scopes.
-    pub fn lambda(&mut self, pattern: Spanned<CSTPattern>, expression: Spanned<CST>) -> Result<SST, Syntax> {
+    pub fn lambda(
+        &mut self,
+        pattern: Spanned<CSTPattern>,
+        expression: Spanned<CST>,
+    ) -> Result<SST, Syntax> {
         self.enter_scope();
         let sst_pattern = self.walk_pattern(pattern, true);
         let sst_expression = self.walk(expression)?;
         let scope = self.exit_scope().unwrap();
 
-        Ok(SST::lambda(
-            sst_pattern,
-            sst_expression,
-            scope,
-        ))
+        Ok(SST::lambda(sst_pattern, sst_expression, scope))
     }
 
     /// Walks a function call.
     pub fn call(&mut self, fun: Spanned<CST>, arg: Spanned<CST>) -> Result<SST, Syntax> {
-        Ok(SST::call(
-            self.walk(fun)?,
-            self.walk(arg)?,
-        ))
+        Ok(SST::call(self.walk(fun)?, self.walk(arg)?))
     }
 }

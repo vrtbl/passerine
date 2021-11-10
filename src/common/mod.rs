@@ -5,11 +5,11 @@
 //! - Opcodes and number splicing.
 //! - Source code representation and span annotations.
 
-pub mod source;
-pub mod span;
+pub mod closure;
 pub mod data;
+pub mod lambda;
 pub mod number;
 pub mod opcode;
-pub mod lambda;
-pub mod closure;
+pub mod source;
+pub mod span;
 pub mod stamp;

@@ -1,11 +1,6 @@
 use std::fmt;
 
-use crate::common::{
-    opcode::Opcode,
-    data::Data,
-    number::build_number,
-    span::Span,
-};
+use crate::common::{data::Data, number::build_number, opcode::Opcode, span::Span};
 
 use crate::core::ffi::FFIFunction;
 
@@ -44,12 +39,12 @@ impl Lambda {
     /// Creates a new empty `Lambda` to be filled.
     pub fn empty() -> Lambda {
         Lambda {
-            decls:     0,
-            code:      vec![],
-            spans:     vec![],
+            decls: 0,
+            code: vec![],
+            spans: vec![],
             constants: vec![],
-            captures:  vec![],
-            ffi:       vec![],
+            captures: vec![],
+            ffi: vec![],
         }
     }
 
@@ -86,7 +81,7 @@ impl Lambda {
             None => {
                 self.constants.push(data);
                 self.constants.len() - 1
-            },
+            }
         }
     }
 
@@ -95,7 +90,9 @@ impl Lambda {
         let mut best = &Span::empty();
 
         for (i, span) in self.spans.iter() {
-            if i > &index { break; }
+            if i > &index {
+                break;
+            }
             best = span;
         }
 
@@ -143,66 +140,86 @@ impl fmt::Display for Lambda {
                 Opcode::Con => {
                     let (constant_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
-                    writeln!(f, "Load Con\t{}\t{:?}", constant_index, self.constants[constant_index])?;
-                },
-                Opcode::NotInit => { writeln!(f, "NotInit \t\tDeclare variable")?; }
-                Opcode::Del     => { writeln!(f, "Delete  \t\t--")?; },
+                    writeln!(
+                        f,
+                        "Load Con\t{}\t{:?}",
+                        constant_index, self.constants[constant_index]
+                    )?;
+                }
+                Opcode::NotInit => {
+                    writeln!(f, "NotInit \t\tDeclare variable")?;
+                }
+                Opcode::Del => {
+                    writeln!(f, "Delete  \t\t--")?;
+                }
                 Opcode::Capture => {
                     let (local_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "Capture \t{}\tIndexed local moved to heap", local_index)?;
-                },
+                }
                 Opcode::Save => {
                     let (local_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "Save    \t{}\tIndexed local", local_index)?;
-                },
+                }
                 Opcode::SaveCap => {
                     let (upvalue_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "Save Cap\t{}\tIndexed upvalue on heap", upvalue_index)?;
-                },
+                }
                 Opcode::Load => {
                     let (local_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "Load    \t{}\tIndexed local", local_index)?;
-                },
+                }
                 Opcode::LoadCap => {
                     let (upvalue_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "Load Cap\t{}\tIndexed upvalue on heap", upvalue_index)?;
-                },
-                Opcode::Call => { writeln!(f, "Call    \t\tRun top function using next stack value")?; }
+                }
+                Opcode::Call => {
+                    writeln!(f, "Call    \t\tRun top function using next stack value")?;
+                }
                 Opcode::Return => {
                     let (num_locals, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "Return  \t{}\tLocals on stack deleted", num_locals)?;
-                },
+                }
                 Opcode::Closure => {
                     let (todo_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "Closure \t{}\tIndex of lambda to be wrapped", todo_index)?;
-                },
-                Opcode::Print   => { writeln!(f, "Print    \t\t--")?; },
-                Opcode::Label   => { writeln!(f, "Label    \t\t--")?; },
+                }
+                Opcode::Print => {
+                    writeln!(f, "Print    \t\t--")?;
+                }
+                Opcode::Label => {
+                    writeln!(f, "Label    \t\t--")?;
+                }
                 Opcode::Tuple => {
                     let (length, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "Tuple   \t{}\tValues tupled together", length)?;
-                },
-                Opcode::UnLabel => { writeln!(f, "UnLabel  \t\t--")?; },
-                Opcode::UnData  => { writeln!(f, "UnData   \t\t--")?; },
+                }
+                Opcode::UnLabel => {
+                    writeln!(f, "UnLabel  \t\t--")?;
+                }
+                Opcode::UnData => {
+                    writeln!(f, "UnData   \t\t--")?;
+                }
                 Opcode::UnTuple => {
                     let (item_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "UnTuple \t{}\tItem accessed", item_index)?;
-                },
-                Opcode::Copy    => { writeln!(f, "Copy     \t\t--")?; },
+                }
+                Opcode::Copy => {
+                    writeln!(f, "Copy     \t\t--")?;
+                }
                 Opcode::FFICall => {
                     let (ffi_index, consumed) = build_number(&self.code[index..]);
                     index += consumed;
                     writeln!(f, "Return  \t{}\tIndexed FFI function called", ffi_index)?;
-                },
+                }
             }
         }
 

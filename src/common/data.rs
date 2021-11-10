@@ -1,19 +1,11 @@
 use std::{
-    fmt::{
-        Debug,
-        Display,
-        Formatter,
-        Result,
-    },
-    f64,
-    rc::Rc,
     cell::RefCell,
+    f64,
+    fmt::{Debug, Display, Formatter, Result},
+    rc::Rc,
 };
 
-use crate::common::{
-    lambda::Lambda,
-    closure::Closure,
-};
+use crate::common::{closure::Closure, lambda::Lambda};
 
 /// Built-in Passerine datatypes.
 #[derive(Clone, PartialEq)]
@@ -68,45 +60,46 @@ impl Display for Data {
     /// Displays some Passerine Data in a pretty manner, as if it were printed to console.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Data::Heaped(_)   => unreachable!("Can not display heaped data"),
-            Data::NotInit     => unreachable!("found uninitialized data on top of stack"),
-            Data::Real(n)     => write!(f, "{}", n),
-            Data::Integer(n)  => write!(f, "{}", n),
-            Data::Boolean(b)  => write!(f, "{}", if *b { "true" } else { "false" }),
-            Data::String(s)   => write!(f, "{}", s),
-            Data::Lambda(_)   => unreachable!("Can not display naked functions"),
-            Data::Closure(c)  => write!(f, "Function ~ {}", c.id),
-            Data::Kind(_)     => unreachable!("Can not display naked labels"),
+            Data::Heaped(_) => unreachable!("Can not display heaped data"),
+            Data::NotInit => unreachable!("found uninitialized data on top of stack"),
+            Data::Real(n) => write!(f, "{}", n),
+            Data::Integer(n) => write!(f, "{}", n),
+            Data::Boolean(b) => write!(f, "{}", if *b { "true" } else { "false" }),
+            Data::String(s) => write!(f, "{}", s),
+            Data::Lambda(_) => unreachable!("Can not display naked functions"),
+            Data::Closure(c) => write!(f, "Function ~ {}", c.id),
+            Data::Kind(_) => unreachable!("Can not display naked labels"),
             Data::Label(n, v) => write!(f, "{} {}", n, v),
-            Data::Unit        => write!(f, "()"),
-            Data::Tuple(t)    => write!(f, "({})", t.iter()
-                .map(|i| format!("{}", i))
-                .collect::<Vec<String>>()
-                .join(", ")
+            Data::Unit => write!(f, "()"),
+            Data::Tuple(t) => write!(
+                f,
+                "({})",
+                t.iter()
+                    .map(|i| format!("{}", i))
+                    .collect::<Vec<String>>()
+                    .join(", ")
             ),
         }
     }
 }
-
-
 
 impl Debug for Data {
     /// Displays some Passerine Data following Rust conventions,
     /// with certain fields omitted.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Data::Heaped(h)   => write!(f, "Heaped({:?})", h.borrow()),
-            Data::NotInit     => write!(f, "NotInit"),
-            Data::Real(n)     => write!(f, "Real({:?})", n),
-            Data::Integer(n)  => write!(f, "Integer({:?})", n),
-            Data::Boolean(b)  => write!(f, "Boolean({:?})", b),
-            Data::String(s)   => write!(f, "String({:?})", s),
-            Data::Lambda(_)   => write!(f, "Function(...)"),
-            Data::Closure(c)  => write!(f, "Closure({})", c.id),
-            Data::Kind(n)     => write!(f, "Kind({})", n),
+            Data::Heaped(h) => write!(f, "Heaped({:?})", h.borrow()),
+            Data::NotInit => write!(f, "NotInit"),
+            Data::Real(n) => write!(f, "Real({:?})", n),
+            Data::Integer(n) => write!(f, "Integer({:?})", n),
+            Data::Boolean(b) => write!(f, "Boolean({:?})", b),
+            Data::String(s) => write!(f, "String({:?})", s),
+            Data::Lambda(_) => write!(f, "Function(...)"),
+            Data::Closure(c) => write!(f, "Closure({})", c.id),
+            Data::Kind(n) => write!(f, "Kind({})", n),
             Data::Label(n, v) => write!(f, "Label({}, {:?})", n, v),
-            Data::Unit        => write!(f, "Unit"),
-            Data::Tuple(t)    => write!(f, "Tuple({:?})", t),
+            Data::Unit => write!(f, "Unit"),
+            Data::Tuple(t) => write!(f, "Tuple({:?})", t),
         }
     }
 }

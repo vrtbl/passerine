@@ -11,7 +11,6 @@ pub fn if_choice(data: Data) -> Result<Data, String> {
         Err("\
             Expected the condition to be a boolean.\n\
             Note that Passerine does not have a notion of truthiness."
-            .to_string()
-        )
+            .to_string())
     }
 }

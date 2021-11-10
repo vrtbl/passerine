@@ -1,24 +1,29 @@
-use std::fmt;
 use crate::common::span::Span;
+use std::fmt;
 
 // TODO: rename to Static?
 /// Represents a static error (syntax, semantics, etc.) found at compile time
 #[derive(Debug, PartialEq, Eq)]
 pub struct Syntax {
     pub message: String,
-    pub span:    Span,
+    pub span: Span,
 }
 
 impl Syntax {
     /// Creates a new static error.
     pub fn error(message: &str, span: &Span) -> Syntax {
-        Syntax { message: message.to_string(), span: span.clone() }
+        Syntax {
+            message: message.to_string(),
+            span: span.clone(),
+        }
     }
 }
 
 impl fmt::Display for Syntax {
-    fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if !self.span.is_empty() { fmt::Display::fmt(&self.span, f)? };
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if !self.span.is_empty() {
+            fmt::Display::fmt(&self.span, f)?
+        };
         write!(f, "Syntax Error: {}", self.message)
     }
 }

@@ -1,29 +1,23 @@
-use std::{
-    mem,
-    rc::Rc,
-};
+use std::{mem, rc::Rc};
 
 use crate::common::{
-    number::split_number,
-    span::{Span, Spanned},
-    lambda::{Captured, Lambda},
-    opcode::Opcode,
     data::Data,
+    lambda::{Captured, Lambda},
+    number::split_number,
+    opcode::Opcode,
+    span::{Span, Spanned},
 };
 
 // TODO: do a pass where we hoist and resolve variables?
 // may work well for types too.
 
 use crate::compiler::{
-    sst::{UniqueSymbol, Scope, SST, SSTPattern},
+    sst::{SSTPattern, Scope, UniqueSymbol, SST},
     // TODO: pattern for where?
     syntax::Syntax,
 };
 
-use crate::core::{
-    ffi_core,
-    ffi::FFI,
-};
+use crate::core::{ffi::FFI, ffi_core};
 
 // TODO: namespaces for FFIs?
 
@@ -67,7 +61,7 @@ impl Compiler {
     pub fn base(ffi: FFI, scope: Scope) -> Compiler {
         Compiler {
             enclosing: None,
-            lambda:    Lambda::empty(),
+            lambda: Lambda::empty(),
             ffi,
             ffi_names: vec![],
             scope,
@@ -78,9 +72,9 @@ impl Compiler {
     /// keeping a reference to the old one in `self.enclosing`,
     /// and moving the FFI into the current compiler.
     pub fn enter_scope(&mut self, scope: Scope) {
-        let ffi        = mem::replace(&mut self.ffi, FFI::new());
-        let nested     = Compiler::base(ffi, scope);
-        let enclosing  = mem::replace(self, nested);
+        let ffi = mem::replace(&mut self.ffi, FFI::new());
+        let nested = Compiler::base(ffi, scope);
+        let enclosing = mem::replace(self, nested);
         self.enclosing = Some(Box::new(enclosing));
     }
 
@@ -88,7 +82,7 @@ impl Compiler {
     /// returning the nested one for data (Lambda) extraction,
     /// and moving the FFI mappings back into the enclosing compiler.
     pub fn exit_scope(&mut self) -> Compiler {
-        let ffi       = mem::replace(&mut self.ffi, FFI::new());
+        let ffi = mem::replace(&mut self.ffi, FFI::new());
         let enclosing = mem::replace(&mut self.enclosing, None);
         let nested = match enclosing {
             Some(compiler) => mem::replace(self, *compiler),
@@ -114,18 +108,25 @@ impl Compiler {
             SST::Data(data) => {
                 self.data(data);
                 Ok(())
-            },
+            }
             SST::Symbol(unique) => {
                 self.symbol(unique);
                 Ok(())
-            },
+            }
             SST::Block(block) => self.block(block),
             SST::Label(name, expression) => self.label(name, *expression),
             SST::Tuple(tuple) => self.tuple(tuple),
-            SST::FFI    { name,    expression } => self.ffi(name, *expression, sst.span.clone()),
-            SST::Assign { pattern, expression } => self.assign(*pattern, *expression),
-            SST::Lambda { pattern, expression, scope } => self.lambda(*pattern, *expression, scope),
-            SST::Call   { fun,     arg        } => self.call(*fun, *arg),
+            SST::FFI { name, expression } => self.ffi(name, *expression, sst.span.clone()),
+            SST::Assign {
+                pattern,
+                expression,
+            } => self.assign(*pattern, *expression),
+            SST::Lambda {
+                pattern,
+                expression,
+                scope,
+            } => self.lambda(*pattern, *expression, scope),
+            SST::Call { fun, arg } => self.call(*fun, *arg),
         }
     }
 
@@ -135,9 +136,11 @@ impl Compiler {
     /// Resovles a symbol lookup, e.g. something like `x`.
     pub fn symbol(&mut self, unique_symbol: UniqueSymbol) {
         let index = if let Some(i) = self.scope.local_index(unique_symbol) {
-            self.lambda.emit(Opcode::Load); i
+            self.lambda.emit(Opcode::Load);
+            i
         } else if let Some(i) = self.scope.nonlocal_index(unique_symbol) {
-            self.lambda.emit(Opcode::LoadCap); i
+            self.lambda.emit(Opcode::LoadCap);
+            i
         } else {
             // unreachable?
             todo!();
@@ -208,11 +211,15 @@ impl Compiler {
     // TODO: make a macro to map Passerine's data model to Rust's
     /// Makes a Rust function callable from Passerine,
     /// by keeping a reference to that function.
-    pub fn ffi(&mut self, name: String, expression: Spanned<SST>, span: Span) -> Result<(), Syntax> {
+    pub fn ffi(
+        &mut self,
+        name: String,
+        expression: Spanned<SST>,
+        span: Span,
+    ) -> Result<(), Syntax> {
         self.walk(&expression)?;
 
-        let function = self.ffi.get(&name)
-            .map_err(|s| Syntax::error(&s, &span))?;
+        let function = self.ffi.get(&name).map_err(|s| Syntax::error(&s, &span))?;
 
         let index = match self.ffi_names.iter().position(|n| n == &name) {
             Some(p) => p,
@@ -227,7 +234,7 @@ impl Compiler {
                 // before codgen.
                 self.ffi_names.push(name);
                 self.lambda.add_ffi(function)
-            },
+            }
         };
 
         self.lambda.emit_span(&span);
@@ -240,9 +247,11 @@ impl Compiler {
     /// returns true if the variable was declared.
     pub fn resolve_assign(&mut self, unique_symbol: UniqueSymbol) {
         let index = if let Some(i) = self.scope.local_index(unique_symbol) {
-            self.lambda.emit(Opcode::Save); i
+            self.lambda.emit(Opcode::Save);
+            i
         } else if let Some(i) = self.scope.nonlocal_index(unique_symbol) {
-            self.lambda.emit(Opcode::SaveCap); i
+            self.lambda.emit(Opcode::SaveCap);
+            i
         } else {
             // unreachable?
             todo!()
@@ -261,7 +270,7 @@ impl Compiler {
         match pattern.item {
             SSTPattern::Symbol(unique_symbol) => {
                 self.resolve_assign(unique_symbol);
-            },
+            }
             SSTPattern::Data(expected) => {
                 self.data(expected);
                 self.lambda.emit(Opcode::UnData);
@@ -279,7 +288,7 @@ impl Compiler {
                 }
                 // Delete the tuple moved to the top of the stack.
                 self.lambda.emit(Opcode::Del);
-            },
+            }
         }
     }
 
@@ -287,7 +296,7 @@ impl Compiler {
     pub fn assign(
         &mut self,
         pattern: Spanned<SSTPattern>,
-        expression: Spanned<SST>
+        expression: Spanned<SST>,
     ) -> Result<(), Syntax> {
         // eval the expression
         self.walk(&expression)?;
@@ -331,7 +340,8 @@ impl Compiler {
 
             // return the result
             self.lambda.emit(Opcode::Return);
-            self.lambda.emit_bytes(&mut split_number(self.scope.locals.len()));
+            self.lambda
+                .emit_bytes(&mut split_number(self.scope.locals.len()));
         }
         let lambda = self.exit_scope().lambda;
 
@@ -358,18 +368,15 @@ impl Compiler {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::compiler::{
-        lex::lex,
-        parse::parse,
-        desugar::desugar,
-        hoist::hoist,
-    };
     use crate::common::source::Source;
+    use crate::compiler::{desugar::desugar, hoist::hoist, lex::lex, parse::parse};
 
     #[test]
     fn constants() {
-        let source = Source::source("heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"");
-        let lambda = gen(hoist(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap()).unwrap();
+        let source =
+            Source::source("heck = true; lol = 0.0; lmao = false; eyy = \"GOod MoRNiNg, SiR\"");
+        let lambda =
+            gen(hoist(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap()).unwrap();
 
         let result = vec![
             Data::Boolean(true),
@@ -385,15 +392,30 @@ mod test {
     #[test]
     fn bytecode() {
         let source = Source::source("heck = true; lol = heck; lmao = false");
-        let lambda = gen(hoist(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap()).unwrap();
+        let lambda =
+            gen(hoist(desugar(parse(lex(source).unwrap()).unwrap()).unwrap()).unwrap()).unwrap();
 
         let result = vec![
-            (Opcode::Con as u8), 128, (Opcode::Save as u8), 128,  // con true, save to heck,
-                (Opcode::Con as u8), 129, (Opcode::Del as u8),    // load unit, delete
-            (Opcode::Load as u8), 128, (Opcode::Save as u8), 129, // load heck, save to lol,
-                (Opcode::Con as u8), 129, (Opcode::Del as u8),    // load unit, delete
-            (Opcode::Con as u8), 130, (Opcode::Save as u8), 130,  // con false, save to lmao
-                (Opcode::Con as u8), 129,                         // load unit
+            (Opcode::Con as u8),
+            128,
+            (Opcode::Save as u8),
+            128, // con true, save to heck,
+            (Opcode::Con as u8),
+            129,
+            (Opcode::Del as u8), // load unit, delete
+            (Opcode::Load as u8),
+            128,
+            (Opcode::Save as u8),
+            129, // load heck, save to lol,
+            (Opcode::Con as u8),
+            129,
+            (Opcode::Del as u8), // load unit, delete
+            (Opcode::Con as u8),
+            130,
+            (Opcode::Save as u8),
+            130, // con false, save to lmao
+            (Opcode::Con as u8),
+            129, // load unit
         ];
 
         assert_eq!(result, lambda.code);

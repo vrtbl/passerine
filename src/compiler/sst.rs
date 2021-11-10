@@ -1,7 +1,4 @@
-use crate::common::{
-    span::Spanned,
-    data::Data,
-};
+use crate::common::{data::Data, span::Spanned};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct UniqueSymbol(pub usize);
@@ -21,14 +18,14 @@ pub enum SSTPattern {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope {
-    pub locals:    Vec<UniqueSymbol>,
+    pub locals: Vec<UniqueSymbol>,
     pub nonlocals: Vec<UniqueSymbol>,
 }
 
 impl Scope {
     pub fn new() -> Scope {
         Scope {
-            locals:    vec![],
+            locals: vec![],
             nonlocals: vec![],
         }
     }
@@ -66,13 +63,13 @@ pub enum SST {
     Data(Data),
     Block(Vec<Spanned<SST>>),
     Assign {
-        pattern:    Box<Spanned<SSTPattern>>,
+        pattern: Box<Spanned<SSTPattern>>,
         expression: Box<Spanned<SST>>,
     },
     Lambda {
-        pattern:    Box<Spanned<SSTPattern>>,
+        pattern: Box<Spanned<SSTPattern>>,
         expression: Box<Spanned<SST>>,
-        scope:      Scope,
+        scope: Scope,
     },
     Call {
         fun: Box<Spanned<SST>>,
@@ -81,31 +78,24 @@ pub enum SST {
     Label(String, Box<Spanned<SST>>),
     Tuple(Vec<Spanned<SST>>),
     FFI {
-        name:       String,
+        name: String,
         expression: Box<Spanned<SST>>,
     },
 }
 
 impl SST {
     /// Shortcut for creating an `SST::Assign` variant.
-    pub fn assign(
-        pattern:    Spanned<SSTPattern>,
-        expression: Spanned<SST>
-    ) -> SST {
+    pub fn assign(pattern: Spanned<SSTPattern>, expression: Spanned<SST>) -> SST {
         SST::Assign {
-            pattern:    Box::new(pattern),
-            expression: Box::new(expression)
+            pattern: Box::new(pattern),
+            expression: Box::new(expression),
         }
     }
 
     /// Shortcut for creating an `SST::Lambda` variant.
-    pub fn lambda(
-        pattern:    Spanned<SSTPattern>,
-        expression: Spanned<SST>,
-        scope:      Scope,
-    ) -> SST {
+    pub fn lambda(pattern: Spanned<SSTPattern>, expression: Spanned<SST>, scope: Scope) -> SST {
         SST::Lambda {
-            pattern:    Box::new(pattern),
+            pattern: Box::new(pattern),
             expression: Box::new(expression),
             scope,
         }

@@ -1,5 +1,5 @@
-use std::fmt;
 use crate::common::span::Span;
+use std::fmt;
 
 /// Represents a runtime error, i.e. a traceback
 #[derive(Debug, PartialEq, Eq)]
@@ -26,7 +26,7 @@ impl Trace {
 }
 
 impl fmt::Display for Trace {
-    fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // TODO: better message?
         writeln!(f, "Traceback, most recent call last:")?;
 
@@ -48,11 +48,13 @@ mod test {
     fn traceback() {
         // TODO: this method of checking source code is ugly
 
-        let source = Rc::new(Source::source("incr = x -> x + 1
+        let source = Rc::new(Source::source(
+            "incr = x -> x + 1
 dub_incr = z -> (incr x) + (incr x)
 forever = a -> a = a + (dub_incr a)
 forever RandomLabel
-"));
+",
+        ));
         let target = "\
             Traceback, most recent call last:\n\
             In ./source:4:1\n   \
@@ -86,7 +88,7 @@ forever RandomLabel
                 (Span::new(&source, 34, 8)),
                 (Span::new(&source, 77, 12)),
                 (Span::new(&source, 90, 19)),
-            ]
+            ],
         );
 
         let result = format!("{}", traceback);

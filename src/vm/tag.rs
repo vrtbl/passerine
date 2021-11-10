@@ -1,7 +1,7 @@
 use std::{
-    mem,
     f64,
-    fmt::{Formatter, Debug, Error},
+    fmt::{Debug, Error, Formatter},
+    mem,
 };
 
 use crate::common::data::Data;
@@ -38,7 +38,7 @@ use crate::vm::slot::Slot;
 /// > Thank you!
 pub struct Tagged(u64);
 
-const QNAN:   u64 = 0x7ffe_0000_0000_0000;
+const QNAN: u64 = 0x7ffe_0000_0000_0000;
 const P_FLAG: u64 = 0x8000_0000_0000_0000;
 const P_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
 const S_FLAG: u64 = 0x0000_0000_0000_0000; // stack frame
@@ -57,7 +57,7 @@ impl Tagged {
             Slot::Data(Data::Unit) => Tagged(QNAN | U_FLAG),
             // True and false
             Slot::Data(Data::Boolean(false)) => Tagged(QNAN | F_FLAG),
-            Slot::Data(Data::Boolean(true))  => Tagged(QNAN | T_FLAG),
+            Slot::Data(Data::Boolean(true)) => Tagged(QNAN | T_FLAG),
             // Stack frame
             Slot::Frame => Tagged(QNAN | S_FLAG),
             // Not Initialized
@@ -65,9 +65,9 @@ impl Tagged {
 
             // on the heap
             // TODO: layout to make sure pointer is the right size when boxing
-            other @ Slot::Data(_)
-            | other @ Slot::Suspend { .. }
-            => Tagged(P_FLAG | QNAN | (P_MASK & (Box::into_raw(Box::new(other))) as u64)),
+            other @ Slot::Data(_) | other @ Slot::Suspend { .. } => {
+                Tagged(P_FLAG | QNAN | (P_MASK & (Box::into_raw(Box::new(other))) as u64))
+            }
         }
     }
 
@@ -96,12 +96,12 @@ impl Tagged {
     /// not be dropped
     fn extract(&self, dereference: impl FnOnce(*mut Slot) -> Slot) -> Slot {
         match self.0 {
-            n if (n & QNAN) != QNAN     => Slot::Data(Data::Real(f64::from_bits(n))),
-            u if u == (QNAN | U_FLAG)   => Slot::Data(Data::Unit),
-            f if f == (QNAN | F_FLAG)   => Slot::Data(Data::Boolean(false)),
-            t if t == (QNAN | T_FLAG)   => Slot::Data(Data::Boolean(true)),
-            s if s == (QNAN | S_FLAG)   => Slot::Frame,
-            n if n == (QNAN | N_FLAG)   => Slot::Data(Data::NotInit),
+            n if (n & QNAN) != QNAN => Slot::Data(Data::Real(f64::from_bits(n))),
+            u if u == (QNAN | U_FLAG) => Slot::Data(Data::Unit),
+            f if f == (QNAN | F_FLAG) => Slot::Data(Data::Boolean(false)),
+            t if t == (QNAN | T_FLAG) => Slot::Data(Data::Boolean(true)),
+            s if s == (QNAN | S_FLAG) => Slot::Frame,
+            n if n == (QNAN | N_FLAG) => Slot::Data(Data::NotInit),
             p if (p & P_FLAG) == P_FLAG => dereference((p & P_MASK) as *mut Slot),
             _ => unreachable!("Corrupted tagged data"),
         }
@@ -119,10 +119,13 @@ impl Tagged {
 
     /// Deeply copies some `Tagged` data.
     pub fn copy(&self) -> Slot {
-        self.extract(|p| unsafe {
-            // Safety: We have a shared borrow of `self`
-            &*p
-        }.clone())
+        self.extract(|p| {
+            unsafe {
+                // Safety: We have a shared borrow of `self`
+                &*p
+            }
+            .clone()
+        })
     }
 }
 
@@ -143,7 +146,9 @@ impl Debug for Tagged {
 
 impl From<Tagged> for u64 {
     /// Unwraps a tagged pointer into the literal representation for debugging.
-    fn from(tagged: Tagged) -> Self { tagged.0 }
+    fn from(tagged: Tagged) -> Self {
+        tagged.0
+    }
 }
 
 #[cfg(test)]
@@ -154,35 +159,44 @@ mod test {
     fn reals_eq() {
         let positive = 478_329.0;
         let negative = -231.0;
-        let nan      = f64::NAN;
-        let neg_inf  = f64::NEG_INFINITY;
+        let nan = f64::NAN;
+        let neg_inf = f64::NEG_INFINITY;
 
         for n in &[positive, negative, nan, neg_inf] {
-            let data    = Data::Real(*n);
+            let data = Data::Real(*n);
             let wrapped = Tagged::new(Slot::Data(data));
             match wrapped.copy().data() {
                 Data::Real(f) if f.is_nan() => assert!(n.is_nan()),
                 Data::Real(f) => assert_eq!(*n, f),
-                _             => panic!("Didn't unwrap to a real"),
+                _ => panic!("Didn't unwrap to a real"),
             }
         }
     }
 
     #[test]
     fn bool_and_back() {
-        assert_eq!(Data::Boolean(true),  Tagged::new(Slot::Data(Data::Boolean(true) )).copy().data());
-        assert_eq!(Data::Boolean(false), Tagged::new(Slot::Data(Data::Boolean(false))).copy().data());
+        assert_eq!(
+            Data::Boolean(true),
+            Tagged::new(Slot::Data(Data::Boolean(true))).copy().data()
+        );
+        assert_eq!(
+            Data::Boolean(false),
+            Tagged::new(Slot::Data(Data::Boolean(false))).copy().data()
+        );
     }
 
     #[test]
     fn unit() {
-        assert_eq!(Data::Unit, Tagged::new(Slot::Data(Data::Unit)).copy().data());
+        assert_eq!(
+            Data::Unit,
+            Tagged::new(Slot::Data(Data::Unit)).copy().data()
+        );
     }
 
     #[test]
     fn size() {
         let data_size = mem::size_of::<Data>();
-        let tag_size  = mem::size_of::<Tagged>();
+        let tag_size = mem::size_of::<Tagged>();
 
         println!("Data size: {} bytes", data_size);
         println!("Tagged size: {} bytes", tag_size);
@@ -195,20 +209,22 @@ mod test {
 
     #[test]
     fn string_pointer() {
-        let s =     "I just lost the game".to_string();
+        let s = "I just lost the game".to_string();
         let three = "Elongated Muskrat".to_string();
-        let x =     "It's kind of a dead giveaway, isn't it?".to_string();
+        let x = "It's kind of a dead giveaway, isn't it?".to_string();
 
         for item in &[s, three, x] {
-            let data    = Data::String(item.clone());
+            let data = Data::String(item.clone());
             let wrapped = Tagged::new(Slot::Data(data));
             // println!("{:#b}", u64::from(wrapped));
             match wrapped.copy().data() {
-                Data::String(s) => { assert_eq!(item, &s) },
+                Data::String(s) => {
+                    assert_eq!(item, &s)
+                }
                 _ => {
                     // println!("{:#b}", u64::from(wrapped));
                     panic!("Didn't unwrap to a string");
-                },
+                }
             }
         }
     }

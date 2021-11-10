@@ -1,12 +1,7 @@
 use std::{
-    fmt::{
-        self,
-        Formatter,
-        Debug,
-        Display,
-    },
-    usize,
+    fmt::{self, Debug, Display, Formatter},
     rc::Rc,
+    usize,
 };
 
 use crate::common::source::Source;
@@ -27,20 +22,32 @@ impl Span {
     /// All `Span`s have access to the `Source` from whence they came,
     /// So they can't be misinterpreted or miscombined.
     pub fn new(source: &Rc<Source>, offset: usize, length: usize) -> Span {
-        Span { source: Some(Rc::clone(source)), offset, length }
+        Span {
+            source: Some(Rc::clone(source)),
+            offset,
+            length,
+        }
     }
 
     /// A `Span` that points at a specific point in the source.
     pub fn point(source: &Rc<Source>, offset: usize) -> Span {
         // NOTE: maybe it should be 0?
-        Span { source: Some(Rc::clone(source)), offset, length: 0 }
+        Span {
+            source: Some(Rc::clone(source)),
+            offset,
+            length: 0,
+        }
     }
 
     /// Create a new empty `Span`.
     /// An empty `Span` has only a source,
     /// if combined with another `Span`, the resulting `Span` will just be the other.
     pub fn empty() -> Span {
-        Span { source: None, offset: 0, length: usize::MAX }
+        Span {
+            source: None,
+            offset: 0,
+            length: usize::MAX,
+        }
     }
 
     /// Checks if a `Span` is empty.
@@ -59,9 +66,7 @@ impl Span {
     /// but false there is a total tie
     /// or otherwise.
     pub fn later_than(&self, other: &Span) -> bool {
-        self.offset > other.offset
-           || (self.offset == other.offset
-              && self.end() > other.end())
+        self.offset > other.offset || (self.offset == other.offset && self.end() > other.end())
     }
 
     /// Creates a new `Span` which spans the space of the previous two.
@@ -72,15 +77,19 @@ impl Span {
     /// ^^^^^^^^^^^^^      | combined
     /// ```
     pub fn combine(a: &Span, b: &Span) -> Span {
-        if a.is_empty() { return b.clone(); }
-        if b.is_empty() { return a.clone(); }
+        if a.is_empty() {
+            return b.clone();
+        }
+        if b.is_empty() {
+            return a.clone();
+        }
 
         if a.source != b.source {
             panic!("Can't combine two Spans with separate sources")
         }
 
         let offset = a.offset.min(b.offset);
-        let end    = a.end().max(b.end());
+        let end = a.end().max(b.end());
         let length = end - offset;
 
         // `a` should not be empty at this point
@@ -91,7 +100,7 @@ impl Span {
     pub fn join(mut spans: Vec<Span>) -> Span {
         let mut combined = match spans.pop() {
             Some(span) => span,
-            None       => return Span::empty(),
+            None => return Span::empty(),
         };
 
         while let Some(span) = spans.pop() {
@@ -106,7 +115,9 @@ impl Span {
     /// so if the `Span` is along an invalid byte boundary or
     /// is empty, the program will panic.
     pub fn contents(&self) -> String {
-        if self.is_empty() { panic!("An empty span does not have any contents") }
+        if self.is_empty() {
+            panic!("An empty span does not have any contents")
+        }
         self.source.as_ref().unwrap().contents[self.offset..(self.end())].to_string()
     }
 
@@ -139,7 +150,13 @@ impl Debug for Span {
     // TODO: use the field, etc. constructor.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if !self.is_empty() {
-            write!(f, "Span {{ {:?}, ({}, {}) }}", self.contents(), self.offset, self.length)
+            write!(
+                f,
+                "Span {{ {:?}, ({}, {}) }}",
+                self.contents(),
+                self.offset,
+                self.length
+            )
         } else {
             write!(f, "Span {{ Empty }}")
         }
@@ -172,22 +189,21 @@ impl Display for Span {
 
         let (start_line, start_col) = match Span::line_index(full_source, self.offset) {
             Some(li) => li,
-            None     => unreachable!(),
+            None => unreachable!(),
         };
         let (end_line, _end_col) = match Span::line_index(full_source, self.end()) {
             Some(li) => li,
-            None     => unreachable!(),
+            None => unreachable!(),
         };
 
         let readable_start_line = (start_line + 1).to_string();
-        let readable_end_line   = (end_line   + 1).to_string();
-        let readable_start_col  = (start_col  + 1).to_string();
+        let readable_end_line = (end_line + 1).to_string();
+        let readable_start_col = (start_col + 1).to_string();
         let padding = readable_end_line.len();
 
-        let location  = format!(
+        let location = format!(
             "In {}:{}:{}",
-            self.source.clone().unwrap()
-                .path.to_string_lossy(),
+            self.source.clone().unwrap().path.to_string_lossy(),
             readable_start_line,
             readable_start_col
         );
@@ -254,7 +270,8 @@ impl<T> Spanned<T> {
 
     /// Joins a Vector of spanned items into a single span.
     pub fn build(spanneds: &[Spanned<T>]) -> Span {
-        let spans = spanneds.iter()
+        let spans = spanneds
+            .iter()
             .map(|s| s.span.clone())
             .collect::<Vec<Span>>();
         Span::join(spans)
@@ -282,9 +299,9 @@ mod test {
     #[test]
     fn span_and_contents() {
         let source = Source::source("hello, this is some text!");
-        let spans   = vec![
-            Span::new(&source, 0,  8),
-            Span::new(&source, 7,  5),
+        let spans = vec![
+            Span::new(&source, 0, 8),
+            Span::new(&source, 7, 5),
             Span::new(&source, 12, 4),
         ];
         let result = Span::new(&source, 0, 16);
@@ -296,7 +313,9 @@ mod test {
     fn display() {
         let source = Source::source("hello\nbanana boat\nmagination\n");
         let span = Span::new(&source, 16, 12);
-        assert_eq!(format!("{}", span), "\
+        assert_eq!(
+            format!("{}", span),
+            "\
             In ./source:2:11\n   \
                |\n \
              2 > banana boat\n \

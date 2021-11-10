@@ -1,18 +1,11 @@
-use std::fmt::{
-    Debug,
-    Formatter,
-    Result,
-};
+use std::fmt::{Debug, Formatter, Result};
 
-use crate::common::{
-    closure::Closure,
-    data::Data,
-};
+use crate::common::{closure::Closure, data::Data};
 
 /// Represents a suspended closure.
 #[derive(Debug, Clone)]
 pub struct Suspend {
-    pub ip:      usize,
+    pub ip: usize,
     pub closure: Closure,
 }
 
@@ -40,9 +33,9 @@ impl Slot {
 impl Debug for Slot {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Slot::Frame      => write!(f, "Frame"),
+            Slot::Frame => write!(f, "Frame"),
             Slot::Suspend(s) => write!(f, "Suspend({}, {})", s.closure.id, s.ip),
-            Slot::Data(d)    => write!(f, "Data({:?})", d),
+            Slot::Data(d) => write!(f, "Data({:?})", d),
         }
     }
 }

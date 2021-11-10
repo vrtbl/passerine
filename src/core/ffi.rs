@@ -1,8 +1,5 @@
-use std::{
-    rc::Rc,
-    collections::HashMap,
-};
 use crate::common::data::Data;
+use std::{collections::HashMap, rc::Rc};
 
 // TODO: have FFI function keep track of number of arguments
 // it takes, so this invariant can be checket at compile time?
@@ -61,7 +58,10 @@ impl FFI {
     /// Returns true if the function has already been added to the `FFI`.
     pub fn add(&mut self, name: &str, function: FFIFunction) -> Result<(), String> {
         match self.0.insert(name.to_string(), function) {
-            Some(_) => Err(format!("The ffi function '{}' has already been defined", name)),
+            Some(_) => Err(format!(
+                "The ffi function '{}' has already been defined",
+                name
+            )),
             None => Ok(()),
         }
     }
