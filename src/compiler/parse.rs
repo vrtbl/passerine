@@ -1,70 +1,55 @@
 use std::{
     mem,
-    convert::TryFrom,
+    rc::Rc,
     collections::HashMap,
+    convert::TryFrom,
 };
 
 use crate::common::{
     span::{Span, Spanned},
-    data::Data,
+    lit::Lit,
 };
 
-use crate::compiler::{lower::Lower, syntax::Syntax};
+use crate::compiler::syntax::Syntax;
 
 use crate::construct::{
     token::{Token, Tokens, Delim, ResOp, ResIden},
-    tree::{AST, Base, Sugar, Lambda, Pattern, ArgPattern},
+    tree::{AST, Base, Sugar, Lambda, Pattern},
     symbol::SharedSymbol,
-    module::{ThinModule, Module},
 };
-
-/// TODO: Instead of calling .body, wrap everything in a Block,
-/// Which should simplify code later on
-
-impl Lower for ThinModule<Vec<Spanned<Token>>> {
-    type Out = Module<Spanned<AST>, usize>;
-
-    /// Simple function that parses a token stream into an AST.
-    /// Exposes the functionality of the `Parser`.
-    fn lower(self) -> Result<Self::Out, Syntax> {
-        let full_span = Spanned::build(&self.repr);
-        println!("{:#?}", self.repr);
-        let mut parser = Parser::new(self.repr);
-        let ast = parser.body()?;
-
-        println!("{:#?}", ast);
-        todo!("See above TODO");
-        // parser.consume(Token::End)?;
-
-        return Ok(Module::new(
-            Spanned::new(ast, full_span),
-            parser.symbols.len()
-        ));
-    }
-}
-
 
 /// We're using a Pratt parser, so this little enum
 /// defines different precedence levels.
 /// Each successive level is higher, so, for example,
-/// `* > +`.
+/// multiplication is higher than addition: `* > +`.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Prec {
+    /// No precedence.
     None = 0,
+    /// `=`
     Assign,
+    /// `,`
     Pair,
-    Is,
+    /// `|>`
+    Compose,
+    /// `->`
     Lambda,
-
+    /// Boolean logic.
     Logic,
-
+    /// `+`, `-`
     AddSub,
+    /// `*`, `/`, etc.
     MulDiv,
+    /// `**`
     Pow,
-
-    Compose, // TODO: where should this be, precedence-wise?
+    /// `:`
+    Is,
+    /// Implicit function call operator.
     Call,
+    /// `.`
+    Field,
+    /// Highest precedence.
     End,
 }
 
@@ -77,143 +62,233 @@ impl Prec {
     /// ```
     /// `a + b + c` left-associated becomes `(a + b) + c`.
     /// By default, the parser accociates right.
+    ///
+    /// Panics if you try to associate left on `Prec::End`,
+    /// as this is the highest precedence.
     pub fn left(&self) -> Prec {
         if let Prec::End = self { panic!("Can not associate further left") }
         return unsafe { mem::transmute(self.clone() as u8 + 1) };
     }
 }
 
-/// Constructs an `AST` from a token stream.
-/// Note that this struct should not be controlled manually,
-/// use the `parse` function instead.
-#[derive(Debug)]
 pub struct Parser {
     /// Stack of token streams because tokens can be grouped.
     /// The topmost token stream is the one being parsed.
-    tokens:   Vec<Vec<Spanned<Token>>>,
+    tokens_stack: Vec<Rc<Tokens>>,
+    /// Stack of locations in the parsing stream.
+    /// The topmost token is the current token being looked at.
     indicies: Vec<usize>,
-    symbols:  HashMap<String, SharedSymbol>,
+    /// Symbols with the same name are interned.
+    /// We don't do this during lexing so that token-based macros
+    /// can work with strings.
+    symbols: HashMap<String, SharedSymbol>,
 }
 
 impl Parser {
-    /// Create a new `parser`.
-    pub fn new(tokens: Vec<Spanned<Token>>) -> Parser {
-        Parser { tokens: vec![tokens], indicies: vec![0], symbols: HashMap::new() }
+    /// Parses some tokens into a syntax tree.
+    /// This will produce a module as opposed to a block.
+    /// Also returns the symbol interning table.
+    pub fn parse(tokens: Tokens) -> Result<(Spanned<AST>, HashMap<String, SharedSymbol>), Syntax> {
+        // build base parser
+        let mut parser = Parser {
+            tokens_stack: vec![Rc::new(tokens)],
+            indicies: vec![0],
+            symbols: HashMap::new(),
+        };
+
+        // parse and wrap it in a module
+        let ast = parser.bare_module()?;
+
+        // return itg
+        Ok((ast, parser.symbols))
     }
 
-    // Cookie Monster's Helper Functions:
-
-    pub fn tokens(&self) -> &Vec<Spanned<Token>> {
-        return &self.tokens[self.tokens.len() - 1];
+    /// Gets the stream of tokens currently being parsed.
+    fn tokens(&self) -> &Tokens {
+        &self.tokens_stack.last().unwrap()
     }
 
-    pub fn index(&self) -> usize {
-        return self.indicies[self.indicies.len() - 1];
+    /// Gets the index of the current token being parsed.
+    fn index(&self) -> usize {
+        *self.indicies.last().unwrap()
     }
 
-    pub fn mut_index(&mut self) -> &mut usize {
-        let last = self.indicies.len() - 1;
-        return &mut self.indicies[last];
+    /// Returns a mutable reference to the current index.
+    /// used to advance the parser.
+    fn index_mut(&mut self) -> &mut usize {
+        self.indicies.last_mut().unwrap()
     }
 
-    pub fn enter_group(&mut self, tokens: Vec<Spanned<Token>>) {
-        self.indicies.push(0);
-        self.tokens.push(tokens);
+    /// Peeks the current token, does not advance the parser.
+    fn peek_token(&self) -> Result<&Spanned<Token>, Syntax> {
+        self.tokens().get(self.index()).ok_or_else(|| self.end_of_source())
     }
 
-    pub fn exit_group(&mut self) {
-        todo!();
-        // remove index and tokens
+    /// Peeks the current non-sep token,
+    /// returning None if none exists (i.e. we hit the end of the file).
+    /// Does not advance the parser.
+    fn peek_non_sep(&self) -> Result<&Spanned<Token>, Syntax> {
+        for i in 0.. {
+            let token = self.tokens().get(self.index() + i);
+            let token = if token.is_none() { break; } else { token.unwrap() };
+            if token.item != Token::Sep { return Ok(token); }
+        }
+        Err(self.end_of_source())
     }
 
-    // NOTE: Maybe don't return bool?
-    /// Consumes all seperator tokens, returning whether there were any.
-    pub fn sep(&mut self) -> bool {
-        if self.tokens()[self.index()].item != Token::Sep { false } else {
-            while self.tokens()[self.index()].item == Token::Sep {
-                *self.mut_index() += 1;
+    /// Advances the parser by one token.
+    fn advance_token(&mut self) -> Result<&Spanned<Token>, Syntax> {
+        *self.index_mut() = self.index() + 1;
+        self.tokens().get(self.index() - 1)
+            .ok_or_else(|| self.end_of_source())
+    }
+
+    /// Advances the parser until the first non-sep token
+    /// Stops advancing if it runs out of tokens
+    fn advance_non_sep(&mut self) /* -> Result<&Spanned<Token>> */ {
+        for i in 0.. {
+            match self.tokens().get(self.index() + i) {
+                Some(t) if t.item != Token::Sep => break,
+                Some(_) => (),
+                None => return /* None */,
             }
-            true
         }
+        // doesn't need to be `peek_non_sep`
+        // self.peek_token()
     }
 
-    /// Returns the next non-sep tokens,
-    /// without advancing the parser.
-    pub fn draw(&self) -> &Spanned<Token> {
-        let mut offset = 0;
-
-        while self.tokens()[self.index() + offset].item == Token::Sep {
-            offset += 1;
-        }
-
-        return &self.tokens()[self.index() + offset];
+    /// Returns whether the Parser is done parsing the current token stream.
+    fn is_done(&self) -> bool {
+        self.index() >= self.tokens().len()
     }
 
-    /// Returns the current token then advances the parser.
-    pub fn advance(&mut self) -> &Spanned<Token> {
-        *self.mut_index() += 1;
-        &self.tokens()[self.index() - 1]
+    /// Finds the corresponding [`ResOp`] for a string.
+    /// Raises a syntax error if the operator string is invalid.
+    fn to_op(name: &str, span: &Span) -> Result<ResOp, Syntax> {
+        ResOp::try_new(&name)
+            .ok_or_else(|| Syntax::error(
+                &format!("Invalid operator `{}`", name),
+                &span,
+            ))
     }
 
-    /// Returns the first token.
-    pub fn current(&self) -> &Spanned<Token> {
-        &self.tokens()[self.index()]
-    }
+    // TODO: delete AAH to_tokendjk
 
-    /// Returns the first non-Sep token.
-    pub fn skip(&mut self) -> &Spanned<Token> {
-        self.sep();
-        self.current()
-    }
+    // fn to_token<'a, 'b>(&'a self, option: Option<&'b Spanned<Token>>) -> Result<&'b Spanned<Token>, Syntax> {
+    //     option.ok_or_else(|| self.end_of_source())
+    // }
 
-    /// Throws an error if the next token is unexpected.
-    /// I get one funny error message and this is it.
-    /// The error message returned by this function will be changed frequently
-    pub fn unexpected(&self) -> Syntax {
-        let token = self.current();
-        Syntax::error(
-            &format!("Oopsie woopsie, what's {} doing here?", token.item),
-            &token.span
+    fn end_of_source(&self) -> Syntax {
+        let last_span = self.tokens()
+            .last()
+            .expect("Can't figure out the cause of this error, aah!")
+            .span.clone();
+
+        Syntax::error (
+            "Unexpected end of source while parsing",
+            &last_span,
         )
     }
 
-    /// Consumes a specific token then advances the parser.
-    /// Can be used to consume Sep tokens, which are normally skipped.
-    pub fn consume_iden(&mut self, iden: ResIden) -> Result<&Spanned<Token>, Syntax> {
-        let current = self.advance();
+    fn op_prec(op: ResOp) -> Prec {
+        match op {
+            ResOp::Assign  => Prec::Assign,
+            ResOp::Lambda  => Prec::Lambda,
+            ResOp::Pair    => Prec::Pair,
+            ResOp::Field   => Prec::Field,
+            ResOp::Compose => Prec::Compose,
+            ResOp::Is      => Prec::Is,
 
-        if let Token::Iden(ref name) = current.item {
-            if ResIden::try_new(&name)
-                .ok_or(Syntax::error("Invalid keyword", &current.span))?
-            == iden {
-                return Ok(current);
-            }
+            | ResOp::Add
+            | ResOp::Sub => Prec::AddSub,
+
+            | ResOp::Mul
+            | ResOp::Div
+            | ResOp::Rem => Prec::MulDiv,
+
+            ResOp::Equal => Prec::Logic,
+            ResOp::Pow   => Prec::Pow,
         }
-
-        Err(Syntax::error(
-            &format!("Encountered unexpected {}", current.item),
-            &current.span
-        ))
     }
 
-    pub fn consume_op(&mut self, op: ResOp) -> Result<&Spanned<Token>, Syntax> {
-        let current = self.advance();
+    /// Returns the precedence of the current non-sep token being parsed.
+    /// Note that when parsing a form, a separator token has a precedence of `Prec::End`.
+    /// ```ignore
+    /// these are two
+    /// different forms
+    /// ```
+    /// Is parsed as: `{(these are two); (different forms)}`
+    fn prec(&mut self) -> Result<Prec, Syntax> {
+        let is_sep = self.peek_token()?.item == Token::Sep;
+        let token = self.peek_non_sep()?;
 
-        if let Token::Op(ref name) = current.item {
-            if ResOp::try_new(&name)
-                .ok_or(Syntax::error("Invalid operator", &current.span))?
-            == op {
-                return Ok(current);
-            }
-        }
+        let result = match &token.item {
+            // Prefix
+            | Token::Delim(_, _)
+            | Token::Label(_)
+            | Token::Iden(_)
+            | Token::Lit(_) => if is_sep { Prec::End } else { Prec::Call },
 
-        Err(Syntax::error(
-            &format!("Encountered unexpected {}", current.item),
-            &current.span
-        ))
+            // Infix ops
+            Token::Op(name) => Parser::op_prec(Parser::to_op(&name, &token.span)?),
+
+            // Unreachable because we skip all all non-sep tokens
+            Token::Sep => unreachable!(),
+        };
+
+        Ok(result)
     }
 
-    pub fn intern_symbol(&mut self, name: &str) -> SharedSymbol {
+    /// Looks at the current token and parses a prefix expression, like keywords.
+    /// This function will strip preceeding separator tokens.
+    fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
+        self.advance_non_sep();
+        let token = self.peek_token()?;
+
+        match &token.item {
+            Token::Delim(delim, _) => match delim {
+                Delim::Curly  => self.block(),
+                Delim::Paren  => self.group(),
+                Delim::Square => Err(Syntax::error("Lists are not yet implemented", &token.span)),
+            },
+            Token::Iden(ref name) => match ResIden::try_new(&name) {
+                Some(iden) => match iden {
+                    | ResIden::Macro
+                    | ResIden::Type
+                    | ResIden::If
+                    | ResIden::Match
+                    | ResIden::Mod => Err(Syntax::error(
+                        "This feature is a work in progress",
+                        &token.span
+                    )),
+                },
+                None => self.symbol(),
+            },
+            Token::Label(_) => self.label(),
+            Token::Lit(_)   => self.literal(),
+            _               => Err(Syntax::error("Expected an expression", &token.span)),
+        }
+    }
+
+    /// Constructs the AST for a literal, such as a number or string.
+    fn literal(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let token = self.advance_token()?;
+
+        let leaf = if let Token::Lit(l) = &token.item {
+            AST::Base(Base::Lit(l.clone()))
+        } else {
+            return Err(Syntax::error(
+                &format!("Expected a literal, found {}", token.item),
+                &token.span
+            ));
+        };
+
+        Ok(Spanned::new(leaf, token.span.clone()))
+    }
+
+    /// Interns a symbol in the parser,
+    /// so that future symbols with the same name can be replaced consistently.
+    fn intern_symbol(&mut self, name: &str) -> SharedSymbol {
         if let Some(symbol) = self.symbols.get(name) {
             *symbol
         } else {
@@ -223,411 +298,184 @@ impl Parser {
         }
     }
 
-    // Core Pratt Parser:
-
-    /// Looks at the current token and parses an infix expression
-    pub fn rule_prefix(&mut self) -> Result<Spanned<AST>, Syntax> {
-        match self.skip().item {
-            // Token::End => todo!("remove end from prefix rule"), // Ok(Spanned::new(AST::Base(Base::Block(vec![])), Span::Empty)),
-            Token::Group { delim, .. } => match delim {
-                Delim::Curly => self.block(),
-                Delim::Paren => self.group(),
-                Delim::Square => todo!("Lists are not yet implemented"),
-            },
-            Token::Iden(ref name) => match ResIden::try_new(&name) {
-                // keywords
-                Some(ResIden::Type)  => todo!(),
-                Some(ResIden::Magic) => self.magic(),
-                None                 => self.symbol(),
-            },
-            Token::Label(_) => self.label(),
-            Token::Data(_)  => self.literal(),
-            Token::Sep      => unreachable!(),
-            _               => Err(Syntax::error("Expected an expression", &self.current().span)),
-        }
-    }
-
-    /// Looks at the current token and parses the right side of any infix expressions.
-    pub fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        match self.skip().item {
-            Token::Op(ref name) => match ResOp::try_new(&name)
-                .ok_or(Syntax::error("Invalid operator", &self.current().span))?
-            {
-                ResOp::Assign  => self.assign(left),
-                ResOp::Lambda  => self.lambda(left),
-                ResOp::Compose => self.compose(left),
-                ResOp::Pair    => self.pair(left),
-                ResOp::Add     => self.binop(Prec::AddSub.left(), "add",   left),
-                ResOp::Sub     => self.binop(Prec::AddSub.left(), "sub",   left),
-                ResOp::Mul     => self.binop(Prec::MulDiv.left(), "mul",   left),
-                ResOp::Div     => self.binop(Prec::MulDiv.left(), "div",   left),
-                ResOp::Rem     => self.binop(Prec::MulDiv.left(), "rem",   left),
-                ResOp::Equal   => self.binop(Prec::Logic.left(),  "equal", left),
-                ResOp::Pow     => self.binop(Prec::Pow,           "pow",   left),
-            },
-
-            Token::Sep => unreachable!(),
-            _          => self.call(left),
-        }
-    }
-
-    /// Looks at the current operator token and determines the precedence
-    pub fn prec(&mut self) -> Result<Prec, Syntax> {
-        let next = self.draw().item.clone();
-        let current = self.current().item.clone();
-
-        let prec = match next {
-            // infix
-            Token::Op(name) => match ResOp::try_new(&name)
-                .ok_or(Syntax::error("Invalid operator", &self.current().span))?
-            {
-                ResOp::Assign  => Prec::Assign,
-                ResOp::Lambda  => Prec::Lambda,
-                ResOp::Compose => Prec::Compose,
-                ResOp::Pair    => Prec::Pair,
-                ResOp::Add     => Prec::AddSub,
-                ResOp::Sub     => Prec::AddSub,
-                ResOp::Mul     => Prec::MulDiv,
-                ResOp::Div     => Prec::MulDiv,
-                ResOp::Rem     => Prec::MulDiv,
-                ResOp::Equal   => Prec::Logic,
-                ResOp::Pow     => Prec::Pow,
-            },
-
-            // postfix
-            // Token::End => Prec::End,
-
-            // prefix
-              Token::Group { .. }
-            | Token::Iden(_)
-            | Token::Label(_)
-            | Token::Data(_) => Prec::Call,
-
-            // unreachable (doh)
-            Token::Sep => unreachable!(),
-        };
-
-        // if there was a separator and we called
-
-        if next != current && prec == Prec::Call {
-            Ok(Prec::End)
-        } else {
-            Ok(prec)
-        }
-    }
-
-    // TODO: factor out? only group uses the skip sep flag...
-    /// Uses some pratt parser magic to parse an expression.
-    /// It's essentially a fold-left over tokens
-    /// based on the precedence and content.
-    /// Cool stuff.
-    pub fn expression(&mut self, prec: Prec, skip_sep: bool) -> Result<Spanned<AST>, Syntax> {
-        let mut left = self.rule_prefix()?;
-
-        // TODO: switch to this?
-        // loop {
-        //     if skip_sep { self.sep(); }
-        //     let p = self.prec()?;
-        //     if p < prec || p == Prec::End { break; }
-        //     left = self.rule_infix(left)?;
-        // }
-
-        while {
-            if skip_sep { self.sep(); }
-            let p = self.prec()?;
-            p >= prec && p != Prec::End
-        } {
-            left = self.rule_infix(left)?;
-        }
-
-        return Ok(left);
-    }
-
-    // Rule Definitions:
-
-    // Prefix:
-
-    fn super_ugly_println_hack_named_something_silly_so_I_will_remove_it(
-        &mut self,
-        span: Span,
-    ) -> Spanned<AST> {
-        // nothing is more permanant, but
-        // temporary workaround until prelude
-        let var = self.intern_symbol("#println");
-
-        return Spanned::new(
-            AST::Lambda(Lambda::new(
-                Spanned::new(Pattern::Symbol(var), span.clone()),
-                Spanned::new(AST::Base(Base::ffi(
-                    "println",
-                    Spanned::new(AST::Base(Base::Symbol(var)), span.clone()),
-                )), span.clone()),
-            )),
-            span,
-        );
-    }
-
-    /// Constructs an AST for a symbol.
-    pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let token = self.advance();
+    /// Parses a Label.
+    fn label(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let token = self.advance_token()?;
         let span = token.span.clone();
 
-        let index = if let Token::Iden(name) = token.item.clone() {
-            if name == "println" {
-                return Ok(
-                    self.super_ugly_println_hack_named_something_silly_so_I_will_remove_it(span)
-                );
-            } else {
+        // TODO: keep track of labels for typedefs?
+        let index = match &token.item {
+            Token::Label(name) => {
+                let name = name.clone();
                 self.intern_symbol(&name)
-            }
-        } else {
-            todo!()
+            },
+            _ => unreachable!(),
         };
 
         Ok(Spanned::new(AST::Base(Base::Symbol(index)), span))
     }
 
-    /// Constructs the AST for a literal, such as a number or string.
-    pub fn literal(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let Spanned { item: token, span } = self.advance();
+    /// Constructs an AST for a symbol,
+    /// interning symbols with same names in the parser.
+    /// So, for instance, in the following snippet:
+    /// ```ignore
+    /// x = 0
+    /// x -> x + 1
+    /// ```
+    /// All `x`s would be interned to the same number,
+    /// even though they represent semantically different things.
+    /// Semantic names are resoled in a later pass.
+    fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let token = self.advance_token()?;
+        let span = token.span.clone();
 
-        let leaf = if let Token::Data(d) = token {
-            AST::Base(Base::Data(d.clone()))
-        } else {
-            return Err(Syntax::error(
-                &format!("Expected a literal, found {}", token),
-                &span
-            ));
+        // TODO: println
+        // hook into effect system for operators.
+        let index = match &token.item {
+            Token::Iden(name) => {
+                let name = name.clone();
+                self.intern_symbol(&name)
+            },
+            _ => unreachable!(),
         };
 
-        Ok(Spanned::new(leaf, span.clone()))
+        Ok(Spanned::new(AST::Base(Base::Symbol(index)), span))
+    }
+
+    /// Constructs the ast for a group,
+    /// i.e. an expression between parenthesis.
+    fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let ungrouped = self.delim_inner(Delim::Paren)?;
+        self.enter_delim(ungrouped.item);
+        let ast = self.expr(Prec::None.left(), true)?;
+        self.exit_delim();
+        Ok(Spanned::new(AST::Sugar(Sugar::group(ast)), ungrouped.span))
+    }
+
+    /// Enters a new group for parsing.
+    /// Note that this call must be balanced with a call to [`exit_group`]
+    fn enter_delim(&mut self, tokens: Rc<Tokens>) {
+        self.indicies.push(0);
+        self.tokens_stack.push(tokens);
+    }
+
+    /// Exits a group once done parsing that group.
+    fn exit_delim(&mut self) {
+        self.indicies.pop();
+        self.tokens_stack.pop();
+    }
+
+    /// Throws an error if the next token is unexpected.
+    /// I get one funny error message and this is it.
+    /// The error message returned by this function will be changed frequently.
+    /// I will merge any PR that changes this error message to something funny (within reason).
+    fn unexpected(&self) -> Syntax {
+        let token = match self.peek_token() {
+            Ok(t) => t,
+            Err(s) => return s,
+        };
+
+        Syntax::error(
+            &format!("Zoinks Scoob! What's {} doing here!?", token.item),
+            &token.span,
+        )
     }
 
     /// Expects the next token to be a group token, containing a sub token stream.
     /// Unwraps the group, and returns the spanned token stream.
     /// Appends Token::End to the expanded token stream.
     /// The returned Span includes the delimiters.
-    pub fn ungroup(&mut self, expected_delim: Delim) -> Result<Spanned<Vec<Spanned<Token>>>, Syntax> {
-        let group = self.advance();
-        // self.index += 1;
-        // let len = self.tokens.len() - 1;
-        // let group = mem::replace(
-        //     &mut self.tokens[len][self.index],
-        //     Spanned::new(Token::End, Span::Empty),
-        // );
-        let span = group.span.clone();
-
-        // TODO: remove clone, nondestructively
-        // (not like example above)
-        // will have to adjust types (slice over vec) and lifetimes
-        if let Token::Group {
-            delim,
-            mut tokens,
-        } = group.item.clone() {
-            if delim == expected_delim {
-                // TODO: don't use group span, remove end req.
-                return Ok(Spanned::new(tokens, span));
+    fn delim_inner(&mut self, expected_delim: Delim) -> Result<Spanned<Rc<Tokens>>, Syntax> {
+        let group = self.advance_token()?;
+        if let Token::Delim(delim, tokens) = &group.item {
+            if delim == &expected_delim {
+                return Ok(Spanned::new(tokens.clone(), group.span.clone()));
             }
-        }
+        };
 
-        // specified group delimiter was not matched
-        return Err(self.unexpected());
-    }
-
-    /// Constructs the ast for a group,
-    /// i.e. an expression between parenthesis.
-    pub fn group(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let ungrouped = self.ungroup(Delim::Paren)?;
-        self.enter_group(ungrouped.item);
-        // TODO verify that error doesn't mess up parsing by not popping
-        let ast = self.expression(Prec::None.left(), true)?;
-        todo!("add finalize method that checks for End");
-        self.exit_group();
-        Ok(Spanned::new(AST::Sugar(Sugar::group(ast)), ungrouped.span))
+        Err(self.unexpected())
     }
 
     /// Parses the body of a block.
     /// A block is one or more expressions, separated by separators.
     /// This is more of a helper function, as it serves as both the
     /// parser entrypoint while still being recursively nestable.
-    pub fn body(&mut self) -> Result<AST, Syntax> {
+    fn body(&mut self) -> Result<Spanned<AST>, Syntax> {
         let mut expressions = vec![];
 
-        while self.skip().item != Token::End {
-            let ast = self.expression(Prec::None, false)?;
+        while !self.is_done() {
+            let ast = self.expr(Prec::None, false)?;
             expressions.push(ast);
-            match self.advance().item {
+            match self.advance_token()?.item {
                 Token::Sep => (),
-                _          => { break; },
+                _          => break,
             }
         }
 
-        return Ok(AST::Base(Base::Block(expressions)));
+        let span = Spanned::build(&expressions);
+        return Ok(Spanned::new(AST::Base(Base::Block(expressions)), span));
     }
 
-    /// Parse a block as an expression,
-    /// Building the appropriate `AST`.
-    /// Just a body between curlies.
-    pub fn block(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let ungrouped = self.ungroup(Delim::Paren)?;
-        self.tokens.push(ungrouped.item);
+    fn bare_module(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let ast = self.body()?;
+        let span = ast.span.clone();
+        Ok(Spanned::new(AST::Base(Base::Module(Box::new(ast))), span))
+    }
+
+    // TODO: maybe just stop finangling and reference count `Tokens` already
+    /// Parses a block, i.e. a list of expressions executed one after another between curlies.
+    fn block(&mut self) -> Result<Spanned<AST>, Syntax> {
+        let tokens = self.delim_inner(Delim::Paren)?;
+        self.enter_delim(tokens.item);
         let mut ast = self.body()?;
-        self.tokens.pop();
+        self.exit_delim();
 
-        // construct a record if applicable
-        // match ast {
-        //     AST::Block(ref b) if b.len() == 0 => match b[0].item {
-        //         AST::Tuple(ref t) => {
-        //             ast = AST::Record(t.clone())
-        //         },
-        //         _ => (),
-        //     },
-        //     _ => (),
-        // }
-
-        return Ok(Spanned::new(ast, ungrouped.span));
+        // TODO: construct a record if applicable
+        return Ok(Spanned::new(ast.item, tokens.span));
     }
 
-    // pub fn type_(&mut self) -> Result<Spanned<AST>, Syntax> {
-    //     let start = self.consume(Token::Type)?.span.clone();
-    //     let label = self.consume(Token::Label)?.span.clone();
+    /// Looks at the current token and parses an infix expression like an operator.
+    /// Because an operator can be used to split an expression across multiple lines,
+    /// this function ignores separator tokens around the operator.
+    fn rule_infix(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        self.advance_non_sep();
+        let token = self.peek_token()?;
 
-    //     return Ok(Spanned::new(AST::type_(label), Span::combine(start, label)))
-    // }
+        use ResOp::*;
+        match &token.item {
+            Token::Op(name) => match Parser::to_op(&name, &token.span)? {
+                // Pattern-based
+                Assign  => self.assign(left),
+                Lambda  => self.lambda(left),
 
-    /// Parse an `extern` statement.
-    /// used for compiler magic and other glue.
-    /// takes the form:
-    /// ```ignore
-    /// magic "FFI String Name" data_to_pass_out
-    /// ```
-    /// and evaluates to the value returned by the ffi function.
-    pub fn magic(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start = self.consume_iden(ResIden::Magic)?.span.clone();
+                // Simple binops
+                Compose => self.binop(left, true, Compose, |l, r| AST::Sugar(Sugar::comp(l, r))),
+                Is      => self.binop(left, true, Is,      |l, r| AST::Sugar(Sugar::is(l, r))),
+                Field   => self.binop(left, true, Field,   |l, r| AST::Sugar(Sugar::field(l, r))),
 
-        let Spanned { item: token, span } = self.advance();
-        let name = match token {
-            Token::Data(Data::String(s))  => s.clone(),
-            unexpected => return Err(Syntax::error(
-                &format!("Expected a string, found {}", unexpected),
-                &span
-            )),
-        };
+                // Tuples
+                Pair => self.binop(left, true, Pair, |l, r| {
+                    let mut tuple = match l.item {
+                        AST::Base(Base::Tuple(t)) => t,
+                        _ => vec![l],
+                    };
+                    tuple.push(r);
+                    AST::Base(Base::Tuple(tuple))
+                }),
 
-        let ast = self.expression(Prec::End, false)?;
-        let end = ast.span.clone();
+                // Builtins
+                Add   => todo!(),
+                Sub   => todo!(),
+                Mul   => todo!(),
+                Div   => todo!(),
+                Rem   => todo!(),
+                Equal => todo!(),
+                Pow   => todo!(),
+            },
 
-        return Ok(Spanned::new(
-            AST::Base(Base::ffi(&name, ast)),
-            Span::combine(&start, &end),
-        ));
-    }
-
-    /// Parse a label.
-    /// A label must be the first element of a form
-    pub fn label(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let token = self.advance();
-        let span = token.span.clone();
-
-        // we have to clone here to avoid mut reference conflicts
-        if let Token::Label(name) = token.item.clone() {
-            let ast = AST::Base(Base::Label(self.intern_symbol(&name)));
-            Ok(Spanned::new(ast, span))
-        } else {
-            unreachable!("")
+            Token::Sep => unreachable!(),
+            _ => self.call(left),
         }
-    }
-
-    pub fn neg(&mut self) -> Result<Spanned<AST>, Syntax> {
-        let start = self.consume_op(ResOp::Sub)?.span.clone();
-        let ast = self.expression(Prec::End, false)?;
-        let end = ast.span.clone();
-
-        return Ok(
-            Spanned::new(AST::Base(Base::ffi("neg", ast)),
-            Span::combine(&start, &end))
-        );
-    }
-
-    // Infix:
-
-    /// Parses an assignment, associates right.
-    pub fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let left_span = left.span.clone();
-        let pattern = left.map(Pattern::try_from)
-            .map_err(|e| Syntax::error(&e, &left_span))?;
-
-        self.consume_op(ResOp::Assign)?;
-        let expression = self.expression(Prec::Assign, false)?;
-        let combined   = Span::combine(&pattern.span, &expression.span);
-        Ok(Spanned::new(AST::Base(Base::assign(pattern, expression)), combined))
-    }
-
-    /// Parses a lambda definition, associates right.
-    pub fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let left_span = left.span.clone();
-        let pattern = left.map(Pattern::try_from)
-            .map_err(|e| Syntax::error(&e, &left_span))?;
-
-        self.consume_op(ResOp::Lambda)?;
-        let expression = self.expression(Prec::Lambda, false)?;
-        let combined   = Span::combine(&pattern.span, &expression.span);
-        Ok(Spanned::new(AST::Lambda(Lambda::new(pattern, expression)), combined))
-    }
-
-    // TODO: trailing comma must be grouped
-    /// Parses a pair operator, i.e. the comma used to build tuples: `a, b, c`.
-    pub fn pair(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let left_span = left.span.clone();
-        self.consume_op(ResOp::Pair)?;
-
-        let mut tuple = match left.item {
-            AST::Base(Base::Tuple(t)) => t,
-            _ => vec![left],
-        };
-
-        let index = self.index();
-        let span = if let Ok(item) = self.expression(Prec::Pair.left(), false) {
-            let combined = Span::combine(&left_span, &item.span);
-            tuple.push(item);
-            combined
-        } else {
-            // restore parser to location right after trailing comma
-            *self.mut_index() = index;
-            left_span
-        };
-
-        return Ok(Spanned::new(AST::Base(Base::Tuple(tuple)), span));
-    }
-
-    /// Parses a function comp, i.e. `a . b`
-    pub fn compose(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        self.consume_op(ResOp::Compose)?;
-        let right = self.expression(Prec::Compose.left(), false)?;
-        let combined = Span::combine(&left.span, &right.span);
-        return Ok(Spanned::new(AST::Sugar(Sugar::comp(left, right)), combined));
-    }
-
-    // TODO: names must be full qualified paths.
-
-    /// Parses a left-associative binary operator.
-    /// Note that this method does not automatically associate left,
-    /// So when parsing a binop that is left-associative, like addition,
-    /// make sure to associate left.
-    fn binop(
-        &mut self,
-        // op: Token,
-        prec: Prec,
-        name: &str,
-        left: Spanned<AST>
-    ) -> Result<Spanned<AST>, Syntax> {
-        // self.consume(op)?;
-        self.advance();
-        let right = self.expression(prec, false)?;
-        let combined = Span::combine(&left.span, &right.span);
-
-        let arguments = Spanned::new(AST::Base(Base::Tuple(vec![left, right])), combined.clone());
-        return Ok(Spanned::new(AST::Base(Base::ffi(name, arguments)), combined));
     }
 
     /// Parses a function call.
@@ -636,32 +484,88 @@ impl Parser {
     /// There's a bit of magic involved -
     /// we interpret anything that isn't an operator as a function call operator.
     /// Then pull a fast one and not parse it like an operator at all.
-    pub fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
-        let argument = self.expression(Prec::Call.left(), false)?;
+    fn call(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        let argument = self.expr(Prec::Call.left(), false)?;
         let combined = Span::combine(&left.span, &argument.span);
 
         let mut form = match left.item {
             AST::Sugar(Sugar::Form(f)) => f,
             _ => vec![left],
         };
-
         form.push(argument);
         return Ok(Spanned::new(AST::Sugar(Sugar::Form(form)), combined));
+    }
+
+    /// Consumes an expected operator, produces an error otherwise.
+    fn consume_op(&mut self, op: ResOp) -> Result<&Spanned<Token>, Syntax> {
+        let err = Err(self.unexpected());
+        let token = self.advance_token()?;
+
+        if let Token::Op(ref name) = token.item {
+            if Parser::to_op(name, &token.span)? == op {
+                return Ok(token);
+            }
+        }
+
+        return err;
+    }
+
+    /// Parses a binary operation.
+    fn binop<T>(
+        &mut self,
+        left: Spanned<T>,
+        is_left: bool,
+        op: ResOp,
+        make_ast: impl Fn(Spanned<T>, Spanned<AST>) -> AST,
+    ) -> Result<Spanned<AST>, Syntax> {
+        self.consume_op(op)?;
+
+        let prec  = Parser::op_prec(op);
+        let prec  = if is_left { prec.left() } else { prec };
+        let right = self.expr(prec, false)?;
+
+        let combined = Span::combine(&left.span, &right.span);
+        Ok(Spanned::new(make_ast(left, right), combined))
+    }
+
+    /// Parses a lambda definition, associates right.
+    fn lambda(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        let left_span = left.span.clone();
+        let pattern = left.map(Pattern::try_from)
+            .map_err(|e| Syntax::error(&e, &left_span))?;
+        self.binop(pattern, false, ResOp::Lambda, |l, r| AST::Lambda(Lambda::new(l, r)))
+    }
+
+    /// Parses an assignment, associates right.
+    fn assign(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
+        let left_span = left.span.clone();
+        let pattern = left.map(Pattern::<SharedSymbol>::try_from)
+            .map_err(|e| Syntax::error(&e, &left_span))?;
+        self.binop(pattern, false, ResOp::Assign, |l, r| AST::Base(Base::assign(l, r)))
+    }
+
+    /// Parses an expression within a given precedence,
+    /// which produces an AST node.
+    /// If the expression is empty, returns an empty AST block.
+    fn expr(&mut self, prec: Prec, is_form: bool) -> Result<Spanned<AST>, Syntax> {
+        let mut left = self.rule_prefix()?;
+
+        while !self.is_done() {
+            if is_form { self.advance_non_sep() }
+            if self.prec()? < prec { break; }
+            left = self.rule_infix(left)?;
+        }
+
+        Ok(left)
     }
 }
 
 #[cfg(test)]
-mod test {
-    use crate::common::source::Source;
+mod tests {
     use super::*;
 
-    // #[test]
-    // pub fn empty() {
-    //     let source = Source::source("");
-    //     let ast = ThinModule::thin(source).lower().unwrap().lower();
-    //     let result = Module::new(Spanned::new(AST::Base(Base::Block(vec![])), Span::Empty), 0);
-    //     assert_eq!(ast, Ok(result));
-    // }
-
-    // TODO: fuzzing
+    #[test]
+    fn test_name() {
+        unimplemented!()
+    }
 }
