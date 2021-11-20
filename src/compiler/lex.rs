@@ -125,7 +125,9 @@ impl Lexer {
         ))?;
 
         // split off new tokens, insert into group
+        println!("Before Split: {:#?}", self.tokens);
         let after = self.tokens.split_off(loc + 1);
+        println!("After split");
         let mut group = self.tokens.pop().unwrap();
         if let Token::Delim(_, ref mut tokens) = group.item {
             *tokens = Rc::new(after);
