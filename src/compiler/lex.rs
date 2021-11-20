@@ -73,37 +73,42 @@ impl Lexer {
 
     // TODO: use own index instead of self.index
     fn strip(&mut self) {
-        let mut remaining = self.remaining();
-        let mut new_index = self.index;
-
         loop {
+            let mut remaining = self.remaining().peekable();
+            let mut new_index = self.index;
             let old_index = new_index;
 
-            // Strip whitespace
-            while let Some(c) = remaining.next() {
-                if !c.is_whitespace() || c == '\n' {
-                    new_index += c.len_utf8();
+            println!("muchin;' {:?}", remaining);
+
+            // strip whitespace...
+            while let Some(c) = remaining.peek() {
+                // ...but don't strip newlines!
+                if !c.is_whitespace() || *c == '\n' {
+                    break;
                 }
+                new_index += c.len_utf8();
+                remaining.next();
             }
+
+            println!("muchin;' {:?}", remaining);
 
             // TODO: doc comments and expression comments
             // Strip single line comment
             if let Some('-') = remaining.next() {
                 if let Some('-') = remaining.next() {
+                    // the comment `--` length
+                    new_index += 2;
                     // eat comment until the end of the line
                     while let Some(c) = remaining.next() {
-                        if c != '\n' {
-                            new_index += c.len_utf8();
-                        }
+                        if c == '\n' { break; }
+                        new_index += c.len_utf8();
                     }
                 }
             }
 
             // If nothing was stripped, we're done
-            if old_index == new_index {
-                self.index = new_index;
-                break
-            }
+            self.index = new_index;
+            if old_index == new_index { break; }
         }
     }
 
@@ -284,6 +289,8 @@ impl Lexer {
     fn next_token(&mut self) -> Result<Spanned<Token>, Syntax> {
         let mut remaining = self.remaining();
 
+        println!("{:#?}", remaining);
+
         let (token, len) = match remaining.next().unwrap() {
             // separator
             c @ ('\n' | ';') => self.take_while(
@@ -328,15 +335,6 @@ impl Lexer {
                 )
             },
 
-            // Op
-            c if c.is_ascii_punctuation() => {
-                self.take_while(
-                    &mut once(c).chain(remaining),
-                    |s| Token::Label(s.to_string()),
-                    |n| n.is_ascii_punctuation(),
-                )
-            },
-
             // Number literal:
             // Integer: 28173908, etc.
             // Radix:   0b1011001011, 0xFF, etc.
@@ -361,6 +359,15 @@ impl Lexer {
             // String
             '"' => self.string(remaining)?,
 
+            // Op
+            c if "!#$%&'*+,-./:<=>?@^`|~".contains(c) => {
+                self.take_while(
+                    &mut once(c).chain(remaining),
+                    |s| Token::Op(s.to_string()),
+                    |n| n.is_ascii_punctuation(),
+                )
+            },
+
             // Unrecognized char
             unknown => return Err(Syntax::error(
                 &format!(
@@ -370,6 +377,8 @@ impl Lexer {
                 &Span::point(&self.source, self.index),
             )),
         };
+
+        println!("{:?}", token);
 
         let spanned = Spanned::new(
             token,

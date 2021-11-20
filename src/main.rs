@@ -1,4 +1,5 @@
 use passerine::Source; // , compile, run};
+use passerine::compiler::{lex, parse};
 
 pub fn main() {
     // get the path and load the file
@@ -6,8 +7,16 @@ pub fn main() {
     let source = Source::path(path.as_ref())
         .map_err(|_| "Error: File could not be read".to_string());
 
-    let us = source.unwrap();
-    println!("us");
+    let unwrapped_source = source.unwrap();
+    println!("{:#?}", unwrapped_source);
+    let lexed = lex::Lexer::lex(unwrapped_source);
+    match lexed {
+        Ok(e) => println!("{:#?}", e),
+        Err(e) => {
+            println!("{}", e);
+        }
+    }
+
     // println!("{}", ThinModule::thin(us).lower().unwrap().lower().unwrap_err()); //.and_then(Lower::lower));
 
     // compile and run the file at the specified path
