@@ -829,7 +829,7 @@ Modules are defined using the `mod` keyword, which must be followed by a block `
 ```elm
 circle = mod {
     PI     = 3.14159265358979
-    area   = r -> r * PI * PI
+    area   = r -> r * r * PI
     circum = r -> r * PI * 2
 }
 
@@ -843,7 +843,7 @@ slice_area = (circle::area pizza_radius) / slices
 ```elm
 circle = {
     PI:     3.14159265358979
-    area:   r -> r * PI * PI
+    area:   r -> r * r * PI
     circum: r -> r * PI * 2
 }
 ```
