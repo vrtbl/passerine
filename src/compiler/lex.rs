@@ -78,7 +78,7 @@ impl Lexer {
             let mut new_index = self.index;
             let old_index = new_index;
 
-            println!("muchin;' {:?}", remaining);
+            dbg!(&remaining);
 
             // strip whitespace...
             while let Some(c) = remaining.peek() {
@@ -90,7 +90,7 @@ impl Lexer {
                 remaining.next();
             }
 
-            println!("muchin;' {:?}", remaining);
+            dbg!(&remaining);
 
             // TODO: doc comments and expression comments
             // Strip single line comment
@@ -125,9 +125,9 @@ impl Lexer {
         ))?;
 
         // split off new tokens, insert into group
-        println!("Before Split: {:#?}", self.tokens);
+        dbg!(&self.tokens);
         let after = self.tokens.split_off(loc + 1);
-        println!("After split");
+        dbg!(&after);
         let mut group = self.tokens.pop().unwrap();
         if let Token::Delim(_, ref mut tokens) = group.item {
             *tokens = Rc::new(after);
@@ -291,7 +291,7 @@ impl Lexer {
     fn next_token(&mut self) -> Result<Spanned<Token>, Syntax> {
         let mut remaining = self.remaining();
 
-        println!("{:#?}", remaining);
+        dbg!(&remaining);
 
         let (token, len) = match remaining.next().unwrap() {
             // separator

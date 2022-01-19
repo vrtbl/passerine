@@ -71,6 +71,7 @@ impl Prec {
     }
 }
 
+#[derive(Debug)]
 pub struct Parser {
     /// Stack of token streams because tokens can be grouped.
     /// The topmost token stream is the one being parsed.
@@ -412,6 +413,8 @@ impl Parser {
             }
         }
 
+        dbg!(self);
+
         let span = Spanned::build(&expressions);
         return Ok(Spanned::new(AST::Base(Base::Block(expressions)), span));
     }
@@ -562,10 +565,16 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
+    use crate::common::source::Source;
+    use crate::compiler::lex::Lexer;
     use super::*;
 
+    fn tokens(source: &str) -> Tokens {
+        Lexer::lex(Source::source("")).unwrap()
+    }
+
     #[test]
-    fn test_name() {
-        unimplemented!()
+    fn empty() {
+        Parser::parse(tokens("y = x -> x + 1")).unwrap();
     }
 }
