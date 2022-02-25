@@ -14,17 +14,7 @@ use crate::common::{
 use crate::construct::token::{Delim, Token, Tokens};
 use crate::compiler::syntax::{Syntax, Note};
 
-// impl Lower for ThinModule<Rc<Source>> {
-//     type Out = ThinModule<Tokens>;
-//
-//     /// Simple function that lexes a source file into a token stream.
-//     /// Exposes the functionality of the `Lexer`.
-//     fn lower(self) -> Result<Self::Out, Syntax> {
-//         let mut lexer = Lexer::new(&self.repr);
-//         return Ok(ThinModule::thin(lexer.all()?));
-//     }
-// }
-
+#[derive(Debug)]
 pub struct Lexer {
     source:  Rc<Source>,
     index:   usize,
@@ -78,8 +68,6 @@ impl Lexer {
             let mut new_index = self.index;
             let old_index = new_index;
 
-            dbg!(&remaining);
-
             // strip whitespace...
             while let Some(c) = remaining.peek() {
                 // ...but don't strip newlines!
@@ -90,7 +78,7 @@ impl Lexer {
                 remaining.next();
             }
 
-            dbg!(&remaining);
+            dbg!(&self);
 
             // TODO: doc comments and expression comments
             // Strip single line comment
@@ -113,27 +101,27 @@ impl Lexer {
     }
 
     fn enter_group(&mut self, delim: Delim) -> (Token, usize) {
-        self.nesting.push(self.index);
+        self.nesting.push(self.tokens.len());
         (Token::Delim(delim, Rc::new(vec![])), 1)
     }
 
-    fn exit_group(&mut self, delim: Delim) -> Result<Spanned<Token>, Syntax> {
+    fn exit_group(&mut self, delim: Delim) -> Result<Spanned<Token>, Syntax> {        
         // get the location of the matching opening pair
         let loc = self.nesting.pop().ok_or(Syntax::error(
             &format!("Closing {} does not have an opening {}", delim, delim),
             &Span::point(&self.source, self.index),
         ))?;
 
-        // split off new tokens, insert into group
-        dbg!(&self.tokens);
+        // split off new tokens, leaving the opening token as the last one
         let after = self.tokens.split_off(loc + 1);
-        dbg!(&after);
+        // grap the opening token, and convert it into a group
         let mut group = self.tokens.pop().unwrap();
         if let Token::Delim(_, ref mut tokens) = group.item {
             *tokens = Rc::new(after);
         }
 
         // span over the whole group
+        self.index += 1;
         group.span = Span::combine(
             &group.span,
             &Span::point(&self.source, self.index)
@@ -237,7 +225,7 @@ impl Lexer {
             // Decimal literal with a leading zero
             _   => self.decimal_literal(
                 // rebuild the iterator, ugh
-                &mut once('0').chain(once(n)).chain(remaining)
+                &mut once('0').chain(remaining)
             ),
         }
     }
@@ -289,9 +277,7 @@ impl Lexer {
     /// Parses the next token.
     /// Expects all whitespace and comments to be stripped.
     fn next_token(&mut self) -> Result<Spanned<Token>, Syntax> {
-        let mut remaining = self.remaining();
-
-        dbg!(&remaining);
+        let mut remaining = self.remaining().peekable();
 
         let (token, len) = match remaining.next().unwrap() {
             // separator
@@ -319,7 +305,7 @@ impl Lexer {
                 self.take_while(
                     &mut once(c).chain(remaining),
                     |s| match s {
-                        // TODO: In the future, booleans in prelude
+                        // TODO: In the future, booleans in prelude as ADTs
                         "True" => Token::Lit(Lit::Boolean(true)),
                         "False" => Token::Lit(Lit::Boolean(false)),
                         _ => Token::Label(s.to_string()),
@@ -342,25 +328,34 @@ impl Lexer {
             // Radix:   0b1011001011, 0xFF, etc.
             // Float:   420.69, 0., etc.
             c @ '0'..='9' => {
-                if c != '0' {
-                    if let Some(n) = remaining.next() {
-                        // Potentially integers in other radixes
-                        self.radix_literal(n, &mut remaining)?
-                    } else {
-                        // End of source, must be just `0`
-                        (Token::Lit(Lit::Integer(0)), 1)
-                    }
-                } else {
-                    // parse decimal literal
-                    // this could be an integer
-                    // but also a floating point number
-                    self.decimal_literal(&mut remaining)?
-                }
+                dbg!(c);
+
+                // TODO: get radix and parse number.
+                self.radix_literal(*n, &mut remaining)?;
+                self.decimal_literal(&mut remaining)?;
+
+
+                // if c != '0' {
+                //     if let Some(n) = remaining.peek() {
+                //         // Potentially integers in other radixes
+                //         self.radix_literal(*n, &mut remaining)?
+                //     } else {
+                //         // End of source, must be just `0`
+                //         (Token::Lit(Lit::Integer(0)), 1)
+                //     }
+                // } else {
+                //     // parse decimal literal
+                //     // this could be an integer
+                //     // but also a floating point number
+                //     self.decimal_literal(&mut remaining)?
+                // }
             }
 
             // String
             '"' => self.string(remaining)?,
 
+            // TODO: choose characters for operator set
+            // don't have both a list and `is_ascii_punctuation`
             // Op
             c if "!#$%&'*+,-./:<=>?@^`|~".contains(c) => {
                 self.take_while(
@@ -379,8 +374,6 @@ impl Lexer {
                 &Span::point(&self.source, self.index),
             )),
         };
-
-        println!("{:?}", token);
 
         let spanned = Spanned::new(
             token,
@@ -416,14 +409,19 @@ mod test {
             "Label Label",
             "{ Hello }",
             "()",
-            "{}",
+            "{}{}",
             "[{}(;)]",
+            "x = x -> x + 1",
+            "fac = function { 0 -> 1, n -> n * fac (n - 1) }",
         ];
 
         for case in cases.iter() {
             match Lexer::lex(Source::source(case)) {
                 Ok(_) => (),
-                Err(e) => eprintln!("{}", e),
+                Err(e) => {
+                    eprintln!("{}", e);
+                    panic!();
+                },
             }
         }
     }

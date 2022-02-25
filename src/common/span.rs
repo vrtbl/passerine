@@ -31,9 +31,9 @@ impl Span {
     }
 
     /// A `Span` that points at a specific point in the source.
-    /// Has a length of `1`.
+    /// Has a length of `0`.
     pub fn point(source: &Rc<Source>, offset: usize) -> Span {
-        Span { source: Rc::clone(source), offset, length: 1 }
+        Span { source: Rc::clone(source), offset, length: 0 }
     }
 
     /// Return the index of the end of the `Span`.
@@ -192,14 +192,14 @@ impl FormattedSpan {
 impl Display for FormattedSpan {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "In {}:{}:{}", self.path, self.start + 1, self.start_col + 1)?;
-        writeln!(f, "{} │", " ".repeat(self.gutter_padding()))?;
+        writeln!(f, "{} |", " ".repeat(self.gutter_padding()))?;
 
         if !self.is_multiline() {
-            writeln!(f, "{} │ {}", self.start + 1, self.lines[0])?;
-            writeln!(f, "{} │ {}{}",
+            writeln!(f, "{} | {}", self.start + 1, self.lines[0])?;
+            writeln!(f, "{} | {}{}",
                 " ".repeat(self.gutter_padding()),
                 " ".repeat(self.start_col),
-                "^".repeat(self.carrots().unwrap()),
+                "^".repeat(self.carrots().unwrap().max(1)),
             )?;
         } else {
             for (index, line) in self.lines.iter().enumerate() {
