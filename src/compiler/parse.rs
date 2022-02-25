@@ -570,11 +570,11 @@ mod tests {
     use super::*;
 
     fn tokens(source: &str) -> Tokens {
-        Lexer::lex(Source::source("")).unwrap()
+        Lexer::lex(Source::source(source)).unwrap()
     }
 
     #[test]
-    fn empty() {
+    fn add() {
         Parser::parse(tokens("y = x -> x + 1")).unwrap();
     }
 }

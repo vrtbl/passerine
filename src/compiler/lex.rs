@@ -332,7 +332,7 @@ impl Lexer {
             // Number literal:
             // Integer: 28173908, etc.
             // Radix:   0b1011001011, 0xFF, etc.
-            // Float:   420.69, 0., etc.
+            // Float:   420.69, 0.0, etc.
             c @ '0'..='9' => {
                 if c == '0' {
                     if let Some(n) = remaining.peek() {

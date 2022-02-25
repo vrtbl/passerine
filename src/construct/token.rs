@@ -34,6 +34,18 @@ pub enum Token {
     Sep,
 }
 
+pub enum Token2 {
+    // Grouping
+    Block(Vec<Tokens>),
+    List(Tokens),
+    Form(Tokens),
+
+    // Leafs
+    Iden(String),
+    Op(String),
+    Lit(Lit),
+}
+
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // pretty formatting for tokens
