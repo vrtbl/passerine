@@ -214,6 +214,7 @@ impl Lexer {
     fn radix_literal(
         &self,
         n: char,
+        // remaining does not lead with `n`
         remaining: &mut impl Iterator<Item = char>,
     ) -> Result<(Token, usize), Syntax> {
         match n {
@@ -225,7 +226,7 @@ impl Lexer {
             // Decimal literal with a leading zero
             _   => self.decimal_literal(
                 // rebuild the iterator, ugh
-                &mut once('0').chain(remaining)
+                &mut once('0').chain(once(n)).chain(remaining)
             ),
         }
     }
@@ -239,6 +240,11 @@ impl Lexer {
             |_| (),
             |n| n.is_digit(10),
         ).1;
+
+        dbg!(len);
+        dbg!(&self.grab_from_index(len));
+
+        // TODO: test numerical parsing
 
         match remaining.next() {
             // There's a decimal point, so we parse as a float
@@ -328,27 +334,21 @@ impl Lexer {
             // Radix:   0b1011001011, 0xFF, etc.
             // Float:   420.69, 0., etc.
             c @ '0'..='9' => {
-                dbg!(c);
-
-                // TODO: get radix and parse number.
-                self.radix_literal(*n, &mut remaining)?;
-                self.decimal_literal(&mut remaining)?;
-
-
-                // if c != '0' {
-                //     if let Some(n) = remaining.peek() {
-                //         // Potentially integers in other radixes
-                //         self.radix_literal(*n, &mut remaining)?
-                //     } else {
-                //         // End of source, must be just `0`
-                //         (Token::Lit(Lit::Integer(0)), 1)
-                //     }
-                // } else {
-                //     // parse decimal literal
-                //     // this could be an integer
-                //     // but also a floating point number
-                //     self.decimal_literal(&mut remaining)?
-                // }
+                if c == '0' {
+                    if let Some(n) = remaining.peek() {
+                        // Potentially integers in other radixes
+                        self.radix_literal(*n, &mut remaining)?
+                    } else {
+                        // End of source, must be just `0`
+                        (Token::Lit(Lit::Integer(0)), 1)
+                    }
+                } else {
+                    // parse decimal literal
+                    // this could be an integer
+                    // but also a floating point number
+                    dbg!(c);
+                    self.decimal_literal(&mut once(c).chain(remaining))?
+                }
             }
 
             // String

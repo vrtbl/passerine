@@ -97,9 +97,9 @@ mod test {
 
         let target =
 r#"In ./source:1:5
-  │
-1 │ x = "Hello, world" -> y + 1
-  │     ^^^^^^^^^^^^^^
+  |
+1 | x = "Hello, world" -> y + 1
+  |     ^^^^^^^^^^^^^^
 Syntax Error: Unexpected token '"Hello, world!"'"#;
 
         let result = format!("{}", error);
