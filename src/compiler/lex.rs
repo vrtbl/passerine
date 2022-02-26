@@ -14,7 +14,7 @@ use crate::common::{
 use crate::construct::token::{Delim, Token, Tokens};
 use crate::compiler::syntax::{Syntax, Note};
 
-const OP_CHARS: &str = "!#$%&'*+,-./:<=>?@^`|~";
+const OP_CHARS: &str = "!#$%&*+,-./:<=>?@^|~";
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -47,6 +47,20 @@ impl Lexer {
 
             // Strip whitespace, but not newlines, and comments
             lexer.strip();
+        }
+
+        // make sure everything is balanced:
+        if !lexer.nesting.is_empty() {
+            let index = lexer.nesting.pop().unwrap();
+            let delim = match &lexer.tokens[index].item {
+                Token::Delim(delim, _) => delim,
+                _ => unreachable!(),
+            };
+            
+            return Err(Syntax::error(
+                &format!("Unbalanced opening {}; Balance, Daniel-san", delim), 
+                &Span::new(&lexer.source, index, 1),
+            ));
         }
 
         // phew, nothing broke. Your tokens, sir!
@@ -116,8 +130,22 @@ impl Lexer {
         let after = self.tokens.split_off(loc + 1);
         // grap the opening token, and convert it into a group
         let mut group = self.tokens.pop().unwrap();
-        if let Token::Delim(_, ref mut tokens) = group.item {
-            *tokens = Rc::new(after);
+        if let Token::Delim(ref d, ref mut tokens) = group.item {
+            if delim == *d {
+                *tokens = Rc::new(after);
+            } else {
+                return Err(Syntax::error(
+                    &format!(
+                        "mismatched delimiters: opening {} and closing {}",
+                        d, delim,
+                    ), 
+                    &group.span,
+                ).add_note(Note::new(
+                    Span::new(&self.source, self.index, 1),
+                )));
+            }
+        } else {
+            unreachable!();
         }
 
         // span over the whole group
@@ -130,6 +158,12 @@ impl Lexer {
         Ok(group)
     }
 
+    /// Starting at the parser's current index.
+    /// consumes characters one at a time according to a `pred`icate.
+    /// after the predicate returns false, the string is passed to a `wrap` function,
+    /// which converts the string slice of consumed characters into a type `T`,
+    /// and returns that type along with the number of bytes consumed.
+    /// (The number of bytes consumed can be used to advance `self.index`.)
     fn take_while<T>(
         &self,
         remaining: &mut impl Iterator<Item = char>,
@@ -192,6 +226,7 @@ impl Lexer {
         ))
     }
 
+    /// Must start with two-byte prefix `0?`, where `?` indicates radix.
     fn integer_literal(
         &self,
         radix: u32,
@@ -200,24 +235,24 @@ impl Lexer {
         // dbg!(remaining.next());
         // panic!();
         // dbg!(remaining.peekable().peek());
-        let (integer, len) = self.take_while(
+        let len = 2 + self.take_while(
             remaining,
-            |s| {
-                dbg!(s);
-                i64::from_str_radix(s, radix)
-                    .map_err(|_| Syntax::error(
-                        "Integer literal too large to fit in a signed 64-bit integer",
-                        // hate the + 2 hack
-                        // + 2 chars to take the `0?` into account
-                        &Span::new(&self.source, self.index, s.len() + 2),
-                    ))
-            },
+            |_| (),
             |n| {
                 dbg!(n);
                 n.is_digit(radix)
             },
-        );
-        Ok((Token::Lit(Lit::Integer(integer?)), len + 2))
+        ).1;
+
+        let integer = i64::from_str_radix(&self.grab_from_index(len)[2..], radix)
+            .map_err(|_| Syntax::error(
+                "Integer literal too large to fit in a signed 64-bit integer",
+                // hate the + 2 hack
+                // + 2 chars to take the `0?` into account
+                &Span::new(&self.source, self.index, len),
+            ));
+        
+        Ok((Token::Lit(Lit::Integer(integer?)), len))
     }
 
     fn radix_literal(
@@ -226,6 +261,7 @@ impl Lexer {
         // remaining does not lead with `n`
         remaining: &mut impl Iterator<Item = char>,
     ) -> Result<(Token, usize), Syntax> {
+        // TODO: figure out something more elegant than this += 2 -= 2 ordeal
         match n {
             'b' => self.integer_literal(2, remaining),
             'o' => self.integer_literal(8, remaining), // Octal
@@ -233,10 +269,11 @@ impl Lexer {
             'd' => self.integer_literal(10, remaining),
             'x' => self.integer_literal(16, remaining),
             // Decimal literal with a leading zero
-            _   => self.decimal_literal(
+            _ => {
                 // rebuild the iterator, ugh
-                &mut once('0').chain(once(n)).chain(remaining)
-            ),
+                let mut remaining = once('0').chain(once(n)).chain(remaining);
+                self.decimal_literal(&mut remaining)
+            },
         }
     }
 
@@ -403,6 +440,7 @@ mod test {
     #[test]
     fn valid() {
         let cases = &[
+            "",
             ";\n;;",
             "420",
             "-27.5",
@@ -426,6 +464,26 @@ mod test {
                     eprintln!("{}", e);
                     panic!();
                 },
+            }
+        }
+    }
+
+    #[test]
+    fn invalid() {
+        let cases = &[
+            "(",
+            "{)",
+            // TODO: work on error message for:
+            "x = {\n    y\n)",
+        ];
+
+        for case in cases.iter() {
+            match Lexer::lex(Source::source(case)) {
+                Ok(o) => {
+                    eprintln!("{:?}", o);
+                    panic!();
+                },
+                Err(_) => (),
             }
         }
     }
