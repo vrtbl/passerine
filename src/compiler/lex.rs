@@ -78,8 +78,6 @@ impl Lexer {
                 remaining.next();
             }
 
-            dbg!(&self);
-
             // TODO: doc comments and expression comments
             // Strip single line comment
             if let Some('-') = remaining.next() {
@@ -241,11 +239,6 @@ impl Lexer {
             |n| n.is_digit(10),
         ).1;
 
-        dbg!(len);
-        dbg!(&self.grab_from_index(len));
-
-        // TODO: test numerical parsing
-
         match remaining.next() {
             // There's a decimal point, so we parse as a float
             Some('.') => {
@@ -346,7 +339,6 @@ impl Lexer {
                     // parse decimal literal
                     // this could be an integer
                     // but also a floating point number
-                    dbg!(c);
                     self.decimal_literal(&mut once(c).chain(remaining))?
                 }
             }
@@ -413,13 +405,14 @@ mod test {
             "[{}(;)]",
             "x = x -> x + 1",
             "fac = function { 0 -> 1, n -> n * fac (n - 1) }",
+            "0xFF",
         ];
 
         for case in cases.iter() {
             match Lexer::lex(Source::source(case)) {
                 Ok(_) => (),
                 Err(e) => {
-                    eprintln!("{}", e);
+                    eprintln!("{:?}", e);
                     panic!();
                 },
             }

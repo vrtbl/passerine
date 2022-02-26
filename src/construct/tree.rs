@@ -52,7 +52,7 @@ pub enum Base<T, S> {
     Block(Vec<T>),
     Call(Box<T>, Box<T>), // fun, arg
     Assign(Spanned<Pattern<S>>, Box<T>),
-    FFI(String, Box<T>),
+    FFI(usize, Box<T>),
 }
 
 impl<T, S> Base<T, S> {
@@ -64,9 +64,9 @@ impl<T, S> Base<T, S> {
         Base::Assign(pat, Box::new(expr))
     }
 
-    pub fn ffi(name: &str, expr: T) -> Self {
-        Base::FFI(name.to_string(), Box::new(expr))
-    }
+    // pub fn ffi(name: &str, expr: T) -> Self {
+    //     Base::FFI(name.to_string(), Box::new(expr))
+    // }
 }
 
 #[derive(Debug, Clone, PartialEq)]

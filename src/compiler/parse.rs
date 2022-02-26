@@ -467,7 +467,7 @@ impl Parser {
                 }),
 
                 // Builtins
-                Add   => self.binop(left, true, Add, make_ast),
+                Add   => todo!(),
                 Sub   => todo!(),
                 Mul   => todo!(),
                 Div   => todo!(),
@@ -578,8 +578,8 @@ mod tests {
         Lexer::lex(Source::source(source)).unwrap()
     }
 
-    #[test]
-    fn add() {
-        Parser::parse(tokens("y = x -> x + 1")).unwrap();
-    }
+    // #[test]
+    // fn add() {
+    //     Parser::parse(tokens("y = x -> x + 1")).unwrap();
+    // }
 }

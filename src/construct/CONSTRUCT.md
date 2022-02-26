@@ -43,10 +43,11 @@ split
 postfix works - 
     as well
 
-if (grouping is present) {
-    this is a single form split
+if (grouping is + present) {
+    this if expression is a single form
 } else {
-    across multiple lines
+    split across multiple lines
+    with nested sub blocks
 }
 
 (
@@ -59,8 +60,46 @@ if (grouping is present) {
 
 ## Leafs
 
+Atoms that are not nested.
 
-Label
-Iden
-Op
-Lit
+### Label
+An identifier representing a type, must start with a capital letter. `UpperCamelCase` by convention.
+
+```
+X
+String
+HtmlRenderer
+```
+
+### Iden
+An identifier, containing alphanumeric characters and underscores, not starting with numbers. `snake_case` by convention:
+
+```
+_
+this
+banana_pants
+hello7
+```
+
+### Op
+An operator, a series of ascii punctuation characters not reserved for other constructs, like grouping:
+
+```
++
+-
+++
+!=
+&&&&&&&&&&&
+*&^
+```
+
+### Lit
+A literal, such as a string, a number, etc.
+
+```
+3
+27.5
+0xFF
+"Hello"
+()
+```

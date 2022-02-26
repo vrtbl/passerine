@@ -100,14 +100,15 @@ impl Span {
     }
 
     pub fn line(&self, index: usize) -> usize {
-        let lines = &self.source.contents[..index]
+        let lines = self.source.contents[..index]
             .split_inclusive("\n").count();
-        return lines - 1;
+        return lines.saturating_sub(1);
     }
 
     pub fn col(&self, index: usize) -> usize {
         let lines = &self.source.contents[..index]
-            .split_inclusive("\n").last().unwrap()
+            .split_inclusive("\n").last()
+            .unwrap_or("")
             .chars().count();
         return *lines;
     }
@@ -273,5 +274,12 @@ mod test {
         let result = Span::new(&source, 0, 16);
 
         assert_eq!(Span::join(spans).contents(), result.contents());
+    }
+
+    #[test]
+    fn empty() {
+        let source = Source::source("");
+        let span = Span::point(&source, 0);
+        format!("{}", span);
     }
 }
