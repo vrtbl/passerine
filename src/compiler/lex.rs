@@ -14,6 +14,8 @@ use crate::common::{
 use crate::construct::token::{Delim, Token, Tokens};
 use crate::compiler::syntax::{Syntax, Note};
 
+const OP_CHARS: &str = "!#$%&'*+,-./:<=>?@^`|~";
+
 #[derive(Debug)]
 pub struct Lexer {
     source:  Rc<Source>,
@@ -195,16 +197,25 @@ impl Lexer {
         radix: u32,
         remaining: &mut impl Iterator<Item = char>,
     ) -> Result<(Token, usize), Syntax> {
+        // dbg!(remaining.next());
+        // panic!();
+        // dbg!(remaining.peekable().peek());
         let (integer, len) = self.take_while(
             remaining,
-            |s| i64::from_str_radix(s, radix)
-                .map_err(|_| Syntax::error(
-                    "Integer literal too large to fit in a signed 64-bit integer",
-                    // hate the + 2 hack
-                    // + 2 chars to take the `0?` into account
-                    &Span::new(&self.source, self.index, s.len() + 2),
-                )),
-            |n| n.is_digit(radix),
+            |s| {
+                dbg!(s);
+                i64::from_str_radix(s, radix)
+                    .map_err(|_| Syntax::error(
+                        "Integer literal too large to fit in a signed 64-bit integer",
+                        // hate the + 2 hack
+                        // + 2 chars to take the `0?` into account
+                        &Span::new(&self.source, self.index, s.len() + 2),
+                    ))
+            },
+            |n| {
+                dbg!(n);
+                n.is_digit(radix)
+            },
         );
         Ok((Token::Lit(Lit::Integer(integer?)), len + 2))
     }
@@ -328,9 +339,9 @@ impl Lexer {
             // Float:   420.69, 0.0, etc.
             c @ '0'..='9' => {
                 if c == '0' {
-                    if let Some(n) = remaining.peek() {
+                    if let Some(n) = remaining.next() {
                         // Potentially integers in other radixes
-                        self.radix_literal(*n, &mut remaining)?
+                        self.radix_literal(n, &mut remaining)?
                     } else {
                         // End of source, must be just `0`
                         (Token::Lit(Lit::Integer(0)), 1)
@@ -349,11 +360,11 @@ impl Lexer {
             // TODO: choose characters for operator set
             // don't have both a list and `is_ascii_punctuation`
             // Op
-            c if "!#$%&'*+,-./:<=>?@^`|~".contains(c) => {
+            c if OP_CHARS.contains(c) => {
                 self.take_while(
                     &mut once(c).chain(remaining),
                     |s| Token::Op(s.to_string()),
-                    |n| n.is_ascii_punctuation(),
+                    |n| OP_CHARS.contains(n),
                 )
             },
 
@@ -405,14 +416,14 @@ mod test {
             "[{}(;)]",
             "x = x -> x + 1",
             "fac = function { 0 -> 1, n -> n * fac (n - 1) }",
-            "0xFF",
+            "0xFFF",
         ];
 
         for case in cases.iter() {
             match Lexer::lex(Source::source(case)) {
                 Ok(_) => (),
                 Err(e) => {
-                    eprintln!("{:?}", e);
+                    eprintln!("{}", e);
                     panic!();
                 },
             }
