@@ -8,7 +8,7 @@
 pub mod source;
 pub mod span;
 pub mod lit;
-pub mod type_;
+pub mod ty;
 pub mod number;
 pub mod opcode;
 pub mod lambda;

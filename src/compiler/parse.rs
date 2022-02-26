@@ -467,7 +467,7 @@ impl Parser {
                 }),
 
                 // Builtins
-                Add   => todo!(),
+                Add   => self.binop(left, true, Add, make_ast),
                 Sub   => todo!(),
                 Mul   => todo!(),
                 Div   => todo!(),
@@ -513,7 +513,12 @@ impl Parser {
         return err;
     }
 
+    // TODO: just specify precedence directly?
     /// Parses a binary operation.
+    /// Takes the left side of the operation,
+    /// whether or not the operation is left-associative,
+    /// the operator precedence,
+    /// and a function that creates the AST node.
     fn binop<T>(
         &mut self,
         left: Spanned<T>,
