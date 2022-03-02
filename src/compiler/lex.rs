@@ -455,6 +455,7 @@ mod test {
             "x = x -> x + 1",
             "fac = function { 0 -> 1, n -> n * fac (n - 1) }",
             "0xFFF",
+            "x = {\n    y\n)",
         ];
 
         for case in cases.iter() {

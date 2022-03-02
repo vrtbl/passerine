@@ -57,19 +57,19 @@ impl fmt::Display for Syntax {
             if let Some(ref hint) = note.hint {
                 if formatted.is_multiline() {
                     writeln!(f, "{}", formatted)?;
-                    writeln!(f, "{} ├─ note: {} ", formatted.gutter_padding(), hint)?;
-                    writeln!(f, "{} │", " ".repeat(formatted.gutter_padding()))?;
+                    writeln!(f, "{} |- note: {} ", formatted.gutter_padding(), hint)?;
+                    writeln!(f, "{} |", " ".repeat(formatted.gutter_padding()))?;
                 } else {
                     writeln!(f, "In {}:{}:{}", formatted.path, formatted.start, formatted.start_col)?;
-                    writeln!(f, "{} │", " ".repeat(formatted.gutter_padding()))?;
-                    writeln!(f, "{} │ {}", formatted.start + 1, formatted.lines[0])?;
-                    writeln!(f, "{} │ {}{} note: {}",
+                    writeln!(f, "{} |", " ".repeat(formatted.gutter_padding()))?;
+                    writeln!(f, "{} | {}", formatted.start + 1, formatted.lines[0])?;
+                    writeln!(f, "{} | {}{} note: {}",
                         " ".repeat(formatted.gutter_padding()),
                         " ".repeat(formatted.start_col),
                         "^".repeat(formatted.carrots().unwrap()),
                         hint,
                     )?;
-                    writeln!(f, "{} │", " ".repeat(formatted.gutter_padding()))?;
+                    writeln!(f, "{} |", " ".repeat(formatted.gutter_padding()))?;
                 }
             } else {
                 write!(f, "{}", formatted)?;
