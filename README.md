@@ -55,7 +55,7 @@ and others!
 
 > † Shaw is writing an [alternative implementation of Passerine](https://github.com/ShawSumma/purr/tree/main/ext/passerine), and it's *super* fast. It's part of a wider effort of his to develop [an efficient language-agnostic VM](https://github.com/ShawSumma/purr).
 
-> ‡ Keith is currently [sponsoring](https://www.patreon.com/slightknack) the development of Passerine — I'm deeply grateful for his support!
+> ‡ Keith, Feifan, and Sam are currently [sponsoring](https://www.patreon.com/slightknack) the development of Passerine — I'm deeply grateful for their support!
 
 ## An Overview
 Where this overview gets really exciting is when we dive into [macros](#macros). If you're here to give Passerine a try, [skip to Installation](#installation).
