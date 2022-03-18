@@ -1,18 +1,11 @@
-use std::fmt::{
-    Debug,
-    Formatter,
-    Result,
-};
+use std::fmt::{Debug, Formatter, Result};
 
-use crate::vm::{
-    closure::Closure,
-    data::Data,
-};
+use crate::vm::{closure::Closure, data::Data};
 
 /// Represents a suspended closure.
 #[derive(Debug, Clone)]
 pub struct Suspend {
-    pub ip:      usize,
+    pub ip: usize,
     pub closure: Closure,
 }
 
@@ -30,8 +23,12 @@ pub enum Slot {
 impl Slot {
     pub fn data(self) -> Data {
         match self {
-            Slot::Frame => unreachable!("expected data on top of stack, found frame"),
-            Slot::Suspend(_) => unreachable!("found suspended frame on top of stack"),
+            Slot::Frame => {
+                unreachable!("expected data on top of stack, found frame")
+            },
+            Slot::Suspend(_) => {
+                unreachable!("found suspended frame on top of stack")
+            },
             Slot::Data(d) => d,
         }
     }
@@ -40,9 +37,9 @@ impl Slot {
 impl Debug for Slot {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Slot::Frame      => write!(f, "Frame"),
+            Slot::Frame => write!(f, "Frame"),
             Slot::Suspend(s) => write!(f, "Suspend({})", s.ip),
-            Slot::Data(d)    => write!(f, "Data({:?})", d),
+            Slot::Data(d) => write!(f, "Data({:?})", d),
         }
     }
 }

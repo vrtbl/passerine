@@ -1,10 +1,6 @@
 use std::fmt;
 
-use crate::common::{
-    opcode::Opcode,
-    number::build_number,
-    span::Span,
-};
+use crate::common::{number::build_number, opcode::Opcode, span::Span};
 
 use crate::vm::data::Data;
 
@@ -46,11 +42,11 @@ impl Lambda {
     /// Creates a new empty `Lambda` to be filled.
     pub fn empty() -> Lambda {
         Lambda {
-            decls:     vec![],
-            code:      vec![],
-            spans:     vec![],
+            decls: vec![],
+            code: vec![],
+            spans: vec![],
             constants: vec![],
-            captures:  vec![],
+            captures: vec![],
             // ffi:       vec![],
         }
     }
@@ -58,13 +54,19 @@ impl Lambda {
     /// Constructs a number of bytecode arguments,
     /// ensuring each is within a specific bound.
     /// If any bounds are violated, we return `None`.
-    pub fn args_safe(&self, index: usize, within: &[usize]) -> Option<(Vec<usize>, usize)> {
-        let mut offset  = 0;
+    pub fn args_safe(
+        &self,
+        index: usize,
+        within: &[usize],
+    ) -> Option<(Vec<usize>, usize)> {
+        let mut offset = 0;
         let mut numbers = vec![];
 
         for bound in within.iter() {
             let (arg, consumed) = build_number(&self.code[index + offset..]);
-            if arg >= *bound { return None; }
+            if arg >= *bound {
+                return None;
+            }
             numbers.push(arg);
             offset += consumed;
         }
@@ -74,26 +76,26 @@ impl Lambda {
 
     pub fn bounds(&self, opcode: Opcode) -> Vec<usize> {
         match opcode {
-            Opcode::Con     => vec![self.constants.len()],
+            Opcode::Con => vec![self.constants.len()],
             Opcode::NotInit => vec![],
-            Opcode::Del     => vec![],
+            Opcode::Del => vec![],
             Opcode::FFICall => panic!(),
-            Opcode::Copy    => vec![],
+            Opcode::Copy => vec![],
             // Opcode::Capture => vec![self.decls], // TODO: correct bounds check?
             // Opcode::Save    => vec![self.decls],
             Opcode::SaveCap => vec![self.captures.len()],
             // Opcode::Load    => vec![self.decls],
             Opcode::LoadCap => vec![self.captures.len()],
-            Opcode::Call    => vec![],
+            Opcode::Call => vec![],
             // Opcode::Return  => vec![self.decls], // TODO: correct bounds check?
             Opcode::Closure => vec![],
-            Opcode::Print   => vec![],
-            Opcode::Label   => vec![],
-            Opcode::Tuple   => vec![usize::MAX], // TODO: stricter bounds
-            Opcode::UnData  => vec![],
+            Opcode::Print => vec![],
+            Opcode::Label => vec![],
+            Opcode::Tuple => vec![usize::MAX], // TODO: stricter bounds
+            Opcode::UnData => vec![],
             Opcode::UnLabel => vec![],
             Opcode::UnTuple => vec![usize::MAX], // TODO: stricter bounds
-            Opcode::Noop    => vec![],
+            Opcode::Noop => vec![],
             _ => panic!(),
         }
     }
@@ -113,7 +115,9 @@ impl Lambda {
             // safely decode an opcode
             let opcode = match Opcode::from_byte_safe(self.code[index]) {
                 Some(o) => o,
-                None => { return false; },
+                None => {
+                    return false;
+                },
             };
 
             index += 1;
@@ -122,7 +126,9 @@ impl Lambda {
 
             index += match args_result {
                 Some((_args, consumed)) => consumed,
-                None => { return false; },
+                None => {
+                    return false;
+                },
             }
         }
 
@@ -171,7 +177,9 @@ impl Lambda {
         let mut best = None;
 
         for (i, span) in self.spans.iter() {
-            if i > &index { break; }
+            if i > &index {
+                break;
+            }
             best = Some(span);
         }
 
@@ -235,7 +243,8 @@ impl fmt::Display for Lambda {
 
             index += consumed;
             writeln!(
-                f, "{}",
+                f,
+                "{}",
                 args.iter()
                     .map(|n| n.to_string())
                     .collect::<Vec<String>>()

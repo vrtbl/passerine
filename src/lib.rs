@@ -109,9 +109,9 @@ pub mod construct;
 // exported functions:
 // TODO: clean up exports
 
-use std::rc::Rc;
 pub use common::{source::Source, span::Spanned};
 pub use compiler::syntax::Syntax;
+use std::rc::Rc;
 // pub use crate::core::ffi::FFI;
 // pub use vm::{vm::VM, trace::Trace};
 

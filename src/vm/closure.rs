@@ -1,12 +1,6 @@
-use std::{
-    rc::Rc,
-    cell::RefCell,
-};
+use std::{cell::RefCell, rc::Rc};
 
-use crate::{
-    common::lambda::Lambda,
-    vm::data::Data,
-};
+use crate::{common::lambda::Lambda, vm::data::Data};
 
 /// Wraps a `Lambda` with some scope context.
 /// Each closure is unique when constructed,

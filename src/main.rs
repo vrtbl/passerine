@@ -1,5 +1,5 @@
-use passerine::Source; // , compile, run};
 use passerine::compiler::{lex, parse};
+use passerine::Source; // , compile, run};
 
 pub fn main() {
     // get the path and load the file
@@ -14,7 +14,7 @@ pub fn main() {
         Ok(e) => println!("{:#?}", e),
         Err(e) => {
             println!("{}", e);
-        }
+        },
     }
 
     // println!("{}", ThinModule::thin(us).lower().unwrap().lower().unwrap_err()); //.and_then(Lower::lower));

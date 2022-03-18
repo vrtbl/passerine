@@ -1,13 +1,9 @@
-use std::{
-    mem,
-    rc::Rc,
-    cell::RefCell
-};
+use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::vm::{
-    tag::Tagged,
-    slot::{Slot, Suspend},
     data::Data,
+    slot::{Slot, Suspend},
+    tag::Tagged,
 };
 
 /// A stack of `Tagged` `Data`.
@@ -20,7 +16,7 @@ use crate::vm::{
 #[derive(Debug)]
 pub struct Stack {
     pub frames: Vec<usize>,
-    pub stack:  Vec<Tagged>
+    pub stack: Vec<Tagged>,
 }
 
 impl Stack {
@@ -28,7 +24,7 @@ impl Stack {
     pub fn init() -> Stack {
         Stack {
             frames: vec![0],
-            stack:  vec![Tagged::frame()],
+            stack: vec![Tagged::frame()],
         }
     }
 
@@ -41,7 +37,8 @@ impl Stack {
     /// Pop and return the topmost `Tagged` item.
     #[inline]
     fn pop(&mut self) -> Tagged {
-        self.stack.pop()
+        self.stack
+            .pop()
             .expect("VM tried to pop empty stack, stack should never be empty")
     }
 
@@ -67,7 +64,9 @@ impl Stack {
     /// Note that this will never return a `Heaped` value, rather cloning the value inside.
     #[inline]
     pub fn pop_data(&mut self) -> Data {
-        let value = self.stack.pop()
+        let value = self
+            .stack
+            .pop()
             .expect("VM tried to pop empty stack, stack should never be empty");
 
         match value.slot().data() {
@@ -80,7 +79,8 @@ impl Stack {
     /// Panics if there are no frames left on the stack.
     #[inline]
     pub fn pop_frame(&mut self) -> Suspend {
-        if let Slot::Frame = self.pop().slot() {} else {
+        if let Slot::Frame = self.pop().slot() {
+        } else {
             unreachable!("Expected frame on top of stack");
         }
 
@@ -113,7 +113,9 @@ impl Stack {
     /// Shortcut for calling `push_not_init` N times.
     #[inline]
     pub fn declare(&mut self, decls: usize) {
-        for _ in 0..decls { self.push_not_init(); }
+        for _ in 0..decls {
+            self.push_not_init();
+        }
     }
 
     /// Wraps the top data value on the stack in `Data::Heaped`,
@@ -124,7 +126,10 @@ impl Stack {
 
         let data = self.swap(local_index, Tagged::not_init()).slot().data();
         let heaped = Slot::Data(Data::Heaped(Rc::new(RefCell::new(data))));
-        mem::drop(mem::replace(&mut self.stack[local_index], Tagged::new(heaped)));
+        mem::drop(mem::replace(
+            &mut self.stack[local_index],
+            Tagged::new(heaped),
+        ));
     }
 
     /// Truncates the stack to the last frame.
@@ -186,7 +191,7 @@ impl Stack {
                     // TODO: check types?
                     mem::drop(cell.replace(self.pop_data()));
                     Tagged::new(slot)
-                }
+                },
                 // if it's not on the heap, we assume it's data,
                 // and do a quick swap-and-drop
                 _ => self.stack.pop().unwrap(),

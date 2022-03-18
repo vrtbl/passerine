@@ -15,13 +15,13 @@ pub enum Ty {
     // Function
     // <arg> -> <body> / <ty>
     Function {
-        arg:    TySymbol,
-        body:   TySymbol,
+        arg: TySymbol,
+        body: TySymbol,
         effect: TySymbol,
     },
     // TODO: fibers still good idea?
     Fiber {
-        takes:  TySymbol,
+        takes: TySymbol,
         yields: TySymbol,
     },
 
@@ -34,5 +34,5 @@ pub enum Ty {
 }
 
 pub struct TyPool {
-    tys: HashMap<TySymbol, Ty>
+    tys: HashMap<TySymbol, Ty>,
 }

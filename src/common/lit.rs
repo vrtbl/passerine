@@ -1,11 +1,6 @@
 use std::{
-    fmt::{
-        Debug,
-        Display,
-        Formatter,
-        Result,
-    },
     f64,
+    fmt::{Debug, Display, Formatter, Result},
 };
 
 pub enum ArbInt {
@@ -23,7 +18,6 @@ pub enum Lit {
     //     mantissa: ArbInt,
     // },
     // Integer(ArbInt),
-
     Float(f64),
     Integer(i64),
 
@@ -44,13 +38,15 @@ impl Display for Lit {
     /// Displays some Passerine Data in a pretty manner, as if it were printed to console.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Lit::Float(n)    => write!(f, "{}", n),
-            Lit::Integer(n)  => write!(f, "{}", n),
-            Lit::String(s)   => write!(f, "{}", s),
+            Lit::Float(n) => write!(f, "{}", n),
+            Lit::Integer(n) => write!(f, "{}", n),
+            Lit::String(s) => write!(f, "{}", s),
             // TODO: better representation for Labels
             Lit::Label(n, v) => write!(f, "#{}({})", n, v),
-            Lit::Unit        => write!(f, "()"),
-            Lit::Boolean(b)  => write!(f, "{}", if *b { "True" } else { "False" })
+            Lit::Unit => write!(f, "()"),
+            Lit::Boolean(b) => {
+                write!(f, "{}", if *b { "True" } else { "False" })
+            },
         }
     }
 }

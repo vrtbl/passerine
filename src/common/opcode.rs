@@ -85,6 +85,9 @@ mod tests {
     #[test]
     fn safe() {
         assert_eq!(None, Opcode::from_byte_safe((Opcode::Noop as u8) + 1));
-        assert_eq!(Some(Opcode::Noop), Opcode::from_byte_safe(Opcode::Noop as u8));
+        assert_eq!(
+            Some(Opcode::Noop),
+            Opcode::from_byte_safe(Opcode::Noop as u8)
+        );
     }
 }

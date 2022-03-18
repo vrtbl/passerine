@@ -1,7 +1,7 @@
 use std::{
-    path::{Path, PathBuf},
-    io::Read,
     fs::File,
+    io::Read,
+    path::{Path, PathBuf},
     rc::Rc,
 };
 
@@ -16,7 +16,7 @@ use std::{
 #[derive(Debug, PartialEq, Eq)]
 pub struct Source {
     pub contents: String,
-    pub path:     PathBuf,
+    pub path: PathBuf,
 }
 
 impl Source {
@@ -25,14 +25,17 @@ impl Source {
     /// match the source.
     /// `Source::path` or `Source::source` should be used instead.
     pub fn new(source: &str, path: &Path) -> Rc<Source> {
-        Rc::new(Source { contents: source.to_string(), path: path.to_owned() })
+        Rc::new(Source {
+            contents: source.to_string(),
+            path: path.to_owned(),
+        })
     }
 
     /// Build a `Source` from a path.
     /// This will read a file to create a new source.
     pub fn path(path: &Path) -> std::io::Result<Rc<Source>> {
         let mut source = String::new();
-        let mut file   = File::open(path)?;
+        let mut file = File::open(path)?;
         file.read_to_string(&mut source)?;
 
         Ok(Source::new(&source, path))

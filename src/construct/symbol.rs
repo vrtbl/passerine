@@ -1,7 +1,4 @@
-use std::{
-    // collections::HashMap,
-    hash::Hash,
-};
+use std::hash::Hash;
 
 // TODO: should SharedSymbol be hash of name or something similar?
 

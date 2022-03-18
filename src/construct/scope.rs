@@ -1,8 +1,5 @@
-use std::{
-    collections::HashMap,
-    hash::Hash,
-};
 use crate::construct::symbol::UniqueSymbol;
+use std::{collections::HashMap, hash::Hash};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VecSet<T: Eq + Hash + Clone> {
@@ -34,14 +31,14 @@ impl<T: Eq + Hash + Clone> VecSet<T> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope {
-    pub locals:    VecSet<UniqueSymbol>,
+    pub locals: VecSet<UniqueSymbol>,
     pub nonlocals: VecSet<UniqueSymbol>,
 }
 
 impl Scope {
     pub fn new() -> Scope {
         Scope {
-            locals:    VecSet::new(),
+            locals: VecSet::new(),
             nonlocals: VecSet::new(),
         }
     }

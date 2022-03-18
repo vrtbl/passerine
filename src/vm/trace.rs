@@ -1,5 +1,5 @@
-use std::fmt;
 use crate::common::span::Span;
+use std::fmt;
 
 /// Represents a runtime error, i.e. a traceback
 #[derive(Debug, PartialEq, Eq)]
@@ -26,7 +26,7 @@ impl Trace {
 }
 
 impl fmt::Display for Trace {
-    fn fmt (&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // TODO: better message?
         writeln!(f, "Traceback, most recent call last:")?;
 
@@ -43,6 +43,4 @@ mod test {
     use super::*;
     use crate::common::source::Source;
     use std::rc::Rc;
-
-
 }

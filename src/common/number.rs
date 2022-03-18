@@ -11,8 +11,8 @@ pub fn split_number(n: usize) -> Vec<u8> {
     // high bit = last byte in chain?
     // low bits = binary representation
     let mut bytes = vec![];
-    let mut i     = n;
-    let chunk     = 0b1000_0000;
+    let mut i = n;
+    let chunk = 0b1000_0000;
 
     loop {
         let low = i % chunk; // get next 7 bits in usize
@@ -23,7 +23,9 @@ pub fn split_number(n: usize) -> Vec<u8> {
 
         // like a do-while
         // makes sure a number is always pushed
-        if i == 0 { break; }
+        if i == 0 {
+            break;
+        }
     }
 
     // reverse chain so high bit byte is last
@@ -36,8 +38,8 @@ pub fn split_number(n: usize) -> Vec<u8> {
 /// even if the byte stream does not have a number, is empty, or ends after a continue bit is set.
 pub fn build_number(bytes: &[u8]) -> (usize, usize) /* (index, eaten) */ {
     let mut i: usize = 0;
-    let mut e        = 0;
-    let chunk        = 0b1000_0000;
+    let mut e = 0;
+    let chunk = 0b1000_0000;
 
     for byte in bytes {
         // shift left by 7
@@ -49,9 +51,9 @@ pub fn build_number(bytes: &[u8]) -> (usize, usize) /* (index, eaten) */ {
         if byte >= &chunk {
             i += (byte - chunk) as usize;
             break;
-         } else {
-             i += *byte as usize;
-         }
+        } else {
+            i += *byte as usize;
+        }
     }
 
     return (i, e);
@@ -77,9 +79,9 @@ mod test {
     #[test]
     fn extra_bytes() {
         // encode number
-        let x     = 42069;
+        let x = 42069;
         let bytes = split_number(x);
-        let eat   = bytes.len();
+        let eat = bytes.len();
 
         // add junk data to end
         let mut extra = bytes.clone();

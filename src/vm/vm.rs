@@ -1,18 +1,11 @@
 use std::mem;
 
 use crate::common::{
-    number::build_number,
-    opcode::Opcode,
-    lambda::Captured,
-    span::Span,
+    lambda::Captured, number::build_number, opcode::Opcode, span::Span,
 };
 
 use crate::vm::{
-    data::Data,
-    closure::Closure,
-    trace::Trace,
-    slot::Suspend,
-    stack::Stack,
+    closure::Closure, data::Data, slot::Suspend, stack::Stack, trace::Trace,
 };
 
 // TODO: algebraic effects
@@ -28,8 +21,8 @@ use crate::vm::{
 #[derive(Debug)]
 pub struct VM {
     pub closure: Closure,
-    pub stack:   Stack,
-    pub ip:      usize,
+    pub stack: Stack,
+    pub ip: usize,
 }
 
 // NOTE: use Opcode::same and Opcode.to_byte() rather than actual bytes
@@ -44,7 +37,7 @@ impl VM {
         let mut vm = VM {
             closure,
             stack: Stack::init(),
-            ip:    0,
+            ip: 0,
         };
         vm.stack.declare(vm.closure.lambda.decls.len());
         return vm;
@@ -52,16 +45,26 @@ impl VM {
 
     /// Advances to the next instruction.
     #[inline]
-    pub fn next(&mut self) { self.ip += 1; }
+    pub fn next(&mut self) {
+        self.ip += 1;
+    }
     /// Advances IP, returns `Ok`. Used in Bytecode implementations.
     #[inline]
-    pub fn done(&mut self) -> Result<(), Trace> { self.next(); Ok(()) }
+    pub fn done(&mut self) -> Result<(), Trace> {
+        self.next();
+        Ok(())
+    }
     /// Returns the current instruction as a byte.
     #[inline]
-    pub fn peek_byte(&mut self) -> u8 { self.closure.lambda.code[self.ip] }
+    pub fn peek_byte(&mut self) -> u8 {
+        self.closure.lambda.code[self.ip]
+    }
     /// Advances IP and returns the current instruction as a byte.
     #[inline]
-    pub fn next_byte(&mut self) -> u8 { self.next(); self.peek_byte() }
+    pub fn next_byte(&mut self) -> u8 {
+        self.next();
+        self.peek_byte()
+    }
 
     /// Returns whether the program has terminated
     #[inline]
@@ -74,7 +77,7 @@ impl VM {
     #[inline]
     pub fn next_number(&mut self) -> usize {
         self.next();
-        let remaining      = &self.closure.lambda.code[self.ip..];
+        let remaining = &self.closure.lambda.code[self.ip..];
         let (index, eaten) = build_number(remaining);
         self.ip += eaten - 1; // ip left on next op
         return index;
@@ -94,34 +97,34 @@ impl VM {
         let opcode = Opcode::from_byte(self.peek_byte());
 
         match opcode {
-            Opcode::Con     => self.con(),
+            Opcode::Con => self.con(),
             Opcode::NotInit => self.not_init(),
-            Opcode::Del     => self.del(),
+            Opcode::Del => self.del(),
             Opcode::FFICall => self.ffi_call(),
-            Opcode::Copy    => self.copy_val(),
+            Opcode::Copy => self.copy_val(),
             Opcode::Capture => self.capture(),
-            Opcode::Save    => self.save(),
+            Opcode::Save => self.save(),
             Opcode::SaveCap => self.save_cap(),
-            Opcode::Load    => self.load(),
+            Opcode::Load => self.load(),
             Opcode::LoadCap => self.load_cap(),
-            Opcode::Call    => self.call(),
-            Opcode::Return  => self.return_val(),
+            Opcode::Call => self.call(),
+            Opcode::Return => self.return_val(),
             Opcode::Closure => self.closure(),
-            Opcode::Print   => self.print(),
-            Opcode::Label   => self.label(),
-            Opcode::Tuple   => self.tuple(),
-            Opcode::UnData  => self.un_data(),
+            Opcode::Print => self.print(),
+            Opcode::Label => self.label(),
+            Opcode::Tuple => self.tuple(),
+            Opcode::UnData => self.un_data(),
             Opcode::UnLabel => self.un_label(),
             Opcode::UnTuple => self.un_tuple(),
-            Opcode::Noop    => self.done(),
-            _ => panic!("Opcode Not Implemented")
+            Opcode::Noop => self.done(),
+            _ => panic!("Opcode Not Implemented"),
         }
     }
 
     pub fn unwind(&mut self) {
         // restore suspended callee
         let suspend = self.stack.pop_frame(); // remove the frame
-        self.ip      = suspend.ip;
+        self.ip = suspend.ip;
         self.closure = suspend.closure;
 
         // indicate failure
@@ -141,7 +144,9 @@ impl VM {
             // println!("before: {:#?}", self.stack.stack);
             // println!("executing: {:?}", Opcode::from_byte(self.peek_byte()));
             result = self.step();
-            if result.is_err() { break; }
+            if result.is_err() {
+                break;
+            }
             // println!("---");
         }
         // println!("after: {:?}", self.stack.stack);
@@ -166,7 +171,8 @@ impl VM {
         // get the constant index
         let index = self.next_number();
 
-        self.stack.push_data(self.closure.lambda.constants[index].clone());
+        self.stack
+            .push_data(self.closure.lambda.constants[index].clone());
         self.done()
     }
 
@@ -181,7 +187,7 @@ impl VM {
     #[inline]
     pub fn capture(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
-        self.stack.heapify(index);   // move value to the heap
+        self.stack.heapify(index); // move value to the heap
         self.done()
     }
 
@@ -197,7 +203,7 @@ impl VM {
     #[inline]
     pub fn save_cap(&mut self) -> Result<(), Trace> {
         let index = self.next_number();
-        let data  = self.stack.pop_data();
+        let data = self.stack.pop_data();
         mem::drop(self.closure.captures[index].replace(data));
         self.done()
     }
@@ -208,11 +214,15 @@ impl VM {
         let index = self.next_number();
         let mut data = self.stack.local_data(index);
 
-        if let Data::Heaped(d) = data { data = d.borrow().to_owned() };
+        if let Data::Heaped(d) = data {
+            data = d.borrow().to_owned()
+        };
         if let Data::NotInit = data {
             return Err(Trace::error(
                 "Reference",
-                &format!("This local variable was referenced before assignment"),
+                &format!(
+                    "This local variable was referenced before assignment"
+                ),
                 vec![self.current_span()],
             ));
         };
@@ -230,7 +240,9 @@ impl VM {
         if let Data::NotInit = data {
             return Err(Trace::error(
                 "Reference",
-                &format!("This captured variable was referenced before assignment"),
+                &format!(
+                    "This captured variable was referenced before assignment"
+                ),
                 vec![self.current_span()],
             ));
         };
@@ -295,7 +307,10 @@ impl VM {
         if data != expected {
             return Err(Trace::error(
                 "Pattern Matching",
-                &format!("The data '{}' does not match the expected data '{}'", data, expected),
+                &format!(
+                    "The data '{}' does not match the expected data '{}'",
+                    data, expected
+                ),
                 vec![self.current_span()],
             ));
         }
@@ -311,11 +326,16 @@ impl VM {
 
         let d = match self.stack.pop_data() {
             Data::Label(n, d) if n == kind => d,
-            other => return Err(Trace::error(
-                "Pattern Matching",
-                &format!("The data '{}' does not match the Label '{}'", other, kind),
-                vec![self.current_span()],
-            )),
+            other => {
+                return Err(Trace::error(
+                    "Pattern Matching",
+                    &format!(
+                        "The data '{}' does not match the Label '{}'",
+                        other, kind
+                    ),
+                    vec![self.current_span()],
+                ))
+            },
         };
 
         self.stack.push_data(*d);
@@ -326,11 +346,13 @@ impl VM {
         let index = self.next_number();
         let t = match self.stack.pop_data() {
             Data::Tuple(t) => t,
-            other => return Err(Trace::error(
-                "Pattern Matching",
-                &format!("The data '{}' is not a tuple", other),
-                vec![self.current_span()],
-            )),
+            other => {
+                return Err(Trace::error(
+                    "Pattern Matching",
+                    &format!("The data '{}' is not a tuple", other),
+                    vec![self.current_span()],
+                ))
+            },
         };
 
         let length = t.len();
@@ -356,11 +378,16 @@ impl VM {
         // get the function and argument to run
         let fun = match self.stack.pop_data() {
             Data::Closure(c) => *c,
-            o => return Err(Trace::error(
-                "Call",
-                &format!("The data '{}' is not a function and can not be called", o),
-                vec![self.current_span()],
-            )),
+            o => {
+                return Err(Trace::error(
+                    "Call",
+                    &format!(
+                        "The data '{}' is not a function and can not be called",
+                        o
+                    ),
+                    vec![self.current_span()],
+                ))
+            },
         };
         let arg = self.stack.pop_data();
 
@@ -368,19 +395,20 @@ impl VM {
         // so bounds check (i.e. is_terminated) is never required
         self.next();
         let tail_call = !self.is_terminated()
-                     && Opcode::Return
-                     == Opcode::from_byte(self.peek_byte());
+            && Opcode::Return == Opcode::from_byte(self.peek_byte());
 
         // clear the stack if there's a tail call
         // we must do this before we suspend the calling context
         if tail_call {
             let locals = self.next_number();
-            for _ in 0..locals { self.del()?; }
+            for _ in 0..locals {
+                self.del()?;
+            }
         }
 
         // suspend the calling context
         let old_closure = mem::replace(&mut self.closure, fun);
-        let old_ip      = mem::replace(&mut self.ip,      0);
+        let old_ip = mem::replace(&mut self.ip, 0);
         let suspend = Suspend {
             ip: old_ip,
             closure: old_closure,
@@ -414,11 +442,13 @@ impl VM {
 
         // clear all locals
         let locals = self.next_number();
-        for _ in 0..locals { self.del()?; }
+        for _ in 0..locals {
+            self.del()?;
+        }
 
         // restore suspended callee
         let suspend = self.stack.pop_frame(); // remove the frame
-        self.ip      = suspend.ip;
+        self.ip = suspend.ip;
         self.closure = suspend.closure;
 
         // push return value
@@ -436,15 +466,17 @@ impl VM {
 
         let mut closure = Closure::wrap(lambda);
 
-        for captured in closure.lambda.captures.iter() /* .rev */ {
+        for captured in closure.lambda.captures.iter()
+        /* .rev */
+        {
             let reference = match captured {
-                Captured::Local(index) => {
-                    match self.stack.local_data(*index) {
-                        Data::Heaped(h) => h,
-                        _ => unreachable!("Expected data to be on the heap"),
-                    }
+                Captured::Local(index) => match self.stack.local_data(*index) {
+                    Data::Heaped(h) => h,
+                    _ => unreachable!("Expected data to be on the heap"),
                 },
-                Captured::Nonlocal(upvalue) => self.closure.captures[*upvalue].clone(),
+                Captured::Nonlocal(upvalue) => {
+                    self.closure.captures[*upvalue].clone()
+                },
             };
             closure.captures.push(reference)
         }
