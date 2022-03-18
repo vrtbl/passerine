@@ -20,16 +20,6 @@ impl Reader {
         reader.block()
     }
 
-    /// Skips over all separator tokens.
-    fn skip_sep(&mut self) {
-        while self.index < self.tokens.len() {
-            if self.tokens[self.index].item != Token::Sep {
-                return;
-            }
-            self.index += 1;
-        }
-    }
-
     /// Returns the next token, advancing the lexer by 1.
     fn next_token(&mut self) -> Option<Spanned<Token>> {
         if self.index < self.tokens.len() {
@@ -84,10 +74,7 @@ impl Reader {
         return Ok(tokens);
     }
 
-    fn line_form(&mut self) -> Result<TokenTree, Syntax> {
-        // clear out leading separators
-        self.skip_sep();
-
+    fn block(&mut self) -> Result<TokenTree, Syntax> {
         let mut lines = vec![];
         let mut line = vec![];
         let mut after_op = false;
@@ -125,12 +112,8 @@ impl Reader {
             line.push(combined);
         }
 
-        todo!()
-    }
-
-    fn block(&mut self) -> Result<TokenTree, Syntax> {
-        self.line_form();
-        todo!()
+        lines.push(line);
+        Ok(TokenTree::Block(lines))
     }
 
     fn enter_group(
@@ -180,6 +163,8 @@ impl Reader {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::common::source::Source;
+    use crate::compiler::lex::Lexer;
 
     use proptest::prelude::*;
 
@@ -189,4 +174,54 @@ mod test {
             dbg!(tokens);
         }
     }
+
+    #[test]
+    fn example_test() {
+        let source = Source::source("print (1 + 2)");
+        let tokens = Lexer::lex(source).unwrap();
+        dbg!(&tokens);
+        let token_tree = Reader::read(tokens).unwrap();
+        dbg!(token_tree);
+        todo!("Write some tests!")
+    }
+
+    // Hey, if you're here, you're here for some compiler hacking.
+    // So I just wrote this code, but I haven't really tested this.
+    // Your quest, should you choose to embark on it, is to write some tests,
+    // and fix the places this pass falls short.
+
+    // This pass takes a flat list of Tokens (found in src/contruct/token)
+    // and produces a TokenTree, essentially a list of tokens where groups of delimiters are nested.
+
+    // For example, the code:
+    // print (1 + 2)
+    // Produces the Tokens:
+    // Identifier print
+    // Open (
+    // Literal 1
+    // Operator +
+    // Literal 1
+    // Close )
+
+    // Note how the parenthesis aren't matched yet.
+    // This pass keeps track of parenthesis and other delimiters,
+    // and builds nested lists of tokens:
+
+    // For example, the code:
+    // print (1 + 2)
+    // Produces the TokenTree:
+    // Identifier print
+    // Form (
+    //     Literal 1
+    //     Operator +
+    //     Literal 1
+    // )
+
+    // Note how the parenthesis have been replaced with a single form
+    // containing another list of tokens.
+
+    // Look at example test, and see if you can find any input that "breaks the parser"
+    // You can also try writing a property based test to help find unit tests.
+
+    // Good luck! let me know if you have any questions.
 }
