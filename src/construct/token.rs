@@ -1,14 +1,6 @@
-use std::{
-    fmt::Display,
-    rc::Rc,
-};
+use std::fmt::Display;
 
-use crate::common::{
-    span::Spanned,
-    lit::Lit,
-};
-
-// TODO: remove associated data from tokens.
+use crate::common::{lit::Lit, span::Spanned};
 
 pub type Tokens = Vec<Spanned<Token>>;
 
@@ -18,23 +10,6 @@ pub type Tokens = Vec<Spanned<Token>>;
 /// `Token`s can be spanned using `Spanned<Token>`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
-    // Delimiters
-    // TODO: do not reference count!
-    Delim(Delim, Rc<Tokens>),
-
-    // Names
-    Label(String),
-    Iden(String),
-    Op(String),
-
-    // Values
-    Lit(Lit),
-
-    // Context
-    Sep,
-}
-
-pub enum Token2 {
     // Grouping
     Block(Vec<Tokens>),
     List(Tokens),
@@ -51,32 +26,12 @@ impl Display for Token {
         // pretty formatting for tokens
         // just use debug if you're not printing a message or something.
         let message = match self {
-            Token::Delim(delim, _) => format!("tokens grouped by {}", delim),
-            Token::Label(l)        => format!("label `{}`", l),
-            Token::Iden(i)         => format!("identifier `{}`", i),
-            Token::Op(o)           => format!("operator `{}`", o),
-            Token::Lit(l)          => format!("literal `{}`", l),
-            Token::Sep             => "separator".to_string(),
-        };
-
-        write!(f, "{}", message)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Delim {
-    // List of forms
-    Curly,
-    Paren,
-    Square,
-}
-
-impl Display for Delim {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let message = match self {
-            Delim::Paren  => "parenthesis",
-            Delim::Curly  => "curly bracket",
-            Delim::Square => "square bracket",
+            Token::Block(_) => format!("tokens grouped by curly brackets"),
+            Token::List(_) => format!("tokens grouped by square brackets"),
+            Token::Form(_) => format!("a group of tokens"),
+            Token::Iden(i) => format!("identifier `{}`", i),
+            Token::Op(o) => format!("operator `{}`", o),
+            Token::Lit(l) => format!("literal `{}`", l),
         };
 
         write!(f, "{}", message)
@@ -97,11 +52,13 @@ impl ResIden {
         use ResIden::*;
         Some(match name {
             "macro" => Macro,
-            "type"  => Type,
-            "if"    => If,
+            "type" => Type,
+            "if" => If,
             "match" => Match,
-            "mod"   => Mod,
-            _ => { return None; },
+            "mod" => Mod,
+            _ => {
+                return None;
+            },
         })
     }
 }
@@ -140,7 +97,9 @@ impl ResOp {
             "*" => Mul,
             "/" => Div,
             "%" => Rem,
-            _ => { return None; },
+            _ => {
+                return None;
+            },
         })
     }
 }

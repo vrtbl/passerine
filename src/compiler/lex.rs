@@ -1,27 +1,27 @@
 use std::{
-    iter::{once, Iterator},
-    str::{FromStr, Chars},
     f64,
+    iter::{once, Iterator},
     rc::Rc,
+    str::{Chars, FromStr},
 };
 
 use crate::common::{
+    lit::Lit,
     source::Source,
     span::{Span, Spanned},
-    lit::Lit,
 };
 
-use crate::construct::token::{Delim, Token, Tokens};
-use crate::compiler::syntax::{Syntax, Note};
+use crate::compiler::syntax::{Note, Syntax};
+use crate::construct::token::{Token, Tokens};
 
 const OP_CHARS: &str = "!#$%&*+,-./:<=>?@^|~";
 
 #[derive(Debug)]
 pub struct Lexer {
-    source:  Rc<Source>,
-    index:   usize,
+    source: Rc<Source>,
+    index: usize,
     nesting: Vec<usize>,
-    tokens:  Tokens,
+    tokens: Tokens,
 }
 
 impl Lexer {
@@ -56,9 +56,9 @@ impl Lexer {
                 Token::Delim(delim, _) => delim,
                 _ => unreachable!(),
             };
-            
+
             return Err(Syntax::error(
-                &format!("Unbalanced opening {}; Balance, Daniel-san", delim), 
+                &format!("Unbalanced opening {}; Balance, Daniel-san", delim),
                 &Span::new(&lexer.source, index, 1),
             ));
         }
@@ -96,21 +96,23 @@ impl Lexer {
 
             // TODO: doc comments and expression comments
             // Strip single line comment
-            if let Some('-') = remaining.next() {
-                if let Some('-') = remaining.next() {
-                    // the comment `--` length
-                    new_index += 2;
-                    // eat comment until the end of the line
-                    while let Some(c) = remaining.next() {
-                        if c == '\n' { break; }
-                        new_index += c.len_utf8();
+            if let Some('#') = remaining.next() {
+                // the comment `#` length
+                new_index += 1;
+                // eat comment until the end of the line
+                while let Some(c) = remaining.next() {
+                    if c == '\n' {
+                        break;
                     }
+                    new_index += c.len_utf8();
                 }
             }
 
             // If nothing was stripped, we're done
             self.index = new_index;
-            if old_index == new_index { break; }
+            if old_index == new_index {
+                break;
+            }
         }
     }
 
@@ -119,7 +121,7 @@ impl Lexer {
         (Token::Delim(delim, Rc::new(vec![])), 1)
     }
 
-    fn exit_group(&mut self, delim: Delim) -> Result<Spanned<Token>, Syntax> {        
+    fn exit_group(&mut self, delim: Delim) -> Result<Spanned<Token>, Syntax> {
         // get the location of the matching opening pair
         let loc = self.nesting.pop().ok_or(Syntax::error(
             &format!("Closing {} does not have an opening {}", delim, delim),
@@ -138,11 +140,14 @@ impl Lexer {
                     &format!(
                         "mismatched delimiters: opening {} and closing {}",
                         d, delim,
-                    ), 
+                    ),
                     &group.span,
-                ).add_note(Note::new(
-                    Span::new(&self.source, self.index, 1),
-                )));
+                )
+                .add_note(Note::new(Span::new(
+                    &self.source,
+                    self.index,
+                    1,
+                ))));
             }
         } else {
             unreachable!();
@@ -150,10 +155,8 @@ impl Lexer {
 
         // span over the whole group
         self.index += 1;
-        group.span = Span::combine(
-            &group.span,
-            &Span::point(&self.source, self.index)
-        );
+        group.span =
+            Span::combine(&group.span, &Span::point(&self.source, self.index));
 
         Ok(group)
     }
@@ -172,16 +175,21 @@ impl Lexer {
     ) -> (T, usize) {
         let mut len = 0;
         while let Some(n) = remaining.next() {
-            if !pred(n) { break; }
+            if !pred(n) {
+                break;
+            }
             len += n.len_utf8();
         }
         let inside = &self.grab_from_index(len);
         (wrap(inside), len)
     }
 
-    fn string(&self, remaining: impl Iterator<Item = char>) -> Result<(Token, usize), Syntax> {
+    fn string(
+        &self,
+        remaining: impl Iterator<Item = char>,
+    ) -> Result<(Token, usize), Syntax> {
         // expects opening quote to have been parsed
-        let mut len    = 1;
+        let mut len = 1;
         let mut escape = false;
         let mut string = String::new();
 
@@ -215,7 +223,7 @@ impl Lexer {
                 match c {
                     '\\' => escape = true,
                     '\"' => return Ok((Token::Lit(Lit::String(string)), len)),
-                    c    => string.push(c),
+                    c => string.push(c),
                 }
             }
         }
@@ -235,23 +243,28 @@ impl Lexer {
         // dbg!(remaining.next());
         // panic!();
         // dbg!(remaining.peekable().peek());
-        let len = 2 + self.take_while(
-            remaining,
-            |_| (),
-            |n| {
-                dbg!(n);
-                n.is_digit(radix)
-            },
-        ).1;
+        let len = 2 + self
+            .take_while(
+                remaining,
+                |_| (),
+                |n| {
+                    dbg!(n);
+                    n.is_digit(radix)
+                },
+            )
+            .1;
 
-        let integer = i64::from_str_radix(&self.grab_from_index(len)[2..], radix)
-            .map_err(|_| Syntax::error(
+        let integer =
+            i64::from_str_radix(&self.grab_from_index(len)[2..], radix)
+                .map_err(|_| {
+                    Syntax::error(
                 "Integer literal too large to fit in a signed 64-bit integer",
                 // hate the + 2 hack
                 // + 2 chars to take the `0?` into account
                 &Span::new(&self.source, self.index, len),
-            ));
-        
+            )
+                });
+
         Ok((Token::Lit(Lit::Integer(integer?)), len))
     }
 
@@ -281,20 +294,12 @@ impl Lexer {
         &self,
         remaining: &mut impl Iterator<Item = char>,
     ) -> Result<(Token, usize), Syntax> {
-        let mut len = self.take_while(
-            remaining,
-            |_| (),
-            |n| n.is_digit(10),
-        ).1;
+        let mut len = self.take_while(remaining, |_| (), |n| n.is_digit(10)).1;
 
         match remaining.next() {
             // There's a decimal point, so we parse as a float
             Some('.') => {
-                len += self.take_while(
-                    remaining,
-                    |_| (),
-                    |n| n.is_digit(10),
-                ).1;
+                len += self.take_while(remaining, |_| (), |n| n.is_digit(10)).1;
                 let float = f64::from_str(&self.grab_from_index(len))
                     .map_err(|_| Syntax::error(
                         "Float literal does not fit in a 64-bit floating-point number",
@@ -303,12 +308,10 @@ impl Lexer {
                 Ok((Token::Lit(Lit::Float(float)), len))
             },
             // There's an 'E', so we parse using scientific notation
-            Some('E') => {
-                Err(Syntax::error(
-                    "Scientific notation for floating-point is WIP!",
-                    &Span::point(&self.source, self.index),
-                ))
-            },
+            Some('E') => Err(Syntax::error(
+                "Scientific notation for floating-point is WIP!",
+                &Span::point(&self.source, self.index),
+            )),
             // Nothing of use, wrap up what we have so far
             _ => {
                 let integer = i64::from_str(&self.grab_from_index(len))
@@ -317,7 +320,7 @@ impl Lexer {
                         &Span::new(&self.source, self.index, len),
                     ))?;
                 Ok((Token::Lit(Lit::Integer(integer)), len))
-            }
+            },
         }
     }
 
@@ -415,10 +418,8 @@ impl Lexer {
             )),
         };
 
-        let spanned = Spanned::new(
-            token,
-            Span::new(&self.source, self.index, len)
-        );
+        let spanned =
+            Spanned::new(token, Span::new(&self.source, self.index, len));
 
         self.index += len;
         Ok(spanned)

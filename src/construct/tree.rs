@@ -1,34 +1,10 @@
 use std::convert::TryFrom;
 
-use crate::common::{
-    lit::Lit,
-    span::Spanned,
-};
-
+use crate::common::{lit::Lit, span::Spanned};
 use crate::construct::{
-    symbol::{SharedSymbol, UniqueSymbol},
     scope::Scope,
+    symbol::{SharedSymbol, UniqueSymbol},
 };
-
-// symbol      - ast, cst, sst
-// data        - ast, cst, sst
-// block       - ast, cst, sst
-// label       - ast, cst, sst
-// tuple       - ast, cst, sst
-// assign      - ast, cst, sst
-// ffi         - ast, cst, sst
-// lambda      - ast, cst
-// form        - ast
-// group       - ast
-// pattern     - ast
-// argpattern  - ast
-// record      - ast
-// is          - ast
-// comp - ast
-// syntax      - ast
-// type        - ast
-// call        -      cst, sst
-// scoped_lmd  -           sst
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern<S> {
@@ -75,10 +51,10 @@ pub enum Sugar<T, S> {
     Form(Vec<T>),
     Pattern(Pattern<S>),
     // Record,
-    Is(Box<T>, Box<T>), // expr, type
+    Is(Box<T>, Box<T>),   // expr, type
     Comp(Box<T>, Box<T>), // arg, function
     Field(Box<T>, Box<T>), // struct, field
-    // TODO: math operators
+                          // TODO: math operators
 }
 
 impl<T, S> Sugar<T, S> {
@@ -101,13 +77,16 @@ impl<T, S> Sugar<T, S> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Lambda<T> {
-    arg:  Spanned<Pattern<SharedSymbol>>,
+    arg: Spanned<Pattern<SharedSymbol>>,
     body: Box<T>,
 }
 
 impl<T> Lambda<T> {
     pub fn new(arg: Spanned<Pattern<SharedSymbol>>, tree: T) -> Self {
-        Lambda { arg, body: Box::new(tree) }
+        Lambda {
+            arg,
+            body: Box::new(tree),
+        }
     }
 }
 
@@ -128,35 +107,33 @@ impl TryFrom<AST> for Pattern<SharedSymbol> {
     /// It performs this conversion.
     fn try_from(ast: AST) -> Result<Self, Self::Error> {
         // if true { todo!("SharedSymbol lookup"); }
-        Ok(
-            match ast {
-                AST::Base(Base::Symbol(s)) => Pattern::Symbol(s),
-                AST::Base(Base::Lit(d)) => Pattern::Lit(d),
-                AST::Base(Base::Label(k)) => Err(format!(
-                    "This Label used in a pattern does not unwrap any data.\n\
+        Ok(match ast {
+            AST::Base(Base::Symbol(s)) => Pattern::Symbol(s),
+            AST::Base(Base::Lit(d)) => Pattern::Lit(d),
+            AST::Base(Base::Label(k)) => Err(format!(
+                "This Label used in a pattern does not unwrap any data.\n\
                     To match a Label and ignore its contents, use `{:?} _`",
-                    k,
-                ))?,
-                AST::Base(Base::Tuple(t)) => {
-                    let mut patterns = vec![];
-                    for item in t {
-                        patterns.push(item.map(Pattern::try_from)?);
-                    }
-                    Pattern::Tuple(patterns)
+                k,
+            ))?,
+            AST::Base(Base::Tuple(t)) => {
+                let mut patterns = vec![];
+                for item in t {
+                    patterns.push(item.map(Pattern::try_from)?);
                 }
+                Pattern::Tuple(patterns)
+            },
 
-                AST::Sugar(Sugar::Pattern(p)) => p,
-                AST::Sugar(Sugar::Form(f)) => {
-                    let mut patterns = vec![];
-                    for item in f {
-                        patterns.push(item.map(Pattern::try_from)?);
-                    }
-                    Pattern::Chain(patterns)
-                },
-                AST::Sugar(Sugar::Group(e)) => e.map(Pattern::try_from)?.item,
-                _ => Err("Unexpected construct inside pattern")?,
-            }
-        )
+            AST::Sugar(Sugar::Pattern(p)) => p,
+            AST::Sugar(Sugar::Form(f)) => {
+                let mut patterns = vec![];
+                for item in f {
+                    patterns.push(item.map(Pattern::try_from)?);
+                }
+                Pattern::Chain(patterns)
+            },
+            AST::Sugar(Sugar::Group(e)) => e.map(Pattern::try_from)?.item,
+            _ => Err("Unexpected construct inside pattern")?,
+        })
     }
 }
 
@@ -168,19 +145,27 @@ pub enum CST {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScopedLambda<T> {
-    arg:   Spanned<Pattern<UniqueSymbol>>,
-    body:  Box<T>,
+    arg: Spanned<Pattern<UniqueSymbol>>,
+    body: Box<T>,
     scope: Scope,
 }
 
 impl<T> ScopedLambda<T> {
-    pub fn new(arg: Spanned<Pattern<UniqueSymbol>>, tree: T, scope: Scope) -> Self {
-        ScopedLambda { arg, body: Box::new(tree), scope }
+    pub fn new(
+        arg: Spanned<Pattern<UniqueSymbol>>,
+        tree: T,
+        scope: Scope,
+    ) -> Self {
+        ScopedLambda {
+            arg,
+            body: Box::new(tree),
+            scope,
+        }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SST {
     Base(Base<Spanned<SST>, UniqueSymbol>),
-    ScopedLambda(ScopedLambda<Spanned<SST>>)
+    ScopedLambda(ScopedLambda<Spanned<SST>>),
 }
