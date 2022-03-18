@@ -386,6 +386,12 @@ mod test {
         }
 
         #[test]
+        fn operators(s in "[!#$%&*+,-./:<=>?@^|~]+") {
+            let result = Lexer::lex(Source::source(&s));
+            format!("{:?}", result);
+        }
+
+        #[test]
         fn small_positive_floats(x in 0.0..1000000.0) {
             let formatted = format!("{:?}", x);
             dbg!(&formatted);
@@ -413,6 +419,24 @@ mod test {
     fn zero_float() {
         let result = Lexer::lex(Source::source("0.0"));
         assert_eq!(result.unwrap()[0].item, Token::Lit(Lit::Float(0.0)));
+    }
+
+    #[test]
+    fn brackets() {
+        let result = Lexer::lex(Source::source("{[(])}()")).unwrap();
+        assert_eq!(result[0].item, Token::Open(Delim::Curly));
+        assert_eq!(result[1].item, Token::Open(Delim::Square));
+        assert_eq!(result[2].item, Token::Open(Delim::Paren));
+        assert_eq!(result[3].item, Token::Close(Delim::Square));
+        assert_eq!(result[4].item, Token::Close(Delim::Paren));
+        assert_eq!(result[5].item, Token::Close(Delim::Curly));
+        assert_eq!(result[6].item, Token::Lit(Lit::Unit));
+    }
+
+    #[test]
+    fn unclosed_string() {
+        let result = Lexer::lex(Source::source("\"asdf\"\"qwerty"));
+        assert!(result.is_err());
     }
 
     #[test]
