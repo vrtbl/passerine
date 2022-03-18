@@ -9,7 +9,7 @@ pub enum ArbInt {
 }
 
 /// Built-in Passerine datatypes.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, proptest_derive::Arbitrary)]
 pub enum Lit {
     // TODO: switch to this:
     // Number Literals
@@ -26,6 +26,7 @@ pub enum Lit {
 
     /// A Label is similar to a type, and wraps some data.
     /// in the future labels will have associated namespaces.
+    #[proptest(skip)]
     Label(usize, Box<Lit>),
 
     // Compound Datatypes

@@ -2,17 +2,32 @@ use std::fmt::Display;
 
 use crate::common::{lit::Lit, span::Spanned};
 
+#[derive(Debug, Clone, PartialEq, proptest_derive::Arbitrary)]
+pub enum Delim {
+    Paren,
+    Curly,
+    Square,
+}
+
+impl Display for Delim {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            Delim::Paren => "parenthesis",
+            Delim::Curly => "curly brackets",
+            Delim::Square => "square brackets",
+        };
+
+        write!(f, "{}", name)
+    }
+}
+
 pub type Tokens = Vec<Spanned<Token>>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, proptest_derive::Arbitrary)]
 pub enum Token {
     // Grouping
-    ParenOpen,
-    ParenClose,
-    CurlyOpen,
-    CurlyClose,
-    SquareOpen,
-    SquareClose,
+    Open(Delim),
+    Close(Delim),
     Sep,
 
     // Leafs
@@ -31,9 +46,9 @@ pub type TokenTrees = Vec<Spanned<TokenTree>>;
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenTree {
     // Grouping
-    Block(Vec<Tokens>),
-    List(Tokens),
-    Form(Tokens),
+    Block(Vec<TokenTrees>),
+    List(TokenTrees),
+    Form(TokenTrees),
 
     // Leafs
     Iden(String),

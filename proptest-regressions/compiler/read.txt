@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc f28bab0f46258de0811cec0d85c7e372cbeafd5b62c5a19e5fa136f8e4849887 # shrinks to tokens = ParenOpen

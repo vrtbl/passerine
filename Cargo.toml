@@ -11,9 +11,8 @@ license = "MIT"
 readme = "README.md"
 repository = "https://github.com/vrtbl/passerine"
 
-# Passerine doesn't have any dependencies
-[dependencies]
-
 # We only have development dependencies for testing and profiling
-[dev-dependencies]
+[dependencies]
+# I would put this under dev-dependencies if I could.
+proptest-derive = "0.3.0"
 proptest = "1.0.0"

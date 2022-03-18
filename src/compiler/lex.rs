@@ -5,10 +5,13 @@ use std::{
     str::{Chars, FromStr},
 };
 
-use crate::common::{
-    lit::Lit,
-    source::Source,
-    span::{Span, Spanned},
+use crate::{
+    common::{
+        lit::Lit,
+        source::Source,
+        span::{Span, Spanned},
+    },
+    construct::token::Delim,
 };
 
 use crate::compiler::syntax::{Note, Syntax};
@@ -277,12 +280,12 @@ impl Lexer {
             },
 
             // Grouping
-            '(' => (Token::ParenOpen, 1),
-            '{' => (Token::CurlyOpen, 1),
-            '[' => (Token::SquareOpen, 1),
-            ')' => (Token::ParenClose, 1),
-            '}' => (Token::CurlyClose, 1),
-            ']' => (Token::SquareClose, 1),
+            '(' => (Token::Open(Delim::Paren), 1),
+            '{' => (Token::Open(Delim::Curly), 1),
+            '[' => (Token::Open(Delim::Square), 1),
+            ')' => (Token::Close(Delim::Paren), 1),
+            '}' => (Token::Close(Delim::Curly), 1),
+            ']' => (Token::Close(Delim::Square), 1),
 
             // Label
             c if c.is_alphabetic() && c.is_uppercase() => {
