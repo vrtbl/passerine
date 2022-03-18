@@ -10,3 +10,10 @@ description = "A small extensible functional scripting language designed for con
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/vrtbl/passerine"
+
+# Passerine doesn't have any dependencies
+[dependencies]
+
+# We only have development dependencies for testing and profiling
+[dev-dependencies]
+proptest = "1.0.0"

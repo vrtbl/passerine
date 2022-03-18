@@ -1,4 +1,4 @@
-use passerine::compiler::{lex, parse};
+use passerine::compiler::lex;
 use passerine::Source; // , compile, run};
 
 pub fn main() {

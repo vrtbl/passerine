@@ -20,23 +20,11 @@ const OP_CHARS: &str = "!#$%&*+,-./:<=>?@^|~";
 pub struct Lexer {
     source: Rc<Source>,
     index: usize,
+    nesting: Vec<usize>,
     tokens: Tokens,
 }
 
 impl Lexer {
-    pub fn consume_while(
-        &mut self,
-        pred: impl Fn(&Self) -> bool,
-    ) -> Result<(), Syntax> {
-        while self.index < self.source.contents.len() && pred(self) {
-            let token = self.next_token()?;
-            self.tokens.push(token);
-            self.strip();
-        }
-
-        Ok(())
-    }
-
     // TODO: lexer needs to return all macro declarations
     /// Lexes a source file into a stream of tokens.
     pub fn lex(source: Rc<Source>) -> Result<Tokens, Syntax> {
@@ -44,15 +32,36 @@ impl Lexer {
         let mut lexer = Lexer {
             source,
             index: 0,
+            nesting: vec![],
             tokens: vec![],
         };
 
         // prime the lexer
-        // consume all!
         lexer.strip();
-        lexer.consume_while(|_| true);
 
-        todo!("check tokens are balanced!");
+        // consume!
+        while lexer.index < lexer.source.contents.len() {
+            // Insert the next token
+            let token = lexer.next_token()?;
+            lexer.tokens.push(token);
+
+            // Strip whitespace, but not newlines, and comments
+            lexer.strip();
+        }
+
+        // make sure everything is balanced:
+        if !lexer.nesting.is_empty() {
+            let index = lexer.nesting.pop().unwrap();
+            let delim = match &lexer.tokens[index].item {
+                Token::Delim(delim, _) => delim,
+                _ => unreachable!(),
+            };
+
+            return Err(Syntax::error(
+                &format!("Unbalanced opening {}; Balance, Daniel-san", delim),
+                &Span::new(&lexer.source, index, 1),
+            ));
+        }
 
         // phew, nothing broke. Your tokens, sir!
         Ok(lexer.tokens)
@@ -85,6 +94,7 @@ impl Lexer {
                 remaining.next();
             }
 
+            // TODO: doc comments and expression comments
             // Strip single line comment
             if let Some('#') = remaining.next() {
                 // the comment `#` length
@@ -106,14 +116,9 @@ impl Lexer {
         }
     }
 
-    /// Enter a group surrounded by parenthesis
-    fn enter_group(&mut self) -> (Token, usize) {
-        let old_tokens = std::mem::replace(&mut self.tokens, vec![]);
-        self.consume_while(|lexer| lexer.remaining().next().unwrap() == ')');
-        let new_tokens = std::mem::replace(&mut self.tokens, old_tokens);
-        Token::Form(new_tokens);
-
-        todo!()
+    fn enter_group(&mut self, delim: Delim) -> (Token, usize) {
+        self.nesting.push(self.tokens.len());
+        (Token::Delim(delim, Rc::new(vec![])), 1)
     }
 
     fn exit_group(&mut self, delim: Delim) -> Result<Spanned<Token>, Syntax> {
@@ -338,10 +343,12 @@ impl Lexer {
             },
 
             // Grouping
-            '(' => self.enter_block(),
-            '{' => self.enter_list(),
-            '[' => self.enter_group(),
-            ')' | '|' | ']' => todo!(),
+            '(' => self.enter_group(Delim::Paren),
+            '{' => self.enter_group(Delim::Curly),
+            '[' => self.enter_group(Delim::Square),
+            ')' => return self.exit_group(Delim::Paren),
+            '}' => return self.exit_group(Delim::Curly),
+            ']' => return self.exit_group(Delim::Square),
 
             // Label
             c if c.is_alphabetic() && c.is_uppercase() => {

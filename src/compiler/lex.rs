@@ -1,6 +1,6 @@
 use std::{
     f64,
-    iter::{once, Iterator},
+    iter::{once, Iterator, Peekable},
     rc::Rc,
     str::{Chars, FromStr},
 };
@@ -16,11 +16,14 @@ use crate::construct::token::{Token, Tokens};
 
 const OP_CHARS: &str = "!#$%&*+,-./:<=>?@^|~";
 
+macro_rules! RemainingIter {
+    () => { Peekable<impl Iterator<Item = char>> };
+}
+
 #[derive(Debug)]
 pub struct Lexer {
     source: Rc<Source>,
     index: usize,
-    nesting: Vec<usize>,
     tokens: Tokens,
 }
 
@@ -32,37 +35,18 @@ impl Lexer {
         let mut lexer = Lexer {
             source,
             index: 0,
-            nesting: vec![],
             tokens: vec![],
         };
 
         // prime the lexer
         lexer.strip();
 
-        // consume!
+        // consume all!
         while lexer.index < lexer.source.contents.len() {
-            // Insert the next token
             let token = lexer.next_token()?;
             lexer.tokens.push(token);
-
-            // Strip whitespace, but not newlines, and comments
             lexer.strip();
         }
-
-        // make sure everything is balanced:
-        if !lexer.nesting.is_empty() {
-            let index = lexer.nesting.pop().unwrap();
-            let delim = match &lexer.tokens[index].item {
-                Token::Delim(delim, _) => delim,
-                _ => unreachable!(),
-            };
-
-            return Err(Syntax::error(
-                &format!("Unbalanced opening {}; Balance, Daniel-san", delim),
-                &Span::new(&lexer.source, index, 1),
-            ));
-        }
-
         // phew, nothing broke. Your tokens, sir!
         Ok(lexer.tokens)
     }
@@ -94,7 +78,6 @@ impl Lexer {
                 remaining.next();
             }
 
-            // TODO: doc comments and expression comments
             // Strip single line comment
             if let Some('#') = remaining.next() {
                 // the comment `#` length
@@ -116,51 +99,6 @@ impl Lexer {
         }
     }
 
-    fn enter_group(&mut self, delim: Delim) -> (Token, usize) {
-        self.nesting.push(self.tokens.len());
-        (Token::Delim(delim, Rc::new(vec![])), 1)
-    }
-
-    fn exit_group(&mut self, delim: Delim) -> Result<Spanned<Token>, Syntax> {
-        // get the location of the matching opening pair
-        let loc = self.nesting.pop().ok_or(Syntax::error(
-            &format!("Closing {} does not have an opening {}", delim, delim),
-            &Span::point(&self.source, self.index),
-        ))?;
-
-        // split off new tokens, leaving the opening token as the last one
-        let after = self.tokens.split_off(loc + 1);
-        // grap the opening token, and convert it into a group
-        let mut group = self.tokens.pop().unwrap();
-        if let Token::Delim(ref d, ref mut tokens) = group.item {
-            if delim == *d {
-                *tokens = Rc::new(after);
-            } else {
-                return Err(Syntax::error(
-                    &format!(
-                        "mismatched delimiters: opening {} and closing {}",
-                        d, delim,
-                    ),
-                    &group.span,
-                )
-                .add_note(Note::new(Span::new(
-                    &self.source,
-                    self.index,
-                    1,
-                ))));
-            }
-        } else {
-            unreachable!();
-        }
-
-        // span over the whole group
-        self.index += 1;
-        group.span =
-            Span::combine(&group.span, &Span::point(&self.source, self.index));
-
-        Ok(group)
-    }
-
     /// Starting at the parser's current index.
     /// consumes characters one at a time according to a `pred`icate.
     /// after the predicate returns false, the string is passed to a `wrap` function,
@@ -169,16 +107,17 @@ impl Lexer {
     /// (The number of bytes consumed can be used to advance `self.index`.)
     fn take_while<T>(
         &self,
-        remaining: &mut impl Iterator<Item = char>,
+        remaining: &mut RemainingIter!(),
         wrap: impl Fn(&str) -> T,
         pred: impl Fn(char) -> bool,
     ) -> (T, usize) {
         let mut len = 0;
-        while let Some(n) = remaining.next() {
-            if !pred(n) {
+        while let Some(n) = remaining.peek() {
+            if !pred(*n) {
                 break;
             }
             len += n.len_utf8();
+            remaining.next();
         }
         let inside = &self.grab_from_index(len);
         (wrap(inside), len)
@@ -186,7 +125,7 @@ impl Lexer {
 
     fn string(
         &self,
-        remaining: impl Iterator<Item = char>,
+        remaining: RemainingIter!(),
     ) -> Result<(Token, usize), Syntax> {
         // expects opening quote to have been parsed
         let mut len = 1;
@@ -213,7 +152,7 @@ impl Lexer {
                             &format!("Unknown escape code `\\{}` in string literal", o),
                             Note::new_with_hint(
                                 &format!("To include a single backslash `\\`, escape it first: `\\\\`"),
-                                &Span::new(&self.source, self.index + len - bytes, 1 + bytes),
+                                &Span::new(&self.source, self.index + len - bytes, bytes),
                             ),
                         )
                         // TODO: add help note about backslash escape
@@ -238,20 +177,10 @@ impl Lexer {
     fn integer_literal(
         &self,
         radix: u32,
-        remaining: &mut impl Iterator<Item = char>,
+        mut remaining: RemainingIter!(),
     ) -> Result<(Token, usize), Syntax> {
-        // dbg!(remaining.next());
-        // panic!();
-        // dbg!(remaining.peekable().peek());
         let len = 2 + self
-            .take_while(
-                remaining,
-                |_| (),
-                |n| {
-                    dbg!(n);
-                    n.is_digit(radix)
-                },
-            )
+            .take_while(&mut remaining, |_| (), |n| n.is_digit(radix))
             .1;
 
         let integer =
@@ -272,7 +201,7 @@ impl Lexer {
         &self,
         n: char,
         // remaining does not lead with `n`
-        remaining: &mut impl Iterator<Item = char>,
+        remaining: RemainingIter!(),
     ) -> Result<(Token, usize), Syntax> {
         // TODO: figure out something more elegant than this += 2 -= 2 ordeal
         match n {
@@ -285,21 +214,26 @@ impl Lexer {
             _ => {
                 // rebuild the iterator, ugh
                 let mut remaining = once('0').chain(once(n)).chain(remaining);
-                self.decimal_literal(&mut remaining)
+                self.decimal_literal(remaining.peekable())
             },
         }
     }
 
     fn decimal_literal(
         &self,
-        remaining: &mut impl Iterator<Item = char>,
+        mut remaining: RemainingIter!(),
     ) -> Result<(Token, usize), Syntax> {
-        let mut len = self.take_while(remaining, |_| (), |n| n.is_digit(10)).1;
+        let mut len = self
+            .take_while(&mut remaining, |_| (), |n| n.is_digit(10))
+            .1;
 
         match remaining.next() {
             // There's a decimal point, so we parse as a float
             Some('.') => {
-                len += self.take_while(remaining, |_| (), |n| n.is_digit(10)).1;
+                len += 1; // for the '.'
+                len += self
+                    .take_while(&mut remaining, |_| (), |n| n.is_digit(10))
+                    .1;
                 let float = f64::from_str(&self.grab_from_index(len))
                     .map_err(|_| Syntax::error(
                         "Float literal does not fit in a 64-bit floating-point number",
@@ -307,8 +241,8 @@ impl Lexer {
                     ))?;
                 Ok((Token::Lit(Lit::Float(float)), len))
             },
-            // There's an 'E', so we parse using scientific notation
-            Some('E') => Err(Syntax::error(
+            // There's an 'e', so we parse using scientific notation
+            Some('e') => Err(Syntax::error(
                 "Scientific notation for floating-point is WIP!",
                 &Span::point(&self.source, self.index),
             )),
@@ -332,7 +266,7 @@ impl Lexer {
         let (token, len) = match remaining.next().unwrap() {
             // separator
             c @ ('\n' | ';') => self.take_while(
-                &mut once(c).chain(remaining),
+                &mut once(c).chain(remaining).peekable(),
                 |_| Token::Sep,
                 |n| n.is_whitespace() || n == ';'
             ),
@@ -343,17 +277,17 @@ impl Lexer {
             },
 
             // Grouping
-            '(' => self.enter_group(Delim::Paren),
-            '{' => self.enter_group(Delim::Curly),
-            '[' => self.enter_group(Delim::Square),
-            ')' => return self.exit_group(Delim::Paren),
-            '}' => return self.exit_group(Delim::Curly),
-            ']' => return self.exit_group(Delim::Square),
+            '(' => (Token::ParenOpen, 1),
+            '{' => (Token::CurlyOpen, 1),
+            '[' => (Token::SquareOpen, 1),
+            ')' => (Token::ParenClose, 1),
+            '}' => (Token::CurlyClose, 1),
+            ']' => (Token::SquareClose, 1),
 
             // Label
             c if c.is_alphabetic() && c.is_uppercase() => {
                 self.take_while(
-                    &mut once(c).chain(remaining),
+                    &mut once(c).chain(remaining).peekable(),
                     |s| match s {
                         // TODO: In the future, booleans in prelude as ADTs
                         "True" => Token::Lit(Lit::Boolean(true)),
@@ -367,7 +301,7 @@ impl Lexer {
             // Iden
             c if c.is_alphabetic() || c == '_' => {
                 self.take_while(
-                    &mut once(c).chain(remaining),
+                    &mut once(c).chain(remaining).peekable(),
                     |s| Token::Iden(s.to_string()),
                     |n| n.is_alphanumeric() || n == '_'
                 )
@@ -381,7 +315,7 @@ impl Lexer {
                 if c == '0' {
                     if let Some(n) = remaining.next() {
                         // Potentially integers in other radixes
-                        self.radix_literal(n, &mut remaining)?
+                        self.radix_literal(n, remaining)?
                     } else {
                         // End of source, must be just `0`
                         (Token::Lit(Lit::Integer(0)), 1)
@@ -390,7 +324,7 @@ impl Lexer {
                     // parse decimal literal
                     // this could be an integer
                     // but also a floating point number
-                    self.decimal_literal(&mut once(c).chain(remaining))?
+                    self.decimal_literal(once(c).chain(remaining).peekable())?
                 }
             }
 
@@ -402,7 +336,7 @@ impl Lexer {
             // Op
             c if OP_CHARS.contains(c) => {
                 self.take_while(
-                    &mut once(c).chain(remaining),
+                    &mut once(c).chain(remaining).peekable(),
                     |s| Token::Op(s.to_string()),
                     |n| OP_CHARS.contains(n),
                 )
@@ -411,7 +345,7 @@ impl Lexer {
             // Unrecognized char
             unknown => return Err(Syntax::error(
                 &format!(
-                    "Hmm... The character `{}` is not recognized - check for encoding issues or typos",
+                    "Hmm... The character `{}` is not recognized in this context - check for encoding issues or typos",
                     unknown,
                 ),
                 &Span::point(&self.source, self.index),
@@ -428,64 +362,65 @@ impl Lexer {
 
 #[cfg(test)]
 mod test {
+    use proptest::prelude::*;
+
     use super::*;
     use crate::common::lit::Lit;
 
     // NOTE: lexing individual tokens is tested in pipeline::token
 
+    proptest! {
+        #[test]
+        fn doesnt_crash(s in "\\PC*") {
+            let result = Lexer::lex(Source::source(&s));
+            format!("{:?}", result);
+        }
+
+        #[test]
+        fn integers(s in "-?[0-9]+") {
+            let result = Lexer::lex(Source::source(&s));
+            format!("{:?}", result);
+        }
+
+        #[test]
+        fn small_positive_floats(x in 0.0..1000000.0) {
+            let formatted = format!("{:?}", x);
+            dbg!(&formatted);
+            let result = Lexer::lex(Source::source(&formatted));
+            dbg!(&result);
+            assert!(result.is_ok());
+            let unwrapped = result.unwrap();
+            assert!(unwrapped.len() == 1);
+            assert_eq!(unwrapped[0].item, Token::Lit(Lit::Float(x)));
+        }
+    }
+
+    #[test]
+    fn decimal_float() {
+        let x = 38328388.30363078;
+        let formatted = format!("{:?}", x);
+        let result = Lexer::lex(Source::source(&formatted));
+        assert!(result.is_ok());
+        let unwrapped = result.unwrap();
+        assert!(unwrapped.len() == 1);
+        assert_eq!(unwrapped[0].item, Token::Lit(Lit::Float(x)));
+    }
+
+    #[test]
+    fn zero_float() {
+        let result = Lexer::lex(Source::source("0.0"));
+        assert_eq!(result.unwrap()[0].item, Token::Lit(Lit::Float(0.0)));
+    }
+
+    #[test]
+    fn escape_code() {
+        let s = "\"\\᪠\u{16f4f}";
+        let result = Lexer::lex(Source::source(&s));
+        format!("{:?}", result);
+    }
+
     #[test]
     fn new_empty() {
         Lexer::lex(Source::source("")).unwrap();
-    }
-
-    #[test]
-    fn valid() {
-        let cases = &[
-            "",
-            ";\n;;",
-            "420",
-            "-27.5",
-            "Hello 2",
-            "4 + 5",
-            "4 @#$#@ 5",
-            "Label Label",
-            "{ Hello }",
-            "()",
-            "{}{}",
-            "[{}(;)]",
-            "x = x -> x + 1",
-            "fac = function { 0 -> 1, n -> n * fac (n - 1) }",
-            "0xFFF",
-        ];
-
-        for case in cases.iter() {
-            match Lexer::lex(Source::source(case)) {
-                Ok(_) => (),
-                Err(e) => {
-                    eprintln!("{}", e);
-                    panic!();
-                },
-            }
-        }
-    }
-
-    #[test]
-    fn invalid() {
-        let cases = &[
-            "(",
-            "{)",
-            // TODO: work on error message for:
-            "x = {\n    y\n)",
-        ];
-
-        for case in cases.iter() {
-            match Lexer::lex(Source::source(case)) {
-                Ok(o) => {
-                    eprintln!("{:?}", o);
-                    panic!();
-                },
-                Err(_) => (),
-            }
-        }
     }
 }
