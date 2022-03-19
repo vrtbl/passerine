@@ -294,7 +294,6 @@ mod test {
         dbg!(&tokens);
         let token_tree = Reader::read(tokens).unwrap();
         dbg!(token_tree);
-        panic!()
     }
 
     // honestly, I'm not sure how this should be parsed, but I'm adding it anyway
@@ -305,6 +304,5 @@ mod test {
         dbg!(&tokens);
         let token_tree = Reader::read(tokens).unwrap();
         dbg!(token_tree);
-        panic!()
     }
 }
