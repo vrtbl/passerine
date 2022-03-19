@@ -142,7 +142,7 @@ impl Reader {
             )
         })?;
 
-        if opening_delim.item == opening_delim.item {
+        if opening_delim.item == closing_delim.item {
             return Ok(());
         }
 
@@ -182,8 +182,8 @@ mod test {
         dbg!(&tokens);
         let token_tree = Reader::read(tokens).unwrap();
         dbg!(token_tree);
-        todo!("Write some tests!")
     }
+
 
     // Hey, if you're here, you're here for some compiler hacking.
     // So I just wrote this code, but I haven't really tested this.
@@ -224,4 +224,32 @@ mod test {
     // You can also try writing a property based test to help find unit tests.
 
     // Good luck! let me know if you have any questions.
+
+    #[test]
+    fn list() {
+        let source = Source::source("[a, b, c]");
+        let tokens = Lexer::lex(source).unwrap();
+        dbg!(&tokens);
+        let token_tree = Reader::read(tokens).unwrap();
+        dbg!(token_tree);
+    }
+
+    // Should return a syntax error - mismatched delimiters
+    #[test]
+    fn unbalanced_delims() {
+        let source = Source::source("([)]");
+        let tokens = Lexer::lex(source).unwrap();
+        dbg!(&tokens);
+        let token_tree = Reader::read(tokens);
+        assert!(token_tree.is_err());
+    }
+
+    #[test]
+    fn balanced_delims() {
+        let source = Source::source("[(),[],{()[]}]{([][]){}}");
+        let tokens = Lexer::lex(source).unwrap();
+        dbg!(&tokens);
+        let token_tree = Reader::read(tokens);
+        assert!(token_tree.is_ok());
+    }
 }
