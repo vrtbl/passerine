@@ -249,10 +249,8 @@ mod test {
             let token_tree = Reader::read(tokens);
 
             if balanced {
-                println!("balanced");
                 assert!(token_tree.is_ok())
             } else {
-                println!("unbalanced");
                 assert!(token_tree.is_err())
             }
         }
@@ -281,6 +279,13 @@ mod test {
                 assert_eq!(block.len(), 1);
             }
         }
+    }
+
+    #[test]
+    fn double_open() {
+        let tokens = Lexer::lex(Source::source("{{")).unwrap();
+        let token_tree = Reader::read(tokens);
+        assert!(token_tree.is_err());
     }
 
     #[test]
