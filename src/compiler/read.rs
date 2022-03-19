@@ -17,7 +17,20 @@ impl Reader {
             opening: vec![],
         };
 
-        reader.block()
+        let result = reader.block();
+
+        // if there are still unclosed delimiters on the opening stack
+        if reader.opening.len() > 0 {
+            let (_index, still_opened) = reader.opening.last().unwrap();
+            let error = Syntax::error(
+                &format!(
+                    "Unclosed {}", still_opened.item,
+                ), &still_opened.span);
+
+            Err(error)
+        } else {
+            result
+        }
     }
 
     /// Returns the next token, advancing the lexer by 1.
@@ -42,7 +55,7 @@ impl Reader {
             Token::Label(label) => TokenTree::Label(label),
             Token::Op(op) => TokenTree::Op(op),
             Token::Lit(lit) => TokenTree::Lit(lit),
-            _ => return None,
+            _ => panic!(),
         };
 
         Some(token)
@@ -261,5 +274,15 @@ mod test {
         dbg!(&tokens);
         let token_tree = Reader::read(tokens).unwrap();
         dbg!(token_tree);
+    }
+
+    #[test]
+    fn unclosed_paren() {
+        let source = Source::source("(");
+        let tokens = Lexer::lex(source).unwrap();
+        dbg!(&tokens);
+        let token_tree = Reader::read(tokens);
+        assert!(token_tree.is_err());
+        dbg!(token_tree.err().unwrap());
     }
 }
