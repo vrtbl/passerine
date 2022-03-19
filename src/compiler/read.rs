@@ -133,6 +133,12 @@ impl Reader {
             line.push(item);
         }
 
+        if !line.is_empty() {
+            let line_span = Spanned::build(&line);
+            let spanned_line = Spanned::new(line, line_span);
+            lines.push(spanned_line);
+        }
+
         let block_span = Spanned::build(&lines);
         let block = TokenTree::Block(lines);
         let spanned_block = Spanned::new(block, block_span);
