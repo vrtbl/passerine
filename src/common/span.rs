@@ -250,7 +250,7 @@ impl<T> Spanned<T> {
     }
 
     /// Joins a Vector of spanned items into a single span.
-    pub fn build(spanneds: &Vec<Spanned<T>>) -> Span {
+    pub fn build(spanneds: &[Spanned<T>]) -> Span {
         let spans = spanneds
             .iter()
             .map(|s| s.span.clone())

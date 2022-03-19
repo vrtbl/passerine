@@ -46,7 +46,7 @@ pub type TokenTrees = Vec<Spanned<TokenTree>>;
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenTree {
     // Grouping
-    Block(Vec<TokenTrees>),
+    Block(Vec<Spanned<TokenTrees>>),
     List(TokenTrees),
     Form(TokenTrees),
 

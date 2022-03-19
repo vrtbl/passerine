@@ -9,15 +9,17 @@ pub struct Reader {
     opening: Vec<Spanned<Delim>>,
 }
 
+// TODO: return Token
+
 impl Reader {
-    pub fn read(tokens: Tokens) -> Result<TokenTree, Syntax> {
+    pub fn read(tokens: Tokens) -> Result<Spanned<TokenTree>, Syntax> {
         let mut reader = Reader {
             tokens,
             index: 0,
             opening: vec![],
         };
 
-        let result = reader.block();
+        let result = reader.block()?;
 
         // if there are still unclosed delimiters on the opening stack
         if !reader.opening.is_empty() {
@@ -27,7 +29,7 @@ impl Reader {
                 &still_opened.span,
             ))
         } else {
-            result
+            Ok(result)
         }
     }
 
@@ -59,8 +61,8 @@ impl Reader {
         Some(token)
     }
 
-    fn form(&mut self) -> Result<TokenTrees, Syntax> {
-        let mut tokens = vec![];
+    fn form(&mut self) -> Result<Spanned<TokenTrees>, Syntax> {
+        let mut tokens: TokenTrees = vec![];
 
         while let Some(token) = self.next_token() {
             let span = token.span;
@@ -75,19 +77,20 @@ impl Reader {
                 Token::Sep => continue,
 
                 // Trivial conversion
-                other => Self::trivial(other).unwrap(),
+                other => Spanned::new(Self::trivial(other).unwrap(), span),
             };
 
-            let combined = Spanned::new(item, span);
-            tokens.push(combined);
+            tokens.push(item);
         }
 
-        return Ok(tokens);
+        let form_span = Spanned::build(&tokens);
+        let spanned_form = Spanned::new(tokens, form_span);
+        Ok(spanned_form)
     }
 
-    fn block(&mut self) -> Result<TokenTree, Syntax> {
-        let mut lines = vec![];
-        let mut line = vec![];
+    fn block(&mut self) -> Result<Spanned<TokenTree>, Syntax> {
+        let mut lines: Vec<Spanned<TokenTrees>> = vec![];
+        let mut line: TokenTrees = vec![];
         let mut after_sep = false;
         let mut after_op = false;
 
@@ -115,37 +118,38 @@ impl Reader {
                 },
 
                 // Trivial conversion
-                other => Self::trivial(other).unwrap(),
+                other => Spanned::new(Self::trivial(other).unwrap(), span),
             };
 
             if after_sep && !after_op && !line.is_empty() {
-                lines.push(line);
+                let line_span = Spanned::build(&line);
+                let spanned_line = Spanned::new(line, line_span);
+                lines.push(spanned_line);
                 line = vec![];
             }
 
             after_sep = false;
             after_op = false;
-            let combined = Spanned::new(item, span);
-            line.push(combined);
+            line.push(item);
         }
 
-        lines.push(line);
-        Ok(TokenTree::Block(lines))
+        let block_span = Spanned::build(&lines);
+        let block = TokenTree::Block(lines);
+        let spanned_block = Spanned::new(block, block_span);
+        Ok(spanned_block)
     }
 
     fn enter_group(
         &mut self,
         delim: Spanned<Delim>,
-    ) -> Result<TokenTree, Syntax> {
+    ) -> Result<Spanned<TokenTree>, Syntax> {
         self.opening.push(delim.clone());
 
-        let tree = match delim.item {
-            Delim::Curly => self.block()?,
-            Delim::Paren => TokenTree::Form(self.form()?),
-            Delim::Square => TokenTree::List(self.form()?),
-        };
-
-        Ok(tree)
+        match delim.item {
+            Delim::Curly => Ok(self.block()?),
+            Delim::Paren => self.form()?.map(|x| Ok(TokenTree::Form(x))),
+            Delim::Square => self.form()?.map(|x| Ok(TokenTree::List(x))),
+        }
     }
 
     fn exit_group(
@@ -267,7 +271,7 @@ mod test {
             let token_tree = Reader::read(tokens);
             dbg!(&token_tree);
             assert!(token_tree.is_ok());
-            if let TokenTree::Block(block) = token_tree.unwrap() {
+            if let TokenTree::Block(block) = token_tree.unwrap().item {
                 assert_eq!(block.len(), 1);
             }
         }
@@ -336,7 +340,7 @@ mod test {
         let token_tree = Reader::read(tokens);
         dbg!(&token_tree);
         assert!(token_tree.is_ok());
-        if let TokenTree::Block(block) = token_tree.unwrap() {
+        if let TokenTree::Block(block) = token_tree.unwrap().item {
             assert_eq!(block.len(), 1);
         }
     }
@@ -346,6 +350,7 @@ mod test {
         let source = Source::source("(\n2 \n+ 2\n)");
         let tokens = Lexer::lex(source).unwrap();
         let token_tree = Reader::read(tokens);
-        assert!(token_tree.is_ok())
+        assert!(token_tree.is_ok());
+        println!("{}", token_tree.unwrap().span);
     }
 }
