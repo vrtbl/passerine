@@ -17,7 +17,7 @@ use crate::{
 use crate::compiler::syntax::{Note, Syntax};
 use crate::construct::token::{Token, Tokens};
 
-const OP_CHARS: &str = "!#$%&*+,-./:<=>?@^|~";
+const OP_CHARS: &str = "!$%&*+,-./:<=>?@^|~";
 
 macro_rules! RemainingIter {
     () => { Peekable<impl Iterator<Item = char>> };
@@ -386,9 +386,12 @@ mod test {
         }
 
         #[test]
-        fn operators(s in "[!#$%&*+,-./:<=>?@^|~]+") {
+        fn operators(s in "[!$%&*+,-./:<=>?@^|~]+") {
             let result = Lexer::lex(Source::source(&s));
-            format!("{:?}", result);
+            assert!(result.is_ok());
+            if let Token::Op(op) = &result.unwrap()[0].item {
+                assert_eq!(op, &s);
+            }
         }
 
         #[test]

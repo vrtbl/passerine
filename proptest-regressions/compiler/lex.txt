@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc e7ac9b2ee9f3c1fb428c53081a42452d8cefb2b6db3dcd37ff4ebeb1663a0b8b # shrinks to s = ""
 cc 5f545768b20d72d8d8143ae39973c7e69f4caaab49d42153d23782ad83b04ee9 # shrinks to s = "\"\\᪠\u{16f4f}"
+cc 7d78aaabe932cf464a675ab5998388babc2548031795409ac15f45d609c13387 # shrinks to s = "#"
