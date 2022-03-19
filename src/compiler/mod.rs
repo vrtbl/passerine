@@ -18,8 +18,7 @@
 
 pub mod lex;
 pub mod read;
-// pub mod lex;
-// pub mod parse;
+pub mod parse;
 // pub mod hoist;
 // pub mod gen;
 
