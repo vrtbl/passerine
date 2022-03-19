@@ -98,7 +98,8 @@ impl Reader {
                 },
 
                 Token::Op(op) => {
-                    TokenTree::Op(op);
+                    let spanned = Spanned::new(TokenTree::Op(op), span);
+                    line.push(spanned);
                     after_op = true;
                     continue;
                 },
@@ -249,7 +250,16 @@ mod test {
         let source = Source::source("[(),[],{()[]}]{([][]){}}");
         let tokens = Lexer::lex(source).unwrap();
         dbg!(&tokens);
-        let token_tree = Reader::read(tokens);
-        assert!(token_tree.is_ok());
+        let token_tree = Reader::read(tokens).unwrap();
+        dbg!(token_tree);
+    }
+
+    #[test]
+    fn multiline_form() {
+        let source = Source::source("1 ++\n2 --\n 3");
+        let tokens = Lexer::lex(source).unwrap();
+        dbg!(&tokens);
+        let token_tree = Reader::read(tokens).unwrap();
+        dbg!(token_tree);
     }
 }
