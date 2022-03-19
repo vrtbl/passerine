@@ -103,7 +103,7 @@ impl Reader {
                     break;
                 },
                 Token::Sep => {
-                    if !after_op {
+                    if !after_op && line.len() > 0 {
                         lines.push(line);
                         line = vec![];
                     }
@@ -268,7 +268,7 @@ mod test {
     }
 
     #[test]
-    fn multiline_form() {
+    fn multiline_operators() {
         let source = Source::source("1 ++\n2 --\n 3");
         let tokens = Lexer::lex(source).unwrap();
         dbg!(&tokens);
@@ -284,5 +284,27 @@ mod test {
         let token_tree = Reader::read(tokens);
         assert!(token_tree.is_err());
         dbg!(token_tree.err().unwrap());
+    }
+
+    // honestly, I'm not sure how this should be parsed, but I'm adding it anyway
+    #[test]
+    fn multiline_block() {
+        let source = Source::source("\n2 \n+ \n2\n");
+        let tokens = Lexer::lex(source).unwrap();
+        dbg!(&tokens);
+        let token_tree = Reader::read(tokens).unwrap();
+        dbg!(token_tree);
+        panic!()
+    }
+
+    // honestly, I'm not sure how this should be parsed, but I'm adding it anyway
+    #[test]
+    fn multiline_form() {
+        let source = Source::source("(\n2 \n+ 2\n)");
+        let tokens = Lexer::lex(source).unwrap();
+        dbg!(&tokens);
+        let token_tree = Reader::read(tokens).unwrap();
+        dbg!(token_tree);
+        panic!()
     }
 }
