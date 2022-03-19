@@ -5,3 +5,5 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc f28bab0f46258de0811cec0d85c7e372cbeafd5b62c5a19e5fa136f8e4849887 # shrinks to tokens = ParenOpen
+cc 7f679b7295fee2637ef6bfa9a2cf4dd9d33afc181701ebc24717191396598747 # shrinks to tokens = [Open(Paren), Close(Curly)]
+cc 96f3601918e85087e5099a28fba43e1c8f4b529de0dc59a20bd20df5bdec0c79 # shrinks to tokens = [Open(Paren), Open(Paren), Close(Paren), Open(Paren), Close(Paren), Close(Paren), Close(Paren), Close(Paren), Open(Paren), Close(Paren), Close(Paren), Open(Paren), Open(Paren), Open(Paren), Close(Paren), Open(Paren), Open(Paren), Open(Paren), Open(Paren), Close(Paren), Close(Paren), Close(Paren)]
