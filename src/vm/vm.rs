@@ -1,17 +1,25 @@
 use std::mem;
 
-use crate::common::{
-    lambda::Captured, number::build_number, opcode::Opcode, span::Span,
-};
-
-use crate::vm::{
-    closure::Closure, data::Data, slot::Suspend, stack::Stack, trace::Trace,
+use crate::{
+    common::{
+        lambda::Captured,
+        number::build_number,
+        opcode::Opcode,
+        span::Span,
+    },
+    vm::{
+        closure::Closure,
+        data::Data,
+        slot::Suspend,
+        stack::Stack,
+        trace::Trace,
+    },
 };
 
 // TODO: algebraic effects
 // more than just Trace, Runtime - mechanism for raising effects
-// fiber scheduling environment handles FFI, no more holding refs to rust functions.
-// TODO: convert VM to Fiber
+// fiber scheduling environment handles FFI, no more holding refs to rust
+// functions. TODO: convert VM to Fiber
 
 /// A `VM` executes bytecode lambda closures.
 /// (That's a mouthful - think bytecode + some context).
@@ -21,15 +29,16 @@ use crate::vm::{
 #[derive(Debug)]
 pub struct VM {
     pub closure: Closure,
-    pub stack: Stack,
-    pub ip: usize,
+    pub stack:   Stack,
+    pub ip:      usize,
 }
 
 // NOTE: use Opcode::same and Opcode.to_byte() rather than actual bytes
-// Don't worry, the compiler *should* get rid of this overhead and just use bytes
+// Don't worry, the compiler *should* get rid of this overhead and just use
+// bytes
 
-// this impl contains initialization, helper functions, and the core interpreter loop
-// the next impl contains opcode implementations
+// this impl contains initialization, helper functions, and the core interpreter
+// loop the next impl contains opcode implementations
 impl VM {
     /// Initialize a new VM.
     /// To run the VM, a lambda must be passed to it through `run`.
@@ -39,15 +48,13 @@ impl VM {
             stack: Stack::init(),
             ip: 0,
         };
-        vm.stack.declare(vm.closure.lambda.decls.len());
+        vm.stack.declare(vm.closure.lambda.decls);
         return vm;
     }
 
     /// Advances to the next instruction.
     #[inline]
-    pub fn next(&mut self) {
-        self.ip += 1;
-    }
+    pub fn next(&mut self) { self.ip += 1; }
     /// Advances IP, returns `Ok`. Used in Bytecode implementations.
     #[inline]
     pub fn done(&mut self) -> Result<(), Trace> {
@@ -56,9 +63,7 @@ impl VM {
     }
     /// Returns the current instruction as a byte.
     #[inline]
-    pub fn peek_byte(&mut self) -> u8 {
-        self.closure.lambda.code[self.ip]
-    }
+    pub fn peek_byte(&mut self) -> u8 { self.closure.lambda.code[self.ip] }
     /// Advances IP and returns the current instruction as a byte.
     #[inline]
     pub fn next_byte(&mut self) -> u8 {
@@ -132,8 +137,8 @@ impl VM {
     }
 
     /// Suspends the current lambda and runs a new one on the VM.
-    /// Runs until either success, in which it restores the state of the previous lambda,
-    /// Or failure, in which it returns the runtime error.
+    /// Runs until either success, in which it restores the state of the
+    /// previous lambda, Or failure, in which it returns the runtime error.
     /// In the future, fibers will allow for error handling -
     /// right now, error in Passerine are practically panics.
     pub fn run(&mut self) -> Result<(), Trace> {
@@ -373,7 +378,8 @@ impl VM {
         self.done()
     }
 
-    /// Call a function on the top of the stack, passing the next value as an argument.
+    /// Call a function on the top of the stack, passing the next value as an
+    /// argument.
     pub fn call(&mut self) -> Result<(), Trace> {
         // get the function and argument to run
         let fun = match self.stack.pop_data() {
@@ -410,7 +416,7 @@ impl VM {
         let old_closure = mem::replace(&mut self.closure, fun);
         let old_ip = mem::replace(&mut self.ip, 0);
         let suspend = Suspend {
-            ip: old_ip,
+            ip:      old_ip,
             closure: old_closure,
         };
 
@@ -423,7 +429,7 @@ impl VM {
 
         // set up the stack for the function call
         // self.stack.push_frame(suspend);
-        self.stack.declare(self.closure.lambda.decls.len());
+        self.stack.declare(self.closure.lambda.decls);
         self.stack.push_data(arg);
 
         // println!("{}", self.closure.lambda);
@@ -467,7 +473,7 @@ impl VM {
         let mut closure = Closure::wrap(lambda);
 
         for captured in closure.lambda.captures.iter()
-        /* .rev */
+        // .rev
         {
             let reference = match captured {
                 Captured::Local(index) => match self.stack.local_data(*index) {
@@ -537,16 +543,16 @@ impl VM {
 //
 //     #[test]
 //     fn functions() {
-//         let mut vm = inspect("iden = x -> x; y = true; iden ({ y = false; iden iden } (iden y))");
-//         let identity = vm.stack.pop_data();
+//         let mut vm = inspect("iden = x -> x; y = true; iden ({ y = false;
+// iden iden } (iden y))");         let identity = vm.stack.pop_data();
 //         assert_eq!(identity, Data::Boolean(true));
 //     }
 //
 //     #[test]
 //     fn fun_scope() {
 //         // y = (x -> { y = x; y ) 7.0; y
-//         let mut vm = inspect("one = 1.0\npi = 3.14\ne = 2.72\n\nx = w -> pi\nx 37.6");
-//         let pi = vm.stack.pop_data();
+//         let mut vm = inspect("one = 1.0\npi = 3.14\ne = 2.72\n\nx = w ->
+// pi\nx 37.6");         let pi = vm.stack.pop_data();
 //         assert_eq!(pi, Data::Float(3.14));
 //     }
 //
@@ -581,8 +587,8 @@ impl VM {
 //     }
 //
 //     // TODO: figure out how to make the following passerine code into a test
-//     // without entering into an infinite loop (which is the intended behaviour)
-//     // maybe try running it a large number of times,
+//     // without entering into an infinite loop (which is the intended
+// behaviour)     // maybe try running it a large number of times,
 //     // and check the size of the stack?
 //     // loop = ()
 //     // loop = y -> x -> {

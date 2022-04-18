@@ -1,4 +1,4 @@
-use crate::common::data::Data;
+use crate::vm::data::Data;
 
 /// Prints some data to stdout with a trailing newline.
 pub fn println(data: Data) -> Result<Data, String> {

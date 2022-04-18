@@ -1,8 +1,13 @@
 use std::fmt;
 
-use crate::common::{number::build_number, opcode::Opcode, span::Span};
-
-use crate::vm::data::Data;
+use crate::{
+    common::{
+        number::build_number,
+        opcode::Opcode,
+        span::Span,
+    },
+    vm::data::Data,
+};
 
 /// Represents a variable visible in the current scope.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,16 +25,16 @@ pub struct Lambda {
     // TODO: make this a list of variable names
     // So structs can be made, and state preserved in the repl.
     /// Number of variables declared in this scope.
-    pub decls: Vec<usize>,
+    pub decls:     usize,
     /// Each byte is an opcode or a number-stream.
-    pub code: Vec<u8>,
+    pub code:      Vec<u8>,
     /// Each usize indexes the bytecode op that begins each line.
-    pub spans: Vec<(usize, Span)>,
+    pub spans:     Vec<(usize, Span)>,
     /// Number-stream indexed, used to load constants.
     pub constants: Vec<Data>,
     /// List of positions of locals in the scope where this lambda is defined,
     /// indexes must be gauranteed to be data on the heap.
-    pub captures: Vec<Captured>,
+    pub captures:  Vec<Captured>,
     // TODO: delete FFI
     // / List of FFI functions (i.e. Rust functions)
     // / that can be called from this function.
@@ -42,11 +47,11 @@ impl Lambda {
     /// Creates a new empty `Lambda` to be filled.
     pub fn empty() -> Lambda {
         Lambda {
-            decls: vec![],
-            code: vec![],
-            spans: vec![],
+            decls:     0,
+            code:      vec![],
+            spans:     vec![],
             constants: vec![],
-            captures: vec![],
+            captures:  vec![],
             // ffi:       vec![],
         }
     }
@@ -81,13 +86,14 @@ impl Lambda {
             Opcode::Del => vec![],
             Opcode::FFICall => panic!(),
             Opcode::Copy => vec![],
-            // Opcode::Capture => vec![self.decls], // TODO: correct bounds check?
-            // Opcode::Save    => vec![self.decls],
+            // Opcode::Capture => vec![self.decls], // TODO: correct bounds
+            // check? Opcode::Save    => vec![self.decls],
             Opcode::SaveCap => vec![self.captures.len()],
             // Opcode::Load    => vec![self.decls],
             Opcode::LoadCap => vec![self.captures.len()],
             Opcode::Call => vec![],
-            // Opcode::Return  => vec![self.decls], // TODO: correct bounds check?
+            // Opcode::Return  => vec![self.decls], // TODO: correct bounds
+            // check?
             Opcode::Closure => vec![],
             Opcode::Print => vec![],
             Opcode::Label => vec![],
@@ -136,9 +142,7 @@ impl Lambda {
     }
 
     /// Emits an opcode as a byte.
-    pub fn emit(&mut self, op: Opcode) {
-        self.code.push(op as u8)
-    }
+    pub fn emit(&mut self, op: Opcode) { self.code.push(op as u8) }
 
     /// Emits a series of bytes.
     pub fn emit_bytes(&mut self, bytes: &mut Vec<u8>) {
@@ -153,15 +157,13 @@ impl Lambda {
     }
 
     /// Removes the last emitted byte.
-    pub fn demit(&mut self) {
-        self.code.pop();
-    }
+    pub fn demit(&mut self) { self.code.pop(); }
 
     /// Given some data, this function adds it to the constants table,
     /// and returns the data's index.
-    /// The constants table is push only, so constants are identified by their index.
-    /// The resulting usize can be split up into a number byte stream,
-    /// and be inserted into the bytecode.
+    /// The constants table is push only, so constants are identified by their
+    /// index. The resulting usize can be split up into a number byte
+    /// stream, and be inserted into the bytecode.
     pub fn index_data(&mut self, data: Data) -> usize {
         match self.constants.iter().position(|d| d == &data) {
             Some(d) => d,
@@ -172,7 +174,8 @@ impl Lambda {
         }
     }
 
-    /// Look up the nearest span at or before the index of a specific bytecode op.
+    /// Look up the nearest span at or before the index of a specific bytecode
+    /// op.
     pub fn index_span(&self, index: usize) -> Span {
         let mut best = None;
 

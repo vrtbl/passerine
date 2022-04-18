@@ -46,13 +46,13 @@
 //! > NOTE: For a more detail, read through the documentation
 //! for any of the components mentioned.
 //!
-//! Within the compiler pipeline, source code is represented as a `Source` object.
-//! A source is a reference to some code, with an associated path
+//! Within the compiler pipeline, source code is represented as a `Source`
+//! object. A source is a reference to some code, with an associated path
 //! telling which file it came from.
 //!
 //! Regions of source code can be marked with `Span`s,
-//! Which are like `&strs` but with a reference-counted reference to the original `Source`,
-//! methods for combining them, and so on.
+//! Which are like `&strs` but with a reference-counted reference to the
+//! original `Source`, methods for combining them, and so on.
 //! Spans are used throughout the compiler when reporting errors.
 //! Compiler Datastructures can be `Spanned` to indicate where they originated.
 //!
@@ -63,9 +63,9 @@
 //! which can be pretty-printed.
 //!
 //! The first phase of compilation is lexing.
-//! The `Lexer` reads through a source, and produces a stream of `Spanned<Token>`s.
-//! The `Lexer` is super simple - it greedily looks for the longest next token,
-//! Then consumes it and advances by the token's length.
+//! The `Lexer` reads through a source, and produces a stream of
+//! `Spanned<Token>`s. The `Lexer` is super simple - it greedily looks for the
+//! longest next token, Then consumes it and advances by the token's length.
 //! To lex a file, use the `compiler::lex::lex` function.
 //!
 //! The next phase of compilation is parsing.
@@ -101,7 +101,7 @@
 //! The `VM` is just a simple light stack-based VM.
 
 pub mod common;
-// pub mod core;
+pub mod core;
 pub mod compiler;
 pub mod vm;
 pub mod construct;
@@ -109,9 +109,13 @@ pub mod construct;
 // exported functions:
 // TODO: clean up exports
 
-pub use common::{source::Source, span::Spanned};
-pub use compiler::syntax::Syntax;
 use std::rc::Rc;
+
+pub use common::{
+    source::Source,
+    span::Spanned,
+};
+pub use compiler::syntax::Syntax;
 // pub use crate::core::ffi::FFI;
 // pub use vm::{vm::VM, trace::Trace};
 
@@ -128,8 +132,8 @@ use std::rc::Rc;
 //
 // /// Compiles a [`Source`] to some bytecode,
 // /// With a specific [`FFI`].
-// pub fn compile_with_ffi(source: Rc<Source>, ffi: FFI) -> Result<Closure, Syntax> {
-//     let tokens   = ThinModule::thin(source).lower()?;
+// pub fn compile_with_ffi(source: Rc<Source>, ffi: FFI) -> Result<Closure,
+// Syntax> {     let tokens   = ThinModule::thin(source).lower()?;
 //     let ast      = tokens.lower()?;
 //     let cst      = ast.lower()?;
 //     let sst      = cst.lower()?;

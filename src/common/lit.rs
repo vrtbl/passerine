@@ -1,7 +1,14 @@
 use std::{
     f64,
-    fmt::{Debug, Display, Formatter, Result},
+    fmt::{
+        Debug,
+        Display,
+        Formatter,
+        Result,
+    },
 };
+
+use crate::vm::data::Data;
 
 pub enum ArbInt {
     Small(u128),
@@ -35,8 +42,22 @@ pub enum Lit {
     Boolean(bool),
 }
 
+impl Lit {
+    pub fn to_data(self) -> Data {
+        match self {
+            Lit::Float(f) => Data::Float(f),
+            Lit::Integer(i) => Data::Integer(i),
+            Lit::String(s) => Data::String(s),
+            Lit::Label(_, _) => todo!(),
+            Lit::Unit => Data::Unit,
+            Lit::Boolean(b) => Data::Boolean(b),
+        }
+    }
+}
+
 impl Display for Lit {
-    /// Displays some Passerine Data in a pretty manner, as if it were printed to console.
+    /// Displays some Passerine Data in a pretty manner, as if it were printed
+    /// to console.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Lit::Float(n) => write!(f, "{}", n),

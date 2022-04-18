@@ -52,6 +52,8 @@ impl<T: Eq + Hash + Clone> VecSet<T> {
             .map(|x| x.clone())
             .collect()
     }
+
+    pub fn len(&self) -> usize { self.members.len() }
 }
 
 #[derive(Debug, Clone, PartialEq)]

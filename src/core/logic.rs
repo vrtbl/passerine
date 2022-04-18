@@ -1,10 +1,12 @@
-use crate::common::data::Data;
-use crate::core::extract::binop;
+use crate::{
+    core::extract::binop,
+    vm::data::Data,
+};
 
 // TODO: implement equality rather than just deriving PartialEq on Data.
 
-// Rust hit it right on the nose with the difference between equality and partial equality
-// TODO: equality vs partial equality in passerine?
+// Rust hit it right on the nose with the difference between equality and
+// partial equality TODO: equality vs partial equality in passerine?
 
 /// Returns `true` if the `Data` are equal, false otherwise.
 pub fn equal(data: Data) -> Result<Data, String> {
@@ -15,7 +17,7 @@ pub fn equal(data: Data) -> Result<Data, String> {
 pub fn greater(data: Data) -> Result<Data, String> {
     // TODO: type coercion
     let result = match binop(data) {
-        (Data::Float(left),    Data::Float(right))    => left > right,
+        (Data::Float(left), Data::Float(right)) => left > right,
         (Data::Integer(left), Data::Integer(right)) => left > right,
         _ => Err("Expected two numbers of the same type")?,
     };
@@ -26,7 +28,7 @@ pub fn greater(data: Data) -> Result<Data, String> {
 pub fn less(data: Data) -> Result<Data, String> {
     // TODO: type coercion
     let result = match binop(data) {
-        (Data::Float(left),    Data::Float(right))    => left < right,
+        (Data::Float(left), Data::Float(right)) => left < right,
         (Data::Integer(left), Data::Integer(right)) => left < right,
         _ => Err("Expected two numbers of the same type")?,
     };
@@ -37,7 +39,7 @@ pub fn less(data: Data) -> Result<Data, String> {
 pub fn greater_equal(data: Data) -> Result<Data, String> {
     // TODO: type coercion
     let result = match binop(data) {
-        (Data::Float(left),    Data::Float(right))    => left >= right,
+        (Data::Float(left), Data::Float(right)) => left >= right,
         (Data::Integer(left), Data::Integer(right)) => left >= right,
         _ => Err("Expected two numbers of the same type")?,
     };
@@ -48,7 +50,7 @@ pub fn greater_equal(data: Data) -> Result<Data, String> {
 pub fn less_equal(data: Data) -> Result<Data, String> {
     // TODO: type coercion
     let result = match binop(data) {
-        (Data::Float(left),    Data::Float(right))    => left <= right,
+        (Data::Float(left), Data::Float(right)) => left <= right,
         (Data::Integer(left), Data::Integer(right)) => left <= right,
         _ => Err("Expected two numbers of the same type")?,
     };

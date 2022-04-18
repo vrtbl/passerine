@@ -1,5 +1,7 @@
-use crate::common::data::Data;
-use crate::core::extract::triop;
+use crate::{
+    core::extract::triop,
+    vm::data::Data,
+};
 
 /// An implementation of an if statement, as an FFI.
 /// Interesting idea, not sure if I'm going to keep it.
@@ -11,7 +13,6 @@ pub fn if_choice(data: Data) -> Result<Data, String> {
         Err("\
             Expected the condition to be a boolean.\n\
             Note that Passerine does not have a notion of truthiness."
-            .to_string()
-        )
+            .to_string())
     }
 }

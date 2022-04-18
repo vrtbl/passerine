@@ -24,6 +24,6 @@ pub mod parse;
 // pub mod desugar;
 pub mod hoist;
 // pub mod unify;
-// pub mod gen;
+pub mod gen;
 
 pub mod syntax;
