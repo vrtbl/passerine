@@ -1,12 +1,13 @@
-use crate::common::span::Span;
 use std::fmt;
+
+use crate::common::span::Span;
 
 /// Represents a runtime error, i.e. a traceback
 #[derive(Debug, PartialEq, Eq)]
 pub struct Trace {
-    kind: String, // TODO: enum?
+    kind:    String, // TODO: enum?
     message: String,
-    spans: Vec<Span>,
+    spans:   Vec<Span>,
 }
 
 impl Trace {
@@ -20,9 +21,7 @@ impl Trace {
     }
 
     /// Used to add context (i.e. function calls) while unwinding the stack.
-    pub fn add_context(&mut self, span: Span) {
-        self.spans.push(span);
-    }
+    pub fn add_context(&mut self, span: Span) { self.spans.push(span); }
 }
 
 impl fmt::Display for Trace {
@@ -40,7 +39,8 @@ impl fmt::Display for Trace {
 
 #[cfg(test)]
 mod test {
+    use std::rc::Rc;
+
     use super::*;
     use crate::common::source::Source;
-    use std::rc::Rc;
 }

@@ -7,21 +7,22 @@ pub struct TySymbol(usize);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
     // Passerine Data (Atomic)
-    Float,
+    Natural,
     Integer,
+    Float,
     // Boolean, // TODO: should be just standard library enum?
     String,
 
     // Function
     // <arg> -> <body> / <ty>
     Function {
-        arg: TySymbol,
-        body: TySymbol,
+        arg:    TySymbol,
+        body:   TySymbol,
         effect: TySymbol,
     },
     // TODO: fibers still good idea?
     Fiber {
-        takes: TySymbol,
+        takes:  TySymbol,
         yields: TySymbol,
     },
 

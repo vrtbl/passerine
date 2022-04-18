@@ -286,7 +286,6 @@ impl Parser {
             ResOp::Is => Prec::Is,
 
             ResOp::Add | ResOp::Sub => Prec::AddSub,
-
             ResOp::Mul | ResOp::Div | ResOp::Rem => Prec::MulDiv,
 
             ResOp::Equal => Prec::Logic,

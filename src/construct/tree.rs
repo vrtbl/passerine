@@ -1,9 +1,17 @@
 use std::convert::TryFrom;
 
-use crate::common::{lit::Lit, span::Spanned};
-use crate::construct::{
-    scope::Scope,
-    symbol::{SharedSymbol, UniqueSymbol},
+use crate::{
+    common::{
+        lit::Lit,
+        span::Spanned,
+    },
+    construct::{
+        scope::Scope,
+        symbol::{
+            SharedSymbol,
+            UniqueSymbol,
+        },
+    },
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -46,21 +54,19 @@ impl<T, S> Base<T, S> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Sugar<T, S> {
+pub enum Sugar<T> {
     Group(Box<T>),
     Form(Vec<T>),
-    Pattern(Pattern<S>),
+    // Pattern(Pattern<S>),
     // Record,
     Is(Box<T>, Box<T>),   // expr, type
     Comp(Box<T>, Box<T>), // arg, function
-    Field(Box<T>, Box<T>), // struct, field
-                          // TODO: math operators
+    Field(Box<T>, Box<T>), /* struct, field
+                           * TODO: math operators */
 }
 
-impl<T, S> Sugar<T, S> {
-    pub fn group(tree: T) -> Self {
-        Sugar::Group(Box::new(tree))
-    }
+impl<T> Sugar<T> {
+    pub fn group(tree: T) -> Self { Sugar::Group(Box::new(tree)) }
 
     pub fn is(expr: T, ty: T) -> Self {
         Sugar::Is(Box::new(expr), Box::new(ty))
@@ -77,8 +83,8 @@ impl<T, S> Sugar<T, S> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Lambda<T> {
-    arg: Spanned<Pattern<SharedSymbol>>,
-    body: Box<T>,
+    pub arg:  Spanned<Pattern<SharedSymbol>>,
+    pub body: Box<T>,
 }
 
 impl<T> Lambda<T> {
@@ -93,7 +99,7 @@ impl<T> Lambda<T> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum AST {
     Base(Base<Spanned<AST>, SharedSymbol>),
-    Sugar(Sugar<Spanned<AST>, SharedSymbol>),
+    Sugar(Sugar<Spanned<AST>>),
     Lambda(Lambda<Spanned<AST>>),
 }
 
@@ -101,9 +107,10 @@ impl TryFrom<AST> for Pattern<SharedSymbol> {
     type Error = String;
 
     /// Tries to convert an `AST` into a `Pattern`.
-    /// Patterns mirror the `AST`s they are designed to destructure.
-    /// During parsing, they are just parsed as `AST`s -
-    /// When the compiler can determine that an AST is actually a pattern,
+    /// Patterns mirror the `AST`s they are designed to
+    /// destructure. During parsing, they are just
+    /// parsed as `AST`s - When the compiler can
+    /// determine that an AST is actually a pattern,
     /// It performs this conversion.
     fn try_from(ast: AST) -> Result<Self, Self::Error> {
         // if true { todo!("SharedSymbol lookup"); }
@@ -123,7 +130,7 @@ impl TryFrom<AST> for Pattern<SharedSymbol> {
                 Pattern::Tuple(patterns)
             },
 
-            AST::Sugar(Sugar::Pattern(p)) => p,
+            // AST::Sugar(Sugar::Pattern(p)) => p,
             AST::Sugar(Sugar::Form(f)) => {
                 let mut patterns = vec![];
                 for item in f {
@@ -145,9 +152,9 @@ pub enum CST {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScopedLambda<T> {
-    arg: Spanned<Pattern<UniqueSymbol>>,
-    body: Box<T>,
-    scope: Scope,
+    pub arg:   Spanned<Pattern<UniqueSymbol>>,
+    pub body:  Box<T>,
+    pub scope: Scope,
 }
 
 impl<T> ScopedLambda<T> {

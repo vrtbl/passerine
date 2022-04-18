@@ -1,5 +1,7 @@
-use crate::common::span::Span;
 use std::fmt;
+
+use super::read;
+use crate::common::span::Span;
 
 /// Represents a note attached to a Syntax error,
 /// i.e. a location in source code with an optional
@@ -11,9 +13,7 @@ pub struct Note {
 }
 
 impl Note {
-    pub fn new(span: Span) -> Note {
-        Note { span, hint: None }
-    }
+    pub fn new(span: Span) -> Note { Note { span, hint: None } }
 
     pub fn new_with_hint(hint: &str, span: &Span) -> Note {
         Note {
@@ -29,26 +29,30 @@ impl Note {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Syntax {
     pub reason: String,
-    pub notes: Vec<Note>,
+    pub notes:  Vec<Note>,
 }
 
 impl Syntax {
     /// Creates a new static error, with
     pub fn error(reason: &str, span: &Span) -> Syntax {
-        Syntax::error_with_note(
-            reason,
-            Note {
-                span: span.clone(),
-                hint: None,
-            },
-        )
+        Syntax::error_with_note(reason, Note {
+            span: span.clone(),
+            hint: None,
+        })
     }
 
     /// Creates a new static error, but with an added hint.
     pub fn error_with_note(reason: &str, note: Note) -> Syntax {
         Syntax {
             reason: reason.to_string(),
-            notes: vec![note],
+            notes:  vec![note],
+        }
+    }
+
+    pub fn error_no_note(reason: &str) -> Syntax {
+        Syntax {
+            reason: reason.to_string(),
+            notes:  vec![],
         }
     }
 
@@ -118,9 +122,10 @@ impl fmt::Display for Syntax {
 
 #[cfg(test)]
 mod test {
+    use std::rc::Rc;
+
     use super::*;
     use crate::common::source::Source;
-    use std::rc::Rc;
 
     #[test]
     fn error() {

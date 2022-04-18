@@ -1,57 +1,47 @@
 use std::collections::HashMap;
 
-use crate::common::span::{Span, Spanned};
-use crate::compiler::{lower::Lower, syntax::Syntax};
-use crate::construct::{
-    cst::{CST, CSTPattern},
-    sst::{SST, SSTPattern, Scope},
-    symbol::{SharedSymbol, UniqueSymbol, SymbolTable},
-    module::{ThinModule, Module},
+use crate::{
+    common::span::{
+        Span,
+        Spanned,
+    },
+    compiler::syntax::{
+        Note,
+        Syntax,
+    },
+    construct::{
+        scope::Scope,
+        symbol::{
+            SharedSymbol,
+            SymbolTable,
+            UniqueSymbol,
+        },
+        tree::{
+            Base,
+            Lambda,
+            Pattern,
+            ScopedLambda,
+            CST,
+            SST,
+        },
+    },
 };
 
 // TODO: hoisting before expansion.
 // TODO: hoist labels? how are labels declared? types?
-// TODO: once modules exist, the entire program should be wrapped in a module.
+// TODO: once modules exist, the entire program should be
+// wrapped in a module.
+
 // TODO: add a hoisting method to finalize hoists.
+
 // TODO: keep track of syntax, do hoisting before macro expansion?
-// TLDR: shouldn't the scope fo types and macros be determined?
+
+// TLDR: shouldn't the scope for types and macros be determined?
 
 // NOTE: two goals:
-// 1. replace all same-reference symbols with a unique integer
-// 2. Build up a table of which symbols are accessible in what scopes.
-
-impl Lower for ThinModule<Spanned<CST>> {
-    type Out = Module<Spanned<SST>, Scope>;
-
-    /// Simple function that a scoped syntax tree (`SST`) from an `CST`.
-    /// Replaces all symbols with unique identifiers;
-    /// symbols by the same name in different scopes will get different identifiers.
-    /// Also resolves closure captures and closure hoisting.
-    fn lower(self) -> Result<Self::Out, Syntax> {
-        let mut hoister = Hoister::new();
-        dbg!(&self.repr);
-
-        let sst = hoister.walk(self.repr)?;
-        let scope = hoister.scopes.pop().unwrap();
-        dbg!(&sst);
-
-        if !hoister.unresolved_hoists.is_empty() {
-            // TODO: Actual errors
-            return Err(Syntax::error(
-                &format!(
-                    "{} were referenced before assignment",
-                    hoister.unresolved_hoists.values()
-                        .map(|s| s.span.contents())
-                        .collect::<Vec<String>>()
-                        .join(", ")
-                ),
-                &sst.span,
-            ))
-        }
-
-        return Ok(Module::new(sst, scope));
-    }
-}
+// 1. replace all same-reference symbols with a unique
+// integer 2. Build up a table of which symbols are
+// accessible in what scopes.
 
 /// Keeps track of:
 /// 1. Local and nonlocal variables in each scope.
@@ -59,18 +49,20 @@ impl Lower for ThinModule<Spanned<CST>> {
 /// 3. Variables that have been used but not declared.
 pub struct Hoister {
     /// The unique local symbols in the current scope.
-    scopes: Vec<Scope>,
+    scopes:            Vec<Scope>,
     // TODO: make it it's own type
-    /// Maps integers (index in vector) to string representation of symbol.
-    symbol_table: SymbolTable,
-    /// Keeps track of variables that were referenced before assignment.
+    /// Maps integers (index in vector) to string
+    /// representation of symbol.
+    symbol_table:      SymbolTable,
+    /// Keeps track of variables that were referenced before
+    /// assignment.
     unresolved_hoists: HashMap<SharedSymbol, Spanned<UniqueSymbol>>,
 }
 
 impl Hoister {
     /// Creates a new hoisted in a root scope.
     /// Note that the hoister will always have a root scope.
-    pub fn new() -> Hoister {
+    fn new() -> Hoister {
         Hoister {
             scopes:            vec![Scope::new()],
             symbol_table:      SymbolTable::new(),
@@ -78,16 +70,52 @@ impl Hoister {
         }
     }
 
-    /// Enters a new scope, called when entering a new function.
-    fn   enter_scope(&mut self) { self.scopes.push(Scope::new()); }
-    /// Enters an existing scope, called when resolving variables.
+    /// Simple function that a scoped syntax tree (`SST`)
+    /// from an `CST`. Replaces all symbols with unique
+    /// identifiers; symbols by the same name in
+    /// different scopes will get different identifiers.
+    /// Also resolves closure captures and closure hoisting.
+    fn lower(
+        tree: (Spanned<CST>, HashMap<String, SharedSymbol>),
+    ) -> Result<(Spanned<SST>, Scope), Syntax> {
+        let mut hoister = Hoister::new();
+
+        let sst = hoister.walk(tree.0)?;
+        let scope = hoister.scopes.pop().unwrap();
+        dbg!(&sst);
+
+        if !hoister.unresolved_hoists.is_empty() {
+            let num_unresolved = hoister.unresolved_hoists.len();
+
+            let mut error = Syntax::error_no_note(&format!(
+                "{} Variable{} referenced before assignment",
+                num_unresolved,
+                if num_unresolved == 1 { "" } else { "s" }
+            ));
+
+            for (_symbol, spanned) in hoister.unresolved_hoists.iter() {
+                // TODO: hints to correct to similar names, etc.
+                error = error.add_note(Note::new(spanned.span.clone()));
+            }
+        }
+
+        return Ok((sst, scope));
+    }
+
+    /// Enters a new scope, called when entering a new
+    /// function.
+    fn enter_scope(&mut self) { self.scopes.push(Scope::new()); }
+    /// Enters an existing scope, called when resolving
+    /// variables.
     fn reenter_scope(&mut self, scope: Scope) { self.scopes.push(scope) }
 
     /// Exits the current scope, returning it.
     /// If there are no enclosing scopes, returns `None`.
     fn exit_scope(&mut self) -> Option<Scope> {
-         if self.scopes.len() == 1 { return None; }
-        return self.scopes.pop()
+        if self.scopes.len() == 1 {
+            return None;
+        }
+        return self.scopes.pop();
     }
 
     /// Returns the topmost, i.e. local, scope, mutably.
@@ -105,97 +133,127 @@ impl Hoister {
     /// Walks a `CST` to produce an `SST`.
     /// This is fairly standard - hoisting happens in
     /// `self.assign`, `self.lambda`, and `self.symbol`.
-    pub fn walk(&mut self, cst: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
-        let sst: SST = match cst.item {
-            CST::Data(data) => SST::Data(data),
-            CST::Symbol(name) => self.symbol(name, cst.span.clone()),
-            CST::Block(block) => self.block(block)?,
+    pub fn walk(&mut self, tree: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
+        let sst: SST = match tree.item {
+            CST::Base(Base::Lit(data)) => SST::Base(Base::Lit(data)),
+            CST::Base(Base::Symbol(name)) => {
+                self.symbol(name, tree.span.clone())
+            },
+            CST::Base(Base::Block(block)) => self.block(block)?,
             // TODO: hoist as well
-            CST::Label(name, expression) => SST::label(
-                // TODO: change this to the following lines after types:
-                self.resolve_symbol(name, cst.span.clone()),
-                // self.resolve_assign(name, false),
-                self.walk(*expression)?,
-            ),
-            CST::Tuple(tuple) => self.tuple(tuple)?,
-            CST::FFI    { name,    expression } => SST::ffi(&name, self.walk(*expression)?),
-            CST::Assign { pattern, expression } => self.assign(*pattern, *expression)?,
-            CST::Lambda { pattern, expression } => self.lambda(*pattern, *expression)?,
-            CST::Call   { fun,     arg        } => self.call(*fun, *arg)?,
+            CST::Base(Base::Label(name)) => {
+                todo!()
+                // SST::label(
+                //     // TODO: change this to the following lines after types:
+                //     self.resolve_symbol(name, cst.span.clone()),
+                // )
+            },
+            CST::Base(Base::Tuple(tuple)) => self.tuple(tuple)?,
+            CST::Base(Base::FFI(name, expression)) => {
+                todo!()
+                // SST::ffi(&name, self.walk(*expression)?)
+            },
+            CST::Base(Base::Assign(pattern, expression)) => {
+                self.assign(pattern, *expression)?
+            },
+            CST::Lambda(Lambda { arg, body }) => self.lambda(arg, *body)?,
+            CST::Base(Base::Call(fun, arg)) => self.call(*fun, *arg)?,
+            CST::Base(Base::Module(_)) => todo!(),
         };
 
-        return Ok(Spanned::new(sst, cst.span))
+        return Ok(Spanned::new(sst, tree.span));
     }
 
-    /// Walks a pattern. If `declare` is true, we shadow variables in existing scopes
-    /// and creates a new variable in the local scope.
-    pub fn walk_pattern(&mut self, pattern: Spanned<CSTPattern>, declare: bool) -> Spanned<SSTPattern> {
+    /// Walks a pattern. If `declare` is true, we shadow
+    /// variables in existing scopes and creates a new
+    /// variable in the local scope.
+    pub fn walk_pattern(
+        &mut self,
+        pattern: Spanned<Pattern<SharedSymbol>>,
+        declare: bool,
+    ) -> Spanned<Pattern<UniqueSymbol>> {
         let item = match pattern.item {
-            CSTPattern::Symbol(name) => {
-                SSTPattern::Symbol(self.resolve_assign(name, declare))
+            Pattern::Symbol(name) => {
+                Pattern::Symbol(self.resolve_assign(name, declare))
             },
-            CSTPattern::Data(d) => SSTPattern::Data(d),
-            CSTPattern::Label(n, p) => SSTPattern::Label(
+            Pattern::Lit(l) => Pattern::Lit(l),
+            Pattern::Label(n, p) => Pattern::Label(
                 // TODO: This is temoprary. Makes first use the definition.
                 // Once we have types, change the following line to:
-                self.resolve_symbol(n, pattern.span.clone()),
+                // self.resolve_symbol(n, pattern.span.clone()),
                 // until then, this will do:
-                // self.resolve_assign(n, false),
+                Spanned::new(self.resolve_assign(n.item, false), n.span),
                 Box::new(self.walk_pattern(*p, declare)),
             ),
-            CSTPattern::Tuple(t) => SSTPattern::Tuple(
-                t.into_iter().map(|c| self.walk_pattern(c, declare)).collect::<Vec<_>>()
-            )
+            Pattern::Tuple(t) => Pattern::Tuple(
+                t.into_iter()
+                    .map(|c| self.walk_pattern(c, declare))
+                    .collect::<Vec<_>>(),
+            ),
+            Pattern::Chain(_) => todo!("Chained Patterns not yet implemented"),
         };
 
         return Spanned::new(item, pattern.span);
     }
 
-    /// Looks to see whether a name is defined as a local in the current scope.
+    // TODO: local_symbol and nonlocal_symbol are so bad, I can't even.
+
+    /// Looks to see whether a name is defined as a local in
+    /// the current scope.
     fn local_symbol(&self, name: SharedSymbol) -> Option<UniqueSymbol> {
-        for local in self.borrow_local_scope().locals.iter() {
+        for local in self.borrow_local_scope().locals.items().iter() {
             let local_name = self.symbol_table.name(local);
-            if local_name == name { return Some(*local); }
+            if local_name == name {
+                return Some(*local);
+            }
         }
 
         return None;
     }
 
-    /// Looks to see whether a name is used as a nonlocal in the current scope.
+    /// Looks to see whether a name is used as a nonlocal in
+    /// the current scope.
     fn nonlocal_symbol(&self, name: SharedSymbol) -> Option<UniqueSymbol> {
-        for nonlocal in self.borrow_local_scope().nonlocals.iter() {
+        for nonlocal in self.borrow_local_scope().nonlocals.items().iter() {
             let nonlocal_name = self.symbol_table.name(nonlocal);
-            if nonlocal_name == name { return Some(*nonlocal); }
+            if nonlocal_name == name {
+                return Some(*nonlocal);
+            }
         }
 
         return None;
     }
 
     /// Adds a symbol as a captured variable in all scopes.
-    /// Used in conjunction with `uncapture_all` to build hoisting chains.
+    /// Used in conjunction with `uncapture_all` to build
+    /// hoisting chains.
     fn capture_all(&mut self, unique_symbol: UniqueSymbol) {
         for scope in self.scopes.iter_mut() {
             scope.nonlocals.push(unique_symbol);
         }
     }
 
-    /// Removes a symbol as a captured variable in all scopes.
-    /// This ensures that the hoisting chain only goes back to the most recent declaration.
+    /// Removes a symbol as a captured variable in all
+    /// scopes. This ensures that the hoisting chain
+    /// only goes back to the most recent declaration.
     fn uncapture_all(&mut self, unique_symbol: UniqueSymbol) {
         for scope in self.scopes.iter_mut() {
-            // TODO: if let?
-            let index = scope.nonlocal_index(unique_symbol).unwrap();
-            scope.nonlocals.remove(index);
+            scope.nonlocals.remove(&unique_symbol);
         }
     }
 
     /// Tries to resolve a variable lookup:
-    /// 1. If this variable is local or nonlocal to this scope, use it.
-    /// 2. If this variable is defined in an enclosing scope, capture it and use it.
-    /// 3. If this variable is not defined, return `None`.
+    /// 1. If this variable is local or nonlocal to this
+    /// scope, use it. 2. If this variable is defined in
+    /// an enclosing scope, capture it and use it. 3. If
+    /// this variable is not defined, return `None`.
     fn try_resolve(&mut self, name: SharedSymbol) -> Option<UniqueSymbol> {
-        if let Some(unique_symbol) = self.local_symbol(name)    { return Some(unique_symbol); }
-        if let Some(unique_symbol) = self.nonlocal_symbol(name) { return Some(unique_symbol); }
+        if let Some(unique_symbol) = self.local_symbol(name) {
+            return Some(unique_symbol);
+        }
+        if let Some(unique_symbol) = self.nonlocal_symbol(name) {
+            return Some(unique_symbol);
+        }
 
         if let Some(scope) = self.exit_scope() {
             let resolved = self.try_resolve(name);
@@ -213,10 +271,15 @@ impl Hoister {
     /// Returns the unique usize of a local symbol.
     /// If a variable is referenced before assignment,
     /// this function will define it in all lexical scopes
-    /// once this variable is discovered, we remove the definitions
-    /// in all scopes below this one.
-    fn resolve_assign(&mut self, name: SharedSymbol, redeclare: bool) -> UniqueSymbol {
-        // if we've seen the symbol before but don't know where it's defined
+    /// once this variable is discovered, we remove the
+    /// definitions in all scopes below this one.
+    fn resolve_assign(
+        &mut self,
+        name: SharedSymbol,
+        redeclare: bool,
+    ) -> UniqueSymbol {
+        // if we've seen the symbol before but don't know where it's
+        // defined
         if let Some(unique_symbol) = self.unresolved_hoists.get(&name) {
             // this is a definition; we've resolved it!
             let unique_symbol = unique_symbol.item;
@@ -227,12 +290,16 @@ impl Hoister {
         }
 
         // if we haven't seen the symbol before,
-        // we search backwards through scopes and build a hoisting chain
+        // we search backwards through scopes and build a hoisting
+        // chain
         if !redeclare {
-            if let Some(unique_symbol) = self.try_resolve(name) { return unique_symbol; }
+            if let Some(unique_symbol) = self.try_resolve(name) {
+                return unique_symbol;
+            }
         }
 
-        // if we didn't find it by searching backwards, we declare it in the current scope
+        // if we didn't find it by searching backwards, we declare
+        // it in the current scope
         let unique_symbol = self.symbol_table.push(name);
         self.local_scope().locals.push(unique_symbol);
         return unique_symbol;
@@ -240,28 +307,40 @@ impl Hoister {
 
     /// This function wraps try_resolve,
     /// but checks that the symbol is unresolved first.
-    fn resolve_symbol(&mut self, name: SharedSymbol, span: Span) -> UniqueSymbol {
-        // if we've seen the symbol before but don't know where it's defined
+    fn resolve_symbol(
+        &mut self,
+        name: SharedSymbol,
+        span: Span,
+    ) -> UniqueSymbol {
+        // if we've seen the symbol before but don't know where it's
+        // defined
         if let Some(unique_symbol) = self.unresolved_hoists.get(&name) {
             return unique_symbol.item;
         }
 
         // if we haven't seen the symbol before,
-        // we search backwards through scopes and build a hoisting chain
-        if let Some(unique_symbol) = self.try_resolve(name) { return unique_symbol; }
+        // we search backwards through scopes and build a hoisting
+        // chain
+        if let Some(unique_symbol) = self.try_resolve(name) {
+            return unique_symbol;
+        }
 
-        // if we didn't find it by searching backwards, we mark it as unresolved
+        // if we didn't find it by searching backwards, we mark it
+        // as unresolved
         let unique_symbol = self.symbol_table.push(name);
         self.capture_all(unique_symbol);
-        self.unresolved_hoists.insert(name, Spanned::new(unique_symbol, span));
+        self.unresolved_hoists
+            .insert(name, Spanned::new(unique_symbol, span));
         return unique_symbol;
     }
 
-    /// Replaces a symbol name with a unique identifier for that symbol
+    /// Replaces a symbol name with a unique identifier for
+    /// that symbol
     pub fn symbol(&mut self, name: SharedSymbol, span: Span) -> SST {
         // if we are hoisting the variable,
-        // mark the variable as being used before its lexical definition
-        return SST::Symbol(self.resolve_symbol(name, span));
+        // mark the variable as being used before its lexical
+        // definition
+        return SST::Base(Base::Symbol(self.resolve_symbol(name, span)));
     }
 
     /// Walks a block, nothing fancy here.
@@ -271,7 +350,7 @@ impl Hoister {
             expressions.push(self.walk(expression)?)
         }
 
-        Ok(SST::Block(expressions))
+        Ok(SST::Base(Base::Block(expressions)))
     }
 
     /// Walks a tuple, nothing fancy here.
@@ -281,43 +360,46 @@ impl Hoister {
             expressions.push(self.walk(expression)?)
         }
 
-        Ok(SST::Tuple(expressions))
+        Ok(SST::Base(Base::Tuple(expressions)))
     }
 
     /// Walks an assignment.
     /// Delegates to `walk_pattern` for capturing.
     /// Assignments can capture existing variables
-    pub fn assign(&mut self, pattern: Spanned<CSTPattern>, expression: Spanned<CST>) -> Result<SST, Syntax> {
+    pub fn assign(
+        &mut self,
+        pattern: Spanned<Pattern<SharedSymbol>>,
+        expression: Spanned<CST>,
+    ) -> Result<SST, Syntax> {
         let sst_pattern = self.walk_pattern(pattern, false);
         let sst_expression = self.walk(expression)?;
 
-        return Ok(SST::assign(
-            sst_pattern,
-            sst_expression,
-        ));
+        return Ok(SST::Base(Base::assign(sst_pattern, sst_expression)));
     }
 
     /// Walks a function definition.
-    /// Like `assign`, delegates to `walk_pattern` for capturing.
-    /// But any paramaters will shadow those in outer scopes.
-    pub fn lambda(&mut self, pattern: Spanned<CSTPattern>, expression: Spanned<CST>) -> Result<SST, Syntax> {
+    /// Like `assign`, delegates to `walk_pattern` for
+    /// capturing. But any paramaters will shadow those
+    /// in outer scopes.
+    pub fn lambda(
+        &mut self,
+        pattern: Spanned<Pattern<SharedSymbol>>,
+        expression: Spanned<CST>,
+    ) -> Result<SST, Syntax> {
         self.enter_scope();
-        let sst_pattern = self.walk_pattern(pattern, true);
-        let sst_expression = self.walk(expression)?;
+        let arg = self.walk_pattern(pattern, true);
+        let body = Box::new(self.walk(expression)?);
         let scope = self.exit_scope().unwrap();
 
-        return Ok(SST::lambda(
-            sst_pattern,
-            sst_expression,
-            scope,
-        ));
+        return Ok(SST::ScopedLambda(ScopedLambda { arg, body, scope }));
     }
 
     /// Walks a function call.
-    pub fn call(&mut self, fun: Spanned<CST>, arg: Spanned<CST>) -> Result<SST, Syntax> {
-        return Ok(SST::call(
-            self.walk(fun)?,
-            self.walk(arg)?,
-        ));
+    pub fn call(
+        &mut self,
+        fun: Spanned<CST>,
+        arg: Spanned<CST>,
+    ) -> Result<SST, Syntax> {
+        return Ok(SST::Base(Base::call(self.walk(fun)?, self.walk(arg)?)));
     }
 }

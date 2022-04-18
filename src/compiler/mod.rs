@@ -21,7 +21,8 @@ pub mod lex;
 pub mod read;
 // pub mod expand;
 pub mod parse;
-// pub mod hoist;
+// pub mod desugar;
+pub mod hoist;
 // pub mod unify;
 // pub mod gen;
 
