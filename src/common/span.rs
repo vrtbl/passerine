@@ -148,12 +148,12 @@ impl Debug for Span {
 impl Display for Span {
     /// Given a `Span`, `fmt` will print out where the
     /// `Span` occurs in its source. Single-line
-    /// `Span`s: ```plain
+    /// `Span`s: ```ignore
     /// 12 | x = blatant { error }
     ///    |     ^^^^^^^^^^^^^^^^^
     /// ```
     /// Multi-line `Span`s:
-    /// ```plain
+    /// ```ignore
     /// 12 > x -> {
     /// 13 >    y = x + 1
     /// 14 >    another { error }

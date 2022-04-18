@@ -17,7 +17,7 @@ use crate::{
 };
 
 pub struct Reader {
-    tokens:  Tokens,
+    tokens:  Spanned<Tokens>,
     index:   usize,
     // stack of nested groupings
     opening: Vec<Spanned<Delim>>,
@@ -28,8 +28,8 @@ pub struct Reader {
 impl Reader {
     pub fn read(tokens: Spanned<Tokens>) -> Result<Spanned<TokenTree>, Syntax> {
         let mut reader = Reader {
-            tokens:  tokens.item,
-            index:   0,
+            tokens,
+            index: 0,
             opening: vec![],
         };
 
@@ -50,8 +50,8 @@ impl Reader {
 
     /// Returns the next token, advancing the lexer by 1.
     fn next_token(&mut self) -> Option<Spanned<Token>> {
-        if self.index < self.tokens.len() {
-            let token = &self.tokens[self.index];
+        if self.index < self.tokens.item.len() {
+            let token = &self.tokens.item[self.index];
             self.index += 1;
             // We can clone here because it's not that expensive
             Some(token.clone())
@@ -82,7 +82,14 @@ impl Reader {
         let entire_span = loop {
             let token = match self.next_token() {
                 Some(t) => t,
-                None => break todo!(),
+                None => {
+                    // TODO: unwrap to the end of source span?
+                    return Err(Syntax::error(
+                        "Unexpected end of source while parsing form",
+                        &Spanned::build(&tokens)
+                            .unwrap_or(self.tokens.span.clone()),
+                    ));
+                },
             };
 
             let span = token.span;
@@ -116,7 +123,12 @@ impl Reader {
         let entire_span = loop {
             let token = match self.next_token() {
                 Some(t) => t,
-                None => break todo!(),
+                // We didn't hit a closing `}`, so this must either be the main
+                // body, or we're missing a closing `}`. The missing closing `}`
+                // is handled by `exit_group`, so we just need to break with a
+                // realistic span.
+                // TODO: get a realistic span!
+                None => break self.tokens.span.clone(),
             };
 
             let span = token.span;
