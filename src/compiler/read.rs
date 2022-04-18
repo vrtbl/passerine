@@ -282,14 +282,14 @@ mod test {
         fn check_balance(tokens: Vec<Token>) {
             let balanced = check_if_balanced(&tokens);
             let source = generate_minimal_source(&tokens);
-            dbg!(&source);
+            // dbg!(&source);
             let tokens = Lexer::lex(Source::source(&source)).unwrap();
             let token_tree = Reader::read(tokens);
 
             if balanced {
-                assert!(token_tree.is_ok())
+                prop_assert!(token_tree.is_ok())
             } else {
-                assert!(token_tree.is_err())
+                prop_assert!(token_tree.is_err())
             }
         }
 
@@ -312,9 +312,9 @@ mod test {
             let tokens = Lexer::lex(Source::source(&buffer)).unwrap();
             let token_tree = Reader::read(tokens);
             dbg!(&token_tree);
-            assert!(token_tree.is_ok());
+            prop_assert!(token_tree.is_ok());
             if let TokenTree::Block(block) = token_tree.unwrap().item {
-                assert_eq!(block.len(), 1);
+                prop_assert_eq!(block.len(), 1);
             }
         }
     }

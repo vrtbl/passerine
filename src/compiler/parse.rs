@@ -479,11 +479,21 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
+    use proptest::prelude::*;
+
     use super::*;
     use crate::{
         common::source::Source,
         compiler::lex::Lexer,
     };
+
+    proptest! {
+        #[test]
+        fn doesnt_crash(s in "\\PC*") {
+            let result = Lexer::lex(Source::source(&s));
+            format!("{:?}", result);
+        }
+    }
 
     #[test]
     fn literal() {

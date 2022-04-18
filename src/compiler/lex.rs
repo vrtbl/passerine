@@ -413,9 +413,9 @@ mod test {
         #[test]
         fn operators(s in "[!$%&*+,-./:<=>?@^|~]+") {
             let result = Lexer::lex(Source::source(&s));
-            assert!(result.is_ok());
+            prop_assert!(result.is_ok());
             if let Token::Op(op) = &result.unwrap().item[0].item {
-                assert_eq!(op, &s);
+                prop_assert_eq!(op, &s);
             }
         }
 
@@ -425,10 +425,10 @@ mod test {
             dbg!(&formatted);
             let result = Lexer::lex(Source::source(&formatted));
             dbg!(&result);
-            assert!(result.is_ok());
+            prop_assert!(result.is_ok());
             let unwrapped = result.unwrap().item;
-            assert!(unwrapped.len() == 1);
-            assert_eq!(unwrapped[0].item, Token::Lit(Lit::Float(x)));
+            prop_assert!(unwrapped.len() == 1);
+            prop_assert_eq!(&unwrapped[0].item, &Token::Lit(Lit::Float(x)));
         }
     }
 
