@@ -1,21 +1,36 @@
 use std::{
     f64,
-    iter::{once, Iterator, Peekable},
+    iter::{
+        once,
+        Iterator,
+        Peekable,
+    },
     rc::Rc,
-    str::{Chars, FromStr},
+    str::{
+        Chars,
+        FromStr,
+    },
 };
 
 use crate::{
     common::{
         lit::Lit,
         source::Source,
-        span::{Span, Spanned},
+        span::{
+            Span,
+            Spanned,
+        },
     },
-    construct::token::Delim,
+    compiler::syntax::{
+        Note,
+        Syntax,
+    },
+    construct::token::{
+        Delim,
+        Token,
+        Tokens,
+    },
 };
-
-use crate::compiler::syntax::{Note, Syntax};
-use crate::construct::token::{Token, Tokens};
 
 const OP_CHARS: &str = "!$%&*+,-./:<=>?@^|~";
 
@@ -26,14 +41,17 @@ macro_rules! RemainingIter {
 #[derive(Debug)]
 pub struct Lexer {
     source: Rc<Source>,
-    index: usize,
+    index:  usize,
     tokens: Tokens,
 }
 
 impl Lexer {
     // TODO: lexer needs to return all macro declarations
     /// Lexes a source file into a stream of tokens.
-    pub fn lex(source: Rc<Source>) -> Result<Tokens, Syntax> {
+    pub fn lex(source: Rc<Source>) -> Result<Spanned<Tokens>, Syntax> {
+        // get a span that spans the entire source file:
+        let span = Span::new(&source, 0, source.contents.len());
+
         // build a base lexer for this file
         let mut lexer = Lexer {
             source,
@@ -50,19 +68,20 @@ impl Lexer {
             lexer.tokens.push(token);
             lexer.strip();
         }
+
         // phew, nothing broke. Your tokens, sir!
-        Ok(lexer.tokens)
+        Ok(Spanned::new(lexer.tokens, span))
     }
 
-    /// Selects a range of a string of length `len` from the current index position.
+    /// Selects a range of a string of length `len` from the
+    /// current index position.
     fn grab_from_index(&self, len: usize) -> &str {
         &self.source.contents[self.index..self.index + len]
     }
 
-    /// Returns all characters after the current index position.
-    fn remaining(&self) -> Chars {
-        self.source.contents[self.index..].chars()
-    }
+    /// Returns all characters after the current index
+    /// position.
+    fn remaining(&self) -> Chars { self.source.contents[self.index..].chars() }
 
     // TODO: use own index instead of self.index
     fn strip(&mut self) {
@@ -103,11 +122,14 @@ impl Lexer {
     }
 
     /// Starting at the parser's current index.
-    /// consumes characters one at a time according to a `pred`icate.
-    /// after the predicate returns false, the string is passed to a `wrap` function,
-    /// which converts the string slice of consumed characters into a type `T`,
-    /// and returns that type along with the number of bytes consumed.
-    /// (The number of bytes consumed can be used to advance `self.index`.)
+    /// consumes characters one at a time according to a
+    /// `pred`icate. after the predicate returns false,
+    /// the string is passed to a `wrap` function, which
+    /// converts the string slice of consumed characters
+    /// into a type `T`, and returns that type along
+    /// with the number of bytes consumed. (The number
+    /// of bytes consumed can be used to advance
+    /// `self.index`.)
     fn take_while<T>(
         &self,
         remaining: &mut RemainingIter!(),
@@ -176,7 +198,8 @@ impl Lexer {
         ))
     }
 
-    /// Must start with two-byte prefix `0?`, where `?` indicates radix.
+    /// Must start with two-byte prefix `0?`, where `?`
+    /// indicates radix.
     fn integer_literal(
         &self,
         radix: u32,
@@ -206,7 +229,8 @@ impl Lexer {
         // remaining does not lead with `n`
         remaining: RemainingIter!(),
     ) -> Result<(Token, usize), Syntax> {
-        // TODO: figure out something more elegant than this += 2 -= 2 ordeal
+        // TODO: figure out something more elegant than this += 2 -=
+        // 2 ordeal
         match n {
             'b' => self.integer_literal(2, remaining),
             'o' => self.integer_literal(8, remaining), // Octal
@@ -370,7 +394,8 @@ mod test {
     use super::*;
     use crate::common::lit::Lit;
 
-    // NOTE: lexing individual tokens is tested in pipeline::token
+    // NOTE: lexing individual tokens is tested in
+    // pipeline::token
 
     proptest! {
         #[test]
@@ -389,7 +414,7 @@ mod test {
         fn operators(s in "[!$%&*+,-./:<=>?@^|~]+") {
             let result = Lexer::lex(Source::source(&s));
             assert!(result.is_ok());
-            if let Token::Op(op) = &result.unwrap()[0].item {
+            if let Token::Op(op) = &result.unwrap().item[0].item {
                 assert_eq!(op, &s);
             }
         }
@@ -401,7 +426,7 @@ mod test {
             let result = Lexer::lex(Source::source(&formatted));
             dbg!(&result);
             assert!(result.is_ok());
-            let unwrapped = result.unwrap();
+            let unwrapped = result.unwrap().item;
             assert!(unwrapped.len() == 1);
             assert_eq!(unwrapped[0].item, Token::Lit(Lit::Float(x)));
         }
@@ -413,7 +438,7 @@ mod test {
         let formatted = format!("{:?}", x);
         let result = Lexer::lex(Source::source(&formatted));
         assert!(result.is_ok());
-        let unwrapped = result.unwrap();
+        let unwrapped = result.unwrap().item;
         assert!(unwrapped.len() == 1);
         assert_eq!(unwrapped[0].item, Token::Lit(Lit::Float(x)));
     }
@@ -421,12 +446,12 @@ mod test {
     #[test]
     fn zero_float() {
         let result = Lexer::lex(Source::source("0.0"));
-        assert_eq!(result.unwrap()[0].item, Token::Lit(Lit::Float(0.0)));
+        assert_eq!(result.unwrap().item[0].item, Token::Lit(Lit::Float(0.0)));
     }
 
     #[test]
     fn brackets() {
-        let result = Lexer::lex(Source::source("{[(])}()")).unwrap();
+        let result = Lexer::lex(Source::source("{[(])}()")).unwrap().item;
         assert_eq!(result[0].item, Token::Open(Delim::Curly));
         assert_eq!(result[1].item, Token::Open(Delim::Square));
         assert_eq!(result[2].item, Token::Open(Delim::Paren));
@@ -450,7 +475,5 @@ mod test {
     }
 
     #[test]
-    fn new_empty() {
-        Lexer::lex(Source::source("")).unwrap();
-    }
+    fn new_empty() { Lexer::lex(Source::source("")).unwrap(); }
 }

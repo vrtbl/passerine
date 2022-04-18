@@ -1,5 +1,10 @@
 use std::{
-    fmt::{self, Debug, Display, Formatter},
+    fmt::{
+        self,
+        Debug,
+        Display,
+        Formatter,
+    },
     rc::Rc,
     usize,
 };
@@ -7,9 +12,10 @@ use std::{
 use crate::common::source::Source;
 
 /// A `Span` refers to a section of a source,
-/// much like a `&str`, but with a reference to a `Source` rather than a `String`.
-/// A `Span` is  meant to be paired with other datastructures,
-/// to be used during error reporting.
+/// much like a `&str`, but with a reference to a `Source`
+/// rather than a `String`. A `Span` is  meant to be paired
+/// with other datastructures, to be used during error
+/// reporting.
 #[derive(Clone, Eq, PartialEq)]
 pub struct Span {
     source: Rc<Source>,
@@ -19,8 +25,9 @@ pub struct Span {
 
 impl Span {
     /// Create a new `Span` from an offset with a length.
-    /// All `Span`s have access to the `Source` from whence they came,
-    /// So they can't be misinterpreted or miscombined.
+    /// All `Span`s have access to the `Source` from whence
+    /// they came, So they can't be misinterpreted or
+    /// miscombined.
     pub fn new(source: &Rc<Source>, offset: usize, length: usize) -> Span {
         Span {
             source: Rc::clone(source),
@@ -29,8 +36,8 @@ impl Span {
         }
     }
 
-    /// A `Span` that points at a specific point in the source.
-    /// Has a length of `0`.
+    /// A `Span` that points at a specific point in the
+    /// source. Has a length of `0`.
     pub fn point(source: &Rc<Source>, offset: usize) -> Span {
         Span {
             source: Rc::clone(source),
@@ -40,16 +47,12 @@ impl Span {
     }
 
     /// Return the index of the end of the `Span`.
-    pub fn end(&self) -> usize {
-        self.offset + self.length
-    }
+    pub fn end(&self) -> usize { self.offset + self.length }
 
-    pub fn len(&self) -> usize {
-        self.length
-    }
+    pub fn len(&self) -> usize { self.length }
 
-    /// Creates a new `Span` which spans the space of the previous two.
-    /// ```plain
+    /// Creates a new `Span` which spans the space of the
+    /// previous two. ```plain
     /// hello this is cool
     /// ^^^^^              | Span a
     ///            ^^      | Span b
@@ -67,22 +70,23 @@ impl Span {
         return Span::new(&a.source, offset, length);
     }
 
-    /// Combines a set of `Span`s (think fold-left over `Span::combine`).
-    /// If the vector of spans passed in is empty, this method panics.
-    pub fn join(mut spans: Vec<Span>) -> Span {
-        let mut combined = spans.pop().expect("Expected at least one span");
+    /// Combines a set of `Span`s (think fold-left over
+    /// `Span::combine`). If the vector of spans passed
+    /// in is empty, this method panics.
+    pub fn join(mut spans: Vec<Span>) -> Option<Span> {
+        let mut combined = spans.pop()?;
 
         while let Some(span) = spans.pop() {
             combined = Span::combine(&combined, &span)
         }
 
-        return combined;
+        return Some(combined);
     }
 
     /// Returns the contents of a `Span`.
     /// This indexes into the source file,
-    /// so if the `Span` is along an invalid byte boundary or
-    /// is empty, the program will panic.
+    /// so if the `Span` is along an invalid byte boundary
+    /// or is empty, the program will panic.
     pub fn contents(&self) -> String {
         self.source.as_ref().contents[self.offset..self.end()].to_string()
     }
@@ -120,11 +124,11 @@ impl Span {
 
     pub fn format(&self) -> FormattedSpan {
         FormattedSpan {
-            path: self.path(),
-            start: self.line(self.offset),
-            lines: self.lines(),
+            path:      self.path(),
+            start:     self.line(self.offset),
+            lines:     self.lines(),
             start_col: self.col(self.offset),
-            end_col: self.col(self.end()),
+            end_col:   self.col(self.end()),
         }
     }
 }
@@ -142,9 +146,9 @@ impl Debug for Span {
 // TODO: tests
 // TODO: this can be vastly simplified
 impl Display for Span {
-    /// Given a `Span`, `fmt` will print out where the `Span` occurs in its source.
-    /// Single-line `Span`s:
-    /// ```plain
+    /// Given a `Span`, `fmt` will print out where the
+    /// `Span` occurs in its source. Single-line
+    /// `Span`s: ```plain
     /// 12 | x = blatant { error }
     ///    |     ^^^^^^^^^^^^^^^^^
     /// ```
@@ -165,27 +169,22 @@ impl Display for Span {
 /// and where in the text it starts and ends
 /// relative to the lines in the source.
 pub struct FormattedSpan {
-    pub path: String,
-    pub start: usize,
-    pub lines: Vec<String>,
+    pub path:      String,
+    pub start:     usize,
+    pub lines:     Vec<String>,
     pub start_col: usize,
-    pub end_col: usize,
+    pub end_col:   usize,
 }
 
 impl FormattedSpan {
-    pub fn is_multiline(&self) -> bool {
-        self.lines.len() != 1
-    }
+    pub fn is_multiline(&self) -> bool { self.lines.len() != 1 }
 
-    pub fn end(&self) -> usize {
-        (self.start - 1) + self.lines.len()
-    }
+    pub fn end(&self) -> usize { (self.start - 1) + self.lines.len() }
 
-    pub fn gutter_padding(&self) -> usize {
-        self.start.to_string().len()
-    }
+    pub fn gutter_padding(&self) -> usize { self.start.to_string().len() }
 
-    /// If a single line span, returns the number of carrots between cols.
+    /// If a single line span, returns the number of carrots
+    /// between cols.
     pub fn carrots(&self) -> Option<usize> {
         if self.lines.len() == 1 {
             Some(self.end_col - self.start_col)
@@ -236,7 +235,8 @@ impl Display for FormattedSpan {
 ///     Close,
 /// }
 /// ```
-/// or the like, can be spanned to indicate where it was parsed from (a `Spanned<Token>`).
+/// or the like, can be spanned to indicate where it was
+/// parsed from (a `Spanned<Token>`).
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Spanned<T> {
     pub item: T,
@@ -244,13 +244,12 @@ pub struct Spanned<T> {
 }
 
 impl<T> Spanned<T> {
-    /// Takes a generic item, and wraps in in a `Span` to make it `Spanned`.
-    pub fn new(item: T, span: Span) -> Spanned<T> {
-        Spanned { item, span }
-    }
+    /// Takes a generic item, and wraps in in a `Span` to
+    /// make it `Spanned`.
+    pub fn new(item: T, span: Span) -> Spanned<T> { Spanned { item, span } }
 
     /// Joins a Vector of spanned items into a single span.
-    pub fn build(spanneds: &[Spanned<T>]) -> Span {
+    pub fn build(spanneds: &[Spanned<T>]) -> Option<Span> {
         let spans = spanneds
             .iter()
             .map(|s| s.span.clone())
@@ -287,7 +286,7 @@ mod test {
         ];
         let result = Span::new(&source, 0, 16);
 
-        assert_eq!(Span::join(spans).contents(), result.contents());
+        assert_eq!(Span::join(spans).unwrap().contents(), result.contents());
     }
 
     #[test]

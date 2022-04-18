@@ -1,10 +1,24 @@
-use crate::common::span::{Span, Spanned};
-use crate::compiler::syntax::{Note, Syntax};
-use crate::construct::token::{Delim, Token, TokenTree, TokenTrees, Tokens};
+use crate::{
+    common::span::{
+        Span,
+        Spanned,
+    },
+    compiler::syntax::{
+        Note,
+        Syntax,
+    },
+    construct::token::{
+        Delim,
+        Token,
+        TokenTree,
+        TokenTrees,
+        Tokens,
+    },
+};
 
 pub struct Reader {
-    tokens: Tokens,
-    index: usize,
+    tokens:  Tokens,
+    index:   usize,
     // stack of nested groupings
     opening: Vec<Spanned<Delim>>,
 }
@@ -12,16 +26,17 @@ pub struct Reader {
 // TODO: return Token
 
 impl Reader {
-    pub fn read(tokens: Tokens) -> Result<Spanned<TokenTree>, Syntax> {
+    pub fn read(tokens: Spanned<Tokens>) -> Result<Spanned<TokenTree>, Syntax> {
         let mut reader = Reader {
-            tokens,
-            index: 0,
+            tokens:  tokens.item,
+            index:   0,
             opening: vec![],
         };
 
         let result = reader.block()?;
 
-        // if there are still unclosed delimiters on the opening stack
+        // if there are still unclosed delimiters on the opening
+        // stack
         if !reader.opening.is_empty() {
             let still_opened = reader.opening.last().unwrap();
             Err(Syntax::error(
@@ -64,15 +79,21 @@ impl Reader {
     fn form(&mut self) -> Result<Spanned<TokenTrees>, Syntax> {
         let mut tokens: TokenTrees = vec![];
 
-        while let Some(token) = self.next_token() {
+        let entire_span = loop {
+            let token = match self.next_token() {
+                Some(t) => t,
+                None => break todo!(),
+            };
+
             let span = token.span;
             let item = match token.item {
                 Token::Open(delim) => {
                     self.enter_group(Spanned::new(delim, span.clone()))?
                 },
                 Token::Close(delim) => {
-                    self.exit_group(Spanned::new(delim, span.clone()))?;
-                    break;
+                    let span =
+                        self.exit_group(Spanned::new(delim, span.clone()))?;
+                    break span;
                 },
                 Token::Sep => continue,
 
@@ -81,11 +102,9 @@ impl Reader {
             };
 
             tokens.push(item);
-        }
+        };
 
-        let form_span = Spanned::build(&tokens);
-        let spanned_form = Spanned::new(tokens, form_span);
-        Ok(spanned_form)
+        Ok(Spanned::new(tokens, entire_span))
     }
 
     fn block(&mut self) -> Result<Spanned<TokenTree>, Syntax> {
@@ -94,15 +113,21 @@ impl Reader {
         let mut after_sep = false;
         let mut after_op = false;
 
-        while let Some(token) = self.next_token() {
+        let entire_span = loop {
+            let token = match self.next_token() {
+                Some(t) => t,
+                None => break todo!(),
+            };
+
             let span = token.span;
             let item = match token.item {
                 Token::Open(delim) => {
                     self.enter_group(Spanned::new(delim, span.clone()))?
                 },
                 Token::Close(delim) => {
-                    self.exit_group(Spanned::new(delim, span.clone()))?;
-                    break;
+                    let span =
+                        self.exit_group(Spanned::new(delim, span.clone()))?;
+                    break span;
                 },
                 Token::Sep => {
                     after_sep = true;
@@ -122,7 +147,8 @@ impl Reader {
             };
 
             if after_sep && !after_op && !line.is_empty() {
-                let line_span = Spanned::build(&line);
+                // we can unwrap because we checked the line isn't empty
+                let line_span = Spanned::build(&line).unwrap();
                 let spanned_line = Spanned::new(line, line_span);
                 lines.push(spanned_line);
                 line = vec![];
@@ -131,18 +157,15 @@ impl Reader {
             after_sep = false;
             after_op = false;
             line.push(item);
-        }
+        };
 
         if !line.is_empty() {
-            let line_span = Spanned::build(&line);
+            let line_span = Spanned::build(&line).unwrap();
             let spanned_line = Spanned::new(line, line_span);
             lines.push(spanned_line);
         }
 
-        let block_span = Spanned::build(&lines);
-        let block = TokenTree::Block(lines);
-        let spanned_block = Spanned::new(block, block_span);
-        Ok(spanned_block)
+        Ok(Spanned::new(TokenTree::Block(lines), entire_span))
     }
 
     fn enter_group(
@@ -161,7 +184,7 @@ impl Reader {
     fn exit_group(
         &mut self,
         closing_delim: Spanned<Delim>,
-    ) -> Result<(), Syntax> {
+    ) -> Result<Span, Syntax> {
         let opening_delim = self.opening.pop().ok_or_else(|| {
             Syntax::error(
                 &format!("Unexpected closing {}", closing_delim.item),
@@ -170,7 +193,7 @@ impl Reader {
         })?;
 
         if opening_delim.item == closing_delim.item {
-            return Ok(());
+            return Ok(Span::combine(&opening_delim.span, &closing_delim.span));
         }
 
         let error = Syntax::error(
@@ -191,16 +214,18 @@ impl Reader {
 mod test {
     use std::fmt::Write;
 
-    use super::*;
-    use crate::common::source::Source;
-    use crate::compiler::lex::Lexer;
-
     use proptest::prelude::*;
 
+    use super::*;
+    use crate::{
+        common::source::Source,
+        compiler::lex::Lexer,
+    };
+
     /// Generates a source file from some tokens.
-    /// Replaces each token with a minimal representative token.
-    /// for example, all delimiters become curly brackets,
-    /// all identifiers become `x`, and so on.
+    /// Replaces each token with a minimal representative
+    /// token. for example, all delimiters become curly
+    /// brackets, all identifiers become `x`, and so on.
     fn generate_minimal_source(tokens: &[Token]) -> String {
         let mut buffer = String::new();
         for token in tokens {
@@ -218,9 +243,10 @@ mod test {
         buffer
     }
 
-    /// Checks if there are a matching number of opening and closing delims.
-    /// Doesn't care if delims are of different types
-    /// To be used with `generate_minimal_source`.
+    /// Checks if there are a matching number of opening and
+    /// closing delims. Doesn't care if delims are of
+    /// different types To be used with
+    /// `generate_minimal_source`.
     fn check_if_balanced(tokens: &[Token]) -> bool {
         let mut delims = 0;
 

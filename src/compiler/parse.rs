@@ -141,8 +141,10 @@ impl Parser {
                         Prec::None,
                     )?);
                 }
-                let span = Spanned::build(&expressions);
-                Spanned::new(AST::Base(Base::Block(expressions)), span)
+                Spanned::new(
+                    AST::Base(Base::Block(expressions)),
+                    token_tree.span.clone(),
+                )
             },
             TokenTree::List(_) => unimplemented!(),
         };
