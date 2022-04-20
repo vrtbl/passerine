@@ -33,6 +33,8 @@ pub struct VM {
     pub ip:      usize,
 }
 
+unsafe impl Send for VM {}
+
 // NOTE: use Opcode::same and Opcode.to_byte() rather than actual bytes
 // Don't worry, the compiler *should* get rid of this overhead and just use
 // bytes
