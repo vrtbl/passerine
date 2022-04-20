@@ -16,3 +16,10 @@ pub fn if_choice(data: Data) -> Result<Data, String> {
             .to_string())
     }
 }
+
+// #[derive(Passerine)]
+// pub struct IfChoice {
+//     cond:  bool,
+//     then:  Data,
+//     other: Data,
+// }
