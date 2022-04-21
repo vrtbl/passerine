@@ -240,7 +240,7 @@ impl Lexer {
             // Decimal literal with a leading zero
             _ => {
                 // rebuild the iterator, ugh
-                let mut remaining = once('0').chain(once(n)).chain(remaining);
+                let remaining = once('0').chain(once(n)).chain(remaining);
                 self.decimal_literal(remaining.peekable())
             },
         }

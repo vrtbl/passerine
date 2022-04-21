@@ -1,6 +1,5 @@
 use std::fmt;
 
-use super::read;
 use crate::common::span::Span;
 
 /// Represents a note attached to a Syntax error,
