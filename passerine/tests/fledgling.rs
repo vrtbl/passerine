@@ -81,14 +81,14 @@
 //
 //         for (strat, result) in heading.iter() {
 //             match strat {
-//                 o if o == "outcome" => outcome = Some(Outcome::parse(result)),
-//                 a if a == "action"  => action  = Some(Action::parse(result)),
-//                 e if e == "expect"  => expect  = {
-//                     use passerine::construct::ast::AST;
-//                     let ast: Spanned<AST> = ThinModule::thin(Source::source(result))
-//                         .lower().expect("Could not lex expectation")
-//                         .lower().expect("Could not parse expectation")
-//                         .repr;
+//                 o if o == "outcome" => outcome =
+// Some(Outcome::parse(result)),                 a if a == "action"  => action
+// = Some(Action::parse(result)),                 e if e == "expect"  => expect
+// = {                     use passerine::construct::ast::AST;
+//                     let ast: Spanned<AST> =
+// ThinModule::thin(Source::source(result))                         
+// .lower().expect("Could not lex expectation")                         
+// .lower().expect("Could not parse expectation")                         .repr;
 //
 //                     if let AST::Block(b) = ast.item {
 //                         if let AST::Data(d) = &b[0].item {
@@ -120,13 +120,14 @@
 //             if line.len() <= 2 || &line[0..2] != "--" { break };
 //
 //             let spliced = line[2..].trim().split(":").collect::<Vec<&str>>();
-//             if spliced.len() <= 1 { panic!("Missing colon in test strat heading") }
+//             if spliced.len() <= 1 { panic!("Missing colon in test strat
+// heading") }
 //
 //             let strat = spliced[0];
 //             let result = spliced[1..].join(":");
-//             if heading.insert(strat.trim().to_string(), result.trim().to_string()).is_some() {
-//                 panic!("Key present twice in test strat heading");
-//             }
+//             if heading.insert(strat.trim().to_string(),
+// result.trim().to_string()).is_some() {                 panic!("Key present
+// twice in test strat heading");             }
 //         }
 //
 //         return TestStrat::heading(heading);
@@ -184,10 +185,12 @@
 //
 // fn snippets(dir: &str) {
 //     let paths = fs::read_dir(dir)
-//         .expect("You must be in the base passerine directory, snippets in ./tests/snippets");
+//         .expect("You must be in the base passerine directory, snippets in
+// ./tests/snippets");
 //
 //     let mut to_run: Vec<PathBuf> = vec![];
-//     for path in paths { to_run.push(path.expect("Could not read path").path()) }
+//     for path in paths { to_run.push(path.expect("Could not read
+// path").path()) }
 //
 //     let mut counter = 0;
 //     println!("\nRunning {} snippet test(s)...", to_run.len());
@@ -196,8 +199,8 @@
 //     while let Some(path) = to_run.pop() {
 //         println!("test {}: {}...", counter, path.display());
 //
-//         let source = Source::path(&path).expect("Could not get snippet source");
-//         let test_strat = TestStrat::snippet(&source);
+//         let source = Source::path(&path).expect("Could not get snippet
+// source");         let test_strat = TestStrat::snippet(&source);
 //
 //         test_snippet(source, &test_strat);
 //         counter += 1;

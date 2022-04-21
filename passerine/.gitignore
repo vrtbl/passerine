@@ -1,0 +1,16 @@
+# Build folders
+/target
+
+# Backups, rustfmt
+**/*.rs.bk
+
+# Hidden files
+**/.*
+
+# scratchpad
+/scratchpad
+
+# But not:
+!.gitignore
+!.git
+!.github

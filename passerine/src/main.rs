@@ -1,5 +1,7 @@
-use passerine::compiler::lex;
-use passerine::Source; // , compile, run};
+use passerine::{
+    compiler::lex,
+    Source,
+}; // , compile, run};
 
 pub fn main() {
     // get the path and load the file
@@ -17,11 +19,14 @@ pub fn main() {
         },
     }
 
-    // println!("{}", ThinModule::thin(us).lower().unwrap().lower().unwrap_err()); //.and_then(Lower::lower));
+    // println!("{}",
+    // ThinModule::thin(us).lower().unwrap().lower().unwrap_err());
+    // //.and_then(Lower::lower));
 
     // compile and run the file at the specified path
-    // let bytecode = source.and_then(|s| compile(s).map_err(|e| e.to_string()));
-    // let result = bytecode.and_then(|b| run(b).map_err(|e| e.to_string()));
+    // let bytecode = source.and_then(|s| compile(s).map_err(|e|
+    // e.to_string())); let result = bytecode.and_then(|b|
+    // run(b).map_err(|e| e.to_string()));
     //
     // // report any errors
     // if let Err(error) = result {

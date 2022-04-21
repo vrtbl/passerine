@@ -2,12 +2,19 @@ use std::{
     cell::RefCell,
     collections::BTreeMap,
     f64,
-    fmt::{Debug, Display, Formatter, Result},
+    fmt::{
+        Debug,
+        Display,
+        Formatter,
+        Result,
+    },
     rc::Rc,
 };
 
-use crate::common::lambda::Lambda;
-use crate::vm::closure::Closure;
+use crate::{
+    common::lambda::Lambda,
+    vm::closure::Closure,
+};
 
 // TODO: separate VM data from parser data
 
@@ -67,7 +74,8 @@ pub enum Data {
 impl Eq for Data {}
 
 impl Display for Data {
-    /// Displays some Passerine Data in a pretty manner, as if it were printed to console.
+    /// Displays some Passerine Data in a pretty manner, as if it were printed
+    /// to console.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Data::Heaped(_) => unreachable!("Can not display heaped data"),
@@ -109,7 +117,9 @@ impl Debug for Data {
             Data::Boolean(b) => write!(f, "Boolean({:?})", b),
             Data::String(s) => write!(f, "String({:?})", s),
             Data::Lambda(_) => write!(f, "Function(...)"),
-            Data::Closure(_c) => write!(f, "Closure(...)"), // TODO: how to differentiate?
+            Data::Closure(_c) => write!(f, "Closure(...)"), /* TODO: how to
+                                                              * differentiate?
+                                                              * */
             Data::Kind(n) => write!(f, "Kind({})", n),
             Data::Label(n, v) => write!(f, "Label({}, {:?})", n, v),
             Data::Unit => write!(f, "Unit"),

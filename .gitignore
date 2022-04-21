@@ -1,14 +1,10 @@
-# Build folders
-/target
-
-# Backups, rustfmt
-**/*.rs.bk
-
-# Hidden files
+# Ignore:
 **/.*
+**/target
+**/Cargo.lock
 
-# scratchpad
-/scratchpad
+# Protip: create a scratchpad to mess around with stuff!
+**/scratchpad
 
 # But not:
 !.gitignore

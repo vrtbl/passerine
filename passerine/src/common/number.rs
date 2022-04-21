@@ -35,7 +35,8 @@ pub fn split_number(n: usize) -> Vec<u8> {
 
 /// This takes a stream of bytes, and builds the next number in it.
 /// Note that this function tries to build a number no matter what,
-/// even if the byte stream does not have a number, is empty, or ends after a continue bit is set.
+/// even if the byte stream does not have a number, is empty, or ends after a
+/// continue bit is set.
 pub fn build_number(bytes: &[u8]) -> (usize, usize) /* (index, eaten) */ {
     let mut i: usize = 0;
     let mut e = 0;

@@ -1,10 +1,17 @@
 use std::{
     f64,
-    fmt::{Debug, Error, Formatter},
+    fmt::{
+        Debug,
+        Error,
+        Formatter,
+    },
     mem,
 };
 
-use crate::vm::{data::Data, slot::Slot};
+use crate::vm::{
+    data::Data,
+    slot::Slot,
+};
 
 // TODO: add fallback for 32-bit systems and so on.
 /// `Tagged` implements Nan-tagging around the `Data` enum.
@@ -17,8 +24,9 @@ use crate::vm::{data::Data, slot::Slot};
 /// SExponent---QIMantissa------------------------------------------
 /// PNaN--------11D-Payload-------------------------------------...T
 /// ```
-/// Where `S` is sign, `Q` is quiet flag, `I` is Intel’s "QNan Floating-Point Indefinite";
-/// `P` is pointer flag, `D` is Data Tag (should always be 1), `T` is Tag.
+/// Where `S` is sign, `Q` is quiet flag, `I` is Intel’s "QNan Floating-Point
+/// Indefinite"; `P` is pointer flag, `D` is Data Tag (should always be 1), `T`
+/// is Tag.
 ///
 /// By exploiting this fact, assuming a 64-bit system,
 /// each item on the stack only takes up a machine word.
@@ -75,23 +83,19 @@ impl Tagged {
     // TODO: encode frame in tag itself; a frame is not data
     /// Creates a new stack frame.
     #[inline]
-    pub fn frame() -> Tagged {
-        Tagged::new(Slot::Frame)
-    }
+    pub fn frame() -> Tagged { Tagged::new(Slot::Frame) }
 
     /// Shortcut for creating a new `Tagged(Slot::NotInit)`.
     #[inline]
-    pub fn not_init() -> Tagged {
-        Tagged::new(Slot::Data(Data::NotInit))
-    }
+    pub fn not_init() -> Tagged { Tagged::new(Slot::Data(Data::NotInit)) }
 
     /// Returns the underlying `Data` (or a pointer to that `Data`).
     /// Unpacks the encoding used by [`Tagged`].
     ///
     /// `dereference` will be called with a valid raw pointer to a [`Box<Slot>`]
     ///
-    /// The aliasing requirements on the source `Tagged` must be followed on this
-    /// pointer.
+    /// The aliasing requirements on the source `Tagged` must be followed on
+    /// this pointer.
     ///
     /// If the caller moves out of this pointer, the original [`Tagged`] must
     /// not be dropped
@@ -137,7 +141,8 @@ impl Tagged {
 impl Drop for Tagged {
     fn drop(&mut self) {
         self.extract(|p| *unsafe {
-            // Safety: self will not be used again, so the contents can be consumed
+            // Safety: self will not be used again, so the contents can be
+            // consumed
             Box::from_raw(p)
         });
     }
@@ -151,9 +156,7 @@ impl Debug for Tagged {
 
 impl From<Tagged> for u64 {
     /// Unwraps a tagged pointer into the literal representation for debugging.
-    fn from(tagged: Tagged) -> Self {
-        tagged.0
-    }
+    fn from(tagged: Tagged) -> Self { tagged.0 }
 }
 
 #[cfg(test)]

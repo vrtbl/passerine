@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use crate::common::{lit::Lit, span::Spanned};
+use crate::common::{
+    lit::Lit,
+    span::Spanned,
+};
 
 #[derive(Debug, Clone, PartialEq, proptest_derive::Arbitrary)]
 pub enum Delim {

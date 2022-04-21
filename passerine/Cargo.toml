@@ -1,0 +1,18 @@
+[package]
+name = "passerine"
+version = "0.9.2"
+authors = [
+    "Isaac Clayton (slightknack) <slightknack@gmail.com>",
+    "The Passerine Community",
+]
+edition = "2018"
+description = "A small extensible functional scripting language designed for concise expression with little code."
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/vrtbl/passerine"
+
+# We only have development dependencies for testing and profiling
+[dependencies]
+# I would put this under dev-dependencies if I could.
+proptest-derive = "0.3.0"
+proptest = "1.0.0"

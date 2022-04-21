@@ -1,8 +1,15 @@
-use std::{cell::RefCell, mem, rc::Rc};
+use std::{
+    cell::RefCell,
+    mem,
+    rc::Rc,
+};
 
 use crate::vm::{
     data::Data,
-    slot::{Slot, Suspend},
+    slot::{
+        Slot,
+        Suspend,
+    },
     tag::Tagged,
 };
 
@@ -16,7 +23,7 @@ use crate::vm::{
 #[derive(Debug)]
 pub struct Stack {
     pub frames: Vec<usize>,
-    pub stack: Vec<Tagged>,
+    pub stack:  Vec<Tagged>,
 }
 
 impl Stack {
@@ -24,15 +31,13 @@ impl Stack {
     pub fn init() -> Stack {
         Stack {
             frames: vec![0],
-            stack: vec![Tagged::frame()],
+            stack:  vec![Tagged::frame()],
         }
     }
 
     /// Return the index of the topmost `Tagged(Slot::Frame)`.
     #[inline]
-    fn frame_index(&self) -> usize {
-        *self.frames.last().unwrap()
-    }
+    fn frame_index(&self) -> usize { *self.frames.last().unwrap() }
 
     /// Pop and return the topmost `Tagged` item.
     #[inline]
@@ -42,7 +47,8 @@ impl Stack {
             .expect("VM tried to pop empty stack, stack should never be empty")
     }
 
-    /// Swaps out a `Tagged` item without another `Tagged` item, provided its index.
+    /// Swaps out a `Tagged` item without another `Tagged` item, provided its
+    /// index.
     #[inline]
     fn swap(&mut self, index: usize, tagged: Tagged) -> Tagged {
         mem::replace(&mut self.stack[index], tagged)
@@ -56,12 +62,11 @@ impl Stack {
 
     /// Pushes some `Tagged` `Data` onto the `Stack` without unwrapping it.
     #[inline]
-    pub fn push_tagged(&mut self, tagged: Tagged) {
-        self.stack.push(tagged)
-    }
+    pub fn push_tagged(&mut self, tagged: Tagged) { self.stack.push(tagged) }
 
-    /// Pops some `Data` of the `Stack`, panicking if what it pops is not `Data`.
-    /// Note that this will never return a `Heaped` value, rather cloning the value inside.
+    /// Pops some `Data` of the `Stack`, panicking if what it pops is not
+    /// `Data`. Note that this will never return a `Heaped` value, rather
+    /// cloning the value inside.
     #[inline]
     pub fn pop_data(&mut self) -> Data {
         let value = self
@@ -106,9 +111,7 @@ impl Stack {
 
     /// Shorcut for pushing a `Tagged(Slot::NotInit)` on top of the stack.
     #[inline]
-    pub fn push_not_init(&mut self) {
-        self.stack.push(Tagged::not_init());
-    }
+    pub fn push_not_init(&mut self) { self.stack.push(Tagged::not_init()); }
 
     /// Shortcut for calling `push_not_init` N times.
     #[inline]

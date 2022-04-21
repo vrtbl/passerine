@@ -1,11 +1,18 @@
-use std::fmt::{Debug, Formatter, Result};
+use std::fmt::{
+    Debug,
+    Formatter,
+    Result,
+};
 
-use crate::vm::{closure::Closure, data::Data};
+use crate::vm::{
+    closure::Closure,
+    data::Data,
+};
 
 /// Represents a suspended closure.
 #[derive(Debug, Clone)]
 pub struct Suspend {
-    pub ip: usize,
+    pub ip:      usize,
     pub closure: Closure,
 }
 
