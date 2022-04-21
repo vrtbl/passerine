@@ -1,5 +1,5 @@
 use crate::{
-    core::extract::binop,
+    kernel::extract::binop,
     vm::data::Data,
 };
 

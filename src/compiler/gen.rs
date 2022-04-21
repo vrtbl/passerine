@@ -29,7 +29,7 @@ use crate::{
             SST,
         },
     },
-    core::{
+    kernel::{
         ffi::FFI,
         ffi_core,
     },
@@ -150,7 +150,7 @@ impl Compiler {
             i
         } else {
             // unreachable?
-            todo!();
+            todo!()
         };
 
         self.lambda.emit_bytes(&mut split_number(index));

@@ -1,12 +1,15 @@
+use std::convert::TryFrom;
+
 use crate::vm::data::Data;
 
-pub trait Inject<'a>: From<&'a Data> + Into<Data> {}
+pub trait Inject<'a>: TryFrom<&'a Data> + Into<Data> {}
 
 macro_rules! impl_inject {
     ($type:ty where $data:ident => $from:expr, $item:ident => $into:expr,) => {
         // Data -> Item conversion
-        impl<'a> From<&'a Data> for $type {
-            fn from($data: &'a Data) -> Self { $from }
+        impl<'a> TryFrom<&'a Data> for $type {
+            type Error = ();
+            fn try_from($data: &'a Data) -> Result<Self, ()> { $from }
         }
 
         // Item -> Data conversion
@@ -24,7 +27,7 @@ macro_rules! impl_inject {
 
 impl_inject! {
     () where
-    from => { assert_eq!(from, &Data::Unit); },
+    from => { assert_eq!(from, &Data::Unit); Ok(()) },
     _into => Data::Unit,
 }
 
@@ -33,8 +36,8 @@ impl_inject! {
 impl_inject! {
     f64 where
     from => match from {
-        Data::Float(f) => *f,
-        _ => panic!(),
+        Data::Float(f) => Ok(*f),
+        _ => Err(()),
     },
     into => Data::Float(into),
 }
@@ -44,8 +47,8 @@ impl_inject! {
 impl_inject! {
     i64 where
     from => match from {
-        Data::Integer(i) => *i,
-        _ => panic!(),
+        Data::Integer(i) => Ok(*i),
+        _ => Err(()),
     },
     into => Data::Integer(into),
 }
@@ -55,8 +58,8 @@ impl_inject! {
 impl_inject! {
     bool where
     from => match from {
-        Data::Boolean(b) => *b,
-        _ => panic!(),
+        Data::Boolean(b) => Ok(*b),
+        _ => Err(()),
     },
     into => Data::Boolean(into),
 }
@@ -66,8 +69,8 @@ impl_inject! {
 impl_inject! {
     String where
     from => match from {
-        Data::String(s) => s.to_string(),
-        _ => panic!(),
+        Data::String(s) => Ok(s.to_string()),
+        _ => Err(()),
     },
     into => Data::String(into),
 }

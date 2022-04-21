@@ -101,7 +101,7 @@
 //! The `VM` is just a simple light stack-based VM.
 
 pub mod common;
-pub mod core;
+pub mod kernel;
 pub mod compiler;
 pub mod vm;
 pub mod construct;
@@ -116,8 +116,12 @@ pub use common::{
     span::Spanned,
 };
 pub use compiler::syntax::Syntax;
-// pub use crate::core::ffi::FFI;
-// pub use vm::{vm::VM, trace::Trace};
+pub use kernel::inject::Inject;
+pub use vm::{
+    data::Data,
+    trace::Trace,
+    vm::VM,
+};
 
 // /// Compiles a [`Source`] to some bytecode.
 // pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {

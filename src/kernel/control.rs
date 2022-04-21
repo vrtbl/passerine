@@ -1,5 +1,5 @@
 use crate::{
-    core::extract::triop,
+    kernel::extract::triop,
     vm::data::Data,
 };
 
@@ -18,8 +18,8 @@ pub fn if_choice(data: Data) -> Result<Data, String> {
 }
 
 // #[derive(Passerine)]
-// pub struct IfChoice {
-//     cond:  bool,
-//     then:  Data,
-//     other: Data,
-// }
+pub struct Choice {
+    cond:  bool,
+    then:  Data,
+    other: Data,
+}
