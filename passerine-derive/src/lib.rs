@@ -14,50 +14,71 @@ use syn::{
 pub fn derive_inject(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
     let input = parse_macro_input!(input as DeriveInput);
-
     let name = input.ident;
 
-    let result = match input.data {
+    let (from, into) = match input.data {
         syn::Data::Struct(ref data) => match data.fields {
             syn::Fields::Named(ref fields) => {
                 // Serialize as a tuple for now...
-                let recurse = fields.named.iter().map(|f| {
+                let from = fields.named.iter().enumerate().map(|(index, f)| {
                     let name = &f.ident;
                     quote_spanned! { f.span() =>
-                        self.into()
+                        #name: param.get(#index).ok_or(())?.try_into()?
                     }
                 });
 
-                quote! {
-                    passerine::Data::Tuple(vec![#(#recurse,)*])
-                }
+                let into = fields.named.iter().map(|f| {
+                    let name = &f.ident;
+                    quote_spanned! { f.span() =>
+                        param.#name.into()
+                    }
+                });
+
+                let from = quote! {
+                    if let passerine::Data::Tuple(param) = param {
+                        Ok(Point { #(#from,)* })
+                    } else {
+                        Err(())
+                    }
+                };
+
+                let into = quote! {
+                    passerine::Data::Tuple(vec![#(#into,)*])
+                };
+
+                (from, into)
             },
             syn::Fields::Unnamed(_) => todo!(),
-            syn::Fields::Unit => todo!(),
+            syn::Fields::Unit => {
+                let from = todo!();
+                let into = todo!();
+                (from, into)
+            },
         },
         syn::Data::Enum(ref data) => todo!(),
-        syn::Data::Union(ref data) => unimplemented!(),
+        syn::Data::Union(ref data) => {
+            unimplemented!("Unions are not supported")
+        },
     };
 
-    // // Build the output, possibly using quasi-quotation
-    // let expanded = quote! {
-    //     // Data -> Item conversion
-    //     impl<'a> TryFrom<&'a Data> for #name {
-    //         type Error = ();
-    //         fn try_from($data: &'a Data) -> Result<Self, ()> { $from }
-    //     }
+    // Build the output, possibly using quasi-quotation
+    let expanded = quote! {
+        // Data -> Item conversion
+        impl<'a> TryFrom<&'a passerine::Data> for #name {
+            type Error = ();
+            fn try_from(param: &'a passerine::Data) -> Result<Self, ()> { #from }
+        }
 
-    //     // Item -> Data conversion
-    //     impl From<#name> for Data {
-    //         fn from($item: $type) -> Self { $into }
-    //     }
+        // Item -> Data conversion
+        impl From<#name> for passerine::Data {
+            fn from(param: #name) -> Self { #into }
+        }
 
-    //     // With the above two implemented,
-    //     // we can implement inject automatically.
-    //     impl<'a> Inject<'a> for #name {}
-    // };
+        // With the above two implemented,
+        // we can implement inject automatically.
+        impl<'a> passerine::Inject<'a> for #name {}
+    };
 
     // Hand the output tokens back to the compiler
-    // TokenStream::from(expanded)
-    todo!()
+    TokenStream::from(expanded)
 }
