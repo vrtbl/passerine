@@ -45,10 +45,4 @@ fn main() {
 }
 
 #[derive(passerine_derive::Inject)]
-struct Point {
-    x: f64,
-    y: f64,
-}
-
-#[derive(passerine_derive::Inject)]
-struct Pair(f64, f64);
+struct Point;
