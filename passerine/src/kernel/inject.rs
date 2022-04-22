@@ -1,8 +1,6 @@
-use std::convert::TryFrom;
-
 use crate::vm::data::Data;
 
-pub trait Inject<'a>: TryFrom<&'a Data> + Into<Data> {}
+pub trait Inject<'a>: TryFrom<&'a Data, Error = ()> + Into<Data> {}
 
 macro_rules! impl_inject {
     ($type:ty where $data:ident => $from:expr, $item:ident => $into:expr,) => {
@@ -85,3 +83,33 @@ impl_inject! {
 //     },
 //     into => Data::Tuple(into),
 // }
+
+struct Point {
+    x: f64,
+    y: f64,
+}
+
+impl<'a> TryFrom<&'a Data> for Point {
+    type Error = ();
+    fn try_from(from: &'a Data) -> Result<Self, ()> {
+        if let Data::Tuple(from) = from {
+            Ok(Point {
+                x: from.get(0).ok_or(())?.try_into()?,
+                y: from.get(1).ok_or(())?.try_into()?,
+            })
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl From<Point> for Data {
+    fn from(into: Point) -> Self {
+        let mut items = Vec::new();
+        items.push(into.x.into());
+        items.push(into.y.into());
+        Data::Tuple(items)
+    }
+}
+
+impl<'a> Inject<'a> for Point {}

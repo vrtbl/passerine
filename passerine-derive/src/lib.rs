@@ -18,36 +18,7 @@ pub fn derive_inject(input: TokenStream) -> TokenStream {
 
     let (from, into) = match input.data {
         syn::Data::Struct(ref data) => match data.fields {
-            syn::Fields::Named(ref fields) => {
-                // Serialize as a tuple for now...
-                let from = fields.named.iter().enumerate().map(|(index, f)| {
-                    let name = &f.ident;
-                    quote_spanned! { f.span() =>
-                        #name: param.get(#index).ok_or(())?.try_into()?
-                    }
-                });
-
-                let into = fields.named.iter().map(|f| {
-                    let name = &f.ident;
-                    quote_spanned! { f.span() =>
-                        param.#name.into()
-                    }
-                });
-
-                let from = quote! {
-                    if let passerine::Data::Tuple(param) = param {
-                        Ok(Point { #(#from,)* })
-                    } else {
-                        Err(())
-                    }
-                };
-
-                let into = quote! {
-                    passerine::Data::Tuple(vec![#(#into,)*])
-                };
-
-                (from, into)
-            },
+            syn::Fields::Named(ref fields) => derive_struct_named(fields),
             syn::Fields::Unnamed(_) => todo!(),
             syn::Fields::Unit => {
                 let from = todo!();
@@ -81,4 +52,34 @@ pub fn derive_inject(input: TokenStream) -> TokenStream {
 
     // Hand the output tokens back to the compiler
     TokenStream::from(expanded)
+}
+
+fn derive_struct_named(
+    fields: &syn::FieldsNamed,
+) -> (quote::__private::TokenStream, quote::__private::TokenStream) {
+    let from = fields.named.iter().enumerate().map(|(index, f)| {
+        let name = &f.ident;
+        quote_spanned! { f.span() =>
+            #name: param.get(#index).ok_or(())?.try_into()?
+        }
+    });
+    let into = fields.named.iter().map(|f| {
+        let name = &f.ident;
+        quote_spanned! { f.span() =>
+            param.#name.into()
+        }
+    });
+
+    let from = quote! {
+        if let passerine::Data::Tuple(param) = param {
+            Ok(Point { #(#from,)* })
+        } else {
+            Err(())
+        }
+    };
+    let into = quote! {
+        passerine::Data::Tuple(vec![#(#into,)*])
+    };
+
+    (from, into)
 }

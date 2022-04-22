@@ -170,17 +170,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "passerine"
-version = "0.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69035089daca1e9c03cd75eea92e06ff51b76e33e940a6e8c5f3c19dfd222b44"
-
-[[package]]
 name = "passerine-aspen"
 version = "0.5.1"
 dependencies = [
  "colored",
- "passerine 0.9.3",
+ "passerine",
+ "passerine-derive",
  "semver",
  "serde",
  "structopt",
@@ -191,7 +186,7 @@ dependencies = [
 name = "passerine-derive"
 version = "0.1.0"
 dependencies = [
- "passerine 0.9.2",
+ "passerine",
  "quote 1.0.18",
  "syn 1.0.91",
 ]

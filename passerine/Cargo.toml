@@ -5,7 +5,7 @@ authors = [
     "Isaac Clayton (slightknack) <slightknack@gmail.com>",
     "The Passerine Community",
 ]
-edition = "2018"
+edition = "2021"
 description = "A small extensible functional scripting language designed for concise expression with little code."
 license = "MIT"
 readme = "README.md"
