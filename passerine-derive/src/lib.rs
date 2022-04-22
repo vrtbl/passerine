@@ -1,4 +1,4 @@
-use passerine;
+// use passerine;
 use proc_macro::TokenStream;
 use quote::{
     quote,
@@ -27,13 +27,19 @@ pub fn derive_inject(input: TokenStream) -> TokenStream {
                 derive_struct_unnamed(&type_name, fields)
             },
             syn::Fields::Unit => {
-                let from = todo!();
-                let into = todo!();
+                let from = quote! {
+                    if let passerine::Data::Unit = param {
+                        Ok(#type_name)
+                    } else {
+                        Err(())
+                    }
+                };
+                let into = quote! { passerine::Data::Unit };
                 (from, into)
             },
         },
-        syn::Data::Enum(ref data) => todo!(),
-        syn::Data::Union(ref data) => {
+        syn::Data::Enum(ref _data) => todo!(),
+        syn::Data::Union(ref _data) => {
             unimplemented!("Unions are not supported")
         },
     };
@@ -41,9 +47,9 @@ pub fn derive_inject(input: TokenStream) -> TokenStream {
     // Build the output, possibly using quasi-quotation
     let expanded = quote! {
         // Data -> Item conversion
-        impl<'a> TryFrom<&'a passerine::Data> for #type_name {
+        impl TryFrom<passerine::Data> for #type_name {
             type Error = ();
-            fn try_from(param: &'a passerine::Data) -> Result<Self, ()> { #from }
+            fn try_from(param: passerine::Data) -> Result<Self, ()> { #from }
         }
 
         // Item -> Data conversion
@@ -53,7 +59,7 @@ pub fn derive_inject(input: TokenStream) -> TokenStream {
 
         // With the above two implemented,
         // we can implement inject automatically.
-        impl<'a> passerine::Inject<'a> for #type_name {}
+        impl passerine::Inject for #type_name {}
     };
 
     // Hand the output tokens back to the compiler
@@ -64,10 +70,11 @@ fn derive_struct_named(
     type_name: &Ident,
     fields: &syn::FieldsNamed,
 ) -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
-    let from = fields.named.iter().enumerate().map(|(index, f)| {
+    let num_fields = fields.named.len();
+    let from = fields.named.iter().rev().map(|f| {
         let name = &f.ident;
         quote_spanned! { f.span() =>
-            #name: param.get(#index).ok_or(())?.try_into()?
+            #name: param.pop().ok_or(())?.try_into()?
         }
     });
     let into = fields.named.iter().map(|f| {
@@ -78,7 +85,8 @@ fn derive_struct_named(
     });
 
     let from = quote! {
-        if let passerine::Data::Tuple(param) = param {
+        if let passerine::Data::Tuple(mut param) = param {
+            if param.len() != #num_fields { return Err(()); }
             Ok(#type_name { #(#from,)* })
         } else {
             Err(())
@@ -95,10 +103,10 @@ fn derive_struct_unnamed(
     type_name: &Ident,
     fields: &syn::FieldsUnnamed,
 ) -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
-    dbg!(type_name);
-    let from = fields.unnamed.iter().enumerate().map(|(index, f)| {
+    let num_fields = fields.unnamed.len();
+    let from = fields.unnamed.iter().rev().map(|f| {
         quote_spanned! { f.span() =>
-            param.get(#index).ok_or(())?.try_into()?
+            param.pop().ok_or(())?.try_into()?
         }
     });
     let into = fields.unnamed.iter().enumerate().map(|(index, f)| {
@@ -109,7 +117,8 @@ fn derive_struct_unnamed(
     });
 
     let from = quote! {
-        if let passerine::Data::Tuple(param) = param {
+        if let passerine::Data::Tuple(mut param) = param {
+            if param.len() != #num_fields { return Err(()); }
             Ok(#type_name (#(#from,)*))
         } else {
             Err(())

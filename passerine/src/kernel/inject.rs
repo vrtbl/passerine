@@ -1,13 +1,13 @@
 use crate::vm::data::Data;
 
-pub trait Inject<'a>: TryFrom<&'a Data, Error = ()> + Into<Data> {}
+pub trait Inject: TryFrom<Data, Error = ()> + Into<Data> {}
 
 macro_rules! impl_inject {
     ($type:ty where $data:ident => $from:expr, $item:ident => $into:expr,) => {
         // Data -> Item conversion
-        impl<'a> TryFrom<&'a Data> for $type {
+        impl TryFrom<Data> for $type {
             type Error = ();
-            fn try_from($data: &'a Data) -> Result<Self, ()> { $from }
+            fn try_from($data: Data) -> Result<Self, ()> { $from }
         }
 
         // Item -> Data conversion
@@ -17,15 +17,15 @@ macro_rules! impl_inject {
 
         // With the above two implemented,
         // we can implement inject automatically.
-        impl<'a> Inject<'a> for $type {}
+        impl Inject for $type {}
     };
 }
 
-// Unit type
+// Unit typec
 
 impl_inject! {
     () where
-    from => { assert_eq!(from, &Data::Unit); Ok(()) },
+    from => { assert_eq!(from, Data::Unit); Ok(()) },
     _into => Data::Unit,
 }
 
@@ -34,7 +34,7 @@ impl_inject! {
 impl_inject! {
     f64 where
     from => match from {
-        Data::Float(f) => Ok(*f),
+        Data::Float(f) => Ok(f),
         _ => Err(()),
     },
     into => Data::Float(into),
@@ -45,7 +45,7 @@ impl_inject! {
 impl_inject! {
     i64 where
     from => match from {
-        Data::Integer(i) => Ok(*i),
+        Data::Integer(i) => Ok(i),
         _ => Err(()),
     },
     into => Data::Integer(into),
@@ -56,7 +56,7 @@ impl_inject! {
 impl_inject! {
     bool where
     from => match from {
-        Data::Boolean(b) => Ok(*b),
+        Data::Boolean(b) => Ok(b),
         _ => Err(()),
     },
     into => Data::Boolean(into),
@@ -67,7 +67,7 @@ impl_inject! {
 impl_inject! {
     String where
     from => match from {
-        Data::String(s) => Ok(s.to_string()),
+        Data::String(s) => Ok(s),
         _ => Err(()),
     },
     into => Data::String(into),
@@ -83,33 +83,3 @@ impl_inject! {
 //     },
 //     into => Data::Tuple(into),
 // }
-
-struct Point {
-    x: f64,
-    y: f64,
-}
-
-impl<'a> TryFrom<&'a Data> for Point {
-    type Error = ();
-    fn try_from(from: &'a Data) -> Result<Self, ()> {
-        if let Data::Tuple(from) = from {
-            Ok(Point {
-                x: from.get(0).ok_or(())?.try_into()?,
-                y: from.get(1).ok_or(())?.try_into()?,
-            })
-        } else {
-            Err(())
-        }
-    }
-}
-
-impl From<Point> for Data {
-    fn from(into: Point) -> Self {
-        let mut items = Vec::new();
-        items.push(into.x.into());
-        items.push(into.y.into());
-        Data::Tuple(items)
-    }
-}
-
-impl<'a> Inject<'a> for Point {}
