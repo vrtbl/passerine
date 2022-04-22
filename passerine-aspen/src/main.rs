@@ -52,19 +52,3 @@ struct Point {
 
 #[derive(passerine_derive::Inject)]
 struct Pair(f64, f64);
-
-#[cfg(test)]
-mod test_super {
-    use passerine::Data;
-
-    use super::*;
-
-    #[test]
-    fn test_heckers() {
-        let point = Point { x: 3.0, y: 4.0 };
-        let data: Data = point.into();
-        let back_again: Point = (&data).try_into().unwrap();
-        dbg!(data);
-        panic!()
-    }
-}
