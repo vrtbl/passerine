@@ -1,3 +1,4 @@
+#![allow(clippy::needless_return)]
 // TODO: Re-write introductory documentation
 
 //! # Passerine

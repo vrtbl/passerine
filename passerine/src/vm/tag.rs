@@ -287,7 +287,7 @@ mod test {
         let location = "This is a string".to_string();
 
         // drop dereferenced data
-        let tagged = Tagged::new(Slot::Data(Data::String(location.clone())));
+        let tagged = Tagged::new(Slot::Data(Data::String(location)));
         let pointer = tagged.0 & P_MASK;
         let untagged = tagged.copy().data();
         // println!("-- Casting...");
@@ -303,7 +303,7 @@ mod test {
         let location = "This is a string".to_string();
 
         // drop tagged data
-        let tagged = Tagged::new(Slot::Data(Data::String(location.clone())));
+        let tagged = Tagged::new(Slot::Data(Data::String(location)));
         let pointer = tagged.0 & P_MASK;
         let data = unsafe { Box::from_raw(pointer as *mut Data) };
         // println!("-- Dropping...");

@@ -66,9 +66,9 @@ impl Display for TokenTree {
         // just use debug if you're not printing a message or something.
         use TokenTree::*;
         let message = match self {
-            Block(_) => format!("tokens grouped by curly brackets"),
-            List(_) => format!("tokens grouped by square brackets"),
-            Form(_) => format!("a group of tokens"),
+            Block(_) => "tokens grouped by curly brackets".to_string(),
+            List(_) => "tokens grouped by square brackets".to_string(),
+            Form(_) => "a group of tokens".to_string(),
             Iden(i) => format!("identifier `{}`", i),
             Label(i) => format!("type identifier `{}`", i),
             Op(o) => format!("operator `{}`", o),

@@ -87,7 +87,7 @@ impl Reader {
                     return Err(Syntax::error(
                         "Unexpected end of source while parsing form",
                         &Spanned::build(&tokens)
-                            .unwrap_or(self.tokens.span.clone()),
+                            .unwrap_or_else(|| self.tokens.span.clone()),
                     ));
                 },
             };
@@ -98,8 +98,7 @@ impl Reader {
                     self.enter_group(Spanned::new(delim, span.clone()))?
                 },
                 Token::Close(delim) => {
-                    let span =
-                        self.exit_group(Spanned::new(delim, span.clone()))?;
+                    let span = self.exit_group(Spanned::new(delim, span))?;
                     break span;
                 },
                 Token::Sep => continue,
@@ -137,8 +136,7 @@ impl Reader {
                     self.enter_group(Spanned::new(delim, span.clone()))?
                 },
                 Token::Close(delim) => {
-                    let span =
-                        self.exit_group(Spanned::new(delim, span.clone()))?;
+                    let span = self.exit_group(Spanned::new(delim, span))?;
                     break span;
                 },
                 Token::Sep => {

@@ -49,6 +49,7 @@ impl Span {
     /// Return the index of the end of the `Span`.
     pub fn end(&self) -> usize { self.offset + self.length }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize { self.length }
 
     /// Creates a new `Span` which spans the space of the

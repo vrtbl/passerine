@@ -227,9 +227,7 @@ impl VM {
         if let Data::NotInit = data {
             return Err(Trace::error(
                 "Reference",
-                &format!(
-                    "This local variable was referenced before assignment"
-                ),
+                "This local variable was referenced before assignment",
                 vec![self.current_span()],
             ));
         };
@@ -247,9 +245,7 @@ impl VM {
         if let Data::NotInit = data {
             return Err(Trace::error(
                 "Reference",
-                &format!(
-                    "This captured variable was referenced before assignment"
-                ),
+                "This captured variable was referenced before assignment",
                 vec![self.current_span()],
             ));
         };

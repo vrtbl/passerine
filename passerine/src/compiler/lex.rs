@@ -105,7 +105,7 @@ impl Lexer {
                 // the comment `#` length
                 new_index += 1;
                 // eat comment until the end of the line
-                while let Some(c) = remaining.next() {
+                for c in remaining {
                     if c == '\n' {
                         break;
                     }
@@ -176,7 +176,7 @@ impl Lexer {
                         Syntax::error_with_note(
                             &format!("Unknown escape code `\\{}` in string literal", o),
                             Note::new_with_hint(
-                                &format!("To include a single backslash `\\`, escape it first: `\\\\`"),
+                                "To include a single backslash `\\`, escape it first: `\\\\`",
                                 &Span::new(&self.source, self.index + len - bytes, bytes),
                             ),
                         )
@@ -261,7 +261,7 @@ impl Lexer {
                 len += self
                     .take_while(&mut remaining, |_| (), |n| n.is_digit(10))
                     .1;
-                let float = f64::from_str(&self.grab_from_index(len))
+                let float = f64::from_str(self.grab_from_index(len))
                     .map_err(|_| Syntax::error(
                         "Float literal does not fit in a 64-bit floating-point number",
                         &Span::new(&self.source, self.index, len),
@@ -275,7 +275,7 @@ impl Lexer {
             )),
             // Nothing of use, wrap up what we have so far
             _ => {
-                let integer = i64::from_str(&self.grab_from_index(len))
+                let integer = i64::from_str(self.grab_from_index(len))
                     .map_err(|_| Syntax::error(
                         "Decimal literal too large to fit in a signed 64-bit integer",
                         &Span::new(&self.source, self.index, len),

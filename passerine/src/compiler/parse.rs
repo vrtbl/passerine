@@ -87,7 +87,7 @@ impl Prec {
         if let Prec::End = self {
             panic!("Can not associate further left")
         }
-        return unsafe { mem::transmute(self.clone() as u8 + 1) };
+        return unsafe { mem::transmute(*self as u8 + 1) };
     }
 }
 
@@ -122,16 +122,16 @@ impl Parser {
         token_tree: &Spanned<TokenTree>,
     ) -> Result<Spanned<AST>, Syntax> {
         let result = match &token_tree.item {
-            TokenTree::Lit(_) => self.literal(&token_tree)?,
+            TokenTree::Lit(_) => self.literal(token_tree)?,
             TokenTree::Op(op) => {
                 return Err(Syntax::error(
-                    &format!("Unexpected operator {}", op).to_string(),
+                    &format!("Unexpected operator {}", op),
                     &token_tree.span,
                 ))
             },
-            TokenTree::Label(_) => self.label(&token_tree)?,
-            TokenTree::Iden(_) => self.symbol(&token_tree)?,
-            TokenTree::Form(trees) => self.expr(&trees, &mut 0, Prec::None)?,
+            TokenTree::Label(_) => self.label(token_tree)?,
+            TokenTree::Iden(_) => self.symbol(token_tree)?,
+            TokenTree::Form(trees) => self.expr(trees, &mut 0, Prec::None)?,
             TokenTree::Block(trees) => {
                 let mut expressions = vec![];
                 for tree in trees {
@@ -183,9 +183,9 @@ impl Parser {
         tree: &Spanned<TokenTree>,
     ) -> Result<Spanned<AST>, Syntax> {
         let result = match tree.item {
-            TokenTree::Lit(_) => self.literal(&tree)?,
-            TokenTree::Label(_) => self.label(&tree)?,
-            TokenTree::Iden(ref name) => match ResIden::try_new(&name) {
+            TokenTree::Lit(_) => self.literal(tree)?,
+            TokenTree::Label(_) => self.label(tree)?,
+            TokenTree::Iden(ref name) => match ResIden::try_new(name) {
                 Some(iden) => match iden {
                     ResIden::Macro
                     | ResIden::Type
@@ -198,7 +198,7 @@ impl Parser {
                         ))
                     },
                 },
-                None => self.symbol(&tree)?,
+                None => self.symbol(tree)?,
             },
             _ => {
                 return Err(Syntax::error("Expected an expression", &tree.span))
@@ -221,7 +221,7 @@ impl Parser {
         use ResOp::*;
         let tree: &Spanned<TokenTree> = &trees[*trees_idx];
         match &tree.item {
-            TokenTree::Op(name) => match Parser::to_op(&name, &tree.span)? {
+            TokenTree::Op(name) => match Parser::to_op(name, &tree.span)? {
                 // Pattern-based
                 Assign => self.assign(left, trees, trees_idx),
                 Lambda => self.lambda(left, trees, trees_idx),
@@ -271,8 +271,8 @@ impl Parser {
     /// Raises a syntax error if the operator string is
     /// invalid.
     fn to_op(name: &str, span: &Span) -> Result<ResOp, Syntax> {
-        ResOp::try_new(&name).ok_or_else(|| {
-            Syntax::error(&format!("Invalid operator `{}`", name), &span)
+        ResOp::try_new(name).ok_or_else(|| {
+            Syntax::error(&format!("Invalid operator `{}`", name), span)
         })
     }
 
@@ -304,7 +304,7 @@ impl Parser {
 
             // Infix ops
             TokenTree::Op(name) => {
-                Parser::op_prec(Parser::to_op(&name, &tree.span)?)
+                Parser::op_prec(Parser::to_op(name, &tree.span)?)
             },
 
             // Unreachable because we skip all all non-sep tokens
@@ -352,7 +352,7 @@ impl Parser {
     ) -> Result<Spanned<AST>, Syntax> {
         // TODO: keep track of labels for typedefs?
         let symbol = if let TokenTree::Label(label) = &tree.item {
-            self.intern_symbol(&label)
+            self.intern_symbol(label)
         } else {
             return Err(Syntax::error(
                 &format!("Expected a label, found {}", &tree.item),
@@ -381,7 +381,7 @@ impl Parser {
         tree: &Spanned<TokenTree>,
     ) -> Result<Spanned<AST>, Syntax> {
         let symbol = if let TokenTree::Iden(label) = &tree.item {
-            self.intern_symbol(&label)
+            self.intern_symbol(label)
         } else {
             return Err(Syntax::error(
                 &format!("Expected an identifier, found {}", &tree.item),

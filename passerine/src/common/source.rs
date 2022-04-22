@@ -50,6 +50,6 @@ impl Source {
     /// Build an empty `Source` containing just a string.
     /// Note that this source will point towards `./source`.
     pub fn source(source: &str) -> Rc<Source> {
-        Source::new(&source.to_string(), &PathBuf::from("./source"))
+        Source::new(source, &PathBuf::from("./source"))
     }
 }
