@@ -29,10 +29,6 @@ use crate::{
             SST,
         },
     },
-    kernel::{
-        ffi::FFI,
-        ffi_core,
-    },
 };
 
 /// Compiler is a bytecode generator that walks an SST and produces
@@ -47,9 +43,9 @@ pub struct Compiler {
     /// Names of symbols,
     // symbol_table: Vec<String>,
     /// The foreign functional interface used to bind values
-    ffi:       FFI,
+    // ffi:       FFI,
     /// The FFI functions that have been bound in this scope.
-    ffi_names: Vec<String>,
+    // ffi_names: Vec<String>,
     // determined in hoisting
     scope:     Scope,
 }
@@ -59,19 +55,19 @@ impl Compiler {
         tree: Spanned<SST>,
         scope: Scope,
     ) -> Result<Rc<Lambda>, Syntax> {
-        let ffi = ffi_core();
-        let mut compiler = Compiler::base(ffi, scope);
+        // let ffi = ffi_core();
+        let mut compiler = Compiler::base(scope);
         compiler.walk(&tree)?;
         return Ok(Rc::new(compiler.lambda));
     }
 
     /// Construct a new `Compiler`.
-    pub fn base(ffi: FFI, scope: Scope) -> Compiler {
+    pub fn base(scope: Scope) -> Compiler {
         Compiler {
             enclosing: None,
             lambda: Lambda::empty(),
-            ffi,
-            ffi_names: vec![],
+            // ffi,
+            // ffi_names: vec![],
             scope,
         }
     }
@@ -80,8 +76,8 @@ impl Compiler {
     /// keeping a reference to the old one in `self.enclosing`,
     /// and moving the FFI into the current compiler.
     pub fn enter_scope(&mut self, scope: Scope) {
-        let ffi = mem::replace(&mut self.ffi, FFI::new());
-        let nested = Compiler::base(ffi, scope);
+        // let ffi = mem::replace(&mut self.ffi, FFI::new());
+        let nested = Compiler::base(scope);
         let enclosing = mem::replace(self, nested);
         self.enclosing = Some(Box::new(enclosing));
     }
@@ -90,13 +86,13 @@ impl Compiler {
     /// returning the nested one for data (Lambda) extraction,
     /// and moving the FFI mappings back into the enclosing compiler.
     pub fn exit_scope(&mut self) -> Compiler {
-        let ffi = mem::replace(&mut self.ffi, FFI::new());
+        // let ffi = mem::replace(&mut self.ffi, FFI::new());
         let enclosing = mem::replace(&mut self.enclosing, None);
         let nested = match enclosing {
             Some(compiler) => mem::replace(self, *compiler),
             None => unreachable!("Can not go back past root copiler"),
         };
-        self.ffi = ffi;
+        // self.ffi = ffi;
         return nested;
     }
 
@@ -220,43 +216,45 @@ impl Compiler {
         Ok(())
     }
 
-    // TODO: make a macro to map Passerine's data model to Rust's
-    /// Makes a Rust function callable from Passerine,
-    /// by keeping a reference to that function.
-    pub fn ffi(
-        &mut self,
-        name: String,
-        expression: Spanned<SST>,
-        span: Span,
-    ) -> Result<(), Syntax> {
-        self.walk(&expression)?;
+    // TODO: remove FFI!
 
-        let function =
-            self.ffi.get(&name).map_err(|s| Syntax::error(&s, &span))?;
+    // // TODO: make a macro to map Passerine's data model to Rust's
+    // /// Makes a Rust function callable from Passerine,
+    // /// by keeping a reference to that function.
+    // pub fn ffi(
+    //     &mut self,
+    //     name: String,
+    //     expression: Spanned<SST>,
+    //     span: Span,
+    // ) -> Result<(), Syntax> {
+    //     self.walk(&expression)?;
 
-        let index = match self.ffi_names.iter().position(|n| n == &name) {
-            Some(p) => p,
-            None => {
-                // TODO: switch ffi to symbol, just use unique symbol?
-                // TODO: keeping track of state
-                // in two different places is a code smell imo
-                // Reason: don't want to include strings in lambda
-                // optimal solutions:
-                // have an earlier step that normalizes AST,
-                // determines scope of all names/symbols,
-                // and replaces all names/symbols with indicies
-                // before codgen.
-                self.ffi_names.push(name);
-                todo!("add FFI function")
-                // self.lambda.add_ffi(function)
-            },
-        };
+    //     let function =
+    //         self.ffi.get(&name).map_err(|s| Syntax::error(&s, &span))?;
 
-        self.lambda.emit_span(&span);
-        self.lambda.emit(Opcode::FFICall);
-        self.lambda.emit_bytes(&mut split_number(index));
-        Ok(())
-    }
+    //     let index = match self.ffi_names.iter().position(|n| n == &name) {
+    //         Some(p) => p,
+    //         None => {
+    //             // TODO: switch ffi to symbol, just use unique symbol?
+    //             // TODO: keeping track of state
+    //             // in two different places is a code smell imo
+    //             // Reason: don't want to include strings in lambda
+    //             // optimal solutions:
+    //             // have an earlier step that normalizes AST,
+    //             // determines scope of all names/symbols,
+    //             // and replaces all names/symbols with indicies
+    //             // before codgen.
+    //             self.ffi_names.push(name);
+    //             todo!("add FFI function")
+    //             // self.lambda.add_ffi(function)
+    //         },
+    //     };
+
+    //     self.lambda.emit_span(&span);
+    //     self.lambda.emit(Opcode::FFICall);
+    //     self.lambda.emit_bytes(&mut split_number(index));
+    //     Ok(())
+    // }
 
     /// Resolves the assignment of a variable
     /// returns true if the variable was declared.

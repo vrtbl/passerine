@@ -1,12 +1,10 @@
 use std::fmt;
 
 use crate::{
-    common::{
-        number::build_number,
-        opcode::Opcode,
-        span::Span,
-    },
-    vm::data::Data,
+    data::Data,
+    number::build_number,
+    opcode::Opcode,
+    span::Span,
 };
 
 /// Represents a variable visible in the current scope.

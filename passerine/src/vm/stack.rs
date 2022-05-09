@@ -4,13 +4,15 @@ use std::{
     rc::Rc,
 };
 
-use crate::vm::{
-    data::Data,
-    slot::{
-        Slot,
-        Suspend,
+use crate::{
+    common::Data,
+    vm::{
+        slot::{
+            Slot,
+            Suspend,
+        },
+        tag::Tagged,
     },
-    tag::Tagged,
 };
 
 /// A stack of `Tagged` `Data`.

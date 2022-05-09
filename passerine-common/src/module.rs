@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::common::source::Source;
+use crate::source::Source;
 
 pub struct Module {
     source:   Rc<Source>,

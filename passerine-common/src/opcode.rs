@@ -49,6 +49,20 @@ pub enum Opcode {
     UnLabel,
     /// Destructures a tuple.
     UnTuple,
+    /// Add two numbers on the stack.
+    Add,
+    /// Subtract two numbers on the stack.
+    Sub,
+    /// Negate a number.
+    Neg,
+    /// Multiple two numbers on the stack.
+    Mul,
+    /// Divide two numbers, raising ZeroDiv side effect
+    Div,
+    /// Take the remainder of two numbers, raising ZeroDiv side effect
+    Rem,
+    /// Take a number to a power.
+    Pow,
     /// Does nothing. Must always be last.
     Noop,
 }

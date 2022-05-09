@@ -8,9 +8,9 @@ use std::{
     mem,
 };
 
-use crate::vm::{
-    data::Data,
-    slot::Slot,
+use crate::{
+    common::Data,
+    vm::slot::Slot,
 };
 
 // TODO: add fallback for 32-bit systems and so on.

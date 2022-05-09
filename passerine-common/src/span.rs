@@ -9,7 +9,7 @@ use std::{
     usize,
 };
 
-use crate::common::source::Source;
+use crate::source::Source;
 
 /// A `Span` refers to a section of a source,
 /// much like a `&str`, but with a reference to a `Source`

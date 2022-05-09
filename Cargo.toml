@@ -1,7 +1,8 @@
 [workspace]
 
 members = [
-    "passerine",
+    "passerine-common",
     "passerine-derive",
+    "passerine",
     "passerine-aspen",
 ]

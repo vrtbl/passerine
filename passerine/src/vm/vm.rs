@@ -2,14 +2,14 @@ use std::mem;
 
 use crate::{
     common::{
+        closure::Closure,
+        data::Data,
         lambda::Captured,
         number::build_number,
         opcode::Opcode,
         span::Span,
     },
     vm::{
-        closure::Closure,
-        data::Data,
         slot::Suspend,
         stack::Stack,
         trace::Trace,

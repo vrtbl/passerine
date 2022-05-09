@@ -1,4 +1,6 @@
-use crate::vm::data::Data;
+use passerine_derive::Inject;
+
+use crate::common::data::Data;
 
 /// Prints some data to stdout with a trailing newline.
 pub fn println(data: Data) -> Result<Data, String> {
@@ -15,3 +17,12 @@ pub fn print(data: Data) -> Result<Data, String> {
 pub fn to_string(data: Data) -> Result<Data, String> {
     Ok(Data::String(format!("{}", data)))
 }
+
+#[derive(Inject)]
+pub struct Write(Data);
+
+#[derive(Inject)]
+pub struct Writeln(Data);
+
+#[derive(Inject)]
+pub struct Show(Data);

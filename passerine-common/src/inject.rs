@@ -1,31 +1,37 @@
-use crate::vm::data::Data;
+use crate::data::Data;
 
-pub trait Inject: TryFrom<Data, Error = ()> + Into<Data> {}
+pub trait Inject
+where
+    Self: Sized,
+{
+    fn serialize(item: Self) -> Data;
+    fn deserialize(data: Data) -> Option<Self>;
+}
 
 macro_rules! impl_inject {
     ($type:ty where $data:ident => $from:expr, $item:ident => $into:expr,) => {
-        // Data -> Item conversion
-        impl TryFrom<Data> for $type {
-            type Error = ();
-            fn try_from($data: Data) -> Result<Self, ()> { $from }
-        }
-
-        // Item -> Data conversion
-        impl From<$type> for Data {
-            fn from($item: $type) -> Self { $into }
-        }
-
         // With the above two implemented,
         // we can implement inject automatically.
-        impl Inject for $type {}
+        impl Inject for $type {
+            fn serialize($item: Self) -> Data { $into }
+            fn deserialize($data: Data) -> Option<Self> { $from }
+        }
     };
 }
 
-// Unit typec
+// Data type
+
+impl_inject! {
+    Data where
+    from => Some(from),
+    into => into,
+}
+
+// Unit type
 
 impl_inject! {
     () where
-    from => { assert_eq!(from, Data::Unit); Ok(()) },
+    from => { assert_eq!(from, Data::Unit); Some(()) },
     _into => Data::Unit,
 }
 
@@ -34,8 +40,8 @@ impl_inject! {
 impl_inject! {
     f64 where
     from => match from {
-        Data::Float(f) => Ok(f),
-        _ => Err(()),
+        Data::Float(f) => Some(f),
+        _ => None,
     },
     into => Data::Float(into),
 }
@@ -45,8 +51,8 @@ impl_inject! {
 impl_inject! {
     i64 where
     from => match from {
-        Data::Integer(i) => Ok(i),
-        _ => Err(()),
+        Data::Integer(i) => Some(i),
+        _ => None,
     },
     into => Data::Integer(into),
 }
@@ -56,8 +62,8 @@ impl_inject! {
 impl_inject! {
     bool where
     from => match from {
-        Data::Boolean(b) => Ok(b),
-        _ => Err(()),
+        Data::Boolean(b) => Some(b),
+        _ => None,
     },
     into => Data::Boolean(into),
 }
@@ -67,8 +73,8 @@ impl_inject! {
 impl_inject! {
     String where
     from => match from {
-        Data::String(s) => Ok(s),
-        _ => Err(()),
+        Data::String(s) => Some(s),
+        _ => None,
     },
     into => Data::String(into),
 }

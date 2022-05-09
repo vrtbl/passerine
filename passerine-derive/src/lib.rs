@@ -1,4 +1,3 @@
-// use passerine;
 use proc_macro::TokenStream;
 use quote::{
     quote,
@@ -28,13 +27,13 @@ pub fn derive_inject(input: TokenStream) -> TokenStream {
             },
             syn::Fields::Unit => {
                 let from = quote! {
-                    if let passerine::Data::Unit = param {
-                        Ok(#type_name)
+                    if let passerine_common::Data::Unit = param {
+                        Some(#type_name)
                     } else {
-                        Err(())
+                        None
                     }
                 };
-                let into = quote! { passerine::Data::Unit };
+                let into = quote! { passerine_common::Data::Unit };
                 (from, into)
             },
         },
@@ -46,20 +45,25 @@ pub fn derive_inject(input: TokenStream) -> TokenStream {
 
     // Build the output, possibly using quasi-quotation
     let expanded = quote! {
-        // Data -> Item conversion
-        impl TryFrom<passerine::Data> for #type_name {
-            type Error = ();
-            fn try_from(param: passerine::Data) -> Result<Self, ()> { #from }
+        impl passerine_common::Inject for #type_name {
+            fn serialize(param: Self) -> passerine_common::Data { #into }
+            fn deserialize(param: passerine_common::Data) -> Option<Self> { #from }
         }
 
-        // Item -> Data conversion
-        impl From<#type_name> for passerine::Data {
-            fn from(param: #type_name) -> Self { #into }
-        }
+        // // Data -> Item conversion
+        // impl TryFrom<passerine_common::Data> for #type_name {
+        //     type Error = ();
+        //     fn try_from(param: passerine_common::Data) -> Result<Self, ()> { #from }
+        // }
 
-        // With the above two implemented,
-        // we can implement inject automatically.
-        impl passerine::Inject for #type_name {}
+        // // Item -> Data conversion
+        // impl From<#type_name> for passerine_common::Data {
+        //     fn from(param: #type_name) -> Self { #into }
+        // }
+
+        // // With the above two implemented,
+        // // we can implement inject automatically.
+        // impl passerine_common::Inject for #type_name {}
     };
 
     // Hand the output tokens back to the compiler
@@ -74,26 +78,26 @@ fn derive_struct_named(
     let from = fields.named.iter().rev().map(|f| {
         let name = &f.ident;
         quote_spanned! { f.span() =>
-            #name: param.pop().ok_or(())?.try_into()?
+            #name: passerine_common::Inject::deserialize(param.pop()?)?
         }
     });
     let into = fields.named.iter().map(|f| {
         let name = &f.ident;
         quote_spanned! { f.span() =>
-            param.#name.into()
+            passerine_common::Inject::serialize(param.#name)
         }
     });
 
     let from = quote! {
-        if let passerine::Data::Tuple(mut param) = param {
-            if param.len() != #num_fields { return Err(()); }
-            Ok(#type_name { #(#from,)* })
+        if let passerine_common::Data::Tuple(mut param) = param {
+            if param.len() != #num_fields { return None; }
+            Some(#type_name { #(#from,)* })
         } else {
-            Err(())
+            None
         }
     };
     let into = quote! {
-        passerine::Data::Tuple(vec![#(#into,)*])
+        passerine_common::Data::Tuple(vec![#(#into,)*])
     };
 
     (from, into)
@@ -106,26 +110,26 @@ fn derive_struct_unnamed(
     let num_fields = fields.unnamed.len();
     let from = fields.unnamed.iter().rev().map(|f| {
         quote_spanned! { f.span() =>
-            param.pop().ok_or(())?.try_into()?
+            passerine_common::Inject::deserialize(param.pop()?)?
         }
     });
     let into = fields.unnamed.iter().enumerate().map(|(index, f)| {
         let index = Index::from(index);
         quote_spanned! { f.span() =>
-            param.#index.into()
+            passerine_common::Inject::serialize(param.#index)
         }
     });
 
     let from = quote! {
-        if let passerine::Data::Tuple(mut param) = param {
-            if param.len() != #num_fields { return Err(()); }
-            Ok(#type_name (#(#from,)*))
+        if let passerine_common::Data::Tuple(mut param) = param {
+            if param.len() != #num_fields { return None; }
+            Some(#type_name (#(#from,)*))
         } else {
-            Err(())
+            None
         }
     };
     let into = quote! {
-        passerine::Data::Tuple(vec![#(#into,)*])
+        passerine_common::Data::Tuple(vec![#(#into,)*])
     };
 
     (from, into)

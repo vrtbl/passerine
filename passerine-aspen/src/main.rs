@@ -43,6 +43,3 @@ fn main() {
         Status::fatal().log(&r)
     }
 }
-
-#[derive(passerine_derive::Inject)]
-struct Point;

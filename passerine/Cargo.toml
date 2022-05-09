@@ -16,3 +16,5 @@ repository = "https://github.com/vrtbl/passerine"
 # I would put this under dev-dependencies if I could.
 proptest-derive = "0.3.0"
 proptest = "1.0.0"
+passerine-common = { path = "../passerine-common" }
+passerine-derive = { path = "../passerine-derive" }

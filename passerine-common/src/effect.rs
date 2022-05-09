@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
 use crate::{
-    vm::data::Data,
-    Inject,
+    data::Data,
+    inject::Inject,
 };
 
 // TODO: switch from using From to TryFrom.
@@ -22,13 +22,13 @@ pub struct Effect {
 
 impl Effect {
     #[inline(always)]
-    pub fn matches<T>(&mut self, handler: Handler<T>) -> Option<Result<T, ()>>
+    pub fn matches<T>(&mut self, handler: Handler<T>) -> Option<Option<T>>
     where
         T: Inject,
     {
         if self.id == handler.id {
             let data = std::mem::replace(&mut self.unmatched_data, None);
-            data.map(TryInto::try_into)
+            data.map(Inject::deserialize)
         } else {
             None
         }

@@ -165,6 +165,8 @@ dependencies = [
 name = "passerine"
 version = "0.9.2"
 dependencies = [
+ "passerine-common",
+ "passerine-derive",
  "proptest",
  "proptest-derive",
 ]
@@ -183,10 +185,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "passerine-common"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "proptest-derive",
+]
+
+[[package]]
 name = "passerine-derive"
 version = "0.1.0"
 dependencies = [
- "passerine",
+ "passerine-common",
  "proc-macro2 1.0.37",
  "quote 1.0.18",
  "syn 1.0.91",

@@ -101,7 +101,7 @@
 //!
 //! The `VM` is just a simple light stack-based VM.
 
-pub mod common;
+pub use passerine_common as common;
 pub mod kernel;
 pub mod compiler;
 pub mod vm;
@@ -112,14 +112,8 @@ pub mod construct;
 
 use std::rc::Rc;
 
-pub use common::{
-    source::Source,
-    span::Spanned,
-};
 pub use compiler::syntax::Syntax;
-pub use kernel::inject::Inject;
 pub use vm::{
-    data::Data,
     trace::Trace,
     vm::VM,
 };

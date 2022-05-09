@@ -8,7 +8,7 @@ use std::{
     },
 };
 
-use crate::vm::data::Data;
+use crate::data::Data;
 
 pub enum ArbInt {
     Small(u128),

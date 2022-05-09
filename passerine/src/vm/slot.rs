@@ -4,7 +4,7 @@ use std::fmt::{
     Result,
 };
 
-use crate::vm::{
+use crate::common::{
     closure::Closure,
     data::Data,
 };

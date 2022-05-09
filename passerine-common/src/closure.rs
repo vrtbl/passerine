@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    common::lambda::Lambda,
-    vm::data::Data,
+    data::Data,
+    lambda::Lambda,
 };
 
 /// Wraps a `Lambda` with some scope context.
