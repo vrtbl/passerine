@@ -104,14 +104,14 @@ impl Parser {
     /// This will produce a module as opposed to a block.
     /// Also returns the symbol interning table.
     pub fn parse(
-        parse_tree: Spanned<TokenTree>,
+        token_tree: Spanned<TokenTree>,
     ) -> Result<(Spanned<AST>, HashMap<String, SharedSymbol>), Syntax> {
         // build base parser
         let mut parser = Parser {
             symbols: HashMap::new(),
         };
 
-        let ast = parser.entry(&parse_tree)?;
+        let ast = parser.entry(&token_tree)?;
 
         Ok((ast, parser.symbols))
     }
@@ -452,7 +452,7 @@ impl Parser {
     ) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
         let pattern = left
-            .map(Pattern::try_from)
+            .try_map(Pattern::try_from)
             .map_err(|e| Syntax::error(&e, &left_span))?;
         self.binop(pattern, trees, trees_idx, false, ResOp::Lambda, |l, r| {
             AST::Lambda(Lambda::new(l, r))
@@ -468,7 +468,7 @@ impl Parser {
     ) -> Result<Spanned<AST>, Syntax> {
         let left_span = left.span.clone();
         let pattern = left
-            .map(Pattern::<SharedSymbol>::try_from)
+            .try_map(Pattern::<SharedSymbol>::try_from)
             .map_err(|e| Syntax::error(&e, &left_span))?;
         self.binop(pattern, trees, trees_idx, false, ResOp::Assign, |l, r| {
             AST::Base(Base::assign(l, r))
@@ -485,14 +485,6 @@ mod tests {
         common::source::Source,
         compiler::lex::Lexer,
     };
-
-    proptest! {
-        #[test]
-        fn doesnt_crash(s in "\\PC*") {
-            let result = Lexer::lex(Source::source(&s));
-            format!("{:?}", result);
-        }
-    }
 
     #[test]
     fn literal() {

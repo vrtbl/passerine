@@ -260,8 +260,15 @@ impl<T> Spanned<T> {
     }
 
     /// Applies a function a `Spanned`'s item.
-    pub fn map<B, E>(self, f: fn(T) -> Result<B, E>) -> Result<Spanned<B>, E> {
+    pub fn try_map<B, E>(
+        self,
+        f: fn(T) -> Result<B, E>,
+    ) -> Result<Spanned<B>, E> {
         Ok(Spanned::new(f(self.item)?, self.span))
+    }
+
+    pub fn map<B>(self, f: fn(T) -> B) -> Spanned<B> {
+        Spanned::new(f(self.item), self.span)
     }
 }
 

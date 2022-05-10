@@ -112,36 +112,46 @@ pub mod construct;
 
 use std::rc::Rc;
 
+pub use common::{
+    closure::Closure,
+    Data,
+    Inject,
+    Source,
+};
 pub use compiler::syntax::Syntax;
+pub use passerine_derive::Inject;
 pub use vm::{
     trace::Trace,
     vm::VM,
 };
 
-// /// Compiles a [`Source`] to some bytecode.
-// pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {
-//     let tokens   = ThinModule::thin(source).lower()?;
-//     let ast      = tokens.lower()?;
-//     let cst      = ast.lower()?;
-//     let sst      = cst.lower()?;
-//     let bytecode = sst.lower()?;
-//
-//     return Ok(Closure::wrap(bytecode));
-// }
-//
+/// Compiles a [`Source`] to some bytecode.
+pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {
+    let tokens = compiler::Lexer::lex(source)?;
+    let token_tree = compiler::Reader::read(tokens)?;
+    let (ast, symbols) = compiler::Parser::parse(token_tree)?;
+    let (sst, scope) = compiler::Hoister::hoist(todo!("{:?}", ast), symbols)?;
+    let bytecode = compiler::Compiler::compile(sst, scope)?;
+
+    return Ok(Closure::wrap(bytecode));
+}
+
 // /// Compiles a [`Source`] to some bytecode,
 // /// With a specific [`FFI`].
-// pub fn compile_with_ffi(source: Rc<Source>, ffi: FFI) -> Result<Closure,
-// Syntax> {     let tokens   = ThinModule::thin(source).lower()?;
-//     let ast      = tokens.lower()?;
-//     let cst      = ast.lower()?;
-//     let sst      = cst.lower()?;
-//     let sst_ffi  = Module::new(sst.repr, (sst.assoc, ffi));
+// pub fn compile_with_ffi(
+//     source: Rc<Source>,
+//     ffi: FFI,
+// ) -> Result<Closure, Syntax> {
+//     let tokens = ThinModule::thin(source).lower()?;
+//     let ast = tokens.lower()?;
+//     let cst = ast.lower()?;
+//     let sst = cst.lower()?;
+//     let sst_ffi = Module::new(sst.repr, (sst.assoc, ffi));
 //     let bytecode = sst_ffi.lower()?;
-//
+
 //     return Ok(Closure::wrap(bytecode));
 // }
-//
+
 // /// Run a compiled [`Closure`].
 // pub fn run(closure: Closure) -> Result<(), Trace> {
 //     let mut vm = VM::init(closure);

@@ -27,14 +27,12 @@ use crate::{
     },
 };
 
-// TODO: hoisting before expansion.
+// TODO: hoisting before expansion??
 // TODO: hoist labels? how are labels declared? types?
-// TODO: once modules exist, the entire program should be
-// wrapped in a module.
 
 // TODO: add a hoisting method to finalize hoists.
 
-// TODO: keep track of syntax, do hoisting before macro expansion?
+// TODO: keep track of syntax, do hoisting before macro expansion??
 
 // TLDR: shouldn't the scope for types and macros be determined?
 
@@ -50,7 +48,6 @@ use crate::{
 pub struct Hoister {
     /// The unique local symbols in the current scope.
     scopes:            Vec<Scope>,
-    // TODO: make it it's own type
     /// Maps integers (index in vector) to string
     /// representation of symbol.
     symbol_table:      SymbolTable,
@@ -75,12 +72,13 @@ impl Hoister {
     /// identifiers; symbols by the same name in
     /// different scopes will get different identifiers.
     /// Also resolves closure captures and closure hoisting.
-    fn lower(
-        tree: (Spanned<CST>, HashMap<String, SharedSymbol>),
+    pub fn hoist(
+        tree: Spanned<CST>,
+        symbols: HashMap<String, SharedSymbol>,
     ) -> Result<(Spanned<SST>, Scope), Syntax> {
         let mut hoister = Hoister::new();
 
-        let sst = hoister.walk(tree.0)?;
+        let sst = hoister.walk(tree)?;
         let scope = hoister.scopes.pop().unwrap();
         dbg!(&sst);
 

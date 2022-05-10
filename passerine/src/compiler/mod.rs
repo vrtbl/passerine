@@ -18,12 +18,21 @@
 //! may be implemented in the future.
 
 pub mod lex;
+pub use lex::Lexer;
+
 pub mod read;
+pub use read::Reader;
 // pub mod expand;
 pub mod parse;
-// pub mod desugar;
+pub use parse::Parser;
+
+pub mod desugar;
+pub use desugar::Desugarer;
+
 pub mod hoist;
+pub use hoist::Hoister;
 // pub mod unify;
 pub mod gen;
+pub use gen::Compiler;
 
 pub mod syntax;

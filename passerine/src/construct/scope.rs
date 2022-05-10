@@ -34,7 +34,7 @@ impl<T: Eq + Hash + Clone> VecSet<T> {
     pub fn contains(&self, item: &T) -> bool { self.members.contains_key(item) }
 
     pub fn index_of(&self, item: &T) -> Option<usize> {
-        self.members.get(item).map(|x| *x)
+        self.members.get(item).copied()
     }
 
     // Marks an item as removed. Does not actually remove the item to preserve
@@ -49,7 +49,7 @@ impl<T: Eq + Hash + Clone> VecSet<T> {
         self.order
             .iter()
             .filter(|x| self.contains(x))
-            .map(|x| x.clone())
+            .cloned()
             .collect()
     }
 
@@ -77,8 +77,6 @@ impl Scope {
     pub fn is_nonlocal(&self, unique_symbol: UniqueSymbol) -> bool {
         self.nonlocals.contains(&unique_symbol)
     }
-
-    // TODO: these are linear, should be constant
 
     pub fn local_index(&self, unique_symbol: UniqueSymbol) -> Option<usize> {
         self.locals.index_of(&unique_symbol)

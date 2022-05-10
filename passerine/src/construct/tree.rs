@@ -23,6 +23,30 @@ pub enum Pattern<S> {
     Chain(Vec<Spanned<Self>>),
 }
 
+impl<S> Pattern<S> {
+    pub fn label(symbol: Spanned<S>, pattern: Spanned<Self>) -> Self {
+        Pattern::Label(symbol, Box::new(pattern))
+    }
+
+    pub fn map<Z>(self, symbol: impl Fn(S) -> Z) -> Pattern<Z> {
+        match self {
+            Pattern::Symbol(s) => Pattern::Symbol(symbol(s)),
+            Pattern::Lit(l) => Pattern::Lit(l),
+            Pattern::Label(s, p) => {
+                todo!();
+                // Pattern::label(s, p)
+            },
+            Pattern::Tuple(t) => todo!(),
+            Pattern::Chain(c) => Pattern::Chain(
+                todo!(),
+                // c.into_iter()
+                //     .map(|s| s.map(move |s| s.map(symbol)))
+                //     .collect(), /* todo */
+            ),
+        }
+    }
+}
+
 // TODO: impls for boxed items.
 
 #[derive(Debug, Clone, PartialEq)]
@@ -48,9 +72,32 @@ impl<T, S> Base<T, S> {
         Base::Assign(pat, Box::new(expr))
     }
 
+    pub fn module(module: T) -> Self { Base::Module(Box::new(module)) }
+
     // pub fn ffi(name: &str, expr: T) -> Self {
     //     Base::FFI(name.to_string(), Box::new(expr))
     // }
+
+    pub fn map<Y, Z>(
+        self,
+        tree: impl Fn(T) -> Y,
+        symbol: impl Fn(S) -> Z,
+    ) -> Base<Y, Z> {
+        match self {
+            Base::Symbol(s) => Base::Symbol(symbol(s)),
+            Base::Label(l) => todo!(),
+            Base::Lit(l) => Base::Lit(l),
+            Base::Tuple(t) => Base::Tuple(t.into_iter().map(tree).collect()),
+            Base::Module(m) => Base::module(tree(*m)),
+            Base::Block(b) => Base::Block(b.into_iter().map(tree).collect()),
+            Base::Call(f, a) => Base::call(tree(*f), tree(*a)),
+            Base::Assign(s, e) => {
+                todo!()
+                // Base::assign(s.map(move |p| p.map(symbol)), tree(*e))
+            },
+            Base::FFI(_, _) => todo!("FFI is depracated! !!"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -59,7 +106,8 @@ pub enum Sugar<T> {
     Form(Vec<T>),
     // Pattern(Pattern<S>),
     // Record,
-    Is(Box<T>, Box<T>),   // expr, type
+    Is(Box<T>, Box<T>), // expr, type
+    // A function composition
     Comp(Box<T>, Box<T>), // arg, function
     Field(Box<T>, Box<T>), /* struct, field
                            * TODO: math operators */
@@ -88,10 +136,10 @@ pub struct Lambda<T> {
 }
 
 impl<T> Lambda<T> {
-    pub fn new(arg: Spanned<Pattern<SharedSymbol>>, tree: T) -> Self {
+    pub fn new(arg: Spanned<Pattern<SharedSymbol>>, body: T) -> Self {
         Lambda {
             arg,
-            body: Box::new(tree),
+            body: Box::new(body),
         }
     }
 }
@@ -125,7 +173,7 @@ impl TryFrom<AST> for Pattern<SharedSymbol> {
             AST::Base(Base::Tuple(t)) => {
                 let mut patterns = vec![];
                 for item in t {
-                    patterns.push(item.map(Pattern::try_from)?);
+                    patterns.push(item.try_map(Pattern::try_from)?);
                 }
                 Pattern::Tuple(patterns)
             },
@@ -134,11 +182,11 @@ impl TryFrom<AST> for Pattern<SharedSymbol> {
             AST::Sugar(Sugar::Form(f)) => {
                 let mut patterns = vec![];
                 for item in f {
-                    patterns.push(item.map(Pattern::try_from)?);
+                    patterns.push(item.try_map(Pattern::try_from)?);
                 }
                 Pattern::Chain(patterns)
             },
-            AST::Sugar(Sugar::Group(e)) => e.map(Pattern::try_from)?.item,
+            AST::Sugar(Sugar::Group(e)) => e.try_map(Pattern::try_from)?.item,
             _ => Err("Unexpected construct inside pattern")?,
         })
     }

@@ -184,11 +184,13 @@ impl Reader {
     ) -> Result<Spanned<TokenTree>, Syntax> {
         self.opening.push(delim.clone());
 
-        match delim.item {
-            Delim::Curly => Ok(self.block()?),
-            Delim::Paren => self.form()?.map(|x| Ok(TokenTree::Form(x))),
-            Delim::Square => self.form()?.map(|x| Ok(TokenTree::List(x))),
-        }
+        let tree = match delim.item {
+            Delim::Curly => self.block()?,
+            Delim::Paren => self.form()?.map(|x| TokenTree::Form(x)),
+            Delim::Square => self.form()?.map(|x| TokenTree::List(x)),
+        };
+
+        return Ok(tree);
     }
 
     fn exit_group(

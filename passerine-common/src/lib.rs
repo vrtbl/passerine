@@ -18,8 +18,12 @@ pub mod opcode;
 pub mod lambda;
 pub mod closure;
 
+pub use closure::Closure;
 pub use data::Data;
 pub use inject::Inject;
 pub use module::Module;
 pub use source::Source;
-pub use span::Spanned;
+pub use span::{
+    Span,
+    Spanned,
+};
