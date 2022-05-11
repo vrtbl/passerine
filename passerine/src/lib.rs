@@ -130,7 +130,8 @@ pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {
     let tokens = compiler::Lexer::lex(source)?;
     let token_tree = compiler::Reader::read(tokens)?;
     let (ast, symbols) = compiler::Parser::parse(token_tree)?;
-    let (sst, scope) = compiler::Hoister::hoist(todo!("{:?}", ast), symbols)?;
+    let cst = compiler::Desugarer::desugar(ast);
+    let (sst, scope) = compiler::Hoister::hoist(cst, symbols)?;
     let bytecode = compiler::Compiler::compile(sst, scope)?;
 
     return Ok(Closure::wrap(bytecode));
