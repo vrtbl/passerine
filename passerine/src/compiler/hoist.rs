@@ -89,11 +89,12 @@ impl Hoister {
             let num_unresolved = hoister.unresolved_hoists.len();
 
             let mut error = Syntax::error_no_note(&format!(
-                "{} Variable{} referenced before assignment",
+                "{} variable{} referenced before assignment",
                 num_unresolved,
                 if num_unresolved == 1 { "" } else { "s" }
             ));
 
+            // TODO: sort by occurence, earliest first?
             for (_symbol, spanned) in hoister.unresolved_hoists.iter() {
                 // TODO: hints to correct to similar names, etc.
                 dbg!(&spanned.span);

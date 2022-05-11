@@ -308,7 +308,7 @@ impl Parser {
             },
 
             // Unreachable because we skip all all non-sep tokens
-            _ => panic!(),
+            _ => unreachable!(),
         };
 
         Ok(result)
@@ -486,64 +486,35 @@ mod tests {
         compiler::lex::Lexer,
     };
 
-    #[test]
-    fn literal() {
-        let source = "2";
+    fn test_source(source: &str) {
         let tokens = Lexer::lex(Source::source(source)).unwrap();
         let token_tree = Reader::read(tokens).unwrap();
         let result = Parser::parse(token_tree);
         dbg!("{:?}", &result);
-        let (ast, _symbols) = result.unwrap();
+        let (_ast, _symbols) = result.unwrap();
     }
 
     #[test]
-    fn symbol() {
-        let source = "x";
-        let tokens = Lexer::lex(Source::source(source)).unwrap();
-        let token_tree = Reader::read(tokens).unwrap();
-        let result = Parser::parse(token_tree);
-        dbg!("{:?}", &result);
-        let (ast, _symbols) = result.unwrap();
-    }
+    fn literal() { test_source("2") }
 
     #[test]
-    fn assign() {
-        let source = "x = 2\ny = 4";
-        let tokens = Lexer::lex(Source::source(source)).unwrap();
-        let token_tree = Reader::read(tokens).unwrap();
-        let result = Parser::parse(token_tree);
-        dbg!("{:?}", &result);
-        let (ast, _symbols) = result.unwrap();
-    }
+    fn symbol() { test_source("x") }
 
     #[test]
-    fn field() {
-        let source = "x = hello.world";
-        let tokens = Lexer::lex(Source::source(source)).unwrap();
-        let token_tree = Reader::read(tokens).unwrap();
-        let result = Parser::parse(token_tree);
-        dbg!("{:?}", &result);
-        let (ast, _symbols) = result.unwrap();
-    }
+    fn assign() { test_source("x = 2\ny = 4") }
+
+    #[test]
+    fn field() { test_source("x = hello.world") }
 
     #[test]
     fn is() {
         // TODO: enforce labels to begin with a capital letter?
-        let source = "y: asdf";
-        let tokens = Lexer::lex(Source::source(source)).unwrap();
-        let token_tree = Reader::read(tokens).unwrap();
-        let result = Parser::parse(token_tree);
-        dbg!("{:?}", &result);
-        let (ast, _symbols) = result.unwrap();
+        test_source("y: asdf")
     }
 
     #[test]
-    fn lambda() {
-        let source = "x = a -> f a";
-        let tokens = Lexer::lex(Source::source(source)).unwrap();
-        let token_tree = Reader::read(tokens).unwrap();
-        let result = Parser::parse(token_tree);
-        dbg!("{:?}", &result);
-        let (ast, _symbols) = result.unwrap();
-    }
+    fn lambda() { test_source("x = a -> f a") }
+
+    #[test]
+    fn body() { test_source("x {}") }
 }
