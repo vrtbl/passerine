@@ -20,9 +20,10 @@ pub struct Desugarer;
 type SharedBase<T> = Base<Spanned<T>, SharedSymbol>;
 
 impl Desugarer {
-    pub fn desugar(ast: Spanned<AST>) -> Spanned<CST> {
-        todo!();
-    }
+    // TODO: just rename walk to desugar?
+    // TODO: is this pass infallible?
+    // Maybe make Result once more things are added...
+    pub fn desugar(ast: Spanned<AST>) -> Spanned<CST> { Desugarer::walk(ast) }
 
     fn walk(ast: Spanned<AST>) -> Spanned<CST> {
         // TODO: use this destructuring pattern throughout codebase!
@@ -37,14 +38,20 @@ impl Desugarer {
 
     fn walk_base(b: SharedBase<AST>) -> SharedBase<CST> {
         match b {
-            Base::Symbol(_) => todo!(),
-            Base::Label(_) => todo!(),
-            Base::Lit(_) => todo!(),
-            Base::Tuple(_) => todo!(),
-            Base::Module(_) => todo!(),
-            Base::Block(_) => todo!(),
-            Base::Call(_, _) => todo!(),
-            Base::Assign(_, _) => todo!(),
+            Base::Symbol(s) => Base::Symbol(s),
+            Base::Label(l) => Base::Label(l),
+            Base::Lit(l) => Base::Lit(l),
+            Base::Tuple(t) => {
+                Base::Tuple(t.into_iter().map(Desugarer::walk).collect())
+            },
+            Base::Module(m) => Base::module(Desugarer::walk(*m)),
+            Base::Block(b) => {
+                Base::Block(b.into_iter().map(Desugarer::walk).collect())
+            },
+            Base::Call(f, a) => {
+                Base::call(Desugarer::walk(*f), Desugarer::walk(*a))
+            },
+            Base::Assign(p, e) => Base::assign(p, Desugarer::walk(*e)),
             Base::FFI(_, _) => unreachable!("FFI is depracated... :("),
         }
     }

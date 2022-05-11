@@ -27,24 +27,6 @@ impl<S> Pattern<S> {
     pub fn label(symbol: Spanned<S>, pattern: Spanned<Self>) -> Self {
         Pattern::Label(symbol, Box::new(pattern))
     }
-
-    pub fn map<Z>(self, symbol: impl Fn(S) -> Z) -> Pattern<Z> {
-        match self {
-            Pattern::Symbol(s) => Pattern::Symbol(symbol(s)),
-            Pattern::Lit(l) => Pattern::Lit(l),
-            Pattern::Label(s, p) => {
-                todo!();
-                // Pattern::label(s, p)
-            },
-            Pattern::Tuple(t) => todo!(),
-            Pattern::Chain(c) => Pattern::Chain(
-                todo!(),
-                // c.into_iter()
-                //     .map(|s| s.map(move |s| s.map(symbol)))
-                //     .collect(), /* todo */
-            ),
-        }
-    }
 }
 
 // TODO: impls for boxed items.
@@ -77,28 +59,6 @@ impl<T, S> Base<T, S> {
     // pub fn ffi(name: &str, expr: T) -> Self {
     //     Base::FFI(name.to_string(), Box::new(expr))
     // }
-
-    pub fn map<Y, Z>(
-        self,
-        tree: impl Fn(T) -> Y,
-        symbol: impl Fn(S) -> Z,
-    ) -> Base<Y, Z> {
-        match self {
-            Base::Symbol(s) => Base::Symbol(symbol(s)),
-            Base::Label(l) => Base::Label(symbol(l)),
-            Base::Lit(l) => Base::Lit(l),
-            Base::Tuple(t) => Base::Tuple(t.into_iter().map(tree).collect()),
-            Base::Module(m) => Base::module(tree(*m)),
-            Base::Block(b) => Base::Block(b.into_iter().map(tree).collect()),
-            Base::Call(f, a) => Base::call(tree(*f), tree(*a)),
-            Base::Assign(s, e) => {
-                // todo!()
-                let fun = |p: Pattern<S>| p.map(symbol);
-                Base::assign(s.map(fun), tree(*e))
-            },
-            Base::FFI(_, _) => todo!("FFI is depracated! !!"),
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
