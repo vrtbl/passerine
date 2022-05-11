@@ -82,6 +82,9 @@ impl Hoister {
         let scope = hoister.scopes.pop().unwrap();
         // dbg!(&sst);
 
+        dbg!(&hoister.unresolved_hoists);
+        // panic!();
+
         if !hoister.unresolved_hoists.is_empty() {
             let num_unresolved = hoister.unresolved_hoists.len();
 
@@ -93,11 +96,14 @@ impl Hoister {
 
             for (_symbol, spanned) in hoister.unresolved_hoists.iter() {
                 // TODO: hints to correct to similar names, etc.
+                dbg!(&spanned.span);
                 error = error.add_note(Note::new(spanned.span.clone()));
             }
-        }
 
-        return Ok((sst, scope));
+            Err(error)
+        } else {
+            Ok((sst, scope))
+        }
     }
 
     /// Enters a new scope, called when entering a new

@@ -17,6 +17,7 @@ use crate::{
             Span,
             Spanned,
         },
+        Data,
     },
     compiler::syntax::Syntax,
     construct::{
@@ -367,11 +368,11 @@ impl Compiler {
         let lambda = self.exit_scope().lambda;
 
         // push the lambda object onto the callee's stack.
-        todo!("insert lambda as data");
-        // let lambda_index =
-        // self.lambda.index_lit(Data::Lambda(Rc::new(lambda)));
-        // self.lambda.emit(Opcode::Closure);
-        // self.lambda.emit_bytes(&mut split_number(lambda_index));
+        // todo!("insert lambda as data");
+        let lambda_index =
+            self.lambda.index_data(Data::Lambda(Rc::new(lambda)));
+        self.lambda.emit(Opcode::Closure);
+        self.lambda.emit_bytes(&mut split_number(lambda_index));
 
         Ok(())
     }

@@ -26,6 +26,7 @@ pub fn run(path: PathBuf) -> Result<(), String> {
     let bytecode = compile(source).map_err(|e| e.to_string())?;
 
     println!("{:#?}", bytecode.lambda);
+    println!("{}", bytecode.lambda);
 
     // let mut vm = VM::init(Closure::wrap(bytecode));
     // vm.run().map_err(|e| e.to_string())?;

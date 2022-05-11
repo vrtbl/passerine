@@ -84,15 +84,17 @@ impl Lambda {
             Opcode::Del => vec![],
             Opcode::FFICall => panic!(),
             Opcode::Copy => vec![],
-            // Opcode::Capture => vec![self.decls], // TODO: correct bounds
-            // check? Opcode::Save    => vec![self.decls],
+            // Opcode::Capture => vec![self.decls],
+
+            // TODO: correct bounds check?
+            Opcode::Save => vec![self.decls],
             Opcode::SaveCap => vec![self.captures.len()],
-            // Opcode::Load    => vec![self.decls],
+            Opcode::Load => vec![self.decls],
             Opcode::LoadCap => vec![self.captures.len()],
             Opcode::Call => vec![],
-            // Opcode::Return  => vec![self.decls], // TODO: correct bounds
-            // check?
-            Opcode::Closure => vec![],
+            Opcode::Return => vec![self.decls],
+            // TODO: correct bounds check?
+            Opcode::Closure => vec![self.constants.len()],
             Opcode::Print => vec![],
             Opcode::Label => vec![],
             Opcode::Tuple => vec![usize::MAX], // TODO: stricter bounds
@@ -100,7 +102,7 @@ impl Lambda {
             Opcode::UnLabel => vec![],
             Opcode::UnTuple => vec![usize::MAX], // TODO: stricter bounds
             Opcode::Noop => vec![],
-            _ => panic!(),
+            e => panic!("not implemented {:?}", e),
         }
     }
 
@@ -214,7 +216,7 @@ impl fmt::Display for Lambda {
         writeln!(f, "Dumping Variables: {:?}", self.decls)?;
 
         writeln!(f, "Dumping Bytecode:")?;
-        writeln!(f, "Inst    \tArgs")?;
+        writeln!(f, "Inst\tArgs")?;
 
         let mut index = 0;
 
@@ -228,7 +230,7 @@ impl fmt::Display for Lambda {
                 },
             };
 
-            write!(f, "{:8?}", opcode)?;
+            write!(f, "{:?}\t", opcode)?;
 
             index += 1;
             let bounds = self.bounds(opcode);
