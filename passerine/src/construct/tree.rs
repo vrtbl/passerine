@@ -85,15 +85,16 @@ impl<T, S> Base<T, S> {
     ) -> Base<Y, Z> {
         match self {
             Base::Symbol(s) => Base::Symbol(symbol(s)),
-            Base::Label(l) => todo!(),
+            Base::Label(l) => Base::Label(symbol(l)),
             Base::Lit(l) => Base::Lit(l),
             Base::Tuple(t) => Base::Tuple(t.into_iter().map(tree).collect()),
             Base::Module(m) => Base::module(tree(*m)),
             Base::Block(b) => Base::Block(b.into_iter().map(tree).collect()),
             Base::Call(f, a) => Base::call(tree(*f), tree(*a)),
             Base::Assign(s, e) => {
-                todo!()
-                // Base::assign(s.map(move |p| p.map(symbol)), tree(*e))
+                // todo!()
+                let fun = |p: Pattern<S>| p.map(symbol);
+                Base::assign(s.map(fun), tree(*e))
             },
             Base::FFI(_, _) => todo!("FFI is depracated! !!"),
         }

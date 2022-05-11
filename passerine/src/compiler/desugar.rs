@@ -64,16 +64,14 @@ impl Desugarer {
                 // we know the form can not be empty...
                 // and must have at least two items...
                 assert!(f.len() >= 2);
-                let form_items = f.into_iter().rev();
-                let fun = Desugarer::walk(form_items.next().unwrap());
+                let mut form_items = f.into_iter().rev();
+                let mut fun = Desugarer::walk(form_items.next().unwrap());
 
                 for arg in form_items {
                     let arg = Desugarer::walk(arg);
+                    let span = Span::combine(&fun.span, &arg.span);
                     let call = SharedBase::call(fun, arg);
-                    fun = Spanned::new(
-                        CST::Base(call),
-                        Span::combine(&fun.span, &arg.span),
-                    );
+                    fun = Spanned::new(CST::Base(call), span);
                 }
 
                 fun.item
