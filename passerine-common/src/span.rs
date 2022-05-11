@@ -5,6 +5,7 @@ use std::{
         Display,
         Formatter,
     },
+    ops::Add,
     rc::Rc,
     usize,
 };
@@ -94,13 +95,15 @@ impl Span {
 
     pub fn lines(&self) -> Vec<String> {
         let full_source = &self.source.as_ref().contents;
-        let lines: Vec<_> = full_source.split("\n").collect();
+        let lines: Vec<_> = full_source.split('\n').collect();
         let start_line = self.line(self.offset);
         let end_line = self.line(self.end());
         let slice = lines[start_line..=end_line]
             .iter()
             .map(|s| s.to_string())
             .collect();
+        dbg!(start_line);
+        dbg!(end_line);
         return slice;
     }
 
@@ -109,13 +112,13 @@ impl Span {
     }
 
     pub fn line(&self, index: usize) -> usize {
-        let lines = self.source.contents[..index].split_inclusive("\n").count();
+        let lines = self.source.contents[..index].split('\n').count();
         return lines.saturating_sub(1);
     }
 
     pub fn col(&self, index: usize) -> usize {
         let lines = &self.source.contents[..index]
-            .split_inclusive("\n")
+            .split('\n')
             .last()
             .unwrap_or("")
             .chars()
@@ -183,7 +186,9 @@ impl FormattedSpan {
 
     pub fn end(&self) -> usize { (self.start - 1) + self.lines.len() }
 
-    pub fn gutter_padding(&self) -> usize { self.start.to_string().len() }
+    pub fn gutter_padding(&self) -> usize {
+        self.start.add(1).to_string().len()
+    }
 
     /// If a single line span, returns the number of carrots
     /// between cols.
