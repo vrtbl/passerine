@@ -116,7 +116,8 @@ impl Parser {
         Ok((ast, parser.symbols))
     }
 
-    // entry point to parse a token tree into an AST
+    // TODO: rename to `walk` or something?
+    /// Entry point to parse a token tree into an AST
     fn entry(
         &mut self,
         token_tree: &Spanned<TokenTree>,
@@ -178,40 +179,12 @@ impl Parser {
         Ok(left)
     }
 
+    /// See `entry`.
     fn rule_prefix(
         &mut self,
         tree: &Spanned<TokenTree>,
     ) -> Result<Spanned<AST>, Syntax> {
         self.entry(tree)
-        // let result = match tree.item {
-        //     TokenTree::Lit(_) => self.literal(tree)?,
-        //     TokenTree::Label(_) => self.label(tree)?,
-        //     TokenTree::Iden(ref name) => match ResIden::try_new(name) {
-        //         Some(iden) => match iden {
-        //             ResIden::Macro
-        //             | ResIden::Type
-        //             | ResIden::If
-        //             | ResIden::Match
-        //             | ResIden::Mod => {
-        //                 return Err(Syntax::error(
-        //                     "This feature is a work in progress",
-        //                     &tree.span,
-        //                 ))
-        //             },
-        //         },
-        //         None => self.symbol(tree)?,
-        //     },
-        //     TokenTree::Block(b) => self.entry(b),
-        //     TokenTree::List(_) => unimplemented!(),
-        //     TokenTree::Form(_) => unimplemented!(),
-        //     TokenTree::Op(_) => {
-        //         return Err(Syntax::error(
-        //             "Expected an expression in prefix position, got an infix
-        // operator",             &tree.span,
-        //         ))
-        //     },
-        // };
-        // Ok(result)
     }
 
     /// Looks at the current token and parses an infix
