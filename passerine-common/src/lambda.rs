@@ -237,7 +237,11 @@ impl fmt::Display for Lambda {
             let (args, consumed) = match args_result {
                 Some((a, c)) => (a, c),
                 None => {
-                    writeln!(f, "Invalid Opcode argument at index {}", index)?;
+                    writeln!(
+                        f,
+                        "\nInvalid Opcode argument at index {}",
+                        index
+                    )?;
                     break;
                 },
             };

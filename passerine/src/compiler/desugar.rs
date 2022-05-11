@@ -71,7 +71,7 @@ impl Desugarer {
                 // we know the form can not be empty...
                 // and must have at least two items...
                 assert!(f.len() >= 2);
-                let mut form_items = f.into_iter().rev();
+                let mut form_items = f.into_iter();
                 let mut fun = Desugarer::walk(form_items.next().unwrap());
 
                 for arg in form_items {

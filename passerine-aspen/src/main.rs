@@ -32,10 +32,7 @@ fn main() {
     let result = match subcommand {
         Aspen::New(package) => new::new(package.path),
         Aspen::Run(package) => run::run(package.path),
-        Aspen::Repl => {
-            repl::repl();
-            return;
-        },
+        Aspen::Repl => repl::repl(),
         _ => unimplemented!(),
     };
 

@@ -9,9 +9,9 @@
 //     vm::vm::VM,
 // };
 
-pub fn repl() {
-    println!("Repl is WIP.");
-    return;
+pub fn repl() -> Result<(), String> {
+    // println!("Repl is WIP.");
+    Err("Interactive repl is WIP".into())
 
     // println!("Hit ^C to quit.\n");
 

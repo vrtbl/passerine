@@ -80,7 +80,7 @@ impl Hoister {
 
         let sst = hoister.walk(tree)?;
         let scope = hoister.scopes.pop().unwrap();
-        dbg!(&sst);
+        // dbg!(&sst);
 
         if !hoister.unresolved_hoists.is_empty() {
             let num_unresolved = hoister.unresolved_hoists.len();
