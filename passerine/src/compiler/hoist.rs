@@ -80,10 +80,6 @@ impl Hoister {
 
         let sst = hoister.walk(tree)?;
         let scope = hoister.scopes.pop().unwrap();
-        // dbg!(&sst);
-
-        dbg!(&hoister.unresolved_hoists);
-        // panic!();
 
         if !hoister.unresolved_hoists.is_empty() {
             let num_unresolved = hoister.unresolved_hoists.len();
@@ -179,6 +175,7 @@ impl Hoister {
     ) -> Spanned<Pattern<UniqueSymbol>> {
         let item = match pattern.item {
             Pattern::Symbol(name) => {
+                println!("trying to resolve {:?}", name);
                 Pattern::Symbol(self.resolve_assign(name, declare))
             },
             Pattern::Lit(l) => Pattern::Lit(l),
@@ -286,6 +283,12 @@ impl Hoister {
         // if we've seen the symbol before but don't know where it's
         // defined
         if let Some(unique_symbol) = self.unresolved_hoists.get(&name) {
+            dbg!(&name);
+            dbg!(&self.symbol_table);
+            dbg!(&self.scopes);
+            dbg!(&self.local_symbol(name));
+            // dbg!(&self.try_resolve(name));
+            panic!();
             // this is a definition; we've resolved it!
             let unique_symbol = unique_symbol.item;
             self.uncapture_all(unique_symbol);

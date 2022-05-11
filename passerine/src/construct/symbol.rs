@@ -19,6 +19,7 @@ pub struct UniqueSymbol(pub usize);
 
 /// Represents a set of symbols, whether they be unique by name
 /// Or unique by some other measure.
+#[derive(Debug)]
 pub struct SymbolTable {
     // Ordered list of symbols.
     // A symbol is in the symbol table if it's inner number is less than lowest
