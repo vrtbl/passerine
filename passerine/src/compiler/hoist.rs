@@ -283,18 +283,20 @@ impl Hoister {
         // if we've seen the symbol before but don't know where it's
         // defined
         if let Some(unique_symbol) = self.unresolved_hoists.get(&name) {
-            dbg!(&name);
-            dbg!(&self.symbol_table);
-            dbg!(&self.scopes);
-            dbg!(&self.local_symbol(name));
-            // dbg!(&self.try_resolve(name));
-            panic!();
-            // this is a definition; we've resolved it!
-            let unique_symbol = unique_symbol.item;
-            self.uncapture_all(unique_symbol);
-            self.unresolved_hoists.remove(&name);
-            self.local_scope().locals.push(unique_symbol);
-            return unique_symbol;
+            if self.local_symbol(name).is_none() {
+                dbg!(self.nonlocal_symbol(name));
+                dbg!(&name);
+                dbg!(&self.symbol_table);
+                dbg!(&self.scopes);
+                // dbg!(&self.try_resolve(name));
+                // panic!();
+                // this is a definition; we've resolved it!
+                let unique_symbol = unique_symbol.item;
+                self.uncapture_all(unique_symbol);
+                self.unresolved_hoists.remove(&name);
+                self.local_scope().locals.push(unique_symbol);
+                return unique_symbol;
+            }
         }
 
         // if we haven't seen the symbol before,
@@ -339,6 +341,9 @@ impl Hoister {
         self.capture_all(unique_symbol);
         self.unresolved_hoists
             .insert(name, Spanned::new(unique_symbol, span));
+
+        // put it in the local scope so we can check for use before
+        self.local_scope().locals.push(unique_symbol);
         return unique_symbol;
     }
 
@@ -409,5 +414,35 @@ impl Hoister {
         arg: Spanned<CST>,
     ) -> Result<SST, Syntax> {
         return Ok(SST::Base(Base::call(self.walk(fun)?, self.walk(arg)?)));
+    }
+}
+
+#[cfg(test)]
+mod test_super {
+    use std::ops::Not;
+
+    use super::*;
+    use crate::{
+        common::Source,
+        compiler::{
+            Desugarer,
+            Lexer,
+            Parser,
+            Reader,
+        },
+    };
+
+    fn test_source(source: &str) -> bool {
+        let tokens = Lexer::lex(Source::source(source)).unwrap();
+        let token_tree = Reader::read(tokens).unwrap();
+        let (ast, symbols) = Parser::parse(token_tree).unwrap();
+        let cst = Desugarer::desugar(ast);
+        let result = Hoister::hoist(cst, symbols);
+        return result.is_ok();
+    }
+
+    #[test]
+    fn use_before() {
+        assert!(test_source("x; x = 0").not());
     }
 }
