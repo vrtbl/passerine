@@ -470,7 +470,7 @@ mod tests {
         let tokens = Lexer::lex(Source::source(source)).unwrap();
         let token_tree = Reader::read(tokens).unwrap();
         let result = Parser::parse(token_tree);
-        dbg!(&result);
+        // dbg!(&result);
         if let Err(e) = result {
             eprintln!("{}", e);
             panic!();

@@ -1,10 +1,10 @@
--- action: run
--- outcome: success
--- expect: 14.0
+# action: run
+# outcome: success
+# expect: 14.0
 
 add3 = x y z -> x + y + z
 
 syntax 'pi { 3.5 }
 
--- TODO: should `add3 pi 7 pi` be valid?
+# TODO: should `add3 pi 7 pi` be valid?
 add3 (pi) 7.0 (pi)

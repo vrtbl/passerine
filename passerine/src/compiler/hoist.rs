@@ -93,7 +93,7 @@ impl Hoister {
             // TODO: sort by occurence, earliest first?
             for (_symbol, spanned) in hoister.unresolved_hoists.iter() {
                 // TODO: hints to correct to similar names, etc.
-                dbg!(&spanned.span);
+                // dbg!(&spanned.span);
                 error = error.add_note(Note::new(spanned.span.clone()));
             }
 
@@ -175,7 +175,6 @@ impl Hoister {
     ) -> Spanned<Pattern<UniqueSymbol>> {
         let item = match pattern.item {
             Pattern::Symbol(name) => {
-                println!("trying to resolve {:?}", name);
                 Pattern::Symbol(self.resolve_assign(name, declare))
             },
             Pattern::Lit(l) => Pattern::Lit(l),
@@ -284,13 +283,13 @@ impl Hoister {
         // defined
         if let Some(unique_symbol) = self.unresolved_hoists.get(&name) {
             if self.local_symbol(name).is_none() {
-                dbg!(self.nonlocal_symbol(name));
-                dbg!(&name);
-                dbg!(&self.symbol_table);
-                dbg!(&self.scopes);
-                // dbg!(&self.try_resolve(name));
-                // panic!();
-                // this is a definition; we've resolved it!
+                // dbg!(self.nonlocal_symbol(name));
+                // dbg!(&name);
+                // dbg!(&self.symbol_table);
+                // dbg!(&self.scopes);
+                // // dbg!(&self.try_resolve(name));
+                // // panic!();
+                // // this is a definition; we've resolved it!
                 let unique_symbol = unique_symbol.item;
                 self.uncapture_all(unique_symbol);
                 self.unresolved_hoists.remove(&name);
@@ -438,11 +437,27 @@ mod test_super {
         let (ast, symbols) = Parser::parse(token_tree).unwrap();
         let cst = Desugarer::desugar(ast);
         let result = Hoister::hoist(cst, symbols);
+        dbg!(&result);
         return result.is_ok();
     }
 
     #[test]
     fn use_before() {
         assert!(test_source("x; x = 0").not());
+    }
+
+    #[test]
+    fn use_capture_after() {
+        assert!(test_source("() -> x; x = 7"));
+    }
+
+    #[test]
+    fn use_before_capture_after() {
+        assert!(test_source("x; () -> x; x = 0").not());
+    }
+
+    #[test]
+    fn nested_capture() {
+        assert!(test_source("_ -> { x = _ -> pi; pi = 3 }; pi = 3.14"));
     }
 }

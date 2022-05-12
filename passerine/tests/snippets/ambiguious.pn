@@ -1,5 +1,5 @@
--- action: desugar
--- outcome: syntax
+# action: desugar
+# outcome: syntax
 
 syntax a 'where b { 0.0 }
 

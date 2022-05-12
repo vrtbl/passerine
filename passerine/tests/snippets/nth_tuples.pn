@@ -1,7 +1,7 @@
--- action: gen
--- outcome: success
+# action: gen
+# outcome: success
 
-() -- empty
-(true,) -- unary
-(true, false) -- binary
-(1.0, true, "Hello") -- trinary
+() # empty
+(true,) # unary
+(true, false) # binary
+(1.0, true, "Hello") # trinary

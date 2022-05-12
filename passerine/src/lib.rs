@@ -118,7 +118,15 @@ pub use common::{
     Inject,
     Source,
 };
-pub use compiler::syntax::Syntax;
+pub use compiler::{
+    syntax::Syntax,
+    Compiler,
+    Desugarer,
+    Hoister,
+    Lexer,
+    Parser,
+    Reader,
+};
 pub use passerine_derive::Inject;
 pub use vm::{
     trace::Trace,
@@ -128,17 +136,10 @@ pub use vm::{
 /// Compiles a [`Source`] to some bytecode.
 pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {
     let tokens = compiler::Lexer::lex(source)?;
-    dbg!(&tokens);
     let token_tree = compiler::Reader::read(tokens)?;
-    dbg!(&token_tree);
     let (ast, symbols) = compiler::Parser::parse(token_tree)?;
-    dbg!(&ast);
-    dbg!(&symbols);
     let cst = compiler::Desugarer::desugar(ast);
-    dbg!(&cst);
     let (sst, scope) = compiler::Hoister::hoist(cst, symbols)?;
-    dbg!(&sst);
-    dbg!(&scope);
     let bytecode = compiler::Compiler::compile(sst, scope)?;
 
     return Ok(Closure::wrap(bytecode));

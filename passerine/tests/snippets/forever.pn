@@ -1,5 +1,5 @@
--- action: run
--- outcome: success
+# action: run
+# outcome: success
 
 zero = f x -> x
 succ = n f x -> f (n f x)
@@ -16,7 +16,7 @@ syntax 'loop do {
 
 counter = zero
 
--- loop {
---     println_number counter
---     counter = succ counter
--- }
+# loop {
+#     println_number counter
+#     counter = succ counter
+# }

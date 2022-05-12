@@ -1,5 +1,5 @@
--- action: run
--- outcome: success
+# action: run
+# outcome: success
 
 syntax 'if cond then 'else other {
     branch = magic "if" (

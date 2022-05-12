@@ -1,6 +1,6 @@
--- action: run
--- outcome: success
--- expect: 7.0
+# action: run
+# outcome: success
+# expect: 7.0
 
 identity = x -> x
 identity 7.0

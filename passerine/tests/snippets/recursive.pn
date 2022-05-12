@@ -1,5 +1,5 @@
--- action: run
--- outcome: success
+# action: run
+# outcome: success
 
 x = () -> bar
 bar = 0

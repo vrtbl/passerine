@@ -1,5 +1,5 @@
--- action: run
--- outcome: trace
+# action: run
+# outcome: trace
 
 uh = problemo -> (true -> false) false == true
 hi = w -> uh "Hi " + w

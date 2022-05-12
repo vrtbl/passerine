@@ -1,6 +1,6 @@
--- action: run
--- outcome: success
--- expect: false
+# action: run
+# outcome: success
+# expect: false
 
 syntax 'lazy y {
     Thunk { () -> y }

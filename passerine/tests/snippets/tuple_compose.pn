@@ -1,11 +1,11 @@
--- action: run
--- outcome: success
--- expect: true
+# action: run
+# outcome: success
+# expect: true
 
-b = false -> true
+b = False -> True
 
--- is the same as (x, y) = (a, (b.c))
--- not (x, y) = ((a, b) . c)
-x, y = "Hello", false . b
+# is the same as (x, y) = (a, (b.c))
+# not (x, y) = ((a, b) . c)
+x, y = "Hello", False |> b
 
-println y
+# println y

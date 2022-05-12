@@ -1,7 +1,5 @@
--- action: run
--- outcome: trace
-
--- TODO: should be syntax
+# action: run
+# outcome: syntax
 
 x
 x = 0

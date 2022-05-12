@@ -1,6 +1,6 @@
--- action: run
--- outcome: success
--- expect: 0.0
+# action: run
+# outcome: success
+# expect: 0.0
 
 print = x -> magic "print" x
 

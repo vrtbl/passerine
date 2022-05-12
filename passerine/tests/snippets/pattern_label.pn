@@ -1,6 +1,6 @@
--- action: run
--- outcome: success
--- expect: "yellow"
+# action: run
+# outcome: success
+# expect: "yellow"
 
 my_banana = Banana "yellow"
 Banana color = my_banana

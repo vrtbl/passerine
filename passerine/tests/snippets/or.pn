@@ -1,6 +1,6 @@
--- action: run
--- outcome: success
--- expect: true
+# action: run
+# outcome: success
+# expect: true
 
 syntax a 'or b {
     magic "if" (a,

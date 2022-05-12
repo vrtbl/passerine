@@ -1,5 +1,5 @@
--- action: gen
--- outcome: success
+# action: gen
+# outcome: success
 
 a = "Heck"
 
