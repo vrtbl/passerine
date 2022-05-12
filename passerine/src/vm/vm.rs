@@ -57,15 +57,18 @@ impl VM {
     /// Advances to the next instruction.
     #[inline]
     pub fn next(&mut self) { self.ip += 1; }
+
     /// Advances IP, returns `Ok`. Used in Bytecode implementations.
     #[inline]
     pub fn done(&mut self) -> Result<(), Trace> {
         self.next();
         Ok(())
     }
+
     /// Returns the current instruction as a byte.
     #[inline]
     pub fn peek_byte(&mut self) -> u8 { self.closure.lambda.code[self.ip] }
+
     /// Advances IP and returns the current instruction as a byte.
     #[inline]
     pub fn next_byte(&mut self) -> u8 {
@@ -470,9 +473,7 @@ impl VM {
 
         let mut closure = Closure::wrap(lambda);
 
-        for captured in closure.lambda.captures.iter()
-        // .rev
-        {
+        for captured in closure.lambda.captures.iter() {
             let reference = match captured {
                 Captured::Local(index) => match self.stack.local_data(*index) {
                     Data::Heaped(h) => h,

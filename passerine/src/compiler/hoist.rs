@@ -134,7 +134,7 @@ impl Hoister {
     /// Walks a `CST` to produce an `SST`.
     /// This is fairly standard - hoisting happens in
     /// `self.assign`, `self.lambda`, and `self.symbol`.
-    pub fn walk(&mut self, tree: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
+    fn walk(&mut self, tree: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
         let sst: SST = match tree.item {
             CST::Base(Base::Lit(data)) => SST::Base(Base::Lit(data)),
             CST::Base(Base::Symbol(name)) => {
@@ -168,7 +168,7 @@ impl Hoister {
     /// Walks a pattern. If `declare` is true, we shadow
     /// variables in existing scopes and creates a new
     /// variable in the local scope.
-    pub fn walk_pattern(
+    fn walk_pattern(
         &mut self,
         pattern: Spanned<Pattern<SharedSymbol>>,
         declare: bool,
@@ -348,7 +348,7 @@ impl Hoister {
 
     /// Replaces a symbol name with a unique identifier for
     /// that symbol
-    pub fn symbol(&mut self, name: SharedSymbol, span: Span) -> SST {
+    fn symbol(&mut self, name: SharedSymbol, span: Span) -> SST {
         // if we are hoisting the variable,
         // mark the variable as being used before its lexical
         // definition
@@ -356,7 +356,7 @@ impl Hoister {
     }
 
     /// Walks a block, nothing fancy here.
-    pub fn block(&mut self, block: Vec<Spanned<CST>>) -> Result<SST, Syntax> {
+    fn block(&mut self, block: Vec<Spanned<CST>>) -> Result<SST, Syntax> {
         let mut expressions = vec![];
         for expression in block {
             expressions.push(self.walk(expression)?)
@@ -366,7 +366,7 @@ impl Hoister {
     }
 
     /// Walks a tuple, nothing fancy here.
-    pub fn tuple(&mut self, tuple: Vec<Spanned<CST>>) -> Result<SST, Syntax> {
+    fn tuple(&mut self, tuple: Vec<Spanned<CST>>) -> Result<SST, Syntax> {
         let mut expressions = vec![];
         for expression in tuple {
             expressions.push(self.walk(expression)?)
@@ -378,7 +378,7 @@ impl Hoister {
     /// Walks an assignment.
     /// Delegates to `walk_pattern` for capturing.
     /// Assignments can capture existing variables
-    pub fn assign(
+    fn assign(
         &mut self,
         pattern: Spanned<Pattern<SharedSymbol>>,
         expression: Spanned<CST>,
@@ -393,7 +393,7 @@ impl Hoister {
     /// Like `assign`, delegates to `walk_pattern` for
     /// capturing. But any paramaters will shadow those
     /// in outer scopes.
-    pub fn lambda(
+    fn lambda(
         &mut self,
         pattern: Spanned<Pattern<SharedSymbol>>,
         expression: Spanned<CST>,
@@ -407,7 +407,7 @@ impl Hoister {
     }
 
     /// Walks a function call.
-    pub fn call(
+    fn call(
         &mut self,
         fun: Spanned<CST>,
         arg: Spanned<CST>,

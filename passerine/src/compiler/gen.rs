@@ -63,7 +63,7 @@ impl Compiler {
     }
 
     /// Construct a new `Compiler`.
-    pub fn base(scope: Scope) -> Compiler {
+    fn base(scope: Scope) -> Compiler {
         Compiler {
             enclosing: None,
             lambda: Lambda::empty(),
@@ -76,7 +76,7 @@ impl Compiler {
     /// Replace the current compiler with a fresh one,
     /// keeping a reference to the old one in `self.enclosing`,
     /// and moving the FFI into the current compiler.
-    pub fn enter_scope(&mut self, scope: Scope) {
+    fn enter_scope(&mut self, scope: Scope) {
         // let ffi = mem::replace(&mut self.ffi, FFI::new());
         let nested = Compiler::base(scope);
         let enclosing = mem::replace(self, nested);
@@ -86,7 +86,7 @@ impl Compiler {
     /// Restore the enclosing compiler,
     /// returning the nested one for data (Lambda) extraction,
     /// and moving the FFI mappings back into the enclosing compiler.
-    pub fn exit_scope(&mut self) -> Compiler {
+    fn exit_scope(&mut self) -> Compiler {
         // let ffi = mem::replace(&mut self.ffi, FFI::new());
         let enclosing = mem::replace(&mut self.enclosing, None);
         let nested = match enclosing {
@@ -102,7 +102,7 @@ impl Compiler {
     /// etc. A malformed SST will cause a panic, as SSTs should be correct
     /// at this stage, and for them to be incorrect is an error in the
     /// compiler itself.
-    pub fn walk(&mut self, sst: &Spanned<SST>) -> Result<(), Syntax> {
+    fn walk(&mut self, sst: &Spanned<SST>) -> Result<(), Syntax> {
         // TODO: move this to a better spot
         self.lambda.decls = self.scope.locals.len();
 
@@ -138,7 +138,7 @@ impl Compiler {
     // refactor as such?
 
     /// Resovles a symbol lookup, e.g. something like `x`.
-    pub fn symbol(&mut self, unique_symbol: UniqueSymbol) {
+    fn symbol(&mut self, unique_symbol: UniqueSymbol) {
         let index = if let Some(i) = self.scope.local_index(unique_symbol) {
             self.lambda.emit(Opcode::Load);
             i
@@ -154,7 +154,7 @@ impl Compiler {
     }
 
     /// Takes a `Data` leaf and and produces some code to load the constant
-    pub fn lit(&mut self, lit: Lit) {
+    fn lit(&mut self, lit: Lit) {
         self.lambda.emit(Opcode::Con);
         let mut split = split_number(self.lambda.index_data(lit.to_data()));
         self.lambda.emit_bytes(&mut split);
@@ -162,7 +162,7 @@ impl Compiler {
 
     /// A block is a series of expressions where the last is returned.
     /// Each sup-expression is walked, the last value is left on the stack.
-    pub fn block(&mut self, children: Vec<Spanned<SST>>) -> Result<(), Syntax> {
+    fn block(&mut self, children: Vec<Spanned<SST>>) -> Result<(), Syntax> {
         if children.is_empty() {
             self.lit(Lit::Unit);
             return Ok(());
@@ -182,7 +182,7 @@ impl Compiler {
     /// Note that currently printing is a baked-in language feature,
     /// but the second the FFI becomes a thing
     /// it'll no longer be one.
-    pub fn print(&mut self, expression: Spanned<SST>) -> Result<(), Syntax> {
+    fn print(&mut self, expression: Spanned<SST>) -> Result<(), Syntax> {
         self.walk(&expression)?;
         self.lambda.emit(Opcode::Print);
         Ok(())
@@ -190,7 +190,7 @@ impl Compiler {
 
     /// Generates a Label construction
     /// that loads the variant, then wraps some data
-    pub fn label(
+    fn label(
         &mut self,
         name: UniqueSymbol,
         expression: Spanned<SST>,
@@ -205,7 +205,7 @@ impl Compiler {
     /// Generates a Tuple construction
     /// that loads all fields in the tuple
     /// then rips them off the stack into a vec.
-    pub fn tuple(&mut self, tuple: Vec<Spanned<SST>>) -> Result<(), Syntax> {
+    fn tuple(&mut self, tuple: Vec<Spanned<SST>>) -> Result<(), Syntax> {
         let length = tuple.len();
 
         for item in tuple.into_iter() {
@@ -222,7 +222,7 @@ impl Compiler {
     // // TODO: make a macro to map Passerine's data model to Rust's
     // /// Makes a Rust function callable from Passerine,
     // /// by keeping a reference to that function.
-    // pub fn ffi(
+    // fn ffi(
     //     &mut self,
     //     name: String,
     //     expression: Spanned<SST>,
@@ -259,7 +259,7 @@ impl Compiler {
 
     /// Resolves the assignment of a variable
     /// returns true if the variable was declared.
-    pub fn resolve_assign(&mut self, unique_symbol: UniqueSymbol) {
+    fn resolve_assign(&mut self, unique_symbol: UniqueSymbol) {
         let index = if let Some(i) = self.scope.local_index(unique_symbol) {
             self.lambda.emit(Opcode::Save);
             i
@@ -278,7 +278,7 @@ impl Compiler {
     /// a series of unpack and assign instructions.
     /// Instructions match against the topmost stack item.
     /// Does delete the data that is matched against.
-    pub fn destructure(
+    fn destructure(
         &mut self,
         pattern: Spanned<Pattern<UniqueSymbol>>,
         redeclare: bool,
@@ -313,7 +313,7 @@ impl Compiler {
     }
 
     /// Assign a value to a variable.
-    pub fn assign(
+    fn assign(
         &mut self,
         pattern: Spanned<Pattern<UniqueSymbol>>,
         expression: Spanned<SST>,
@@ -326,7 +326,7 @@ impl Compiler {
     }
 
     /// Recursively compiles a lambda declaration in a new scope.
-    pub fn lambda(
+    fn lambda(
         &mut self,
         pattern: Spanned<Pattern<UniqueSymbol>>,
         expression: Spanned<SST>,
@@ -379,7 +379,7 @@ impl Compiler {
 
     /// When a function is called, the top two items are taken off the stack,
     /// The topmost item is expected to be a function.
-    pub fn call(
+    fn call(
         &mut self,
         fun: Spanned<SST>,
         arg: Spanned<SST>,

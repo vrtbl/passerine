@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fmt::Debug,
     hash::Hash,
 };
 
@@ -8,13 +9,22 @@ use crate::construct::symbol::UniqueSymbol;
 /// Represents an ordered set of elements with O(1) membership checking.
 /// Note that this is insert-only.
 /// Should be treated like an allocation pool.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct VecSet<T: Eq + Hash + Clone> {
     order:   Vec<T>,
     members: HashMap<T, usize>,
 }
 
-impl<T: Eq + Hash + Clone> VecSet<T> {
+impl<T> Debug for VecSet<T>
+where
+    T: Eq + Hash + Clone + Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.items())
+    }
+}
+
+impl<T: Eq + Hash + Clone + Debug> VecSet<T> {
     pub fn new() -> Self {
         VecSet {
             order:   vec![],
@@ -27,7 +37,7 @@ impl<T: Eq + Hash + Clone> VecSet<T> {
     pub fn push(&mut self, item: T) {
         if !self.contains(&item) {
             self.members.insert(item.clone(), self.order.len());
-            self.order.push(item)
+            self.order.push(item);
         }
     }
 

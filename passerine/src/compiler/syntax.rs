@@ -4,7 +4,7 @@ use crate::common::span::Span;
 
 /// Represents a note attached to a Syntax error,
 /// i.e. a location in source code with an optional
-/// specific hint or tip.
+/// specific hint or tip corresponding this this specific location
 #[derive(Debug, PartialEq, Eq)]
 pub struct Note {
     pub span: Span,
@@ -24,7 +24,7 @@ impl Note {
 
 /// Represents a static error (syntax, semantics, etc.) found at compile time.
 /// Ideally, each note included should have a distinct `Span` and hint.
-/// Usually, one `Note` for an error is enough.
+/// Usually, one `Note` per error is enough.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Syntax {
     pub reason: String,
@@ -32,7 +32,7 @@ pub struct Syntax {
 }
 
 impl Syntax {
-    /// Creates a new static error, with
+    /// Creates a new static error with a single note that does not have a hint.
     pub fn error(reason: &str, span: &Span) -> Syntax {
         Syntax::error_with_note(reason, Note {
             span: span.clone(),
@@ -40,7 +40,8 @@ impl Syntax {
         })
     }
 
-    /// Creates a new static error, but with an added hint.
+    /// Creates a new static error with a single note that may or may not have a
+    /// hint.
     pub fn error_with_note(reason: &str, note: Note) -> Syntax {
         Syntax {
             reason: reason.to_string(),
@@ -48,6 +49,9 @@ impl Syntax {
         }
     }
 
+    /// Creates a syntax error without a note. This syntax error will not
+    /// contain any location information, so only use it if you plan to add
+    /// additional notes with [`add_note`] later.
     pub fn error_no_note(reason: &str) -> Syntax {
         Syntax {
             reason: reason.to_string(),
@@ -55,6 +59,7 @@ impl Syntax {
         }
     }
 
+    /// Extend a syntax error by adding another note to the error.
     pub fn add_note(mut self, note: Note) -> Self {
         self.notes.push(note);
         self

@@ -1,10 +1,17 @@
 use crate::data::Data;
 
+/// Indicates that a Rust data structure can be serialized to Passerine data,
+/// and that passerine data can be deserialized into that datastructure.
+/// The conversion should be round-trip such that `T ==
+/// deserialize(serialize(T))`.
 pub trait Inject
 where
     Self: Sized,
 {
+    /// An infallible conversion from self to `Data`.
     fn serialize(item: Self) -> Data;
+    /// A potentially fallible conversion (due to malformed `Data`) that creates
+    /// `Self` by deserializing some `Data`.
     fn deserialize(data: Data) -> Option<Self>;
 }
 
