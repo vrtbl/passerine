@@ -189,12 +189,12 @@ fn snippet_outcome(source: Rc<Source>, strat: &TestStrat) -> Outcome {
         }
     );
 
-    let mut vm = VM::init(Closure::wrap(lambda));
+    let mut Fiber = Fiber::init(Closure::wrap(lambda));
 
-    let run_outcome = match vm.run() {
+    let run_outcome = match Fiber.run() {
         Ok(()) => {
             if let Some(expected) = &strat.expect {
-                let top = vm.stack.pop_data();
+                let top = Fiber.stack.pop_data();
                 if expected != &top {
                     println!("Top: {}", top);
                     println!("Expected: {}", expected);

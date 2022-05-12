@@ -48,11 +48,11 @@ pub struct Tagged(u64);
 const QNAN: u64 = 0x7ffe_0000_0000_0000;
 const P_FLAG: u64 = 0x8000_0000_0000_0000;
 const P_MASK: u64 = 0x0000_FFFF_FFFF_FFFF;
-const S_FLAG: u64 = 0x0000_0000_0000_0000; // stack frame
-const U_FLAG: u64 = 0x0000_0000_0000_0001; // unit
-const F_FLAG: u64 = 0x0000_0000_0000_0002; // false
-const T_FLAG: u64 = 0x0000_0000_0000_0003; // true
-const N_FLAG: u64 = 0x0000_0000_0000_0004; // not initialized
+const N_FLAG: u64 = 0x0000_0000_0000_0000; // not initialized
+const S_FLAG: u64 = 0x0000_0000_0000_0001; // stack frame
+const U_FLAG: u64 = 0x0000_0000_0000_0002; // unit
+const F_FLAG: u64 = 0x0000_0000_0000_0004; // false
+const T_FLAG: u64 = 0x0000_0000_0000_0008; // true
 
 impl Tagged {
     /// Wraps `Data` to create a new tagged pointer.
@@ -68,11 +68,13 @@ impl Tagged {
             // Stack frame
             Slot::Frame => Tagged(QNAN | S_FLAG),
             // Not Initialized
-            Slot::Data(Data::NotInit) => Tagged(QNAN | N_FLAG),
+            Slot::NotInit => Tagged(QNAN | N_FLAG),
 
             // on the heap
             // TODO: layout to make sure pointer is the right size when boxing
-            other @ Slot::Data(_) | other @ Slot::Suspend { .. } => Tagged(
+            other @ Slot::Data(_)
+            | other @ Slot::Suspend { .. }
+            | other @ Slot::Ref(_) => Tagged(
                 P_FLAG
                     | QNAN
                     | (P_MASK & (Box::into_raw(Box::new(other))) as u64),
@@ -87,7 +89,7 @@ impl Tagged {
 
     /// Shortcut for creating a new `Tagged(Slot::NotInit)`.
     #[inline]
-    pub fn not_init() -> Tagged { Tagged::new(Slot::Data(Data::NotInit)) }
+    pub fn not_init() -> Tagged { Tagged::new(Slot::NotInit) }
 
     /// Returns the underlying `Data` (or a pointer to that `Data`).
     /// Unpacks the encoding used by [`Tagged`].
@@ -108,7 +110,7 @@ impl Tagged {
             f if f == (QNAN | F_FLAG) => Slot::Data(Data::Boolean(false)),
             t if t == (QNAN | T_FLAG) => Slot::Data(Data::Boolean(true)),
             s if s == (QNAN | S_FLAG) => Slot::Frame,
-            n if n == (QNAN | N_FLAG) => Slot::Data(Data::NotInit),
+            n if n == (QNAN | N_FLAG) => Slot::NotInit,
             p if (p & P_FLAG) == P_FLAG => {
                 dereference((p & P_MASK) as *mut Slot)
             },

@@ -22,6 +22,7 @@ use crate::{
     status::Status,
 };
 
+// TODO: handle this passerine side
 pub const MANIFEST: &str = "aspen.toml";
 pub const SOURCE: &str = "src";
 pub const ENTRYPOINT: &str = "main.pn";

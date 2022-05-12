@@ -1,4 +1,5 @@
 //! This module contains the compiler implementation.
+//! This module also implements
 //!
 //! Note that more steps (e.g. ones applying typechecking
 //! operations, optimization passes, etc.)

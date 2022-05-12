@@ -21,13 +21,6 @@ use crate::{
 /// Built-in Passerine datatypes.
 #[derive(Clone, PartialEq)]
 pub enum Data {
-    // TODO: make heap data immutable
-    // TODO: CoW
-    /// Data on the heap.
-    Heaped(Rc<RefCell<Data>>),
-    /// Uninitialized data.
-    NotInit,
-
     // Passerine Data (Atomic)
     /// Float Numbers, represented as double-precision floating points.
     Float(f64),
@@ -78,8 +71,9 @@ impl Display for Data {
     /// to console.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Data::Heaped(_) => unreachable!("Can not display heaped data"),
-            Data::NotInit => unreachable!("Can not display uninitialized data"),
+            // Data::Heaped(_) => unreachable!("Can not display heaped data"),
+            // Data::NotInit => unreachable!("Can not display uninitialized
+            // data"),
             Data::Float(n) => write!(f, "{}", n),
             Data::Integer(n) => write!(f, "{}", n),
             Data::Boolean(b) => {
@@ -110,8 +104,8 @@ impl Debug for Data {
     /// with certain fields omitted.
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Data::Heaped(h) => write!(f, "Heaped({:?})", h),
-            Data::NotInit => write!(f, "NotInit"),
+            // Data::Heaped(h) => write!(f, "Heaped({:?})", h),
+            // Data::NotInit => write!(f, "NotInit"),
             Data::Float(n) => write!(f, "Float({:?})", n),
             Data::Integer(n) => write!(f, "Integer({:?})", n),
             Data::Boolean(b) => write!(f, "Boolean({:?})", b),

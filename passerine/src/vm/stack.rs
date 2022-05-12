@@ -76,10 +76,12 @@ impl Stack {
             .pop()
             .expect("VM tried to pop empty stack, stack should never be empty");
 
-        match value.slot().data() {
-            Data::Heaped(h) => h.borrow().clone(),
-            d => d,
-        }
+        // match value.slot().data() {
+        //     // Data::Heaped(h) => h.borrow().clone(),
+        //     d => d,
+        // }
+
+        value.slot().data()
     }
 
     /// Pops a stack frame from the `Stack`, restoring the previous frame.
@@ -123,20 +125,6 @@ impl Stack {
         }
     }
 
-    /// Wraps the top data value on the stack in `Data::Heaped`,
-    /// data must not already be on the heap
-    #[inline]
-    pub fn heapify(&mut self, index: usize) {
-        let local_index = self.frame_index() + index + 1;
-
-        let data = self.swap(local_index, Tagged::not_init()).slot().data();
-        let heaped = Slot::Data(Data::Heaped(Rc::new(RefCell::new(data))));
-        mem::drop(mem::replace(
-            &mut self.stack[local_index],
-            Tagged::new(heaped),
-        ));
-    }
-
     /// Truncates the stack to the last frame.
     /// Returns `true` if the stack can not be unwound further.
     #[inline]
@@ -154,6 +142,21 @@ impl Stack {
         let slot = self.swap(local_index, Tagged::not_init()).slot();
         let copy = slot.clone();
         mem::drop(self.swap(local_index, Tagged::new(slot)));
+
+        return copy;
+    }
+
+    pub fn local_ref(&mut self, index: usize) -> Rc<RefCell<Data>> {
+        let local_index = self.frame_index() + index + 1;
+
+        // a little bit of shuffling involved
+        // I know that something better than this can be done
+        let slot = self
+            .swap(local_index, Tagged::not_init())
+            .slot()
+            .reference();
+        let copy = slot.clone();
+        mem::drop(self.swap(local_index, Tagged::new(Slot::Ref(slot))));
 
         return copy;
     }
@@ -193,16 +196,18 @@ impl Stack {
 
         // replace the old value with the new one if on the heap
         let tagged = match slot {
-            Slot::Frame => unreachable!("Expected data, found frame"),
+            // if it's data we just grab it
+            Slot::Data(_) => self.stack.pop().unwrap(),
             // if it is on the heap, we replace in the old value
-            Slot::Data(Data::Heaped(ref cell)) => {
+            Slot::Ref(ref cell) => {
                 // TODO: check types?
                 mem::drop(cell.replace(self.pop_data()));
                 Tagged::new(slot)
             },
-            // if it's not on the heap, we assume it's data,
-            // and do a quick swap-and-drop
-            _ => self.stack.pop().unwrap(),
+            // if it's anything else, we're sad.
+            Slot::Frame => unreachable!("Expected data, found frame"),
+            Slot::Suspend(_) => unreachable!("Expected data, found *suspended* frame buried deep in the stack, which makes even less sense, because this should be a local variable"),
+            Slot::NotInit => unreachable!("Expected data, found data. Wait! It's unitialized? Maybe this is allowed?"),
         };
 
         mem::drop(self.swap(local_index, tagged))

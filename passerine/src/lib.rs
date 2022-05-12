@@ -129,8 +129,8 @@ pub use compiler::{
 };
 pub use passerine_derive::Inject;
 pub use vm::{
+    fiber::Fiber,
     trace::Trace,
-    vm::VM,
 };
 
 /// Compiles a [`Source`] to some bytecode.
