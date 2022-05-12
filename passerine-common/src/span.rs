@@ -102,8 +102,8 @@ impl Span {
             .iter()
             .map(|s| s.to_string())
             .collect();
-        dbg!(start_line);
-        dbg!(end_line);
+        // dbg!(start_line);
+        // dbg!(end_line);
         return slice;
     }
 
@@ -165,7 +165,7 @@ impl Display for Span {
     /// 15 > }
     /// ```
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{}", self.format())
+        write!(f, "{}", self.format())
     }
 }
 
