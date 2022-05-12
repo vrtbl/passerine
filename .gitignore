@@ -6,6 +6,8 @@
 # Protip: create a scratchpad to mess around with stuff!
 **/scratchpad
 
+passerine-qualm
+
 # But not:
 !.gitignore
 !.git
