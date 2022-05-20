@@ -1,10 +1,5 @@
 use std::{
-    fmt::{
-        self,
-        Debug,
-        Display,
-        Formatter,
-    },
+    fmt::{self, Debug, Display, Formatter},
     ops::Add,
     rc::Rc,
     usize,
@@ -48,10 +43,14 @@ impl Span {
     }
 
     /// Return the index of the end of the `Span`.
-    pub fn end(&self) -> usize { self.offset + self.length }
+    pub fn end(&self) -> usize {
+        self.offset + self.length
+    }
 
     #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> usize { self.length }
+    pub fn len(&self) -> usize {
+        self.length
+    }
 
     /// Creates a new `Span` which spans the space of the
     /// previous two. ```plain
@@ -128,11 +127,11 @@ impl Span {
 
     pub fn format(&self) -> FormattedSpan {
         FormattedSpan {
-            path:      self.path(),
-            start:     self.line(self.offset),
-            lines:     self.lines(),
+            path: self.path(),
+            start: self.line(self.offset),
+            lines: self.lines(),
             start_col: self.col(self.offset),
-            end_col:   self.col(self.end()),
+            end_col: self.col(self.end()),
         }
     }
 }
@@ -174,17 +173,21 @@ impl Display for Span {
 /// and where in the text it starts and ends
 /// relative to the lines in the source.
 pub struct FormattedSpan {
-    pub path:      String,
-    pub start:     usize,
-    pub lines:     Vec<String>,
+    pub path: String,
+    pub start: usize,
+    pub lines: Vec<String>,
     pub start_col: usize,
-    pub end_col:   usize,
+    pub end_col: usize,
 }
 
 impl FormattedSpan {
-    pub fn is_multiline(&self) -> bool { self.lines.len() != 1 }
+    pub fn is_multiline(&self) -> bool {
+        self.lines.len() != 1
+    }
 
-    pub fn end(&self) -> usize { (self.start - 1) + self.lines.len() }
+    pub fn end(&self) -> usize {
+        (self.start - 1) + self.lines.len()
+    }
 
     pub fn gutter_padding(&self) -> usize {
         self.start.add(1).to_string().len()
@@ -244,7 +247,7 @@ impl Display for FormattedSpan {
 /// ```
 /// or the like, can be spanned to indicate where it was
 /// parsed from (a `Spanned<Token>`).
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Spanned<T> {
     pub item: T,
     pub span: Span,
@@ -253,7 +256,9 @@ pub struct Spanned<T> {
 impl<T> Spanned<T> {
     /// Takes a generic item, and wraps in in a `Span` to
     /// make it `Spanned`.
-    pub fn new(item: T, span: Span) -> Spanned<T> { Spanned { item, span } }
+    pub fn new(item: T, span: Span) -> Spanned<T> {
+        Spanned { item, span }
+    }
 
     /// Joins a Vector of spanned items into a single span.
     pub fn build(spanneds: &[Spanned<T>]) -> Option<Span> {
@@ -274,6 +279,20 @@ impl<T> Spanned<T> {
 
     pub fn map<B>(self, f: fn(T) -> B) -> Spanned<B> {
         Spanned::new(f(self.item), self.span)
+    }
+}
+
+impl<T: Debug> Debug for Spanned<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Debug::fmt(&self.item, f)?;
+        write!(
+            f,
+            " @ {}:{}",
+            self.span.line(self.span.offset) + 1,
+            self.span.col(self.span.offset) + 1,
+            // self.span.offset,
+            // self.span.end(),
+        )
     }
 }
 
