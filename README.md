@@ -51,6 +51,7 @@ Passerine is currently being developed by [Isaac Clayton](https://github.com/sli
 [Jack](https://github.com/nivpgir),
 Xal,
 [Zack](https://github.com/zack466),
+[Mahmoud](https://github.com/fuzzypixelz)
 and others!
 
 > † Shaw is writing an [alternative implementation of Passerine](https://github.com/ShawSumma/purr/tree/main/ext/passerine), and it's *super* fast. It's part of a wider effort of his to develop [an efficient language-agnostic VM](https://github.com/ShawSumma/purr).
