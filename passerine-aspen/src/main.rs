@@ -17,10 +17,7 @@ pub mod bench;
 pub mod doc;
 pub mod debug;
 
-use crate::{
-    cli::Aspen,
-    status::Status,
-};
+use crate::{cli::Aspen, status::Status};
 
 // TODO: handle this passerine side
 pub const MANIFEST: &str = "aspen.toml";

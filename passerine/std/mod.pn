@@ -1,103 +1,85 @@
-type Bool = enum {
-    True,
-    False,
-}
+type Bool =
+    | True
+    | False
 
-type Option A = enum {
-    Some A,
-    None,
-}
+use Bool.{..}
+
+type Option = 
+    T =>
+    | Some T
+    | None
 
 use Option.{..}
 
-unwrap_or = option default -> match option {
-    Option.Some val -> val
-    None -> default
-}
-
-type Result {T, E} = enum {
-    Ok  T,
-    Err E,
-}
-
-type LinkedList T = Option {
-    value: T,
-    next:  List T,
-}
+type Result =
+    T E =>
+    | Ok T
+    | Err E
 
 compiler = mod {
-    type Lit = enum {
-        alias Nat,
-        alias Int,
-        alias Float,
-        alias Bool,
-        alias String,
+    # TODO: how to link Spans to Sources?
+    Span = {
+        source: Nat
+        offset: Nat
+        length: Nat
     }
 
-    type Token = enum {
-        Lit   Lit,
-        Op    String,
-        Iden  String,
-        Delim Delim,
+    Spanned = T => {
+        item: T
+        span: Span
     }
 
-    type Delim = enum {
-        Paren  { tokens: [Token] },
-        Square { tokens: [Token] },
-        Curly  { forms:  [[Token]] },
-    }
+    TokenTrees = [Spanned TokenTree]
+
+    TokenTree =
+        # Grouping
+        | Block = [Spanned TokenTrees]
+        | List = TokenTrees
+        | Form = TokenTrees
+        # Leafs
+        | Iden = String
+        | Label = String 
+        | Op = String
+        | Lit = Lit
+
+    Lit = 
+        | Nat
+        | Float
+        | Integer
+        | String
+        | Label = (Nat, Lit)
+        | ()
+        | Bool
 }
 
-iter = mod {
-    type Yield (Value, Resume) = effect Value -> Resume
+use compiler.{..}
 
-    type Iter (Item, State) = struct {
-        state: State,
-        step:  State -> Option (Item, State),
+macro do_twice = token_tree -> {
+    Spanned {
+        item: TokenTree.Block [
+            token_tree,
+            token_tree,
+        ]
+        span: token_tree.span,
     }
 
-    next:    
-        all  (Item, State) ->
-        Iter (Item, State) -> 
-        Iter (Item, State) / Yield (Item, ())
-    = Iter { state, step } -> {
-        match (step state) {
-            Some (item, new_state) -> {
-                Yield item
-                Some (Iter { new_state, step })
-            },
-            None -> None,
-        }
-    }
-
-    map = iter func -> {
-        handle {
-            (Yield val, resume) -> {
-                Yield (func val)
-                resume ()
-            }
-        } in {
-            loop = iter -> match (next iter) {
-                Some new_iter -> loop new_iter,
-                None -> ()
-            }
-        }
-    }
 }
 
-macro for = tokens -> {
-    [pattern, Token.Iden "in", body] = tokens
+macro quote = token_tree -> {
+    use TokenTree.{..}
 
-    
-}
-
-macro match = tokens -> {
-    [expr, arms] = tokens
-
-    inside = match arms {
-        Token.Delim Delim.Curly { forms } -> {
-
-        }
-    }
-
+    match token_tree.item
+        | Block expressions -> {}
+        | List tree
+        | Form tree
+        | Iden iden
+        | Label label
+        | Op op -> TokenTree.Group [
+            TokenTree.Iden "TokenTree.Op",
+            TokenTree.Lit (Lit op),
+        ]
+        | Lit lit -> TokenTree.Group [
+            TokenTree.Iden "TokenTree.Lit",
+            TokenTree.Lit (Lit lit),
+        ]
 }

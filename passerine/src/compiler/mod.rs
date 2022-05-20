@@ -6,16 +6,14 @@
 //! may be implemented in the future.
 
 pub mod lex;
-use std::{
-    collections::HashMap,
-    rc::Rc,
-};
-
 pub use lex::Lexer;
 
 pub mod read;
 pub use read::Reader;
-// pub mod expand;
+
+pub mod expand;
+pub use expand::Expander;
+
 pub mod parse;
 pub use parse::Parser;
 
@@ -24,6 +22,7 @@ pub use desugar::Desugarer;
 
 pub mod hoist;
 pub use hoist::Hoister;
+
 // pub mod unify;
 pub mod gen;
 pub use gen::Compiler;
@@ -31,27 +30,15 @@ pub use gen::Compiler;
 pub mod syntax;
 pub use syntax::Syntax;
 
+use std::{collections::HashMap, rc::Rc};
+
 use crate::{
-    common::{
-        lambda::Lambda,
-        Source,
-        Spanned,
-    },
+    common::{lambda::Lambda, Source, Spanned},
     construct::{
         scope::Scope,
-        symbol::{
-            SharedSymbol,
-            SymbolTable,
-        },
-        token::{
-            TokenTree,
-            Tokens,
-        },
-        tree::{
-            AST,
-            CST,
-            SST,
-        },
+        symbol::SharedSymbol,
+        token::{TokenTree, Tokens},
+        tree::{AST, CST, SST},
     },
 };
 
@@ -92,4 +79,51 @@ pub fn hoist(source: Rc<Source>) -> Result<(Spanned<SST>, Scope), Syntax> {
 pub fn gen(source: Rc<Source>) -> Result<Rc<Lambda>, Syntax> {
     let (sst, scope) = hoist(source)?;
     Compiler::compile(sst, scope)
+}
+
+#[inline(always)]
+pub fn compile_sst(
+    sst: Spanned<SST>,
+    scope: Scope,
+) -> Result<Rc<Lambda>, Syntax> {
+    Compiler::compile(sst, scope)
+}
+
+// TODO: convert symbols to type alias somewhere
+#[inline(always)]
+pub fn compile_cst(
+    cst: Spanned<CST>,
+    symbols: HashMap<String, SharedSymbol>,
+) -> Result<Rc<Lambda>, Syntax> {
+    let (sst, scope) = Hoister::hoist(cst, symbols)?;
+    compile_sst(sst, scope)
+}
+
+#[inline(always)]
+pub fn compile_ast(
+    ast: Spanned<AST>,
+    symbols: HashMap<String, SharedSymbol>,
+) -> Result<Rc<Lambda>, Syntax> {
+    let cst = Desugarer::desugar(ast);
+    compile_cst(cst, symbols)
+}
+
+#[inline(always)]
+pub fn compile_token_tree(
+    token_tree: Spanned<TokenTree>,
+) -> Result<Rc<Lambda>, Syntax> {
+    let (ast, symbols) = Parser::parse(token_tree)?;
+    compile_ast(ast, symbols)
+}
+
+#[inline(always)]
+pub fn compile_tokens(tokens: Spanned<Tokens>) -> Result<Rc<Lambda>, Syntax> {
+    let token_tree = Reader::read(tokens)?;
+    compile_token_tree(token_tree)
+}
+
+#[inline(always)]
+pub fn compile_source(source: Rc<Source>) -> Result<Rc<Lambda>, Syntax> {
+    let tokens = Lexer::lex(source)?;
+    compile_tokens(tokens)
 }

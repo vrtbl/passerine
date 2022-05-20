@@ -1,17 +1,8 @@
 use crate::{
-    common::{
-        Span,
-        Spanned,
-    },
+    common::{Span, Spanned},
     construct::{
         symbol::SharedSymbol,
-        tree::{
-            Base,
-            Lambda,
-            Sugar,
-            AST,
-            CST,
-        },
+        tree::{Base, Lambda, Sugar, AST, CST},
     },
 };
 
@@ -23,7 +14,9 @@ impl Desugarer {
     // TODO: just rename walk to desugar?
     // TODO: is this pass infallible?
     // Maybe make Result once more things are added...
-    pub fn desugar(ast: Spanned<AST>) -> Spanned<CST> { Desugarer::walk(ast) }
+    pub fn desugar(ast: Spanned<AST>) -> Spanned<CST> {
+        Desugarer::walk(ast)
+    }
 
     fn walk(ast: Spanned<AST>) -> Spanned<CST> {
         // TODO: use this destructuring pattern throughout codebase!

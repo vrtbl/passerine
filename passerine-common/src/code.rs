@@ -1,20 +1,24 @@
 #[derive(Default)]
 pub struct Store {
-    data:  Vec<Data>,
-    code:  Vec<u8>,
-    funs:  Vec<FunInfo>,
+    data: Vec<Data>,
+    code: Vec<u8>,
+    funs: Vec<FunInfo>,
     spans: Vec<(usize, Span)>,
 }
 
-pub struct FunInfo {
+struct FunInfo {
     offset: usize,
     length: usize,
     locals: usize,
-    caps:   Vec<Capture>,
+    caps: Vec<Capture>,
 }
 
+struct FunIndex(usize);
+
 impl Store {
-    pub fn empty() -> Store { Default::default() }
+    pub fn empty() -> Store {
+        Default::default()
+    }
 
     pub fn add_data(&mut self, data: Data) -> usize {
         let index = self.data.len();

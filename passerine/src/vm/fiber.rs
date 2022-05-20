@@ -2,18 +2,10 @@ use std::mem;
 
 use crate::{
     common::{
-        closure::Closure,
-        data::Data,
-        lambda::Captured,
-        number::build_number,
-        opcode::Opcode,
-        span::Span,
+        closure::Closure, data::Data, lambda::Captured, number::build_number,
+        opcode::Opcode, span::Span,
     },
-    vm::{
-        slot::Suspend,
-        stack::Stack,
-        trace::Trace,
-    },
+    vm::{slot::Suspend, stack::Stack, trace::Trace},
 };
 
 // TODO: algebraic effects
@@ -29,8 +21,8 @@ use crate::{
 #[derive(Debug)]
 pub struct Fiber {
     pub closure: Closure,
-    pub stack:   Stack,
-    pub ip:      usize,
+    pub stack: Stack,
+    pub ip: usize,
 }
 
 unsafe impl Send for Fiber {}
@@ -45,18 +37,20 @@ impl Fiber {
     /// Initialize a new Fiber.
     /// To run the Fiber, a lambda must be passed to it through `run`.
     pub fn init(closure: Closure) -> Fiber {
-        let mut Fiber = Fiber {
+        let mut fiber = Fiber {
             closure,
             stack: Stack::init(),
             ip: 0,
         };
-        Fiber.stack.declare(Fiber.closure.lambda.decls);
-        return Fiber;
+        fiber.stack.declare(fiber.closure.lambda.decls);
+        return fiber;
     }
 
     /// Advances to the next instruction.
     #[inline]
-    fn next(&mut self) { self.ip += 1; }
+    fn next(&mut self) {
+        self.ip += 1;
+    }
 
     /// Advances IP, returns `Ok`. Used in Bytecode implementations.
     #[inline]
@@ -67,7 +61,9 @@ impl Fiber {
 
     /// Returns the current instruction as a byte.
     #[inline]
-    fn peek_byte(&mut self) -> u8 { self.closure.lambda.code[self.ip] }
+    fn peek_byte(&mut self) -> u8 {
+        self.closure.lambda.code[self.ip]
+    }
 
     /// Advances IP and returns the current instruction as a byte.
     #[inline]
@@ -94,7 +90,9 @@ impl Fiber {
     }
 
     #[inline]
-    fn current_span(&self) -> Span { self.closure.lambda.index_span(self.ip) }
+    fn current_span(&self) -> Span {
+        self.closure.lambda.index_span(self.ip)
+    }
 
     // core interpreter loop
 
@@ -394,7 +392,7 @@ impl Fiber {
         let old_closure = mem::replace(&mut self.closure, fun);
         let old_ip = mem::replace(&mut self.ip, 0);
         let suspend = Suspend {
-            ip:      old_ip,
+            ip: old_ip,
             closure: old_closure,
         };
 
@@ -481,94 +479,3 @@ impl Fiber {
         // self.done()
     }
 }
-
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use crate::compiler;
-//     use crate::common::source::Source;
-//
-//     fn inspect(source: &str) -> Fiber {
-//         let closure = compile(Source::source(source))
-//             .map_err(|e| println!("{}", e))
-//             .unwrap();
-//
-//         let mut Fiber = Fiber::init(closure);
-//
-//         match Fiber.run() {
-//             Ok(()) => Fiber,
-//             Err(e) => {
-//                 println!("{}", e);
-//                 panic!();
-//             },
-//         }
-//     }
-//
-//     #[test]
-//     fn init_run() {
-//         inspect("x = 0.0");
-//     }
-//
-//     #[test]
-//     fn block_expression() {
-//         inspect("x = false; boop = true; heck = { x = boop; x }; heck");
-//     }
-//
-//     #[test]
-//     fn functions() {
-//         let mut Fiber = inspect("iden = x -> x; y = true; iden ({ y = false;
-// iden iden } (iden y))");         let identity = Fiber.stack.pop_data();
-//         assert_eq!(identity, Data::Boolean(true));
-//     }
-//
-//     #[test]
-//     fn fun_scope() {
-//         // y = (x -> { y = x; y ) 7.0; y
-//         let mut Fiber = inspect("one = 1.0\npi = 3.14\ne = 2.72\n\nx = w ->
-// pi\nx 37.6");         let pi = Fiber.stack.pop_data();
-//         assert_eq!(pi, Data::Float(3.14));
-//     }
-//
-//     #[test]
-//     fn mutate_capture() {
-//         inspect("odd = (); even = x -> odd; odd = 1.0; even (); odd");
-//     }
-//
-//     #[test]
-//     fn mutate_capture_fn() {
-//         inspect("\
-//             pi = 3.14\n\
-//             printpi = x -> println pi\n\
-//             \n\
-//             redef = ()\n\
-//             redef = w -> {\n    \
-//                 w (printpi ())\n\
-//             }\n\
-//             \n\
-//             redef printpi\n\
-//         ");
-//     }
-//
-//     #[test]
-//     fn hoist_later() {
-//         inspect("\
-//             w = 0.5
-//             later = n -> thing 10.0 - w\n\
-//             thing = x -> x + 20.0\n\
-//             -- later 5.0\n\
-//         ");
-//     }
-//
-//     // TODO: figure out how to make the following passerine code into a test
-//     // without entering into an infinite loop (which is the intended
-// behaviour)     // maybe try running it a large number of times,
-//     // and check the size of the stack?
-//     // loop = ()
-//     // loop = y -> x -> {
-//     //     print y
-//     //     print x
-//     //     loop x y
-//     // }
-//     //
-//     // loop true false
-// }

@@ -101,6 +101,7 @@
 //!
 //! The `VM` is just a simple light stack-based VM.
 
+use compiler::compile_source;
 pub use passerine_common as common;
 pub mod kernel;
 pub mod compiler;
@@ -112,36 +113,16 @@ pub mod construct;
 
 use std::rc::Rc;
 
-pub use common::{
-    closure::Closure,
-    Data,
-    Inject,
-    Source,
-};
+pub use common::{closure::Closure, Data, Inject, Source};
 pub use compiler::{
-    syntax::Syntax,
-    Compiler,
-    Desugarer,
-    Hoister,
-    Lexer,
-    Parser,
-    Reader,
+    syntax::Syntax, Compiler, Desugarer, Hoister, Lexer, Parser, Reader,
 };
 pub use passerine_derive::Inject;
-pub use vm::{
-    fiber::Fiber,
-    trace::Trace,
-};
+pub use vm::{fiber::Fiber, trace::Trace};
 
 /// Compiles a [`Source`] to some bytecode.
 pub fn compile(source: Rc<Source>) -> Result<Closure, Syntax> {
-    let tokens = compiler::Lexer::lex(source)?;
-    let token_tree = compiler::Reader::read(tokens)?;
-    let (ast, symbols) = compiler::Parser::parse(token_tree)?;
-    let cst = compiler::Desugarer::desugar(ast);
-    let (sst, scope) = compiler::Hoister::hoist(cst, symbols)?;
-    let bytecode = compiler::Compiler::compile(sst, scope)?;
-
+    let bytecode = compile_source(source)?;
     return Ok(Closure::wrap(bytecode));
 }
 
