@@ -1,40 +1,20 @@
-use std::{
-    collections::HashMap,
-    convert::TryFrom,
-    mem,
-    rc::Rc,
-};
+use std::{collections::HashMap, convert::TryFrom, mem, rc::Rc};
 
 use crate::{
     common::{
         lit::Lit,
-        span::{
-            Span,
-            Spanned,
-        },
+        span::{Span, Spanned},
     },
-    compiler::{
-        read::Reader,
-        syntax::Syntax,
-    },
+    compiler::{read::Reader, syntax::Syntax},
     construct::{
         symbol::SharedSymbol,
-        token::{
-            Delim,
-            ResIden,
-            ResOp,
-            TokenTree,
-            TokenTrees,
-        },
-        tree::{
-            Base,
-            Lambda,
-            Pattern,
-            Sugar,
-            AST,
-        },
+        token::{Delim, ResIden, ResOp, TokenTree, TokenTrees},
+        tree::{Base, Lambda, Pattern, Sugar, AST},
     },
 };
+
+// TODO: Document how parser advances
+// perhaps move tree idx into struct itself
 
 /// We're using a Pratt parser, so this little enum
 /// defines different precedence levels.
@@ -111,14 +91,14 @@ impl Parser {
             symbols: HashMap::new(),
         };
 
-        let ast = parser.entry(&token_tree)?;
+        let ast = parser.rule_prefix(&token_tree)?;
 
         Ok((ast, parser.symbols))
     }
 
     // TODO: rename to `walk` or something?
     /// Entry point to parse a token tree into an AST
-    fn entry(
+    fn rule_prefix(
         &mut self,
         token_tree: &Spanned<TokenTree>,
     ) -> Result<Spanned<AST>, Syntax> {
@@ -131,8 +111,31 @@ impl Parser {
                 ))
             },
             TokenTree::Label(_) => self.label(token_tree)?,
-            TokenTree::Iden(_) => self.symbol(token_tree)?,
-            TokenTree::Form(trees) => self.expr(trees, &mut 0, Prec::None)?,
+            TokenTree::Iden(iden) => self.symbol(token_tree)?,
+            TokenTree::Form(trees) => {
+                dbg!(&trees);
+                // TODO: handle builtin keywords
+                if let Some(Spanned { item, .. }) = trees.first() {
+                    if let TokenTree::Iden(iden) = item {
+                        if let Some(keyword) = ResIden::try_new(iden) {
+                            // TODO: this deep clone isn't necessary,
+                            // we could either pass the vectors owned
+                            // or use slices instead.
+                            dbg!(&trees);
+                            self.keyword(
+                                &trees[1..]
+                                    .into_iter()
+                                    .map(|x| x.clone())
+                                    .collect::<Vec<_>>(),
+                                keyword,
+                            )?;
+                        }
+                    }
+                }
+
+                self.expr(trees, &mut 0, Prec::None)?
+            },
+            // TODO: instead of expr, use prefix.
             TokenTree::Block(trees) => {
                 let mut expressions = vec![];
                 for tree in trees {
@@ -177,14 +180,6 @@ impl Parser {
         }
 
         Ok(left)
-    }
-
-    /// See `entry`.
-    fn rule_prefix(
-        &mut self,
-        tree: &Spanned<TokenTree>,
-    ) -> Result<Spanned<AST>, Syntax> {
-        self.entry(tree)
     }
 
     /// Looks at the current token and parses an infix
@@ -294,6 +289,37 @@ impl Parser {
         Ok(result)
     }
 
+    /// Try to parse a keyword expression
+    fn keyword(
+        &mut self,
+        trees: &TokenTrees,
+        keyword: ResIden,
+    ) -> Result<Spanned<AST>, Syntax> {
+        use ResIden::*;
+        match keyword {
+            Macro => todo!(),
+            Type => todo!(),
+            Effect => {
+                dbg!(trees);
+                let rest = self.expr(trees, &mut 0, Prec::End);
+
+                dbg!(rest);
+
+                // if rest.len() != 1 {
+                //     return Err(Syntax::error(
+                //         "Expected a single type",
+                //         rest.span,
+                //     ));
+                // }
+
+                todo!()
+            },
+            If => todo!(),
+            Match => todo!(),
+            Mod => todo!(),
+        }
+    }
+
     /// Constructs the AST for a literal, such as a number
     /// or string.
     fn literal(
@@ -360,8 +386,17 @@ impl Parser {
         &mut self,
         tree: &Spanned<TokenTree>,
     ) -> Result<Spanned<AST>, Syntax> {
-        let symbol = if let TokenTree::Iden(label) = &tree.item {
-            self.intern_symbol(label)
+        let symbol = if let TokenTree::Iden(iden) = &tree.item {
+            if let Some(keyword) = ResIden::try_new(iden) {
+                // TODO: if there is a keyword left in the tree
+                // during desugaring, that is an error
+                return Ok(Spanned::new(
+                    AST::Sugar(Sugar::Keyword(keyword)),
+                    tree.span.clone(),
+                ));
+            }
+
+            self.intern_symbol(iden)
         } else {
             return Err(Syntax::error(
                 &format!("Expected an identifier, found {}", &tree.item),
@@ -461,16 +496,13 @@ mod tests {
     use proptest::prelude::*;
 
     use super::*;
-    use crate::{
-        common::source::Source,
-        compiler::lex::Lexer,
-    };
+    use crate::{common::source::Source, compiler::lex::Lexer};
 
     fn test_source(source: &str) {
         let tokens = Lexer::lex(Source::source(source)).unwrap();
         let token_tree = Reader::read(tokens).unwrap();
         let result = Parser::parse(token_tree);
-        // dbg!(&result);
+        dbg!(&result);
         if let Err(e) = result {
             eprintln!("{}", e);
             panic!();
@@ -479,16 +511,24 @@ mod tests {
     }
 
     #[test]
-    fn literal() { test_source("2") }
+    fn literal() {
+        test_source("2")
+    }
 
     #[test]
-    fn symbol() { test_source("x") }
+    fn symbol() {
+        test_source("x")
+    }
 
     #[test]
-    fn assign() { test_source("x = 2\ny = 4") }
+    fn assign() {
+        test_source("x = 2\ny = 4")
+    }
 
     #[test]
-    fn field() { test_source("x = hello.world") }
+    fn field() {
+        test_source("x = hello.world")
+    }
 
     #[test]
     fn is() {
@@ -497,8 +537,17 @@ mod tests {
     }
 
     #[test]
-    fn lambda() { test_source("x = a -> f a") }
+    fn lambda() {
+        test_source("x = a -> f a")
+    }
 
     #[test]
-    fn body() { test_source("x {}") }
+    fn body() {
+        test_source("x {}")
+    }
+
+    #[test]
+    fn define_effect() {
+        test_source("effect Write\n")
+    }
 }

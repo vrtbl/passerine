@@ -80,6 +80,7 @@ impl Display for TokenTree {
 pub enum ResIden {
     Macro,
     Type,
+    Effect,
     If,
     Match,
     Mod,
@@ -91,6 +92,7 @@ impl ResIden {
         Some(match name {
             "macro" => Macro,
             "type" => Type,
+            "effect" => Effect,
             "if" => If,
             "match" => Match,
             "mod" => Mod,

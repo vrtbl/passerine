@@ -1,35 +1,18 @@
 use std::{
     f64,
-    iter::{
-        once,
-        Iterator,
-        Peekable,
-    },
+    iter::{once, Iterator, Peekable},
     rc::Rc,
-    str::{
-        Chars,
-        FromStr,
-    },
+    str::{Chars, FromStr},
 };
 
 use crate::{
     common::{
         lit::Lit,
         source::Source,
-        span::{
-            Span,
-            Spanned,
-        },
+        span::{Span, Spanned},
     },
-    compiler::syntax::{
-        Note,
-        Syntax,
-    },
-    construct::token::{
-        Delim,
-        Token,
-        Tokens,
-    },
+    compiler::syntax::{Note, Syntax},
+    construct::token::{Delim, Token, Tokens},
 };
 
 const OP_CHARS: &str = "!$%&*+,-./:<=>?@^|~";
@@ -41,7 +24,7 @@ macro_rules! RemainingIter {
 #[derive(Debug)]
 pub struct Lexer {
     source: Rc<Source>,
-    index:  usize,
+    index: usize,
     tokens: Tokens,
 }
 
@@ -81,7 +64,9 @@ impl Lexer {
 
     /// Returns all characters after the current index
     /// position.
-    fn remaining(&self) -> Chars { self.source.contents[self.index..].chars() }
+    fn remaining(&self) -> Chars {
+        self.source.contents[self.index..].chars()
+    }
 
     // TODO: use own index instead of self.index
     fn strip(&mut self) {
@@ -475,5 +460,7 @@ mod test {
     }
 
     #[test]
-    fn new_empty() { Lexer::lex(Source::source("")).unwrap(); }
+    fn new_empty() {
+        Lexer::lex(Source::source("")).unwrap();
+    }
 }

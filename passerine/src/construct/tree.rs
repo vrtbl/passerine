@@ -1,16 +1,11 @@
 use std::convert::TryFrom;
 
 use crate::{
-    common::{
-        lit::Lit,
-        span::Spanned,
-    },
+    common::{lit::Lit, span::Spanned},
     construct::{
         scope::Scope,
-        symbol::{
-            SharedSymbol,
-            UniqueSymbol,
-        },
+        symbol::{SharedSymbol, UniqueSymbol},
+        token::ResIden,
     },
 };
 
@@ -42,7 +37,7 @@ pub enum Base<T, S> {
     Block(Vec<T>),
     Call(Box<T>, Box<T>), // fun, arg
     Assign(Spanned<Pattern<S>>, Box<T>),
-    FFI(usize, Box<T>),
+    Effect(S),
 }
 
 impl<T, S> Base<T, S> {
@@ -54,7 +49,9 @@ impl<T, S> Base<T, S> {
         Base::Assign(pat, Box::new(expr))
     }
 
-    pub fn module(module: T) -> Self { Base::Module(Box::new(module)) }
+    pub fn module(module: T) -> Self {
+        Base::Module(Box::new(module))
+    }
 
     // pub fn ffi(name: &str, expr: T) -> Self {
     //     Base::FFI(name.to_string(), Box::new(expr))
@@ -65,6 +62,7 @@ impl<T, S> Base<T, S> {
 pub enum Sugar<T> {
     Group(Box<T>),
     Form(Vec<T>),
+    Keyword(ResIden),
     // Pattern(Pattern<S>),
     // Record,
     Is(Box<T>, Box<T>), // expr, type
@@ -75,7 +73,9 @@ pub enum Sugar<T> {
 }
 
 impl<T> Sugar<T> {
-    pub fn group(tree: T) -> Self { Sugar::Group(Box::new(tree)) }
+    pub fn group(tree: T) -> Self {
+        Sugar::Group(Box::new(tree))
+    }
 
     pub fn is(expr: T, ty: T) -> Self {
         Sugar::Is(Box::new(expr), Box::new(ty))
@@ -92,7 +92,7 @@ impl<T> Sugar<T> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Lambda<T> {
-    pub arg:  Spanned<Pattern<SharedSymbol>>,
+    pub arg: Spanned<Pattern<SharedSymbol>>,
     pub body: Box<T>,
 }
 
@@ -161,8 +161,8 @@ pub enum CST {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScopedLambda<T> {
-    pub arg:   Spanned<Pattern<UniqueSymbol>>,
-    pub body:  Box<T>,
+    pub arg: Spanned<Pattern<UniqueSymbol>>,
+    pub body: Box<T>,
     pub scope: Scope,
 }
 
