@@ -14,10 +14,6 @@ impl Expander {
         token_tree: Spanned<TokenTree>,
         mut rules: HashMap<String, Spanned<TokenTree>>,
     ) -> Result<Spanned<TokenTree>, Syntax> {
-        // NOTE:
-        // Macro expansion takes a set of macros
-        // compiles them
-
         let mut expander = Expander {
             rules: HashMap::new(),
         };
@@ -27,21 +23,20 @@ impl Expander {
             expander.rules.insert(name, bytecode);
         }
 
-        todo!()
-        // then traverses the AST
-        // and calls the compiled macro functions
-        // with the ASTs
-        // and splices them back into macros
+        expander.walk(token_tree)
     }
 
-    pub fn walk(&self, token_tree: Spanned<TokenTree>) -> Spanned<TokenTree> {
+    pub fn walk(
+        &self,
+        token_tree: Spanned<TokenTree>,
+    ) -> Result<Spanned<TokenTree>, Syntax> {
         let Spanned {
             item: token_tree,
             span,
         } = token_tree;
 
         let result = match token_tree {
-            TokenTree::Form(form) => self.expand_form(form),
+            TokenTree::Form(form) => self.expand_form(form)?,
 
             // trivial conversion
             TokenTree::Block(block) => {
@@ -50,7 +45,7 @@ impl Expander {
                     let mut new_trees = Vec::new();
                     let Spanned { item, span } = trees;
                     for tree in item.into_iter() {
-                        new_trees.push(self.walk(tree))
+                        new_trees.push(self.walk(tree)?)
                     }
                     new_block.push(Spanned::new(new_trees, span));
                 }
@@ -60,7 +55,7 @@ impl Expander {
                 trees
                     .into_iter()
                     .map(|tree| self.walk(tree))
-                    .collect::<Vec<_>>(),
+                    .collect::<Result<Vec<_>, _>>()?,
             ),
             // trivial conversion
             TokenTree::Iden(iden) => TokenTree::Iden(iden),
@@ -69,18 +64,24 @@ impl Expander {
             TokenTree::Lit(lit) => TokenTree::Lit(lit),
         };
 
-        Spanned::new(result, span)
+        Ok(Spanned::new(result, span))
     }
 
-    pub fn walk_form(&self, form: Vec<Spanned<TokenTree>>) -> TokenTree {
-        TokenTree::Form(
+    pub fn walk_form(
+        &self,
+        form: Vec<Spanned<TokenTree>>,
+    ) -> Result<TokenTree, Syntax> {
+        Ok(TokenTree::Form(
             form.into_iter()
                 .map(|tree| self.walk(tree))
-                .collect::<Vec<_>>(),
-        )
+                .collect::<Result<Vec<_>, _>>()?,
+        ))
     }
 
-    pub fn expand_form(&self, mut form: Vec<Spanned<TokenTree>>) -> TokenTree {
+    pub fn expand_form(
+        &self,
+        mut form: Vec<Spanned<TokenTree>>,
+    ) -> Result<TokenTree, Syntax> {
         assert!(form.len() >= 2);
         let first = form.remove(0);
 
