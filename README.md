@@ -36,7 +36,7 @@ Passerine has roots in Scheme and ML-flavored languages — it's the culmination
 > † It's a bytecode VM with a few optimizations, so I'd say it's fast enough to be useful.
 
 ### Who started this?
-This is first project of The Veritable Computation Initiative. Our goal is to improve the tools developers use to write software. We're planning release a site with more information about Veritable soon.
+This is the first project of The Veritable Computation Initiative. Our goal is to improve the tools developers use to write software. We're planning to release a site with more information about Veritable soon.
 
 Passerine is currently being developed by [Isaac Clayton](https://github.com/slightknack), a high-school student with too much free time on his hands. A few people have offered feedback and suggestions from time to time. Huge thanks to
 [Raul](https://github.com/spaceface777),
@@ -76,7 +76,7 @@ square 4 -- is 16
 
 There are already some important things we can learn about Passerine from this short example:
 
-Like other programming languages, Passerine uses `=` for assignment. On the left hand side is a *pattern* – in this case, just the variable `square` – which destructures an expression into a set of bindings. On the right hand side is an *expression*; in this case the expression is a *function definition*.
+Like other programming languages, Passerine uses `=` for assignment. On the left-hand side is a *pattern* – in this case, just the variable `square` – which destructures an expression into a set of bindings. On the right-hand side is an *expression*; in this case the expression is a *function definition*.
 
 > Because Passerine is *expression-oriented*, the distinction between statements and expressions isn't made. In the case that an expression produces no useful value, it should return the Unit type, `()`. Assignment, for instance, returns Unit.
 
@@ -959,7 +959,7 @@ With these invariants in place, vaporization ensures two things:
 
 What's most interesting is that this system requires minimal interference from the compiler when used in conjunction with a VM. All the compiler has to do is annotate the last usage of the value of any variables; the rest can be done automatically and very efficiently at runtime.
 
-Why not use this? Mainly because of rule 3: 'closure references are immutable'. Passerine is pass-by-value, but currently allows mutation in the current scope a la let-style redefinition. But this is subject to change; and once it does, it's vaporization all the way, baby!
+Why not use this? Mainly because of rule 3: 'closure references are immutable'. Passerine is pass-by-value, but currently allows mutation in the current scope à la let-style redefinition. But this is subject to change; and once it does, it's vaporization all the way, baby!
 
 **Q:** Aren't there already enough programming languages?
 
