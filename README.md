@@ -507,9 +507,9 @@ counter = fiber {
     loop { yield i; i = i + 1 }
 }
 
-print counter () -> prints 0
-print counter () -> prints 1
-print counter () -> ...
+print counter () -- prints 0
+print counter () -- prints 1
+print counter () -- ...
 ```
 
 The `yield` keyword suspends the current fiber and returns a value to the calling fiber. `yield` can also be used to pass data *into* a fiber.
@@ -739,7 +739,7 @@ This should be read as:
 What about the body? Well:
 
 1. If no branches are matched, an error is raised.
-2. If are some branches, we `try` the first branch in a new fiber and see if it matches.
+2. If there are remaining branches, we `try` the first branch in a new fiber and see if it matches.
 3. If the function doesn't raise a match error, we found a match!
 4. If the function does raise a match error, we try again with the remaining branches.
 
@@ -822,7 +822,7 @@ description = match Banana ("yellow", "soft") {
 > † Plot twist: we just defined the `match` expression we've been using throughout this entire overview.
 
 ### Modules
-Passerine's module system allows large codebases to be broken out into indiviual reusable components. A module is a scopes turned into a struct, and isn't necessarily tied to the file system.
+Passerine's module system allows large codebases to be broken out into indiviual reusable components. A module is a scope turned into a struct, and isn't necessarily tied to the file system.
 
 Modules are defined using the `mod` keyword, which must be followed by a block `{ ... }`. Here's a simple module that defines some math utilities:
 
@@ -909,7 +909,7 @@ list_util = mod { <list_util.pn> }
 Once imported, `list_util` is just a struct. Because of this, features of the module system naturally arise from Passerine's existing semantics for manipulating structs. To import a subset of a module, we can do something like this:
 
 ```elm
-reverse = { use list_util; list_util::reduce }
+reverse = { use list_util; list_util::reverse }
 ```
 
 Likewise, we can import a module within a block scope to rename it:
