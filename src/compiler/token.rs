@@ -55,7 +55,7 @@ impl Display for Token {
         let message = match self {
             Token::OpenBracket  => "an opening bracket",
             Token::CloseBracket => "a closing bracket",
-            Token::OpenParen    => "an openening paren",
+            Token::OpenParen    => "an opening paren",
             Token::CloseParen   => "a closing paren",
             Token::Sep          => "a separator",
             Token::Syntax       => "a syntax definition",

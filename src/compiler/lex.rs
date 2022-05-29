@@ -69,7 +69,7 @@ impl Lexer {
         let mut tokens = vec![];
 
         while !self.remaining().is_empty() {
-            // strip preceeding whitespace
+            // strip preceding whitespace
             self.strip();
 
             // clear out comments

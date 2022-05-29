@@ -79,7 +79,7 @@ impl Parser {
     // Cookie Monster's Helper Functions:
 
     // NOTE: Maybe don't return bool?
-    /// Consumes all seperator tokens, returning whether there were any.
+    /// Consumes all separator tokens, returning whether there were any.
     pub fn sep(&mut self) -> bool {
         if self.tokens[self.index].item != Token::Sep { false } else {
             while self.tokens[self.index].item == Token::Sep {
@@ -271,7 +271,7 @@ impl Parser {
     pub fn symbol(&mut self) -> Result<Spanned<AST>, Syntax> {
         let symbol = self.consume(Token::Symbol)?;
 
-        // nothing is more permanant, but
+        // nothing is more permanent, but
         // temporary workaround until prelude
         let name = symbol.span.contents();
         if name == "println" {
@@ -547,7 +547,7 @@ impl Parser {
         self.binop(Token::Add, Prec::AddSub.associate_left(), "add", left)
     }
 
-    /// Parses a subraction, calls out to FFI.
+    /// Parses a subtraction, calls out to FFI.
     pub fn sub(&mut self, left: Spanned<AST>) -> Result<Spanned<AST>, Syntax> {
         self.binop(Token::Sub, Prec::AddSub.associate_left(), "sub", left)
     }

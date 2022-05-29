@@ -49,7 +49,7 @@ pub enum Data {
 
     // Compound Datatypes
     /// The empty Tuple
-    Unit, // an empty typle
+    Unit, // an empty tuple
     /// A non-empty Tuple.
     Tuple(Vec<Data>),
     // // TODO: Hashmap?

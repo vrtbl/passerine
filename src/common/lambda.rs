@@ -33,7 +33,7 @@ pub struct Lambda {
     /// Number-stream indexed, used to load constants.
     pub constants: Vec<Data>,
     /// List of positions of locals in the scope where this lambda is defined,
-    /// indexes must be gauranteed to be data on the heap.
+    /// indexes must be guaranteed to be data on the heap.
     pub captures: Vec<Captured>,
     /// List of FFI functions (i.e. Rust functions)
     /// that can be called from this function.
@@ -63,7 +63,7 @@ impl Lambda {
         self.code.append(bytes)
     }
 
-    /// Emits a span, should be called before an opcode is emmited.
+    /// Emits a span, should be called before an opcode is emitted.
     /// This function ties opcodes to spans in source.
     /// See index_span as well.
     pub fn emit_span(&mut self, span: &Span) {

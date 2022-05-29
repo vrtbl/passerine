@@ -56,7 +56,7 @@
 //!
 //! ### Compilation
 //! Compilation steps can raise `Err(Syntax)`,
-//! indicating that an error occured.
+//! indicating that an error occurred.
 //! `Syntax` is just a `Span` and a message,
 //! which can be pretty-printed.
 //!

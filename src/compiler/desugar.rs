@@ -157,7 +157,7 @@ impl Transformer {
         }
 
         // multiple macros were matched,
-        // so this form is ambiguious
+        // so this form is ambiguous
         if matches.len() > 1 {
             // TODO: make the error prettier
             // might have to rework Syntax a bit...
@@ -219,7 +219,7 @@ impl Transformer {
         Ok(CST::Block(expressions))
     }
 
-    /// Desugars an assigment.
+    /// Desugars an assignment.
     /// Note that this converts the assignment's `ASTPattern` into a `CSTPattern`
     pub fn assign(&mut self, p: Spanned<ASTPattern>, e: Spanned<AST>) -> Result<CST, Syntax> {
         let p_span = p.span.clone();

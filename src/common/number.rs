@@ -1,5 +1,5 @@
 /// Splits a number into a vector of bytes.
-/// Each byte in the vector is layed out as follows:
+/// Each byte in the vector is laid out as follows:
 /// ```plain
 /// CDDDDDDD
 /// ```

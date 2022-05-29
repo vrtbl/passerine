@@ -364,9 +364,9 @@ Of course, the pattern after the field is a full pattern, and can be matched aga
 Banana (color, _): Banana (_, "soft") = fruit
 ```
 
-In this example, `color` will be bound if `fruit` is a `Banana` whose 1nd† tuple item is `"soft"`.
+In this example, `color` will be bound if `fruit` is a `Banana` whose 1st† tuple item is `"soft"`.
 
-> † Read as 'firnd', corresponds to the 1-indexed *second* item. Zerost, firnd, secord, thirth, fourth, fifth...
+> † Read as 'firnd', corresponds to the 1-indexed *second* item. Zerost, firnd, second, thirth, fourth, fifth...
 
 Finally, we'll address my favorite pattern, *where*. Where allows for arbitrary code check the validity of a pattern. This can go a long way. For example, let's define natural numbers in terms of integers:
 
@@ -568,7 +568,7 @@ Passerine has a rich hygienic* syntactic macro system that extends the language 
 
 *Syntactic macros*, quite simply, are bits of code that *hygienically* produce more code when invoked at compile time. Macros use a small, simple-yet-powerful set of rules to transform code.
 
-> \* Having read Doug Hoyte's exellent [Let Over Lambda](https://letoverlambda.com/), I understand the raw power of a rich *unhygenic* macro system. However, such systems are hard to comprehend, and harder to master. Passerine aims to be as simple and powerful as possible without losing *transparency*: hygienic macro systems are much more transparent then their opaque unhygenic counterparts.
+> \* Having read Doug Hoyte's excellent [Let Over Lambda](https://letoverlambda.com/), I understand the raw power of a rich *unhygenic* macro system. However, such systems are hard to comprehend, and harder to master. Passerine aims to be as simple and powerful as possible without losing *transparency*: hygienic macro systems are much more transparent then their opaque unhygenic counterparts.
 
 #### Hygiene
 Extensions are defined with the `syntax` keyword, followed by some *argument patterns*, followed by the code that the captured arguments will be spliced into. Here's a simple example: we're using a macro to define `swap` operator:
@@ -822,7 +822,7 @@ description = match Banana ("yellow", "soft") {
 > † Plot twist: we just defined the `match` expression we've been using throughout this entire overview.
 
 ### Modules
-Passerine's module system allows large codebases to be broken out into indiviual reusable components. A module is a scope turned into a struct, and isn't necessarily tied to the file system.
+Passerine's module system allows large codebases to be broken out into individual reusable components. A module is a scope turned into a struct, and isn't necessarily tied to the file system.
 
 Modules are defined using the `mod` keyword, which must be followed by a block `{ ... }`. Here's a simple module that defines some math utilities:
 
@@ -862,7 +862,7 @@ quartiles = numbers -> mod {
 }
 ```
 
-Because we used the `mod` keyword in the above example, instead of returning a single value from the function, we return a struct containing all values in the fuction:
+Because we used the `mod` keyword in the above example, instead of returning a single value from the function, we return a struct containing all values in the function:
 
 ```elm
 -- calculate statistics

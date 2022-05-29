@@ -12,7 +12,7 @@ pub mod logic;
 use ffi::{FFI, FFIFunction};
 
 // Returns the core FFI used by Passerine.
-// Implements basic langauge features, like addition.
+// Implements basic language features, like addition.
 pub fn ffi_core() -> FFI {
     let mut ffi = FFI::new();
 

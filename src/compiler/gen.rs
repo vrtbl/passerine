@@ -92,7 +92,7 @@ impl Compiler {
         let enclosing = mem::replace(&mut self.enclosing, None);
         let nested = match enclosing {
             Some(compiler) => mem::replace(self, *compiler),
-            None => unreachable!("Can not go back past root copiler"),
+            None => unreachable!("Can not go back past root compiler"),
         };
         self.ffi = ffi;
         nested
@@ -223,7 +223,7 @@ impl Compiler {
                 // optimal solutions:
                 // have an earlier step that normalizes AST,
                 // determines scope of all names/symbols,
-                // and replaces all names/symbols with indicies
+                // and replaces all names/symbols with indices
                 // before codgen.
                 self.ffi_names.push(name);
                 self.lambda.add_ffi(function)

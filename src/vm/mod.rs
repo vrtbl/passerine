@@ -91,7 +91,7 @@ impl VM {
 
     // core interpreter loop
 
-    /// Dissasembles and interprets a single (potentially fallible) bytecode op.
+    /// Disassembles and interprets a single (potentially fallible) bytecode op.
     /// The op definitions follow in the next `impl` block.
     /// To see what each op does, check `common::opcode::Opcode`.
     pub fn step(&mut self) -> Result<(), Trace> {

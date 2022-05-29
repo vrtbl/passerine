@@ -293,7 +293,7 @@ impl Hoister {
 
     /// Walks a function definition.
     /// Like `assign`, delegates to `walk_pattern` for capturing.
-    /// But any paramaters will shadow those in outer scopes.
+    /// But any parameters will shadow those in outer scopes.
     pub fn lambda(&mut self, pattern: Spanned<CSTPattern>, expression: Spanned<CST>) -> Result<SST, Syntax> {
         self.enter_scope();
         let sst_pattern = self.walk_pattern(pattern, true);

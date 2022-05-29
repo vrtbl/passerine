@@ -31,7 +31,7 @@ type Bindings = HashMap<String, Spanned<AST>>;
 /// a set of bindings are produced,
 /// which are then spliced into the Rule's `AST`
 /// to make a new `AST`.
-/// This is done in a hygenic manner.
+/// This is done in a hygienic manner.
 #[derive(Debug, Clone)]
 pub struct Rule {
     pub arg_pat: Spanned<ArgPattern>,
@@ -90,7 +90,7 @@ impl Rule {
     /// `Some(Ok(_))` if it matches successfully,
     /// and `Some(Err(_))` if it matches but something is incorrect.
     /// **You must check that the passed `&mut reversed_form` is empty
-    /// to gaurantee the match occured in full**
+    /// to guarantee the match occurred in full**
     /// Note that this function takes the form unwrapped and in reverse -
     /// This is to make processing the bindings more efficient,
     /// As this function works with the head of the form.
@@ -141,7 +141,7 @@ impl Rule {
 
     /// Turns a base identifier into a random identifier
     /// of the format `<base>#XXXXXXXX`,
-    /// Gauranteed not to exist in bindings.
+    /// Guaranteed not to exist in bindings.
     pub fn unique_tag(base: String, bindings: &Bindings) -> String {
         for tries in 0..1024 {
             let stamp = stamp(tries);
@@ -244,7 +244,7 @@ impl Rule {
 
     // TODO: break expand out into functions
 
-    /// Takes a macro's tree and a set of bindings and produces a new hygenic tree.
+    /// Takes a macro's tree and a set of bindings and produces a new hygienic tree.
     pub fn expand(tree: Spanned<AST>, mut bindings: &mut Bindings)
     -> Result<Spanned<AST>, Syntax> {
         // TODO: should macros evaluate arguments as thunks before insertions?
@@ -275,7 +275,7 @@ impl Rule {
 
             AST::Group(expression) => AST::group(Rule::expand(*expression, bindings)?),
 
-            // Appy the transformation to the left and right sides of the composition
+            // Apply the transformation to the left and right sides of the composition
             AST::Composition { argument, function } => {
                 let a = Rule::expand(*argument, bindings)?;
                 let f = Rule::expand(*function, bindings)?;
