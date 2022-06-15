@@ -2,6 +2,6 @@
 # outcome: success
 
 () # empty
-(true,) # unary
-(true, false) # binary
-(1.0, true, "Hello") # trinary
+(True,) # unary
+(True, False) # binary
+(1.0, True, "Hello") # trinary

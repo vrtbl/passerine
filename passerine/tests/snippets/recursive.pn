@@ -1,6 +1,7 @@
 # action: run
 # outcome: success
 
-x = () -> bar
+foo = 0
+x = () -> bar foo
 bar = 0
 x ()

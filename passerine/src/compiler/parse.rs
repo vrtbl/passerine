@@ -104,14 +104,18 @@ impl Parser {
     ) -> Result<Spanned<AST>, Syntax> {
         let result = match &token_tree.item {
             TokenTree::Lit(_) => self.literal(token_tree)?,
-            TokenTree::Op(op) => {
-                return Err(Syntax::error(
-                    &format!("Unexpected operator {}", op),
-                    &token_tree.span,
-                ))
+            TokenTree::Op(name) => {
+                if let ResOp::Sub = Parser::to_op(name, &token_tree.span)? {
+                    todo!()
+                } else {
+                    return Err(Syntax::error(
+                        &format!("Unexpected operator `{}`", name),
+                        &token_tree.span,
+                    ));
+                }
             },
             TokenTree::Label(_) => self.label(token_tree)?,
-            TokenTree::Iden(iden) => self.symbol(token_tree)?,
+            TokenTree::Iden(_) => self.symbol(token_tree)?,
             TokenTree::Form(trees) => {
                 dbg!(&trees);
                 // TODO: handle builtin keywords
@@ -218,6 +222,13 @@ impl Parser {
 
                 // Tuples
                 Pair => {
+                    // no expressions left to build
+                    // handle the trailing comma
+                    if trees.len() == *trees_idx + 1 {
+                        *trees_idx += 1;
+                        return Ok(left);
+                    }
+
                     self.binop(left, trees, trees_idx, true, Pair, |l, r| {
                         let mut tuple = match l.item {
                             AST::Base(Base::Tuple(t)) => t,
@@ -550,4 +561,15 @@ mod tests {
     fn define_effect() {
         test_source("effect Write\n")
     }
+
+    #[test]
+    fn test_trailing_comma() {
+        test_source("((),)")
+    }
+
+    // TODO: once effects are in place
+    // #[test]
+    // fn negation() {
+    //     test_source("- 1")
+    // }
 }

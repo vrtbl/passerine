@@ -1,15 +1,8 @@
 use std::path::PathBuf;
 
-use passerine::{
-    compile,
-    Source,
-};
+use passerine::{compile, Source};
 
-use crate::{
-    manifest::Manifest,
-    ENTRYPOINT,
-    SOURCE,
-};
+use crate::{manifest::Manifest, ENTRYPOINT, SOURCE};
 
 pub fn run(path: PathBuf) -> Result<(), String> {
     // just one file, for now

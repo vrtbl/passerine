@@ -103,7 +103,20 @@ impl Hoister {
         if self.scopes.len() == 1 {
             return None;
         }
-        return self.scopes.pop();
+        if let Some(mut scope) = self.scopes.pop() {
+            for local in scope.locals.items() {
+                let name = self.symbol_table.name(&local);
+                if self.unresolved_hoists.contains_key(&name) {
+                    scope.locals.remove(&local);
+                }
+            }
+            dbg!(&scope);
+            dbg!(&self.unresolved_hoists);
+            Some(scope)
+        } else {
+            unreachable!("no scopes left on stack?");
+            None
+        }
     }
 
     /// Returns the topmost, i.e. local, scope, mutably.

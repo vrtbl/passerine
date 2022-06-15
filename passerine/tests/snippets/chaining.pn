@@ -5,4 +5,4 @@
 i = x -> x
 bye = x -> "Bye"
 
-"Hello" . i . bye . i
+"Hello" |> i |> bye |> i

@@ -1,0 +1,66 @@
+# action: read
+# outcome: success
+
+x = 0
+x = 0.0
+
+x = x -> x + 1
+
+fn add(names: [String], age: Nat) -> Nat {
+    for j in 0..100 {
+        println "Wow, very nice job!"
+    }
+}
+
+macro define = [signature, ..body] -> {
+    if let Tree.Group [name, ..args] = signature {
+        if args::is_empty { args = [()] }
+        quote {
+            $name = ..$args -> {
+                ..($body;)
+            }
+        } 
+        |> Result.Ok
+    } else {
+        Result.Err "Expected a valid signature"
+    }
+}
+
+(define (add x y)
+    (a = x)
+    (b = y)
+    (a + b))
+
+match list {
+    [] -> [],
+    [pivot, ..tail] -> {
+        lower, higher = [], []
+        for item in tail {
+            if item < pivot {
+                lower::push item
+            } else {
+                higher::push item
+            }
+        }
+        sorted = lower
+        sorted::push pivot
+        sorted::append higher
+        sorted
+    }
+}
+
+type Option = T =>
+    | Some T
+    | None
+
+struct Person {
+    name: String,
+    age: Nat,
+}
+
+math = mod {
+    PI = 3.14
+    square = x -> x * x
+}
+
+math.square math.PI 

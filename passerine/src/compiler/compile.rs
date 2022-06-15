@@ -42,6 +42,7 @@ impl Compiler {
         tree: Spanned<SST>,
         scope: Scope,
     ) -> Result<Rc<Lambda>, Syntax> {
+        dbg!(&tree);
         // let ffi = ffi_core();
         let mut compiler = Compiler::base(scope);
         compiler.walk(&tree)?;
