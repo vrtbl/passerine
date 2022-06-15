@@ -5,22 +5,20 @@
 // pub mod control;
 // pub mod logic;
 
-use passerine_derive::Inject;
+use passerine_derive::Effect;
 
 use crate::common::data::Data;
 
-// TODO: rename Inject to Effect
-
-#[derive(Inject)]
+#[derive(Effect)]
 pub struct Write(Data);
 
-// #[derive(Inject)]
+// #[derive(Effect)]
 // pub struct Writeln(Data);
 
-#[derive(Inject)]
+#[derive(Effect)]
 pub struct Show(Data);
 
-#[derive(Inject)]
+#[derive(Effect)]
 pub struct Choice {
     cond: bool,
     then: Data,

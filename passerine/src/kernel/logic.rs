@@ -1,4 +1,4 @@
-use passerine_derive::Inject;
+use passerine_derive::Effect;
 
 use crate::common::Data;
 
@@ -7,17 +7,17 @@ use crate::common::Data;
 // Rust hit it right on the nose with the difference between equality and
 // partial equality TODO: equality vs partial equality in passerine?
 
-#[derive(Inject)]
+#[derive(Effect)]
 pub struct Equal(Data, Data);
 
-#[derive(Inject)]
+#[derive(Effect)]
 pub struct Less(Data, Data);
 
-#[derive(Inject)]
+#[derive(Effect)]
 pub struct Greater(Data, Data);
 
-#[derive(Inject)]
+#[derive(Effect)]
 pub struct LessEqual(Data, Data);
 
-#[derive(Inject)]
+#[derive(Effect)]
 pub struct GreaterEqual(Data, Data);

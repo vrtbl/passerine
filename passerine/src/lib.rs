@@ -124,7 +124,7 @@ pub use compiler::{
     Parser,
     Reader,
 };
-pub use passerine_derive::Inject;
+pub use passerine_derive::Effect;
 pub use vm::{fiber::Fiber, trace::Trace};
 
 // /// Compiles a [`Source`] to some bytecode.

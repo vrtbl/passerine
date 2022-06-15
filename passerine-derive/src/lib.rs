@@ -1,22 +1,13 @@
 use proc_macro::TokenStream;
-use quote::{
-    quote,
-    quote_spanned,
-};
-use syn::{
-    parse_macro_input,
-    spanned::Spanned,
-    DeriveInput,
-    Ident,
-    Index,
-};
+use quote::{quote, quote_spanned};
+use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Ident, Index};
 
 /// A derive macro that generates an implementation of the `Inject` trait,
 /// which allows a Rust type to be converted to Passerine data and back again.
 /// This type is very important for building interfaces between Rust and
 /// Passerine using system injection.
-#[proc_macro_derive(Inject)]
-pub fn derive_inject(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(Effect)]
+pub fn derive_effect(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
     let input = parse_macro_input!(input as DeriveInput);
     let type_name = input.ident;
