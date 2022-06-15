@@ -45,7 +45,7 @@ impl Desugarer {
                 Base::call(Desugarer::walk(*f), Desugarer::walk(*a))
             },
             Base::Assign(p, e) => Base::assign(p, Desugarer::walk(*e)),
-            Base::FFI(_, _) => unreachable!("FFI is depracated... :("),
+            Base::Effect(_) => todo!("need to handle effects"),
         }
     }
 
@@ -87,6 +87,7 @@ impl Desugarer {
             Sugar::Field(_, _) => unimplemented!(
                 "field access will be implemented when structs are implemented"
             ),
+            Sugar::Keyword(_) => todo!(),
         }
     }
 }

@@ -17,15 +17,16 @@ pub use read::Reader;
 pub mod parse;
 pub use parse::Parser;
 
-// pub mod desugar;
-// pub use desugar::Desugarer;
+pub mod desugar;
+pub use desugar::Desugarer;
 
-// pub mod hoist;
-// pub use hoist::Hoister;
+pub mod hoist;
+pub use hoist::Hoister;
 
 // // pub mod unify;
-// pub mod gen;
-// pub use gen::Compiler;
+
+pub mod gen;
+pub use gen::Compiler;
 
 pub mod syntax;
 pub use syntax::Syntax;

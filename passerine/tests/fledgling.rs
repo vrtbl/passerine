@@ -1,10 +1,5 @@
 ///! Snippet tests for the passerine compiler pipeline as a whole.
-use std::{
-    collections::HashMap,
-    fs,
-    path::PathBuf,
-    rc::Rc,
-};
+use std::{collections::HashMap, fs, path::PathBuf, rc::Rc};
 
 use passerine::*;
 
@@ -65,12 +60,12 @@ impl Action {
 #[derive(Debug)]
 pub struct TestStrat {
     /// How to run the test.
-    action:  Action,
+    action: Action,
     /// The expected outcome.
     outcome: Outcome,
     /// Optional data to check against.
     /// Should only be used with Action::Run
-    expect:  Option<Data>,
+    expect: Option<Data>,
 }
 
 impl TestStrat {
@@ -249,4 +244,6 @@ fn snippets(dir: &str) {
 }
 
 #[test]
-fn test_snippets() { snippets("./tests/snippets") }
+fn test_snippets() {
+    snippets("./tests/snippets")
+}

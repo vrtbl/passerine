@@ -111,15 +111,19 @@ pub mod construct;
 // exported functions:
 // TODO: clean up exports
 
-use std::rc::Rc;
+// use std::rc::Rc;
 
 pub use common::{closure::Closure, Data, Inject, Source};
-pub use compiler::syntax::Syntax;
-// pub use compiler::{
-//     syntax::Syntax,
-//     // TODO:
-//     // Compiler, Desugarer, Hoister, Lexer, Parser, Reader,
-// };
+pub use compiler::{
+    syntax::Syntax,
+    // TODO:
+    Compiler,
+    Desugarer,
+    Hoister,
+    Lexer,
+    Parser,
+    Reader,
+};
 pub use passerine_derive::Inject;
 pub use vm::{fiber::Fiber, trace::Trace};
 

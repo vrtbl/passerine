@@ -1,34 +1,20 @@
-use std::{
-    mem,
-    rc::Rc,
-};
+use std::{mem, rc::Rc};
 
 // TODO: hoist and resolve types
 use crate::{
     common::{
-        lambda::{
-            Captured,
-            Lambda,
-        },
+        lambda::{Captured, Lambda},
         lit::Lit,
         number::split_number,
         opcode::Opcode,
-        span::{
-            Span,
-            Spanned,
-        },
+        span::{Span, Spanned},
         Data,
     },
     compiler::syntax::Syntax,
     construct::{
         scope::Scope,
         symbol::UniqueSymbol,
-        tree::{
-            Base,
-            Pattern,
-            ScopedLambda,
-            SST,
-        },
+        tree::{Base, Pattern, ScopedLambda, SST},
     },
 };
 
@@ -40,7 +26,7 @@ pub struct Compiler {
     /// The previous compiler (when compiling nested scopes).
     enclosing: Option<Box<Compiler>>,
     /// The current bytecode emission target.
-    lambda:    Lambda,
+    lambda: Lambda,
     /// Names of symbols,
     // symbol_table: Vec<String>,
     /// The foreign functional interface used to bind values
@@ -48,7 +34,7 @@ pub struct Compiler {
     /// The FFI functions that have been bound in this scope.
     // ffi_names: Vec<String>,
     // determined in hoisting
-    scope:     Scope,
+    scope: Scope,
 }
 
 impl Compiler {
@@ -119,10 +105,6 @@ impl Compiler {
             // },
             SST::Base(Base::Label(_)) => todo!(),
             SST::Base(Base::Tuple(tuple)) => self.tuple(tuple),
-            SST::Base(Base::FFI(name, expression)) => {
-                todo!()
-                // self.ffi(name, *expression, sst.span.clone())
-            },
             SST::Base(Base::Assign(pattern, expression)) => {
                 self.assign(pattern, *expression)
             },
@@ -131,6 +113,7 @@ impl Compiler {
             },
             SST::Base(Base::Call(fun, arg)) => self.call(*fun, *arg),
             SST::Base(Base::Module(_)) => todo!("need to handle modules"),
+            SST::Base(Base::Effect(_)) => todo!("need to handle effects"),
         };
     }
 

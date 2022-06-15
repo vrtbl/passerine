@@ -1,29 +1,12 @@
 use std::collections::HashMap;
 
 use crate::{
-    common::span::{
-        Span,
-        Spanned,
-    },
-    compiler::syntax::{
-        Note,
-        Syntax,
-    },
+    common::span::{Span, Spanned},
+    compiler::syntax::{Note, Syntax},
     construct::{
         scope::Scope,
-        symbol::{
-            SharedSymbol,
-            SymbolTable,
-            UniqueSymbol,
-        },
-        tree::{
-            Base,
-            Lambda,
-            Pattern,
-            ScopedLambda,
-            CST,
-            SST,
-        },
+        symbol::{SharedSymbol, SymbolTable, UniqueSymbol},
+        tree::{Base, Lambda, Pattern, ScopedLambda, CST, SST},
     },
 };
 
@@ -47,10 +30,10 @@ use crate::{
 /// 3. Variables that have been used but not declared.
 pub struct Hoister {
     /// The unique local symbols in the current scope.
-    scopes:            Vec<Scope>,
+    scopes: Vec<Scope>,
     /// Maps integers (index in vector) to string
     /// representation of symbol.
-    symbol_table:      SymbolTable,
+    symbol_table: SymbolTable,
     /// Keeps track of variables that were referenced before
     /// assignment.
     unresolved_hoists: HashMap<SharedSymbol, Spanned<UniqueSymbol>>,
@@ -61,8 +44,8 @@ impl Hoister {
     /// Note that the hoister will always have a root scope.
     fn new() -> Hoister {
         Hoister {
-            scopes:            vec![Scope::new()],
-            symbol_table:      SymbolTable::new(),
+            scopes: vec![Scope::new()],
+            symbol_table: SymbolTable::new(),
             unresolved_hoists: HashMap::new(),
         }
     }
@@ -105,10 +88,14 @@ impl Hoister {
 
     /// Enters a new scope, called when entering a new
     /// function.
-    fn enter_scope(&mut self) { self.scopes.push(Scope::new()); }
+    fn enter_scope(&mut self) {
+        self.scopes.push(Scope::new());
+    }
     /// Enters an existing scope, called when resolving
     /// variables.
-    fn reenter_scope(&mut self, scope: Scope) { self.scopes.push(scope) }
+    fn reenter_scope(&mut self, scope: Scope) {
+        self.scopes.push(scope)
+    }
 
     /// Exits the current scope, returning it.
     /// If there are no enclosing scopes, returns `None`.
@@ -150,16 +137,13 @@ impl Hoister {
                 // )
             },
             CST::Base(Base::Tuple(tuple)) => self.tuple(tuple)?,
-            CST::Base(Base::FFI(name, expression)) => {
-                todo!()
-                // SST::ffi(&name, self.walk(*expression)?)
-            },
             CST::Base(Base::Assign(pattern, expression)) => {
                 self.assign(pattern, *expression)?
             },
             CST::Lambda(Lambda { arg, body }) => self.lambda(arg, *body)?,
             CST::Base(Base::Call(fun, arg)) => self.call(*fun, *arg)?,
             CST::Base(Base::Module(_)) => todo!(),
+            CST::Base(Base::Effect(_)) => todo!(),
         };
 
         return Ok(Spanned::new(sst, tree.span));
@@ -423,12 +407,7 @@ mod test_super {
     use super::*;
     use crate::{
         common::Source,
-        compiler::{
-            Desugarer,
-            Lexer,
-            Parser,
-            Reader,
-        },
+        compiler::{Desugarer, Lexer, Parser, Reader},
     };
 
     fn test_source(source: &str) -> bool {
