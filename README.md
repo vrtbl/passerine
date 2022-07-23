@@ -1,4 +1,4 @@
-> **Note**: [Isaac](https://github.com/slightknack) is taking a two-year break from technology, and will no longer be developing Passerine. The project has been handed over to [Ben Siraphob](https://github.com/siraben), who will continue the maintence of the language and its community.
+> **Note**: [Isaac](https://github.com/slightknack) is taking a two-year break from technology (announcement and explanation coming soon), and will no longer be developing Passerine. The project has been handed over to [Ben Siraphob](https://github.com/siraben), who will continue the maintence of the language and its community.
 
 <p align="center">
     <a href="https://passerine.io">
