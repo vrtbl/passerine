@@ -54,7 +54,7 @@ and many others!
 > Shaw is the developer of *MiniVM*, a portable cross-platform runtime. The eventual goal is to retire Passerine's current virtual machine, and adopt MiniVM Assembly (VASM), then later LLVM IR, as first-class targets of the compiler.
 
 ## An Overview
-We've recently moved the Overview to a separate website, the [Passerine Codex*](https://codex.passerine.io/core/syntax.html), which can be read online.
+We've recently moved the Overview to a separate website, the [Passerine Codex](https://codex.passerine.io/core/syntax.html), which can be read online.
 
 > **Note**: Passerine is a *work in progress*: features mentioned in this overview may be unimplemented or subject to change.
 
