@@ -126,24 +126,25 @@ I'd like to focus more on this in the future. An interesting project would be an
 ## Installation
 Passerine is still very much so a work in progress. We've done a lot, but there's still a so much more to do!
 
-For you pioneers out there, The best way to get a feel for Passerine is to install *Aspen*¹, Passerine's package manager and CLI.
-
-If you use a *nix-style² system, run³⁴:
+For you pioneers out there, The best way to get a feel for Passerine is to install *Aspen*¹, Passerine's package manager and CLI. If you use a *nix-style² system, run³⁴:
 
 ```bash
-sh <(curl -sSf https://www.passerine.io/install.sh)
+cargo install aspen
+```
+
+This will always install the latest *stable* version of Passerine. To get a feel for the current state of development hell, check out a local copy for your own enjoyment:
+
+```
+git clone https://github.com/vrtbl/passerine
 ```
 
 > 1. If you're having trouble getting started, reach out on the community [Discord server](https://discord.gg/yMhUyhw).
 > 2. Tested on Arch (btw) and macOS.
 > 3. Now tested on Windows™!
-> 4. In the future, we plan to distribute prebuilt binaries, but for now, both Git and Cargo are required.
+> 4. In the future, we plan to distribute prebuilt binaries, but for now, a Rust install is required.
 
 ## Contributing
 Contributions are welcome!
 Read our [Contribution Guide](https://github.com/vrtbl/passerine/blob/master/CONTRIBUTING.md)
 and join the [Discord server](https://discord.gg/yMhUyhw)
 to get started!
-
-## Roadmap
-See the [Project Roadmap](https://github.com/vrtbl/passerine/projects/1) to get a feel for what's currently under development.
