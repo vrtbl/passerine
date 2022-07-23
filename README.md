@@ -28,7 +28,7 @@
 [Passerine](https://www.passerine.io) is a small, concise, extensible functional scripting language, powered by a VM written in [Rust](https://www.rust-lang.org). Here's a small taste:
 
 <p align="center">
-    <a href="https://gist.githubusercontent.com/slightknack/1b7c45ae5a3013f1c7bb58b3b9f7683f/raw/e053aaf0817fdd1c371936801f926e12e65f0b42/example.pn" target="_blank" rel="noopener noreferrer">
+    <a>
         <img src="./Example.svg">
     </a>
 </p>
