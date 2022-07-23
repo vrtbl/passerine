@@ -54,12 +54,16 @@ and many others!
 > Shaw is the developer of *MiniVM*, a portable cross-platform runtime. The eventual goal is to retire Passerine's current virtual machine, and adopt MiniVM Assembly (VASM), then later LLVM IR, as first-class targets of the compiler.
 
 ## An Overview
-Previous versions of this README directly embedded the overview. We've recently organized the overview into [*the Passerine Codex*](https://https://codex.passerine.io/core/syntax.html), which can be read online.
+We've recently moved the Overview to a separate website, the [Passerine Codex*](https://codex.passerine.io/core/syntax.html), which can be read online.
 
 > **Note**: Passerine is a *work in progress*: features mentioned in this overview may be unimplemented or subject to change.
 
 ## FAQ
-**Q:** Why is the compiler broken on main?
+**Q:** Is Passerine ready for production use?
+
+**A:** Not yet! Passerine is still in early stages of development, with frequent breaking changes.
+
+**Q:** Wait, why is the compiler broken on `master`?
 
 **A:** In July of 2021, Isaac started a small PR to refactor a small part of the language, paving the way to integrate a typechecker. This PR was originally aimed at cleaning up a part of the codebase to make this integration easier.
 
@@ -76,10 +80,6 @@ In July of 2022, a year after this quick PR had started, the PR was nowhere clos
 At the end of July, we decided to bite the bullet, break the build on main, and merge `big-refactor`. This refactor is far from being completed, but now that we've let go of this large PR blocking prospective contributers, we invite prospective contributors to submit patches to help finish building this next iteration of Passerine.
 
 The largest takeaway, in my opinion, is to scope changes, and build features incrementally. This big refactor turned massive rewrite is the exact opposite of a productive approach. Don't let refactors turn into rewrites!
-
-**Q:** Is Passerine ready for production use?
-
-**A:** Not yet! Passerine is still in early stages of development, with frequent breaking changes. See the project roadmap (down below 👇) to get an idea of what's in development.
 
 **Q:** Is Passerine statically typed?
 
