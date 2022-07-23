@@ -42,7 +42,7 @@ A number of people have offered feedback and suggestions from time to time. Huge
 [Anton](https://github.com/jesyspa/),
 [Yasser](https://github.com/realnegate),
 [Shaw](https://github.com/shawsumma)†,
-[Ben Siraphob](https://github.com/siraben)
+[Ben](https://github.com/siraben),
 [Plecra](https://github.com/plecra),
 [IFcoltransG](https://github.com/IFcoltransG),
 [Jack](https://github.com/nivpgir),
