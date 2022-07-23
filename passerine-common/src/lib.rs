@@ -5,25 +5,22 @@
 //! - Opcodes and number splicing.
 //! - Source code representation and span annotations.
 
-pub mod source;
-pub mod module;
-pub mod span;
-pub mod lit;
+pub mod closure;
 pub mod data;
-pub mod ty;
-pub mod inject;
 pub mod effect;
+pub mod inject;
+pub mod lambda;
+pub mod lit;
+pub mod module;
 pub mod number;
 pub mod opcode;
-pub mod lambda;
-pub mod closure;
+pub mod source;
+pub mod span;
+pub mod ty;
 
 pub use closure::Closure;
 pub use data::Data;
 pub use inject::Inject;
 pub use module::Module;
 pub use source::Source;
-pub use span::{
-    Span,
-    Spanned,
-};
+pub use span::{Span, Spanned};

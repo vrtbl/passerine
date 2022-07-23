@@ -133,10 +133,7 @@ impl Lexer {
         (wrap(inside), len)
     }
 
-    fn string(
-        &self,
-        remaining: RemainingIter!(),
-    ) -> Result<(Token, usize), Syntax> {
+    fn string(&self, remaining: RemainingIter!()) -> Result<(Token, usize), Syntax> {
         // expects opening quote to have been parsed
         let mut len = 1;
         let mut escape = false;
@@ -151,22 +148,23 @@ impl Lexer {
                 // TODO: \x and \u{..} for ascii and unicode
                 // TODO: maybe add parsing escape codes to later step?
                 string.push(match c {
-                    '"'  => '"',
+                    '"' => '"',
                     '\\' => '\\',
-                    'n'  => '\n',
-                    'r'  => '\r',
-                    't'  => '\t',
-                    '0'  => '\0',
-                    o    => return Err(
-                        Syntax::error_with_note(
-                            &format!("Unknown escape code `\\{}` in string literal", o),
-                            Note::new_with_hint(
-                                "To include a single backslash `\\`, escape it first: `\\\\`",
-                                &Span::new(&self.source, self.index + len - bytes, bytes),
-                            ),
+                    'n' => '\n',
+                    'r' => '\r',
+                    't' => '\t',
+                    '0' => '\0',
+                    o => {
+                        return Err(
+                            Syntax::error_with_note(
+                                &format!("Unknown escape code `\\{}` in string literal", o),
+                                Note::new_with_hint(
+                                    "To include a single backslash `\\`, escape it first: `\\\\`",
+                                    &Span::new(&self.source, self.index + len - bytes, bytes),
+                                ),
+                            ), // TODO: add help note about backslash escape
                         )
-                        // TODO: add help note about backslash escape
-                    ),
+                    }
                 })
             } else {
                 match c {
@@ -194,16 +192,14 @@ impl Lexer {
             .take_while(&mut remaining, |_| (), |n| n.is_digit(radix))
             .1;
 
-        let integer =
-            i64::from_str_radix(&self.grab_from_index(len)[2..], radix)
-                .map_err(|_| {
-                    Syntax::error(
+        let integer = i64::from_str_radix(&self.grab_from_index(len)[2..], radix).map_err(|_| {
+            Syntax::error(
                 "Integer literal too large to fit in a signed 64-bit integer",
                 // hate the + 2 hack
                 // + 2 chars to take the `0?` into account
                 &Span::new(&self.source, self.index, len),
             )
-                });
+        });
 
         Ok((Token::Lit(Lit::Integer(integer?)), len))
     }
@@ -227,14 +223,11 @@ impl Lexer {
                 // rebuild the iterator, ugh
                 let remaining = once('0').chain(once(n)).chain(remaining);
                 self.decimal_literal(remaining.peekable())
-            },
+            }
         }
     }
 
-    fn decimal_literal(
-        &self,
-        mut remaining: RemainingIter!(),
-    ) -> Result<(Token, usize), Syntax> {
+    fn decimal_literal(&self, mut remaining: RemainingIter!()) -> Result<(Token, usize), Syntax> {
         let mut len = self
             .take_while(&mut remaining, |_| (), |n| n.is_digit(10))
             .1;
@@ -246,13 +239,14 @@ impl Lexer {
                 len += self
                     .take_while(&mut remaining, |_| (), |n| n.is_digit(10))
                     .1;
-                let float = f64::from_str(self.grab_from_index(len))
-                    .map_err(|_| Syntax::error(
+                let float = f64::from_str(self.grab_from_index(len)).map_err(|_| {
+                    Syntax::error(
                         "Float literal does not fit in a 64-bit floating-point number",
                         &Span::new(&self.source, self.index, len),
-                    ))?;
+                    )
+                })?;
                 Ok((Token::Lit(Lit::Float(float)), len))
-            },
+            }
             // There's an 'e', so we parse using scientific notation
             Some('e') => Err(Syntax::error(
                 "Scientific notation for floating-point is WIP!",
@@ -260,13 +254,14 @@ impl Lexer {
             )),
             // Nothing of use, wrap up what we have so far
             _ => {
-                let integer = i64::from_str(self.grab_from_index(len))
-                    .map_err(|_| Syntax::error(
+                let integer = i64::from_str(self.grab_from_index(len)).map_err(|_| {
+                    Syntax::error(
                         "Decimal literal too large to fit in a signed 64-bit integer",
                         &Span::new(&self.source, self.index, len),
-                    ))?;
+                    )
+                })?;
                 Ok((Token::Lit(Lit::Integer(integer)), len))
-            },
+            }
         }
     }
 
@@ -364,8 +359,7 @@ impl Lexer {
             )),
         };
 
-        let spanned =
-            Spanned::new(token, Span::new(&self.source, self.index, len));
+        let spanned = Spanned::new(token, Span::new(&self.source, self.index, len));
 
         self.index += len;
         Ok(spanned)

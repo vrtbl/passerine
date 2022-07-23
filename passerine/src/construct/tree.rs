@@ -137,7 +137,7 @@ impl TryFrom<AST> for Pattern<SharedSymbol> {
                     patterns.push(item.try_map(Pattern::try_from)?);
                 }
                 Pattern::Tuple(patterns)
-            },
+            }
 
             // AST::Sugar(Sugar::Pattern(p)) => p,
             AST::Sugar(Sugar::Form(f)) => {
@@ -146,7 +146,7 @@ impl TryFrom<AST> for Pattern<SharedSymbol> {
                     patterns.push(item.try_map(Pattern::try_from)?);
                 }
                 Pattern::Chain(patterns)
-            },
+            }
             AST::Sugar(Sugar::Group(e)) => e.try_map(Pattern::try_from)?.item,
             _ => Err("Unexpected construct inside pattern")?,
         })
@@ -167,11 +167,7 @@ pub struct ScopedLambda<T> {
 }
 
 impl<T> ScopedLambda<T> {
-    pub fn new(
-        arg: Spanned<Pattern<UniqueSymbol>>,
-        tree: T,
-        scope: Scope,
-    ) -> Self {
+    pub fn new(arg: Spanned<Pattern<UniqueSymbol>>, tree: T, scope: Scope) -> Self {
         ScopedLambda {
             arg,
             body: Box::new(tree),

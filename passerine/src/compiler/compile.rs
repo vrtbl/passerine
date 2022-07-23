@@ -38,10 +38,7 @@ pub struct Compiler {
 }
 
 impl Compiler {
-    pub fn compile(
-        tree: Spanned<SST>,
-        scope: Scope,
-    ) -> Result<Rc<Lambda>, Syntax> {
+    pub fn compile(tree: Spanned<SST>, scope: Scope) -> Result<Rc<Lambda>, Syntax> {
         dbg!(&tree);
         // let ffi = ffi_core();
         let mut compiler = Compiler::base(scope);
@@ -106,12 +103,8 @@ impl Compiler {
             // },
             SST::Base(Base::Label(_)) => todo!(),
             SST::Base(Base::Tuple(tuple)) => self.tuple(tuple),
-            SST::Base(Base::Assign(pattern, expression)) => {
-                self.assign(pattern, *expression)
-            },
-            SST::ScopedLambda(ScopedLambda { arg, body, scope }) => {
-                self.lambda(arg, *body, scope)
-            },
+            SST::Base(Base::Assign(pattern, expression)) => self.assign(pattern, *expression),
+            SST::ScopedLambda(ScopedLambda { arg, body, scope }) => self.lambda(arg, *body, scope),
             SST::Base(Base::Call(fun, arg)) => self.call(*fun, *arg),
             SST::Base(Base::Module(_)) => todo!("need to handle modules"),
             SST::Base(Base::Effect(_)) => todo!("need to handle effects"),
@@ -174,11 +167,7 @@ impl Compiler {
 
     /// Generates a Label construction
     /// that loads the variant, then wraps some data
-    fn label(
-        &mut self,
-        name: UniqueSymbol,
-        expression: Spanned<SST>,
-    ) -> Result<(), Syntax> {
+    fn label(&mut self, name: UniqueSymbol, expression: Spanned<SST>) -> Result<(), Syntax> {
         todo!()
         // self.walk(&expression)?;
         // self.lit(Lit::Kind(name.0));
@@ -262,27 +251,23 @@ impl Compiler {
     /// a series of unpack and assign instructions.
     /// Instructions match against the topmost stack item.
     /// Does delete the data that is matched against.
-    fn destructure(
-        &mut self,
-        pattern: Spanned<Pattern<UniqueSymbol>>,
-        redeclare: bool,
-    ) {
+    fn destructure(&mut self, pattern: Spanned<Pattern<UniqueSymbol>>, redeclare: bool) {
         self.lambda.emit_span(&pattern.span);
 
         match pattern.item {
             Pattern::Symbol(unique_symbol) => {
                 self.resolve_assign(unique_symbol);
-            },
+            }
             Pattern::Lit(expected) => {
                 self.lit(expected);
                 self.lambda.emit(Opcode::UnData);
-            },
+            }
             Pattern::Label(name, pattern) => {
                 todo!()
                 // self.lit(Lit::Kind(name.0));
                 // self.lambda.emit(Opcode::UnLabel);
                 // self.destructure(*pattern, redeclare);
-            },
+            }
             Pattern::Tuple(tuple) => {
                 for (index, sub_pattern) in tuple.into_iter().enumerate() {
                     self.lambda.emit(Opcode::UnTuple);
@@ -291,7 +276,7 @@ impl Compiler {
                 }
                 // Delete the tuple moved to the top of the stack.
                 self.lambda.emit(Opcode::Del);
-            },
+            }
             Pattern::Chain(_) => todo!("handle pattern chains"),
         }
     }
@@ -325,9 +310,7 @@ impl Compiler {
                 self.lambda.emit_bytes(&mut split_number(index));
                 Captured::Local(index)
             } else {
-                Captured::Nonlocal(
-                    self.scope.nonlocal_index(*nonlocal).unwrap(),
-                )
+                Captured::Nonlocal(self.scope.nonlocal_index(*nonlocal).unwrap())
             };
             captures.push(captured);
         }
@@ -353,8 +336,7 @@ impl Compiler {
 
         // push the lambda object onto the callee's stack.
         // todo!("insert lambda as data");
-        let lambda_index =
-            self.lambda.index_data(Data::Lambda(Rc::new(lambda)));
+        let lambda_index = self.lambda.index_data(Data::Lambda(Rc::new(lambda)));
         self.lambda.emit(Opcode::Closure);
         self.lambda.emit_bytes(&mut split_number(lambda_index));
 
@@ -363,11 +345,7 @@ impl Compiler {
 
     /// When a function is called, the top two items are taken off the stack,
     /// The topmost item is expected to be a function.
-    fn call(
-        &mut self,
-        fun: Spanned<SST>,
-        arg: Spanned<SST>,
-    ) -> Result<(), Syntax> {
+    fn call(&mut self, fun: Spanned<SST>, arg: Spanned<SST>) -> Result<(), Syntax> {
         self.walk(&arg)?;
         self.walk(&fun)?;
 

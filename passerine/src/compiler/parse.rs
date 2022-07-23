@@ -98,10 +98,7 @@ impl Parser {
 
     // TODO: rename to `walk` or something?
     /// Entry point to parse a token tree into an AST
-    fn rule_prefix(
-        &mut self,
-        token_tree: &Spanned<TokenTree>,
-    ) -> Result<Spanned<AST>, Syntax> {
+    fn rule_prefix(&mut self, token_tree: &Spanned<TokenTree>) -> Result<Spanned<AST>, Syntax> {
         let result = match &token_tree.item {
             TokenTree::Lit(_) => self.literal(token_tree)?,
             TokenTree::Op(name) => {
@@ -113,7 +110,7 @@ impl Parser {
                         &token_tree.span,
                     ));
                 }
-            },
+            }
             TokenTree::Label(_) => self.label(token_tree)?,
             TokenTree::Iden(_) => self.symbol(token_tree)?,
             TokenTree::Form(trees) => {
@@ -138,22 +135,15 @@ impl Parser {
                 }
 
                 self.expr(trees, &mut 0, Prec::None)?
-            },
+            }
             // TODO: instead of expr, use prefix.
             TokenTree::Block(trees) => {
                 let mut expressions = vec![];
                 for tree in trees {
-                    expressions.push(self.expr(
-                        &tree.item,
-                        &mut 0,
-                        Prec::None,
-                    )?);
+                    expressions.push(self.expr(&tree.item, &mut 0, Prec::None)?);
                 }
-                Spanned::new(
-                    AST::Base(Base::Block(expressions)),
-                    token_tree.span.clone(),
-                )
-            },
+                Spanned::new(AST::Base(Base::Block(expressions)), token_tree.span.clone())
+            }
             TokenTree::List(_) => unimplemented!(),
         };
         Ok(result)
@@ -206,19 +196,15 @@ impl Parser {
                 Lambda => self.lambda(left, trees, trees_idx),
 
                 // Simple binops
-                Compose => {
-                    self.binop(left, trees, trees_idx, true, Compose, |l, r| {
-                        AST::Sugar(Sugar::comp(l, r))
-                    })
-                },
+                Compose => self.binop(left, trees, trees_idx, true, Compose, |l, r| {
+                    AST::Sugar(Sugar::comp(l, r))
+                }),
                 Is => self.binop(left, trees, trees_idx, true, Is, |l, r| {
                     AST::Sugar(Sugar::is(l, r))
                 }),
-                Field => {
-                    self.binop(left, trees, trees_idx, true, Field, |l, r| {
-                        AST::Sugar(Sugar::field(l, r))
-                    })
-                },
+                Field => self.binop(left, trees, trees_idx, true, Field, |l, r| {
+                    AST::Sugar(Sugar::field(l, r))
+                }),
 
                 // Tuples
                 Pair => {
@@ -237,7 +223,7 @@ impl Parser {
                         tuple.push(r);
                         AST::Base(Base::Tuple(tuple))
                     })
-                },
+                }
 
                 // Builtins
                 Add => todo!(),
@@ -257,9 +243,8 @@ impl Parser {
     /// Raises a syntax error if the operator string is
     /// invalid.
     fn to_op(name: &str, span: &Span) -> Result<ResOp, Syntax> {
-        ResOp::try_new(name).ok_or_else(|| {
-            Syntax::error(&format!("Invalid operator `{}`", name), span)
-        })
+        ResOp::try_new(name)
+            .ok_or_else(|| Syntax::error(&format!("Invalid operator `{}`", name), span))
     }
 
     fn op_prec(op: ResOp) -> Prec {
@@ -292,20 +277,14 @@ impl Parser {
             | TokenTree::Form(_) => Prec::Call,
 
             // Infix ops
-            TokenTree::Op(name) => {
-                Parser::op_prec(Parser::to_op(name, &tree.span)?)
-            },
+            TokenTree::Op(name) => Parser::op_prec(Parser::to_op(name, &tree.span)?),
         };
 
         Ok(result)
     }
 
     /// Try to parse a keyword expression
-    fn keyword(
-        &mut self,
-        trees: &TokenTrees,
-        keyword: ResIden,
-    ) -> Result<Spanned<AST>, Syntax> {
+    fn keyword(&mut self, trees: &TokenTrees, keyword: ResIden) -> Result<Spanned<AST>, Syntax> {
         use ResIden::*;
         match keyword {
             Macro => todo!(),
@@ -324,7 +303,7 @@ impl Parser {
                 // }
 
                 todo!()
-            },
+            }
             If => todo!(),
             Match => todo!(),
             Mod => todo!(),
@@ -333,10 +312,7 @@ impl Parser {
 
     /// Constructs the AST for a literal, such as a number
     /// or string.
-    fn literal(
-        &mut self,
-        tree: &Spanned<TokenTree>,
-    ) -> Result<Spanned<AST>, Syntax> {
+    fn literal(&mut self, tree: &Spanned<TokenTree>) -> Result<Spanned<AST>, Syntax> {
         let leaf = if let TokenTree::Lit(lit) = &tree.item {
             AST::Base(Base::Lit(lit.clone()))
         } else {
@@ -363,10 +339,7 @@ impl Parser {
     }
 
     /// Parses a Label.
-    fn label(
-        &mut self,
-        tree: &Spanned<TokenTree>,
-    ) -> Result<Spanned<AST>, Syntax> {
+    fn label(&mut self, tree: &Spanned<TokenTree>) -> Result<Spanned<AST>, Syntax> {
         // TODO: keep track of labels for typedefs?
         let symbol = if let TokenTree::Label(label) = &tree.item {
             self.intern_symbol(label)
@@ -393,10 +366,7 @@ impl Parser {
     /// even though they represent semantically different
     /// things. Semantic names are resoled in a later
     /// pass.
-    fn symbol(
-        &mut self,
-        tree: &Spanned<TokenTree>,
-    ) -> Result<Spanned<AST>, Syntax> {
+    fn symbol(&mut self, tree: &Spanned<TokenTree>) -> Result<Spanned<AST>, Syntax> {
         let symbol = if let TokenTree::Iden(iden) = &tree.item {
             if let Some(keyword) = ResIden::try_new(iden) {
                 // TODO: if there is a keyword left in the tree

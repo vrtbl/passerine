@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-    hash::Hash,
-};
+use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use crate::construct::symbol::UniqueSymbol;
 
@@ -11,7 +7,7 @@ use crate::construct::symbol::UniqueSymbol;
 /// Should be treated like an allocation pool.
 #[derive(Clone, PartialEq)]
 pub struct VecSet<T: Eq + Hash + Clone> {
-    order:   Vec<T>,
+    order: Vec<T>,
     members: HashMap<T, usize>,
 }
 
@@ -27,7 +23,7 @@ where
 impl<T: Eq + Hash + Clone + Debug> VecSet<T> {
     pub fn new() -> Self {
         VecSet {
-            order:   vec![],
+            order: vec![],
             members: HashMap::new(),
         }
     }
@@ -41,7 +37,9 @@ impl<T: Eq + Hash + Clone + Debug> VecSet<T> {
         }
     }
 
-    pub fn contains(&self, item: &T) -> bool { self.members.contains_key(item) }
+    pub fn contains(&self, item: &T) -> bool {
+        self.members.contains_key(item)
+    }
 
     pub fn index_of(&self, item: &T) -> Option<usize> {
         self.members.get(item).copied()
@@ -63,19 +61,21 @@ impl<T: Eq + Hash + Clone + Debug> VecSet<T> {
             .collect()
     }
 
-    pub fn len(&self) -> usize { self.members.len() }
+    pub fn len(&self) -> usize {
+        self.members.len()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope {
-    pub locals:    VecSet<UniqueSymbol>,
+    pub locals: VecSet<UniqueSymbol>,
     pub nonlocals: VecSet<UniqueSymbol>,
 }
 
 impl Scope {
     pub fn new() -> Scope {
         Scope {
-            locals:    VecSet::new(),
+            locals: VecSet::new(),
             nonlocals: VecSet::new(),
         }
     }

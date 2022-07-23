@@ -55,9 +55,7 @@ pub fn read(source: Rc<Source>) -> Result<Spanned<TokenTree>, Syntax> {
 }
 
 #[inline(always)]
-pub fn parse(
-    source: Rc<Source>,
-) -> Result<(Spanned<AST>, HashMap<String, SharedSymbol>), Syntax> {
+pub fn parse(source: Rc<Source>) -> Result<(Spanned<AST>, HashMap<String, SharedSymbol>), Syntax> {
     let token_tree = read(source)?;
     Parser::parse(token_tree)
 }
@@ -83,10 +81,7 @@ pub fn gen(source: Rc<Source>) -> Result<Rc<Lambda>, Syntax> {
 }
 
 #[inline(always)]
-pub fn compile_sst(
-    sst: Spanned<SST>,
-    scope: Scope,
-) -> Result<Rc<Lambda>, Syntax> {
+pub fn compile_sst(sst: Spanned<SST>, scope: Scope) -> Result<Rc<Lambda>, Syntax> {
     Compiler::compile(sst, scope)
 }
 
@@ -110,9 +105,7 @@ pub fn compile_ast(
 }
 
 #[inline(always)]
-pub fn compile_token_tree(
-    token_tree: Spanned<TokenTree>,
-) -> Result<Rc<Lambda>, Syntax> {
+pub fn compile_token_tree(token_tree: Spanned<TokenTree>) -> Result<Rc<Lambda>, Syntax> {
     let (ast, symbols) = Parser::parse(token_tree)?;
     compile_ast(ast, symbols)
 }

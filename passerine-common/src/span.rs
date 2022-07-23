@@ -270,10 +270,7 @@ impl<T> Spanned<T> {
     }
 
     /// Applies a function a `Spanned`'s item.
-    pub fn try_map<B, E>(
-        self,
-        f: fn(T) -> Result<B, E>,
-    ) -> Result<Spanned<B>, E> {
+    pub fn try_map<B, E>(self, f: fn(T) -> Result<B, E>) -> Result<Spanned<B>, E> {
         Ok(Spanned::new(f(self.item)?, self.span))
     }
 

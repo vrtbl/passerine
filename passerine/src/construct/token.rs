@@ -98,7 +98,7 @@ impl ResIden {
             "mod" => Mod,
             _ => {
                 return None;
-            },
+            }
         })
     }
 }
@@ -139,7 +139,7 @@ impl ResOp {
             "%" => Rem,
             _ => {
                 return None;
-            },
+            }
         })
     }
 }

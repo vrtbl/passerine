@@ -1,45 +1,35 @@
-use std::{
-    fs::File,
-    io::Read,
-    path::Path,
-};
+use std::{fs::File, io::Read, path::Path};
 
 use semver::Version;
-use serde::{
-    Deserialize,
-    Serialize,
-};
-use toml::{
-    self,
-    map::Map,
-};
+use serde::{Deserialize, Serialize};
+use toml::{self, map::Map};
 
 use crate::MANIFEST;
 
 #[derive(Serialize, Deserialize)]
 pub struct Manifest {
-    package:      Package,
+    package: Package,
     dependencies: Map<String, toml::Value>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Package {
     // required keys
-    name:    String,      // package name
+    name: String,         // package name
     version: String,      // package version, using semver
     authors: Vec<String>, // package authors
 
     // optional keys
-    readme:        Option<String>, // path to package's readme
-    license:       Option<String>, // Path to package's liscense
-    repository:    Option<String>, // URL to package's repository
+    readme: Option<String>,        // path to package's readme
+    license: Option<String>,       // Path to package's liscense
+    repository: Option<String>,    // URL to package's repository
     documentation: Option<String>, // URL to package's documentation
 }
 
 impl Manifest {
     pub fn new(name: String) -> Manifest {
         Manifest {
-            package:      Package {
+            package: Package {
                 name,
                 version: format!("{}", Version::new(0, 0, 0)),
                 authors: vec![],
@@ -63,10 +53,10 @@ impl Manifest {
                     path = path
                         .parent()
                         .ok_or("The manifest file could not be found")?;
-                },
+                }
                 Ok(f) => {
                     file = Some(f);
-                },
+                }
             };
         }
 
@@ -75,8 +65,7 @@ impl Manifest {
             .map_err(|_| "The manifest file could not be read")?;
 
         return Ok((
-            Manifest::parse(&source)
-                .ok_or("Could not parse the manifest file")?,
+            Manifest::parse(&source).ok_or("Could not parse the manifest file")?,
             path,
         ));
     }

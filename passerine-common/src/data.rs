@@ -1,19 +1,11 @@
 use std::{
     collections::BTreeMap,
     f64,
-    fmt::{
-        Debug,
-        Display,
-        Formatter,
-        Result,
-    },
+    fmt::{Debug, Display, Formatter, Result},
     rc::Rc,
 };
 
-use crate::{
-    closure::Closure,
-    lambda::Lambda,
-};
+use crate::{closure::Closure, lambda::Lambda};
 
 // TODO: separate VM data from parser data
 
@@ -77,7 +69,7 @@ impl Display for Data {
             Data::Integer(n) => write!(f, "{}", n),
             Data::Boolean(b) => {
                 write!(f, "{}", if *b { "true" } else { "false" })
-            },
+            }
             Data::String(s) => write!(f, "{}", s),
             Data::Lambda(_) => unreachable!("Can not display naked functions"),
             Data::Closure(_) => write!(f, "Function"),

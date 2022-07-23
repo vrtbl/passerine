@@ -6,16 +6,16 @@ pub mod manifest;
 pub mod status;
 
 // command implementations
-pub mod new;
-pub mod update;
-pub mod publish;
 pub mod add;
-pub mod run;
-pub mod repl;
-pub mod test;
 pub mod bench;
-pub mod doc;
 pub mod debug;
+pub mod doc;
+pub mod new;
+pub mod publish;
+pub mod repl;
+pub mod run;
+pub mod test;
+pub mod update;
 
 use crate::{cli::Aspen, status::Status};
 

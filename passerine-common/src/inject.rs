@@ -20,8 +20,12 @@ macro_rules! impl_inject {
         // With the above two implemented,
         // we can implement inject automatically.
         impl Inject for $type {
-            fn serialize($item: Self) -> Data { $into }
-            fn deserialize($data: Data) -> Option<Self> { $from }
+            fn serialize($item: Self) -> Data {
+                $into
+            }
+            fn deserialize($data: Data) -> Option<Self> {
+                $from
+            }
         }
     };
 }

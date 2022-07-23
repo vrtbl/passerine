@@ -5,66 +5,66 @@
 #[derive(Debug, PartialEq, Eq)]
 pub enum Opcode {
     /// Load a constant.
-    Con     = 0,
+    Con = 0,
     /// Load uninitialized Data.
     NotInit = 1,
     /// Delete a value off the stack.
-    Del     = 2,
+    Del = 2,
     /// Calls out to a Rust function via FFI
     FFICall = 3,
     /// Copies topmost value on the stack.
-    Copy    = 4,
+    Copy = 4,
     /// Moves a variable onto the heap.
     Capture = 5,
     /// Save a constant into a variable.
-    Save    = 6,
+    Save = 6,
     /// Save a value to a captured variable.
     SaveCap = 7,
     /// Push a copy of a variable onto the stack.
-    Load    = 8,
+    Load = 8,
     /// Load a copy of a captured variable.
     LoadCap = 9,
     /// Call a function.
-    Call    = 10,
+    Call = 10,
     /// Return from a function.
-    Return  = 11,
+    Return = 11,
     /// Creates a closure over the current local environment.
     Closure = 12,
     /// Prints a value.
-    Print   = 13,
+    Print = 13,
     ///
     Handler = 14,
     ///
-    Effect  = 15,
+    Effect = 15,
     /// Constructs a label.
-    Label   = 16,
+    Label = 16,
     /// Constructs a tuple.
-    Tuple   = 17,
+    Tuple = 17,
     ///
-    Record  = 18,
+    Record = 18,
     /// Destructures atomic data by asserting it matches exactly.
-    UnData  = 19,
+    UnData = 19,
     // TODO: make unlabel take the label index as an arg.
     /// Destructures a label.
     UnLabel = 20,
     /// Destructures a tuple.
     UnTuple = 21,
     /// Add two numbers on the stack.
-    Add     = 22,
+    Add = 22,
     /// Subtract two numbers on the stack.
-    Sub     = 23,
+    Sub = 23,
     /// Negate a number.
-    Neg     = 24,
+    Neg = 24,
     /// Multiple two numbers on the stack.
-    Mul     = 25,
+    Mul = 25,
     /// Divide two numbers, raising ZeroDiv side effect
-    Div     = 26,
+    Div = 26,
     /// Take the remainder of two numbers, raising ZeroDiv side effect
-    Rem     = 27,
+    Rem = 27,
     /// Take a number to a power.
-    Pow     = 28,
+    Pow = 28,
     /// Does nothing. Must always be last.
-    Noop    = 29,
+    Noop = 29,
 }
 
 impl Opcode {

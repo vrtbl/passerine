@@ -10,10 +10,18 @@ pub enum Kind {
 pub struct Status(pub Kind, pub &'static str);
 
 impl Status {
-    pub fn info() -> Status { Status(Kind::Info, "Info") }
-    pub fn success() -> Status { Status(Kind::Success, "Success") }
-    pub fn warn() -> Status { Status(Kind::Warn, "Warning") }
-    pub fn fatal() -> Status { Status(Kind::Fatal, "Fatal") }
+    pub fn info() -> Status {
+        Status(Kind::Info, "Info")
+    }
+    pub fn success() -> Status {
+        Status(Kind::Success, "Success")
+    }
+    pub fn warn() -> Status {
+        Status(Kind::Warn, "Warning")
+    }
+    pub fn fatal() -> Status {
+        Status(Kind::Fatal, "Fatal")
+    }
 
     fn tag(&self) -> ColoredString {
         match self.0 {

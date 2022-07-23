@@ -102,10 +102,10 @@
 //! The `VM` is just a simple light stack-based VM.
 
 pub use passerine_common as common;
-pub mod kernel;
 pub mod compiler;
-pub mod vm;
 pub mod construct;
+pub mod kernel;
+pub mod vm;
 
 // exported functions:
 // TODO: clean up exports

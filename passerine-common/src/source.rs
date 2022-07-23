@@ -1,10 +1,7 @@
 use std::{
     fs::File,
     io::Read,
-    path::{
-        Path,
-        PathBuf,
-    },
+    path::{Path, PathBuf},
     rc::Rc,
 };
 
@@ -20,7 +17,7 @@ use std::{
 #[derive(Debug, PartialEq, Eq)]
 pub struct Source {
     pub contents: String,
-    pub path:     PathBuf,
+    pub path: PathBuf,
 }
 
 impl Source {
@@ -33,7 +30,7 @@ impl Source {
     pub fn new(source: &str, path: &Path) -> Rc<Source> {
         Rc::new(Source {
             contents: source.to_string(),
-            path:     path.to_owned(),
+            path: path.to_owned(),
         })
     }
 

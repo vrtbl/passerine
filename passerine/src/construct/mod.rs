@@ -1,4 +1,4 @@
-pub mod symbol;
 pub mod scope;
-pub mod tree;
+pub mod symbol;
 pub mod token;
+pub mod tree;

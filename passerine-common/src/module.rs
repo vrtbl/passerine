@@ -1,13 +1,9 @@
-use std::{
-    fs,
-    path::Path,
-    rc::Rc,
-};
+use std::{fs, path::Path, rc::Rc};
 
 use crate::source::Source;
 
 pub struct Module {
-    source:   Rc<Source>,
+    source: Rc<Source>,
     children: Vec<Module>,
 }
 
@@ -43,10 +39,8 @@ impl Module {
                 .path();
 
             // classify the entry
-            let is_source_file =
-                path.extension().map(|x| x == EXTENSION).unwrap_or(false);
-            let is_entry_point =
-                path.file_stem().map(|x| x == ENTRY_POINT).unwrap_or(false);
+            let is_source_file = path.extension().map(|x| x == EXTENSION).unwrap_or(false);
+            let is_entry_point = path.file_stem().map(|x| x == ENTRY_POINT).unwrap_or(false);
 
             // grab the module at the given path
             let module = if path.is_dir() {
@@ -56,15 +50,15 @@ impl Module {
                     continue;
                 }
             } else if path.is_file() && is_source_file {
-                let source = Source::path(&path).map_err(|_| {
-                    format!("Could not read source file `{}`", path.display())
-                })?;
+                let source = Source::path(&path)
+                    .map_err(|_| format!("Could not read source file `{}`", path.display()))?;
 
                 if is_entry_point {
                     if let Some(other_path) = entry {
                         return Err(format!(
                             "Two potential entry points (`{}` and `{}`) for a single module",
-                            other_path.path.display(), path.display(),
+                            other_path.path.display(),
+                            path.display(),
                         ));
                     } else {
                         entry = Some(source);
@@ -84,11 +78,10 @@ impl Module {
             children.push(module);
         }
 
-        let source = entry
-        .ok_or_else(|| {
+        let source = entry.ok_or_else(|| {
             format!(
-                "No entry point (e.g. `{}`) in the directory for the module `{}`", 
-                entry_point_name, 
+                "No entry point (e.g. `{}`) in the directory for the module `{}`",
+                entry_point_name,
                 entry_path.display()
             )
         })?;

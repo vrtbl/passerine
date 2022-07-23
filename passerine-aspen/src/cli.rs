@@ -1,8 +1,4 @@
-use std::{
-    env::current_dir,
-    ffi::OsStr,
-    path::PathBuf,
-};
+use std::{env::current_dir, ffi::OsStr, path::PathBuf};
 
 use structopt::StructOpt;
 

@@ -20,7 +20,7 @@ impl Outcome {
             invalid => {
                 println!("invalid: '{}'", invalid);
                 panic!("invalid outcome in strat heading");
-            },
+            }
         }
     }
 }
@@ -50,7 +50,7 @@ impl Action {
             invalid => {
                 println!("invalid: '{}'", invalid);
                 panic!("invalid action in strat heading");
-            },
+            }
         }
     }
 }
@@ -104,11 +104,11 @@ impl TestStrat {
                     //     dbg!(ast);
                     // }
                     // todo!();
-                },
+                }
                 invalid => {
                     println!("invalid: '{}'", invalid);
                     panic!("invalid strat in strat heading");
-                },
+                }
             }
         }
 
@@ -197,11 +197,11 @@ fn snippet_outcome(source: Rc<Source>, strat: &TestStrat) -> Outcome {
                 }
             }
             return Outcome::Success;
-        },
+        }
         Err(e) => {
             eprintln!("{}", e);
             Outcome::Trace
-        },
+        }
     };
 
     return run_outcome;
@@ -217,9 +217,8 @@ fn test_snippet(source: Rc<Source>, strat: &TestStrat) {
 }
 
 fn snippets(dir: &str) {
-    let paths = fs::read_dir(dir).expect(
-        "You must be in the base passerine directory, snippets in ./tests/snippets",
-    );
+    let paths = fs::read_dir(dir)
+        .expect("You must be in the base passerine directory, snippets in ./tests/snippets");
 
     let mut to_run: Vec<PathBuf> = vec![];
     for path in paths {

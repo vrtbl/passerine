@@ -1,11 +1,6 @@
 use std::fmt;
 
-use crate::{
-    data::Data,
-    number::build_number,
-    opcode::Opcode,
-    span::Span,
-};
+use crate::{data::Data, number::build_number, opcode::Opcode, span::Span};
 
 /// Represents a variable visible in the current scope.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,16 +18,16 @@ pub struct Lambda {
     // TODO: make this a list of variable names
     // So structs can be made, and state preserved in the repl.
     /// Number of variables declared in this scope.
-    pub decls:     usize,
+    pub decls: usize,
     /// Each byte is an opcode or a number-stream.
-    pub code:      Vec<u8>,
+    pub code: Vec<u8>,
     /// Each usize indexes the bytecode op that begins each line.
-    pub spans:     Vec<(usize, Span)>,
+    pub spans: Vec<(usize, Span)>,
     /// Number-stream indexed, used to load constants.
     pub constants: Vec<Data>,
     /// List of positions of locals in the scope where this lambda is defined,
     /// indexes must be gauranteed to be data on the heap.
-    pub captures:  Vec<Captured>,
+    pub captures: Vec<Captured>,
     // TODO: delete FFI
     // / List of FFI functions (i.e. Rust functions)
     // / that can be called from this function.
@@ -45,11 +40,11 @@ impl Lambda {
     /// Creates a new empty `Lambda` to be filled.
     pub fn empty() -> Lambda {
         Lambda {
-            decls:     0,
-            code:      vec![],
-            spans:     vec![],
+            decls: 0,
+            code: vec![],
+            spans: vec![],
             constants: vec![],
-            captures:  vec![],
+            captures: vec![],
             // ffi:       vec![],
         }
     }
@@ -57,11 +52,7 @@ impl Lambda {
     /// Constructs a number of bytecode arguments,
     /// ensuring each is within a specific bound.
     /// If any bounds are violated, we return `None`.
-    pub fn args_safe(
-        &self,
-        index: usize,
-        within: &[usize],
-    ) -> Option<(Vec<usize>, usize)> {
+    pub fn args_safe(&self, index: usize, within: &[usize]) -> Option<(Vec<usize>, usize)> {
         let mut offset = 0;
         let mut numbers = vec![];
 
@@ -123,7 +114,7 @@ impl Lambda {
                 Some(o) => o,
                 None => {
                     return false;
-                },
+                }
             };
 
             index += 1;
@@ -134,7 +125,7 @@ impl Lambda {
                 Some((_args, consumed)) => consumed,
                 None => {
                     return false;
-                },
+                }
             }
         }
 
@@ -142,7 +133,9 @@ impl Lambda {
     }
 
     /// Emits an opcode as a byte.
-    pub fn emit(&mut self, op: Opcode) { self.code.push(op as u8) }
+    pub fn emit(&mut self, op: Opcode) {
+        self.code.push(op as u8)
+    }
 
     /// Emits a series of bytes.
     pub fn emit_bytes(&mut self, bytes: &mut Vec<u8>) {
@@ -157,7 +150,9 @@ impl Lambda {
     }
 
     /// Removes the last emitted byte.
-    pub fn demit(&mut self) { self.code.pop(); }
+    pub fn demit(&mut self) {
+        self.code.pop();
+    }
 
     /// Given some data, this function adds it to the constants table,
     /// and returns the data's index.
@@ -170,7 +165,7 @@ impl Lambda {
             None => {
                 self.constants.push(data);
                 self.constants.len() - 1
-            },
+            }
         }
     }
 
@@ -227,7 +222,7 @@ impl fmt::Display for Lambda {
                 None => {
                     writeln!(f, "Invalid Opcode at index {}", index)?;
                     break;
-                },
+                }
             };
 
             write!(f, "{:?}\t", opcode)?;
@@ -239,13 +234,9 @@ impl fmt::Display for Lambda {
             let (args, consumed) = match args_result {
                 Some((a, c)) => (a, c),
                 None => {
-                    writeln!(
-                        f,
-                        "\nInvalid Opcode argument at index {}",
-                        index
-                    )?;
+                    writeln!(f, "\nInvalid Opcode argument at index {}", index)?;
                     break;
-                },
+                }
             };
 
             index += consumed;

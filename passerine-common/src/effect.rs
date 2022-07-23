@@ -1,9 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{
-    data::Data,
-    inject::Inject,
-};
+use crate::{data::Data, inject::Inject};
 
 // TODO: switch from using From to TryFrom.
 
@@ -11,12 +8,12 @@ use crate::{
 pub struct EffectId(usize);
 
 pub struct Handler<T: Inject> {
-    id:    EffectId,
+    id: EffectId,
     _into: PhantomData<T>,
 }
 
 pub struct Effect {
-    pub id:         EffectId,
+    pub id: EffectId,
     unmatched_data: Option<Data>,
 }
 

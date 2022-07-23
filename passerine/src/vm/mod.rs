@@ -4,7 +4,7 @@
 
 pub mod fiber;
 
-pub mod tag;
-pub mod stack;
-pub mod trace;
 pub mod slot;
+pub mod stack;
+pub mod tag;
+pub mod trace;

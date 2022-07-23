@@ -34,16 +34,10 @@ impl Desugarer {
             Base::Symbol(s) => Base::Symbol(s),
             Base::Label(l) => Base::Label(l),
             Base::Lit(l) => Base::Lit(l),
-            Base::Tuple(t) => {
-                Base::Tuple(t.into_iter().map(Desugarer::walk).collect())
-            },
+            Base::Tuple(t) => Base::Tuple(t.into_iter().map(Desugarer::walk).collect()),
             Base::Module(m) => Base::module(Desugarer::walk(*m)),
-            Base::Block(b) => {
-                Base::Block(b.into_iter().map(Desugarer::walk).collect())
-            },
-            Base::Call(f, a) => {
-                Base::call(Desugarer::walk(*f), Desugarer::walk(*a))
-            },
+            Base::Block(b) => Base::Block(b.into_iter().map(Desugarer::walk).collect()),
+            Base::Call(f, a) => Base::call(Desugarer::walk(*f), Desugarer::walk(*a)),
             Base::Assign(p, e) => Base::assign(p, Desugarer::walk(*e)),
             Base::Effect(_) => todo!("need to handle effects"),
         }
@@ -75,18 +69,19 @@ impl Desugarer {
                 }
 
                 fun.item
-            },
+            }
             // TODO: don't ignore type annotations!
             Sugar::Is(e, _) => {
-                unimplemented!("type annotations will be implemented when the type checker is implemented")
-            },
-            Sugar::Comp(arg, fun) => CST::Base(Base::call(
-                Desugarer::walk(*fun),
-                Desugarer::walk(*arg),
-            )),
-            Sugar::Field(_, _) => unimplemented!(
-                "field access will be implemented when structs are implemented"
-            ),
+                unimplemented!(
+                    "type annotations will be implemented when the type checker is implemented"
+                )
+            }
+            Sugar::Comp(arg, fun) => {
+                CST::Base(Base::call(Desugarer::walk(*fun), Desugarer::walk(*arg)))
+            }
+            Sugar::Field(_, _) => {
+                unimplemented!("field access will be implemented when structs are implemented")
+            }
             Sugar::Keyword(_) => todo!(),
         }
     }

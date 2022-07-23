@@ -12,7 +12,9 @@ pub struct Note {
 }
 
 impl Note {
-    pub fn new(span: Span) -> Note { Note { span, hint: None } }
+    pub fn new(span: Span) -> Note {
+        Note { span, hint: None }
+    }
 
     pub fn new_with_hint(hint: &str, span: &Span) -> Note {
         Note {
@@ -28,16 +30,19 @@ impl Note {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Syntax {
     pub reason: String,
-    pub notes:  Vec<Note>,
+    pub notes: Vec<Note>,
 }
 
 impl Syntax {
     /// Creates a new static error with a single note that does not have a hint.
     pub fn error(reason: &str, span: &Span) -> Syntax {
-        Syntax::error_with_note(reason, Note {
-            span: span.clone(),
-            hint: None,
-        })
+        Syntax::error_with_note(
+            reason,
+            Note {
+                span: span.clone(),
+                hint: None,
+            },
+        )
     }
 
     /// Creates a new static error with a single note that may or may not have a
@@ -45,7 +50,7 @@ impl Syntax {
     pub fn error_with_note(reason: &str, note: Note) -> Syntax {
         Syntax {
             reason: reason.to_string(),
-            notes:  vec![note],
+            notes: vec![note],
         }
     }
 
@@ -55,7 +60,7 @@ impl Syntax {
     pub fn error_no_note(reason: &str) -> Syntax {
         Syntax {
             reason: reason.to_string(),
-            notes:  vec![],
+            notes: vec![],
         }
     }
 
@@ -74,34 +79,16 @@ impl fmt::Display for Syntax {
             if let Some(ref hint) = note.hint {
                 if formatted.is_multiline() {
                     writeln!(f, "{}", formatted)?;
-                    writeln!(
-                        f,
-                        "{} |- note: {} ",
-                        formatted.gutter_padding(),
-                        hint
-                    )?;
-                    writeln!(
-                        f,
-                        "{} |",
-                        " ".repeat(formatted.gutter_padding())
-                    )?;
+                    writeln!(f, "{} |- note: {} ", formatted.gutter_padding(), hint)?;
+                    writeln!(f, "{} |", " ".repeat(formatted.gutter_padding()))?;
                 } else {
                     writeln!(
                         f,
                         "In {}:{}:{}",
                         formatted.path, formatted.start, formatted.start_col
                     )?;
-                    writeln!(
-                        f,
-                        "{} |",
-                        " ".repeat(formatted.gutter_padding())
-                    )?;
-                    writeln!(
-                        f,
-                        "{} | {}",
-                        formatted.start + 1,
-                        formatted.lines[0]
-                    )?;
+                    writeln!(f, "{} |", " ".repeat(formatted.gutter_padding()))?;
+                    writeln!(f, "{} | {}", formatted.start + 1, formatted.lines[0])?;
                     writeln!(
                         f,
                         "{} | {}{} note: {}",
@@ -110,11 +97,7 @@ impl fmt::Display for Syntax {
                         "^".repeat(formatted.carrots().unwrap()),
                         hint,
                     )?;
-                    writeln!(
-                        f,
-                        "{} |",
-                        " ".repeat(formatted.gutter_padding())
-                    )?;
+                    writeln!(f, "{} |", " ".repeat(formatted.gutter_padding()))?;
                 }
             } else {
                 write!(f, "{}", formatted)?;

@@ -14,12 +14,8 @@ pub fn derive_effect(input: TokenStream) -> TokenStream {
 
     let (from, into) = match input.data {
         syn::Data::Struct(ref data) => match data.fields {
-            syn::Fields::Named(ref fields) => {
-                derive_struct_named(&type_name, fields)
-            },
-            syn::Fields::Unnamed(ref fields) => {
-                derive_struct_unnamed(&type_name, fields)
-            },
+            syn::Fields::Named(ref fields) => derive_struct_named(&type_name, fields),
+            syn::Fields::Unnamed(ref fields) => derive_struct_unnamed(&type_name, fields),
             syn::Fields::Unit => {
                 let from = quote! {
                     if let passerine_common::Data::Unit = param {
@@ -30,12 +26,12 @@ pub fn derive_effect(input: TokenStream) -> TokenStream {
                 };
                 let into = quote! { passerine_common::Data::Unit };
                 (from, into)
-            },
+            }
         },
         syn::Data::Enum(ref _data) => todo!(),
         syn::Data::Union(ref _data) => {
             unimplemented!("Unions are not supported")
-        },
+        }
     };
 
     // Build the output, possibly using quasi-quotation

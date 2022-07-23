@@ -1,17 +1,10 @@
 use std::{
     f64,
-    fmt::{
-        Debug,
-        Error,
-        Formatter,
-    },
+    fmt::{Debug, Error, Formatter},
     mem,
 };
 
-use crate::{
-    common::Data,
-    vm::slot::Slot,
-};
+use crate::{common::Data, vm::slot::Slot};
 
 // TODO: add fallback for 32-bit systems and so on.
 /// `Tagged` implements Nan-tagging around the `Data` enum.
@@ -72,24 +65,24 @@ impl Tagged {
 
             // on the heap
             // TODO: layout to make sure pointer is the right size when boxing
-            other @ Slot::Data(_)
-            | other @ Slot::Suspend { .. }
-            | other @ Slot::Ref(_) => Tagged(
-                P_FLAG
-                    | QNAN
-                    | (P_MASK & (Box::into_raw(Box::new(other))) as u64),
-            ),
+            other @ Slot::Data(_) | other @ Slot::Suspend { .. } | other @ Slot::Ref(_) => {
+                Tagged(P_FLAG | QNAN | (P_MASK & (Box::into_raw(Box::new(other))) as u64))
+            }
         }
     }
 
     // TODO: encode frame in tag itself; a frame is not data
     /// Creates a new stack frame.
     #[inline]
-    pub fn frame() -> Tagged { Tagged::new(Slot::Frame) }
+    pub fn frame() -> Tagged {
+        Tagged::new(Slot::Frame)
+    }
 
     /// Shortcut for creating a new `Tagged(Slot::NotInit)`.
     #[inline]
-    pub fn not_init() -> Tagged { Tagged::new(Slot::NotInit) }
+    pub fn not_init() -> Tagged {
+        Tagged::new(Slot::NotInit)
+    }
 
     /// Returns the underlying `Data` (or a pointer to that `Data`).
     /// Unpacks the encoding used by [`Tagged`].
@@ -103,17 +96,13 @@ impl Tagged {
     /// not be dropped
     fn extract(&self, dereference: impl FnOnce(*mut Slot) -> Slot) -> Slot {
         match self.0 {
-            n if (n & QNAN) != QNAN => {
-                Slot::Data(Data::Float(f64::from_bits(n)))
-            },
+            n if (n & QNAN) != QNAN => Slot::Data(Data::Float(f64::from_bits(n))),
             u if u == (QNAN | U_FLAG) => Slot::Data(Data::Unit),
             f if f == (QNAN | F_FLAG) => Slot::Data(Data::Boolean(false)),
             t if t == (QNAN | T_FLAG) => Slot::Data(Data::Boolean(true)),
             s if s == (QNAN | S_FLAG) => Slot::Frame,
             n if n == (QNAN | N_FLAG) => Slot::NotInit,
-            p if (p & P_FLAG) == P_FLAG => {
-                dereference((p & P_MASK) as *mut Slot)
-            },
+            p if (p & P_FLAG) == P_FLAG => dereference((p & P_MASK) as *mut Slot),
             _ => unreachable!("Corrupted tagged data"),
         }
     }
@@ -158,7 +147,9 @@ impl Debug for Tagged {
 
 impl From<Tagged> for u64 {
     /// Unwraps a tagged pointer into the literal representation for debugging.
-    fn from(tagged: Tagged) -> Self { tagged.0 }
+    fn from(tagged: Tagged) -> Self {
+        tagged.0
+    }
 }
 
 #[cfg(test)]
@@ -230,11 +221,11 @@ mod test {
             match wrapped.copy().data() {
                 Data::String(s) => {
                     assert_eq!(item, &s)
-                },
+                }
                 _ => {
                     // println!("{:#b}", u64::from(wrapped));
                     panic!("Didn't unwrap to a string");
-                },
+                }
             }
         }
     }

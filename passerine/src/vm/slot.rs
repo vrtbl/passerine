@@ -1,22 +1,15 @@
 use std::{
     cell::RefCell,
-    fmt::{
-        Debug,
-        Formatter,
-        Result,
-    },
+    fmt::{Debug, Formatter, Result},
     rc::Rc,
 };
 
-use crate::common::{
-    closure::Closure,
-    data::Data,
-};
+use crate::common::{closure::Closure, data::Data};
 
 /// Represents a suspended closure.
 #[derive(Debug, Clone)]
 pub struct Suspend {
-    pub ip:      usize,
+    pub ip: usize,
     pub closure: Closure,
 }
 
@@ -45,7 +38,7 @@ impl Slot {
             Slot::Ref(r) => r.borrow().to_owned(),
             Slot::Frame | Slot::Suspend(_) | Slot::NotInit => {
                 unreachable!("expected data on top of stack, found {:?}", self)
-            },
+            }
         }
     }
 
@@ -54,11 +47,8 @@ impl Slot {
             Slot::Data(d) => Rc::new(RefCell::new(d)),
             Slot::Ref(r) => r,
             Slot::Frame | Slot::Suspend(_) | Slot::NotInit => {
-                unreachable!(
-                    "expected reference on top of stack, found {:?}",
-                    self
-                )
-            },
+                unreachable!("expected reference on top of stack, found {:?}", self)
+            }
         }
     }
 }

@@ -1,16 +1,9 @@
-use std::{
-    cell::RefCell,
-    mem,
-    rc::Rc,
-};
+use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{
     common::Data,
     vm::{
-        slot::{
-            Slot,
-            Suspend,
-        },
+        slot::{Slot, Suspend},
         tag::Tagged,
     },
 };
@@ -25,7 +18,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Stack {
     pub frames: Vec<usize>,
-    pub stack:  Vec<Tagged>,
+    pub stack: Vec<Tagged>,
 }
 
 impl Stack {
@@ -33,13 +26,15 @@ impl Stack {
     pub fn init() -> Stack {
         Stack {
             frames: vec![0],
-            stack:  vec![Tagged::frame()],
+            stack: vec![Tagged::frame()],
         }
     }
 
     /// Return the index of the topmost `Tagged(Slot::Frame)`.
     #[inline]
-    fn frame_index(&self) -> usize { *self.frames.last().unwrap() }
+    fn frame_index(&self) -> usize {
+        *self.frames.last().unwrap()
+    }
 
     /// Pop and return the topmost `Tagged` item.
     #[inline]
@@ -64,7 +59,9 @@ impl Stack {
 
     /// Pushes some `Tagged` `Data` onto the `Stack` without unwrapping it.
     #[inline]
-    pub fn push_tagged(&mut self, tagged: Tagged) { self.stack.push(tagged) }
+    pub fn push_tagged(&mut self, tagged: Tagged) {
+        self.stack.push(tagged)
+    }
 
     /// Pops some `Data` of the `Stack`, panicking if what it pops is not
     /// `Data`. Note that this will never return a `Heaped` value, rather
@@ -115,7 +112,9 @@ impl Stack {
 
     /// Shorcut for pushing a `Tagged(Slot::NotInit)` on top of the stack.
     #[inline]
-    pub fn push_not_init(&mut self) { self.stack.push(Tagged::not_init()); }
+    pub fn push_not_init(&mut self) {
+        self.stack.push(Tagged::not_init());
+    }
 
     /// Shortcut for calling `push_not_init` N times.
     #[inline]
@@ -187,7 +186,7 @@ impl Stack {
             n if n < local_index => {
                 // println!("{} < {}", self.stack.len() - 1, local_index);
                 unreachable!("Can not set local that is not yet on stack");
-            },
+            }
             _ => (),
         }
 

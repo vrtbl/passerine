@@ -2,8 +2,8 @@ use std::mem;
 
 use crate::{
     common::{
-        closure::Closure, data::Data, lambda::Captured, number::build_number,
-        opcode::Opcode, span::Span,
+        closure::Closure, data::Data, lambda::Captured, number::build_number, opcode::Opcode,
+        span::Span,
     },
     vm::{slot::Suspend, stack::Stack, trace::Trace},
 };
@@ -310,13 +310,10 @@ impl Fiber {
             other => {
                 return Err(Trace::error(
                     "Pattern Matching",
-                    &format!(
-                        "The data '{}' does not match the Label '{}'",
-                        other, kind
-                    ),
+                    &format!("The data '{}' does not match the Label '{}'", other, kind),
                     vec![self.current_span()],
                 ))
-            },
+            }
         };
 
         self.stack.push_data(*d);
@@ -333,7 +330,7 @@ impl Fiber {
                     &format!("The data '{}' is not a tuple", other),
                     vec![self.current_span()],
                 ))
-            },
+            }
         };
 
         let length = t.len();
@@ -342,7 +339,9 @@ impl Fiber {
                 "Indexing",
                 &format!(
                     "The tuple '{}' is of length {}, so the index {} is out-of-bounds",
-                    Data::Tuple(t), length, index
+                    Data::Tuple(t),
+                    length,
+                    index
                 ),
                 vec![self.current_span()],
             ));
@@ -363,21 +362,18 @@ impl Fiber {
             o => {
                 return Err(Trace::error(
                     "Call",
-                    &format!(
-                        "The data '{}' is not a function and can not be called",
-                        o
-                    ),
+                    &format!("The data '{}' is not a function and can not be called", o),
                     vec![self.current_span()],
                 ))
-            },
+            }
         };
         let arg = self.stack.pop_data();
 
         // TODO: make all programs end in return,
         // so bounds check (i.e. is_terminated) is never required
         self.next();
-        let tail_call = !self.is_terminated()
-            && Opcode::Return == Opcode::from_byte(self.peek_byte());
+        let tail_call =
+            !self.is_terminated() && Opcode::Return == Opcode::from_byte(self.peek_byte());
 
         // clear the stack if there's a tail call
         // we must do this before we suspend the calling context
@@ -451,9 +447,7 @@ impl Fiber {
         for captured in closure.lambda.captures.iter() {
             let reference = match captured {
                 Captured::Local(index) => self.stack.local_ref(*index),
-                Captured::Nonlocal(upvalue) => {
-                    self.closure.captures[*upvalue].clone()
-                },
+                Captured::Nonlocal(upvalue) => self.closure.captures[*upvalue].clone(),
             };
             closure.captures.push(reference)
         }

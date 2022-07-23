@@ -1,24 +1,12 @@
 use crate::{
-    common::span::{
-        Span,
-        Spanned,
-    },
-    compiler::syntax::{
-        Note,
-        Syntax,
-    },
-    construct::token::{
-        Delim,
-        Token,
-        TokenTree,
-        TokenTrees,
-        Tokens,
-    },
+    common::span::{Span, Spanned},
+    compiler::syntax::{Note, Syntax},
+    construct::token::{Delim, Token, TokenTree, TokenTrees, Tokens},
 };
 
 pub struct Reader {
-    tokens:  Spanned<Tokens>,
-    index:   usize,
+    tokens: Spanned<Tokens>,
+    index: usize,
     // stack of nested groupings
     opening: Vec<Spanned<Delim>>,
 }
@@ -86,21 +74,18 @@ impl Reader {
                     // TODO: unwrap to the end of source span?
                     return Err(Syntax::error(
                         "Unexpected end of source while parsing form",
-                        &Spanned::build(&tokens)
-                            .unwrap_or_else(|| self.tokens.span.clone()),
+                        &Spanned::build(&tokens).unwrap_or_else(|| self.tokens.span.clone()),
                     ));
-                },
+                }
             };
 
             let span = token.span;
             let item = match token.item {
-                Token::Open(delim) => {
-                    self.enter_group(Spanned::new(delim, span.clone()))?
-                },
+                Token::Open(delim) => self.enter_group(Spanned::new(delim, span.clone()))?,
                 Token::Close(delim) => {
                     let span = self.exit_group(Spanned::new(delim, span))?;
                     break span;
-                },
+                }
                 Token::Sep => continue,
 
                 // Trivial conversion
@@ -132,17 +117,15 @@ impl Reader {
 
             let span = token.span;
             let item = match token.item {
-                Token::Open(delim) => {
-                    self.enter_group(Spanned::new(delim, span.clone()))?
-                },
+                Token::Open(delim) => self.enter_group(Spanned::new(delim, span.clone()))?,
                 Token::Close(delim) => {
                     let span = self.exit_group(Spanned::new(delim, span))?;
                     break span;
-                },
+                }
                 Token::Sep => {
                     after_sep = true;
                     continue;
-                },
+                }
 
                 Token::Op(op) => {
                     let spanned = Spanned::new(TokenTree::Op(op), span);
@@ -150,7 +133,7 @@ impl Reader {
                     after_sep = false;
                     after_op = true;
                     continue;
-                },
+                }
 
                 // Trivial conversion
                 other => Spanned::new(Self::trivial(other).unwrap(), span),
@@ -178,10 +161,7 @@ impl Reader {
         Ok(Spanned::new(TokenTree::Block(lines), entire_span))
     }
 
-    fn enter_group(
-        &mut self,
-        delim: Spanned<Delim>,
-    ) -> Result<Spanned<TokenTree>, Syntax> {
+    fn enter_group(&mut self, delim: Spanned<Delim>) -> Result<Spanned<TokenTree>, Syntax> {
         self.opening.push(delim.clone());
 
         let tree = match delim.item {
@@ -193,10 +173,7 @@ impl Reader {
         return Ok(tree);
     }
 
-    fn exit_group(
-        &mut self,
-        closing_delim: Spanned<Delim>,
-    ) -> Result<Span, Syntax> {
+    fn exit_group(&mut self, closing_delim: Spanned<Delim>) -> Result<Span, Syntax> {
         let opening_delim = self.opening.pop().ok_or_else(|| {
             Syntax::error(
                 &format!("Unexpected closing {}", closing_delim.item),
@@ -229,10 +206,7 @@ mod test {
     use proptest::prelude::*;
 
     use super::*;
-    use crate::{
-        common::source::Source,
-        compiler::lex::Lexer,
-    };
+    use crate::{common::source::Source, compiler::lex::Lexer};
 
     /// Generates a source file from some tokens.
     /// Replaces each token with a minimal representative

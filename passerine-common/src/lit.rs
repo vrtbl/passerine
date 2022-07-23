@@ -1,11 +1,6 @@
 use std::{
     f64,
-    fmt::{
-        Debug,
-        Display,
-        Formatter,
-        Result,
-    },
+    fmt::{Debug, Display, Formatter, Result},
 };
 
 use crate::data::Data;
@@ -68,7 +63,7 @@ impl Display for Lit {
             Lit::Unit => write!(f, "()"),
             Lit::Boolean(b) => {
                 write!(f, "{}", if *b { "True" } else { "False" })
-            },
+            }
         }
     }
 }

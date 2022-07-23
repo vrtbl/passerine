@@ -137,9 +137,7 @@ impl Hoister {
     fn walk(&mut self, tree: Spanned<CST>) -> Result<Spanned<SST>, Syntax> {
         let sst: SST = match tree.item {
             CST::Base(Base::Lit(data)) => SST::Base(Base::Lit(data)),
-            CST::Base(Base::Symbol(name)) => {
-                self.symbol(name, tree.span.clone())
-            },
+            CST::Base(Base::Symbol(name)) => self.symbol(name, tree.span.clone()),
             CST::Base(Base::Block(block)) => self.block(block)?,
             // TODO: hoist as well
             CST::Base(Base::Label(name)) => {
@@ -148,11 +146,9 @@ impl Hoister {
                 //     // TODO: change this to the following lines after types:
                 //     self.resolve_symbol(name, cst.span.clone()),
                 // )
-            },
+            }
             CST::Base(Base::Tuple(tuple)) => self.tuple(tuple)?,
-            CST::Base(Base::Assign(pattern, expression)) => {
-                self.assign(pattern, *expression)?
-            },
+            CST::Base(Base::Assign(pattern, expression)) => self.assign(pattern, *expression)?,
             CST::Lambda(Lambda { arg, body }) => self.lambda(arg, *body)?,
             CST::Base(Base::Call(fun, arg)) => self.call(*fun, *arg)?,
             CST::Base(Base::Module(_)) => todo!(),
@@ -171,9 +167,7 @@ impl Hoister {
         declare: bool,
     ) -> Spanned<Pattern<UniqueSymbol>> {
         let item = match pattern.item {
-            Pattern::Symbol(name) => {
-                Pattern::Symbol(self.resolve_assign(name, declare))
-            },
+            Pattern::Symbol(name) => Pattern::Symbol(self.resolve_assign(name, declare)),
             Pattern::Lit(l) => Pattern::Lit(l),
             Pattern::Label(n, p) => Pattern::Label(
                 // TODO: This is temoprary. Makes first use the definition.
@@ -271,11 +265,7 @@ impl Hoister {
     /// this function will define it in all lexical scopes
     /// once this variable is discovered, we remove the
     /// definitions in all scopes below this one.
-    fn resolve_assign(
-        &mut self,
-        name: SharedSymbol,
-        redeclare: bool,
-    ) -> UniqueSymbol {
+    fn resolve_assign(&mut self, name: SharedSymbol, redeclare: bool) -> UniqueSymbol {
         // if we've seen the symbol before but don't know where it's
         // defined
         if let Some(unique_symbol) = self.unresolved_hoists.get(&name) {
@@ -313,11 +303,7 @@ impl Hoister {
 
     /// This function wraps try_resolve,
     /// but checks that the symbol is unresolved first.
-    fn resolve_symbol(
-        &mut self,
-        name: SharedSymbol,
-        span: Span,
-    ) -> UniqueSymbol {
+    fn resolve_symbol(&mut self, name: SharedSymbol, span: Span) -> UniqueSymbol {
         // if we've seen the symbol before but don't know where it's
         // defined
         if let Some(unique_symbol) = self.unresolved_hoists.get(&name) {
@@ -404,11 +390,7 @@ impl Hoister {
     }
 
     /// Walks a function call.
-    fn call(
-        &mut self,
-        fun: Spanned<CST>,
-        arg: Spanned<CST>,
-    ) -> Result<SST, Syntax> {
+    fn call(&mut self, fun: Spanned<CST>, arg: Spanned<CST>) -> Result<SST, Syntax> {
         return Ok(SST::Base(Base::call(self.walk(fun)?, self.walk(arg)?)));
     }
 }

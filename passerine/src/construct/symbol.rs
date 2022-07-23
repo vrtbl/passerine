@@ -27,7 +27,9 @@ pub struct SymbolTable {
 }
 
 impl SymbolTable {
-    pub fn new() -> SymbolTable { SymbolTable { interns: vec![] } }
+    pub fn new() -> SymbolTable {
+        SymbolTable { interns: vec![] }
+    }
 
     pub fn name(&self, unique: &UniqueSymbol) -> SharedSymbol {
         return self.interns[unique.0];

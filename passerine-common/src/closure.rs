@@ -1,12 +1,6 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-};
+use std::{cell::RefCell, rc::Rc};
 
-use crate::{
-    data::Data,
-    lambda::Lambda,
-};
+use crate::{data::Data, lambda::Lambda};
 
 /// Wraps a `Lambda` with some scope context.
 /// Each closure is unique when constructed,
@@ -14,7 +8,7 @@ use crate::{
 /// It holds a set of references to variables it captures.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Closure {
-    pub lambda:   Rc<Lambda>,
+    pub lambda: Rc<Lambda>,
     pub captures: Vec<Rc<RefCell<Data>>>,
 }
 
