@@ -1,0 +1,5 @@
+# action: run
+# outcome: syntax
+
+x
+x = 0

@@ -1,0 +1,13 @@
+# action: run
+# outcome: success
+# expect: "Nice"
+
+a = x -> x "Nice"
+b = x -> a x
+c = x -> b x
+d = x -> c x
+e = x -> d x
+
+i = x -> x
+
+e i

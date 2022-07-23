@@ -1,0 +1,8 @@
+# action: run
+# outcome: trace
+
+syntax 'calls w {
+    () -> (w -> w + ())
+}
+
+(calls x) () 10.0

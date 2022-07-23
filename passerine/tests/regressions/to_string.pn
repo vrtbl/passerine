@@ -1,0 +1,9 @@
+# action: run
+# outcome: success
+# expect: "I am 5.5 years old"
+
+to_string = data -> magic "to_string" data
+
+age = 5.5
+
+println ("I am " + age.to_string + " years old")

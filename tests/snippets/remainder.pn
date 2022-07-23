@@ -1,6 +1,0 @@
--- action: run
--- outcome: success
--- expect: 1.0
-
--- TODO: negative behaviour
-println (3.0 % 2.0)

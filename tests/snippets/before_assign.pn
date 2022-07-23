@@ -1,7 +1,0 @@
--- action: run
--- outcome: trace
-
--- TODO: should be syntax
-
-x
-x = 0

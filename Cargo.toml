@@ -1,12 +1,9 @@
-[package]
-name = "passerine"
-version = "0.9.3"
-authors = [
-    "Isaac Clayton (slightknack) <slightknack@gmail.com>",
-    "The Passerine Community",
+[workspace]
+
+members = [
+    "passerine-common",
+    "passerine-derive",
+    "passerine",
+    "passerine-aspen",
+    # "passerine-qualm",
 ]
-edition = "2021"
-description = "A small extensible functional scripting language designed for concise expression with little code."
-license = "MIT"
-readme = "README.md"
-repository = "https://github.com/vrtbl/passerine"

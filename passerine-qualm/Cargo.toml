@@ -1,0 +1,8 @@
+[package]
+name = "flex"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+attorand = "1.0"
+rayon = "1.5"

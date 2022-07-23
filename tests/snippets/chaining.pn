@@ -1,8 +1,0 @@
--- action:  run
--- outcome: success
--- expect:  "Bye"
-
-i = x -> x
-bye = x -> "Bye"
-
-"Hello" . i . bye . i

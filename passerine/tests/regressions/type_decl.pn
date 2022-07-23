@@ -1,0 +1,12 @@
+print Cool 7
+
+x = () -> {
+    print Cool 7
+}
+x ()
+
+print Cool 7
+print Cool 7
+
+0/0
+

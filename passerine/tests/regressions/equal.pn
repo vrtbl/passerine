@@ -1,0 +1,5 @@
+# action: run
+# outcome: success
+# expect: false
+
+"Banana" == "Nice"

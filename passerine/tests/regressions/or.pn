@@ -1,0 +1,21 @@
+# action: run
+# outcome: success
+# expect: true
+
+syntax a 'or b {
+    magic "if" (a,
+        true,
+        b,
+    )
+}
+
+syntax a 'equals b {
+    magic "equal" (a, b)
+}
+
+x = 1.0
+y = 2.0
+
+result = (x equals 5.0) or (y equals 2.0)
+
+println result

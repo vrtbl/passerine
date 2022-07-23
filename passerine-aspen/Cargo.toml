@@ -1,0 +1,30 @@
+[package]
+name = "passerine-aspen"
+version = "0.5.1"
+authors = [
+    "Isaac Clayton (slightknack) <slightknack@gmail.com>",
+    "The Passerine Community",
+]
+edition = "2021"
+description = "Passerine's package manager."
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/vrtbl/aspen"
+
+[dependencies]
+structopt = "0.3"
+serde     = { version = "1.0", features = ["derive"] }
+toml      = "0.5"
+semver    = "0.10"
+colored   = "2"
+
+# Make it a path dependency for dev.
+passerine = { path = "../passerine" }
+passerine-derive = { path = "../passerine-derive" }
+
+[features]
+no_color = ["colored/no-color"]
+
+[[bin]]
+name = "aspen"
+path = "src/main.rs"

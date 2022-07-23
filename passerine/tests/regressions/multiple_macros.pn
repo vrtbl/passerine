@@ -1,0 +1,12 @@
+# action: desugar
+# outcome: syntax
+
+syntax 'macro1 x {
+    println "In macro1!"
+}
+
+syntax x 'macro2 {
+    println "In macro2!"
+}
+
+macro1 macro2   # which one do you call?

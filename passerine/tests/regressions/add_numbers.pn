@@ -1,0 +1,5 @@
+# action: run
+# outcome: success
+# expect: 3.0
+
+println (1.0 + 2.0)

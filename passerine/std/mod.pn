@@ -1,0 +1,85 @@
+type Bool =
+    | True
+    | False
+
+use Bool.{..}
+
+type Option = 
+    T =>
+    | Some T
+    | None
+
+use Option.{..}
+
+type Result =
+    T E =>
+    | Ok T
+    | Err E
+
+compiler = mod {
+    # TODO: how to link Spans to Sources?
+    Span = {
+        source: Nat
+        offset: Nat
+        length: Nat
+    }
+
+    Spanned = T => {
+        item: T
+        span: Span
+    }
+
+    TokenTrees = [Spanned TokenTree]
+
+    TokenTree =
+        # Grouping
+        | Block = [Spanned TokenTrees]
+        | List = TokenTrees
+        | Form = TokenTrees
+        # Leafs
+        | Iden = String
+        | Label = String 
+        | Op = String
+        | Lit = Lit
+
+    Lit = 
+        | Nat
+        | Float
+        | Integer
+        | String
+        | Label = (Nat, Lit)
+        | ()
+        | Bool
+}
+
+use compiler.{..}
+
+macro do_twice = token_tree -> {
+    Spanned {
+        item: TokenTree.Block [
+            token_tree,
+            token_tree,
+        ]
+        span: token_tree.span,
+    }
+
+}
+
+macro quote = token_tree -> {
+    use TokenTree.{..}
+
+    match token_tree.item
+        | Block expressions -> {}
+        | List tree
+        | Form tree
+        | Iden iden
+        | Label label
+        | Op op -> TokenTree.Group [
+            TokenTree.Iden "TokenTree.Op",
+            TokenTree.Lit (Lit op),
+        ]
+        | Lit lit -> TokenTree.Group [
+            TokenTree.Iden "TokenTree.Lit",
+            TokenTree.Lit (Lit lit),
+        ]
+}

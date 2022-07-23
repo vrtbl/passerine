@@ -1,5 +1,0 @@
--- action: run
--- outcome: success
--- expect: "Hello, World!"
-
-println "Hello, World!"

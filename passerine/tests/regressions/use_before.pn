@@ -1,0 +1,8 @@
+# action: run
+# outcome: trace
+
+# TODO: should be syntax??
+
+# function = () -> value
+# value
+# value = 7.0

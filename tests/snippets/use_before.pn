@@ -1,8 +1,0 @@
--- action: run
--- outcome: trace
-
--- TODO: should be syntax
-
-function = () -> value
-println value
-value = 7.0

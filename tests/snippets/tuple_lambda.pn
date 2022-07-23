@@ -1,7 +1,0 @@
--- action: run
--- outcome: success
--- expect: 8.0
-
-a, b, c = true, x -> (x * 2.0), false
-
-println (b 4.0)

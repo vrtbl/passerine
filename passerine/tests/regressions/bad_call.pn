@@ -1,0 +1,9 @@
+# action: run
+# outcome: trace
+
+uh = problemo -> (true -> false) false == true
+hi = w -> uh "Hi " + w
+im = w -> hi "I'm " + w
+joe = w -> im "Joe" + w
+
+println joe "."

@@ -1,0 +1,14 @@
+# Build folders
+/target
+/example
+
+# Backups, rustfmt
+**/*.rs.bk
+
+# Hidden files
+**/.*
+
+# But not:
+!.gitignore
+!.git
+!.github
