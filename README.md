@@ -1,5 +1,3 @@
-> **Note**: [Isaac](https://github.com/slightknack) is taking a two-year break from technology (announcement and explanation coming soon), and will no longer be developing Passerine. The project has been handed over to [Ben Siraphob](https://github.com/siraben), who will continue the maintence of the community while Isaac is away.
-
 <p align="center">
     <a href="https://passerine.io">
         <img src="./Logotype.svg">
@@ -22,6 +20,7 @@
 </p>
 
 ## Why Passerine?
+
 [Passerine](https://www.passerine.io) is a small, concise, extensible functional scripting language, powered by a VM written in [Rust](https://www.rust-lang.org). Here's a small taste:
 
 <p align="center">
@@ -33,6 +32,7 @@
 Passerine has roots in Scheme and ML-flavored languages: it's the culmination of everything I expect from a programming language, including the desire to keep everything as minimalistic and concise as possible. At its core, Passerine is lambda-calculus with pattern-matching, structural types, fiber-based concurrency, and syntactic extension.
 
 ### Who started this?
+
 Passerine was started by [Isaac Clayton](https://github.com/slightknack) at the end of 2019. In August of 2022, Isaac handed over the maintenece of Passerine and its community to his friend [Ben Siraphob](https://github.com/siraben).
 
 A number of people have offered feedback and suggestions from time to time. Huge thanks to
@@ -59,27 +59,10 @@ We've recently moved the Overview to a separate website, the [Passerine Codex](h
 > **Note**: Passerine is a *work in progress*: features mentioned in this overview may be unimplemented or subject to change.
 
 ## FAQ
+
 **Q:** Is Passerine ready for production use?
 
 **A:** Not yet! Passerine is still in early stages of development, with frequent breaking changes.
-
-**Q:** Wait, why is the compiler broken on `master`?
-
-**A:** In July of 2021, Isaac started a small PR to refactor a small part of the language, paving the way to integrate a typechecker. This PR was originally aimed at cleaning up a part of the codebase to make this integration easier.
-
-Making this change required a small change to how the parser parsed expressions. This, in turn, required modifying the lexer. Passerine's old lexer was very bad, so instead of modifying the lexer, I rewrote the lexer from scratch. This changed the output of the lexer significantly, so I added an additional `read` pass to prepare the input for the macro system (which we had decided to modify as well). Because the output of the `read` pass differed greatly from what the parser expected, the parser had to be significantly rewritten as well.
-
-Around the same time, it was decided to transition towards using MiniVM as a backend, given its high performance and ease of integration. This required modifying the existing VM to more closely match how MiniVM worked, which required the code generation pass to be modified as well.
-
-Throughout this entire process, a little refactor that was meant to take a week turned into an entire rewrite of the codebase, taking over a year (and counting). Once all passes were finally complete, we put everything together. It was quickly discovered, however, that none of the passes matched, and nothing was compiling correctly anymore.
-
-It was now March of 2022, and the product of 8 months of work was a broken compiler, each pass working individually (for the most part), but nothing working together. Around this time [Zack](https://github.com/zack466) and [Mahmoud](https://github.com/fuzzypixelz) started working on the refactor, and we were able to write property-based tests to fuzz the front-half of the compiler. Writing property-based tests for the back-half of the compiler is ongoing work.
-
-In July of 2022, a year after this quick PR had started, the PR was nowhere close to being ready to merge. A part of this was out of fear of merging something that wasn't ready yet, and another part out of not having enough time to work on pushing the PR through to completion due to school and work.
-
-At the end of July, we decided to bite the bullet, break the build on main, and merge `big-refactor`. This refactor is far from being completed, but now that we've let go of this large PR blocking prospective contributers, we invite prospective contributors to submit patches to help finish building this next iteration of Passerine.
-
-The largest takeaway, in my opinion, is to scope changes, and build features incrementally. This big refactor turned massive rewrite is the exact opposite of a productive approach. Don't let refactors turn into rewrites!
 
 **Q:** Is Passerine statically typed?
 
@@ -121,6 +104,7 @@ Case in point: text-based entry for programming languages has been around foreve
 I'd like to focus more on this in the future. An interesting project would be an editor/environment like Pharo/Unison for a small minimal language, like Scheme, or perhaps even Passerine.
 
 ## Installation
+
 Passerine is still very much so a work in progress. We've done a lot, but there's still a so much more to do!
 
 For you pioneers out there, The best way to get a feel for Passerine is to install *Aspen*¹, Passerine's package manager and CLI. If you use a *nix-style² system, run³⁴:
@@ -141,6 +125,7 @@ git clone https://github.com/vrtbl/passerine
 > 4. In the future, we plan to distribute prebuilt binaries, but for now, a Rust install is required.
 
 ## Contributing
+
 Contributions are welcome!
 Read our [Contribution Guide](https://github.com/vrtbl/passerine/blob/master/CONTRIBUTING.md)
 and join the [Discord server](https://discord.gg/yMhUyhw)
